@@ -1,0 +1,191 @@
+// Pure i18n module (safe to import from server OR client components).
+export type Locale = "en" | "he";
+export const LOCALES: Locale[] = ["en", "he"];
+export const DEFAULT_LOCALE: Locale = "en";
+
+export function dirFor(locale: Locale): "ltr" | "rtl" {
+  return locale === "he" ? "rtl" : "ltr";
+}
+
+export function isLocale(v: unknown): v is Locale {
+  return v === "en" || v === "he";
+}
+
+/** Read the "locale" value out of a cookie header string (client or server). */
+export function localeFromCookie(cookie?: string | null): Locale {
+  if (!cookie) return DEFAULT_LOCALE;
+  const m = cookie.match(/(?:^|;\s*)locale=(en|he)/);
+  return (m?.[1] as Locale) ?? DEFAULT_LOCALE;
+}
+
+type Dict = Record<string, string>;
+
+const en: Dict = {
+  "app.name": "ServicePro",
+  "app.tagline": "Smart service management",
+  "role.owner": "Owner",
+  "role.office": "Office",
+  "role.tech": "Technician",
+  "nav.dashboard": "Dashboard",
+  "nav.schedule": "Schedule",
+  "nav.customers": "Customers",
+  "nav.estimates": "Estimates",
+  "nav.invoices": "Invoices",
+  "nav.settings": "Settings",
+  "common.signOut": "Sign out",
+  "common.save": "Save",
+  "common.cancel": "Cancel",
+  "common.saving": "Saving…",
+  "lang.label": "Language",
+  "login.title_login": "Sign in",
+  "login.title_signup": "Create your account",
+  "login.email": "Email",
+  "login.password": "Password",
+  "login.passwordHint": "At least 8 characters",
+  "login.signIn": "Sign in",
+  "login.signUp": "Sign up",
+  "login.noAccount": "No account yet?",
+  "login.haveAccount": "Already registered?",
+  "login.confirmSent": "Verification email sent (if enabled). Confirm, then sign in.",
+  "login.wait": "One moment…",
+  "onb.welcome": "Welcome 👋",
+  "onb.desc": "Let's set up your business. You can change all of this later in Settings.",
+  "onb.orgName": "Business name",
+  "onb.orgNamePh": "e.g. Cohen Air Conditioning LLC",
+  "onb.yourName": "Your name",
+  "onb.yourNamePh": "Full name",
+  "onb.language": "Language",
+  "onb.currency": "Currency",
+  "onb.taxLabel": "Tax label",
+  "onb.taxRate": "Tax rate (%)",
+  "onb.create": "Create business & start",
+  "dash.greeting": "Hello {name}",
+  "dash.overview": "Business overview",
+  "dash.customers": "Customers",
+  "dash.jobs": "Jobs",
+  "dash.secured": "✅ Connected to a secure database. Your data is isolated to your business only (RLS).",
+  "cust.title": "Customers",
+  "cust.count": "{n} customers",
+  "cust.new": "New customer",
+  "cust.search": "Search customer…",
+  "cust.empty": 'No customers yet — click "New customer"',
+  "cust.col.name": "Name",
+  "cust.col.phone": "Phone",
+  "cust.col.city": "City",
+  "cust.col.source": "Source",
+  "cust.form.new": "New customer",
+  "form.name": "Full name *",
+  "form.phone": "Phone *",
+  "form.email": "Email",
+  "form.address": "Address",
+  "form.city": "City",
+  "form.source": "Lead source",
+  "form.source_choose": "— choose —",
+  "form.notes": "Notes",
+  "err.name_required": "Please enter a name",
+  "err.phone_required": "Please enter a phone number",
+  "err.email_invalid": "Invalid email",
+  "err.invalid": "Invalid input",
+  "err.forbidden": "You don't have permission for this action",
+  "src.google": "Google",
+  "src.referral": "Referral",
+  "src.facebook": "Facebook",
+  "src.instagram": "Instagram",
+  "src.repeat": "Repeat customer",
+  "src.vehicle": "Sign / vehicle",
+  "src.other": "Other",
+};
+
+const he: Dict = {
+  "app.name": "ServicePro",
+  "app.tagline": "ניהול שירות חכם",
+  "role.owner": "בעלים",
+  "role.office": "משרד",
+  "role.tech": "טכנאי",
+  "nav.dashboard": "לוח בקרה",
+  "nav.schedule": "יומן",
+  "nav.customers": "לקוחות",
+  "nav.estimates": "הצעות מחיר",
+  "nav.invoices": "חשבוניות",
+  "nav.settings": "הגדרות",
+  "common.signOut": "התנתקות",
+  "common.save": "שמירה",
+  "common.cancel": "ביטול",
+  "common.saving": "שומר…",
+  "lang.label": "שפה",
+  "login.title_login": "התחברות",
+  "login.title_signup": "יצירת חשבון",
+  "login.email": "אימייל",
+  "login.password": "סיסמה",
+  "login.passwordHint": "לפחות 8 תווים",
+  "login.signIn": "התחברות",
+  "login.signUp": "הרשמה",
+  "login.noAccount": "אין לך חשבון?",
+  "login.haveAccount": "כבר רשום?",
+  "login.confirmSent": "נשלח מייל אימות (אם מופעל). אשרו ואז התחברו.",
+  "login.wait": "רגע…",
+  "onb.welcome": "ברוכים הבאים 👋",
+  "onb.desc": "נגדיר את העסק שלכם. אפשר לשנות הכול בהמשך בהגדרות.",
+  "onb.orgName": "שם העסק",
+  "onb.orgNamePh": "לדוגמה: מיזוג כהן בע״מ",
+  "onb.yourName": "השם שלך",
+  "onb.yourNamePh": "שם מלא",
+  "onb.language": "שפה",
+  "onb.currency": "מטבע",
+  "onb.taxLabel": "שם המס",
+  "onb.taxRate": "שיעור מס (%)",
+  "onb.create": "יצירת העסק והתחלה",
+  "dash.greeting": "שלום {name}",
+  "dash.overview": "סקירה כללית של העסק",
+  "dash.customers": "לקוחות",
+  "dash.jobs": "עבודות",
+  "dash.secured": "✅ מחוברים למסד נתונים מאובטח. הנתונים מבודדים לעסק שלך בלבד (RLS).",
+  "cust.title": "לקוחות",
+  "cust.count": "{n} לקוחות",
+  "cust.new": "לקוח חדש",
+  "cust.search": "חיפוש לקוח…",
+  "cust.empty": 'אין לקוחות עדיין — לחצו על "לקוח חדש"',
+  "cust.col.name": "שם",
+  "cust.col.phone": "טלפון",
+  "cust.col.city": "עיר",
+  "cust.col.source": "מקור",
+  "cust.form.new": "לקוח חדש",
+  "form.name": "שם מלא *",
+  "form.phone": "טלפון *",
+  "form.email": "אימייל",
+  "form.address": "כתובת",
+  "form.city": "עיר",
+  "form.source": "מקור הליד",
+  "form.source_choose": "— בחר —",
+  "form.notes": "הערות",
+  "err.name_required": "נא להזין שם",
+  "err.phone_required": "נא להזין טלפון",
+  "err.email_invalid": "אימייל לא תקין",
+  "err.invalid": "קלט לא תקין",
+  "err.forbidden": "אין לך הרשאה לפעולה זו",
+  "src.google": "גוגל",
+  "src.referral": "המלצה",
+  "src.facebook": "פייסבוק",
+  "src.instagram": "אינסטגרם",
+  "src.repeat": "לקוח חוזר",
+  "src.vehicle": "שלט / רכב",
+  "src.other": "אחר",
+};
+
+const DICTS: Record<Locale, Dict> = { en, he };
+
+/** Translate a key, with optional {var} interpolation. Falls back to English, then the key. */
+export function t(locale: Locale, key: string, vars?: Record<string, string | number>): string {
+  const s = DICTS[locale]?.[key] ?? DICTS.en[key] ?? key;
+  if (!vars) return s;
+  return s.replace(/\{(\w+)\}/g, (_, k) => (k in vars ? String(vars[k]) : `{${k}}`));
+}
+
+/** Lead-source options as {value,label} pairs for the current locale. */
+export function sourceOptions(locale: Locale) {
+  return [
+    ["src.google", "Google"], ["src.referral", "Referral"], ["src.facebook", "Facebook"],
+    ["src.instagram", "Instagram"], ["src.repeat", "Repeat customer"],
+    ["src.vehicle", "Sign / vehicle"], ["src.other", "Other"],
+  ].map(([key, canonical]) => ({ value: canonical, label: t(locale, key) }));
+}
