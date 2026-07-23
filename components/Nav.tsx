@@ -11,6 +11,7 @@ const ITEMS: { href: string; key: string; icon: string; roles: Role[] }[] = [
   { href: "/customers", key: "nav.customers", icon: "👥", roles: ["owner", "office", "tech"] },
   { href: "/estimates", key: "nav.estimates", icon: "📝", roles: ["owner", "office"] },
   { href: "/invoices", key: "nav.invoices", icon: "🧾", roles: ["owner", "office"] },
+  { href: "/reports", key: "nav.reports", icon: "📈", roles: ["owner", "office"] },
   { href: "/settings", key: "nav.settings", icon: "⚙️", roles: ["owner"] },
 ];
 

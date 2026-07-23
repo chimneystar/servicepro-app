@@ -24,13 +24,19 @@ export async function createDocument(
   const descs = formData.getAll("desc").map(String);
   const qtys = formData.getAll("qty").map(String);
   const prices = formData.getAll("price").map(String);
+  const costs = formData.getAll("cost").map(String);
 
-  const items: { desc: string; qtyMilli: number; unitPriceMinor: number }[] = [];
+  const items: { desc: string; qtyMilli: number; unitPriceMinor: number; costMinor: number }[] = [];
   try {
     for (let i = 0; i < descs.length; i++) {
       const d = descs[i].trim();
       if (!d) continue;
-      items.push({ desc: d, qtyMilli: parseQtyToMilli(qtys[i] ?? "0"), unitPriceMinor: parseAmountToMinor(prices[i] ?? "0") });
+      items.push({
+        desc: d,
+        qtyMilli: parseQtyToMilli(qtys[i] ?? "0"),
+        unitPriceMinor: parseAmountToMinor(prices[i] ?? "0"),
+        costMinor: parseAmountToMinor(costs[i] ?? "0"),
+      });
     }
   } catch {
     return { ok: false, error: t(locale, "err.invalid") };
@@ -76,6 +82,7 @@ export async function createDocument(
       description: it.desc,
       qty_milli: it.qtyMilli,
       unit_price_minor: it.unitPriceMinor,
+      cost_minor: it.costMinor,
       sort: idx,
     }))
   );

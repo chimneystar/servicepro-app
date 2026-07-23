@@ -14,9 +14,9 @@ export default function DocForm({ locale, customers, action, newKey }: {
   locale: Locale; customers: Opt[]; action: Action; newKey: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [rows, setRows] = useState([{ desc: "", qty: "1", price: "" }]);
+  const [rows, setRows] = useState([{ desc: "", qty: "1", price: "", cost: "" }]);
   const [state, formAction] = useFormState(action, initial);
-  if (state.ok && open) setTimeout(() => { setOpen(false); setRows([{ desc: "", qty: "1", price: "" }]); }, 0);
+  if (state.ok && open) setTimeout(() => { setOpen(false); setRows([{ desc: "", qty: "1", price: "", cost: "" }]); }, 0);
 
   return (
     <>
@@ -31,18 +31,19 @@ export default function DocForm({ locale, customers, action, newKey }: {
             </select>
 
             <label style={{ ...lbl, marginTop: 14 }}>{t(locale, "doc.items")}</label>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 60px 90px 30px", gap: 6, fontSize: 11, color: "#5c6675", fontWeight: 700, marginBottom: 4 }}>
-              <span>{t(locale, "doc.desc")}</span><span>{t(locale, "doc.qty")}</span><span>{t(locale, "doc.unit")}</span><span></span>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 50px 74px 74px 26px", gap: 6, fontSize: 11, color: "#5c6675", fontWeight: 700, marginBottom: 4 }}>
+              <span>{t(locale, "doc.desc")}</span><span>{t(locale, "doc.qty")}</span><span>{t(locale, "doc.unit")}</span><span>{t(locale, "doc.cost")}</span><span></span>
             </div>
             {rows.map((r, i) => (
-              <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 60px 90px 30px", gap: 6, marginBottom: 6 }}>
+              <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 50px 74px 74px 26px", gap: 6, marginBottom: 6 }}>
                 <input name="desc" defaultValue={r.desc} style={cell} placeholder="…" />
                 <input name="qty" defaultValue={r.qty} type="number" step="0.001" style={cell} />
                 <input name="price" defaultValue={r.price} type="number" step="0.01" style={cell} placeholder="0.00" />
+                <input name="cost" defaultValue={r.cost} type="number" step="0.01" style={cell} placeholder="0.00" />
                 <button type="button" onClick={() => setRows(rows.filter((_, k) => k !== i))} style={xBtn}>✕</button>
               </div>
             ))}
-            <button type="button" onClick={() => setRows([...rows, { desc: "", qty: "1", price: "" }])} style={{ ...btn, background: "#e2e9f4", color: "#2563eb", padding: "7px 12px", fontSize: 13, marginTop: 4 }}>➕ {t(locale, "doc.add_item")}</button>
+            <button type="button" onClick={() => setRows([...rows, { desc: "", qty: "1", price: "", cost: "" }])} style={{ ...btn, background: "#e2e9f4", color: "#2563eb", padding: "7px 12px", fontSize: 13, marginTop: 4 }}>➕ {t(locale, "doc.add_item")}</button>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 14 }}>
               <div><label style={lbl}>{t(locale, "doc.discount")}</label><input name="discount" type="number" step="0.01" defaultValue="0" style={inp} /></div>
