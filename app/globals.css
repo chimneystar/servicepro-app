@@ -52,3 +52,25 @@ body {
 
 /* horizontal scroll wrappers so wide tables/calendars never break layout */
 .scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* ---------------- Responsive stacked list (cards on mobile, rows on desktop) ---------------- */
+.rlist { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; box-shadow: 0 6px 18px rgba(15,42,94,.06); overflow: hidden; margin-bottom: 16px; }
+.ritem { display: flex; align-items: center; gap: 12px; padding: 14px 15px; text-decoration: none; color: inherit; width: 100%; border: none; background: transparent; text-align: start; font: inherit; cursor: default; }
+.ritem + .ritem { border-top: 1px solid #eef1f6; }
+a.ritem:active, button.ritem:active { background: #f4f7fc; }
+.ritem .rmain { flex: 1; min-width: 0; }
+.ritem .rtitle { font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ritem .rsub { font-size: 12.5px; color: #5c6675; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.ritem .rend { text-align: end; white-space: nowrap; flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.rempty { padding: 42px 20px; text-align: center; color: #5c6675; }
+.pill { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 700; }
+.avatar-sm { width: 38px; height: 38px; border-radius: 50%; color: #fff; font-weight: 800; font-size: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+/* document line items: stack neatly on phones (no side-scroll) */
+.li-head, .li-row { display: grid; grid-template-columns: 1fr 50px 74px 74px 26px; gap: 6px; }
+.li-row { margin-bottom: 6px; }
+@media (max-width: 560px) {
+  .li-head { display: none; }
+  .li-row { grid-template-columns: 1fr 1fr 1fr auto; }
+  .li-row .li-desc { grid-column: 1 / -1; }
+}

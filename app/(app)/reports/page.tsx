@@ -89,23 +89,22 @@ export default async function ReportsPage({ searchParams }: { searchParams: { pe
         <Kpi icon="✅" tone={net >= 0 ? "#15803d" : "#dc2626"} label="Net profit" value={money(net, cur)} />
       </div>
 
-      <Panel title="Sales by technician">
-        <div className="scroll-x"><table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 480 }}>
-          <thead><tr style={{ color: "#5c6675", fontSize: 12 }}>
-            <Th>Technician</Th><Th>Paid invoices</Th><Th>Collected</Th><Th>Profit</Th><Th>Margin</Th>
-          </tr></thead>
-          <tbody>
-            {techRows.map(([name, b]) => (
-              <tr key={name} style={{ borderTop: "1px solid #eef1f6" }}>
-                <Td><b>{name}</b></Td><Td>{b.count}</Td><Td><b>{money(b.collected, cur)}</b></Td>
-                <Td style={{ color: b.profit >= 0 ? "#15803d" : "#dc2626", fontWeight: 700 }}>{money(b.profit, cur)}</Td>
-                <Td>{b.collected ? Math.round(b.profit / b.collected * 100) : 0}%</Td>
-              </tr>
-            ))}
-            {techRows.length === 0 && <tr><Td>No paid invoices in this period.</Td></tr>}
-          </tbody>
-        </table></div>
-      </Panel>
+      <div style={{ fontWeight: 800, fontSize: 16, margin: "4px 4px 10px" }}>Sales by technician</div>
+      <div className="rlist">
+        {techRows.map(([name, b]) => (
+          <div className="ritem" key={name}>
+            <div className="rmain">
+              <div className="rtitle">{name}</div>
+              <div className="rsub">{b.count} paid · {b.collected ? Math.round(b.profit / b.collected * 100) : 0}% margin</div>
+            </div>
+            <div className="rend">
+              <b style={{ fontSize: 15 }}>{money(b.collected, cur)}</b>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: b.profit >= 0 ? "#15803d" : "#dc2626" }}>{money(b.profit, cur)} profit</span>
+            </div>
+          </div>
+        ))}
+        {techRows.length === 0 && <div className="rempty">No paid invoices in this period.</div>}
+      </div>
 
       <div style={{ background: "#e0ebff", color: "#1d4ed8", padding: "11px 14px", borderRadius: 12, fontSize: 12.5, marginTop: 4 }}>
         ℹ️ Profit uses the <b>cost</b> you enter per line item. Add costs on estimates/invoices (and later in the Price Book) to make profitability precise.

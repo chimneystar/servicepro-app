@@ -10,8 +10,9 @@ type Action = (prev: ActionResult, formData: FormData) => Promise<ActionResult>;
 
 const initial: ActionResult = { ok: false };
 
-export default function DocForm({ locale, customers, action, newKey }: {
+export default function DocForm({ locale, customers, action, newKey, catalog = [] }: {
   locale: Locale; customers: Opt[]; action: Action; newKey: string;
+  catalog?: { id: string; name: string; price_minor: number; cost_minor: number }[];
 }) {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState([{ desc: "", qty: "1", price: "", cost: "" }]);
@@ -31,15 +32,21 @@ export default function DocForm({ locale, customers, action, newKey }: {
             </select>
 
             <label style={{ ...lbl, marginTop: 14 }}>{t(locale, "doc.items")}</label>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 50px 74px 74px 26px", gap: 6, fontSize: 11, color: "#5c6675", fontWeight: 700, marginBottom: 4 }}>
+            {catalog.length > 0 && (
+              <select style={{ ...inp, marginBottom: 8 }} defaultValue="" onChange={(e) => { const it = catalog.find((c) => c.id === e.target.value); if (it) setRows([...rows, { desc: it.name, qty: "1", price: (it.price_minor / 100).toFixed(2), cost: (it.cost_minor / 100).toFixed(2) }]); e.currentTarget.value = ""; }}>
+                <option value="">{t(locale, "pb.from_catalog")}</option>
+                {catalog.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            )}
+            <div className="li-head" style={{ fontSize: 11, color: "#5c6675", fontWeight: 700, marginBottom: 4 }}>
               <span>{t(locale, "doc.desc")}</span><span>{t(locale, "doc.qty")}</span><span>{t(locale, "doc.unit")}</span><span>{t(locale, "doc.cost")}</span><span></span>
             </div>
             {rows.map((r, i) => (
-              <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 50px 74px 74px 26px", gap: 6, marginBottom: 6 }}>
-                <input name="desc" defaultValue={r.desc} style={cell} placeholder="…" />
-                <input name="qty" defaultValue={r.qty} type="number" step="0.001" style={cell} />
-                <input name="price" defaultValue={r.price} type="number" step="0.01" style={cell} placeholder="0.00" />
-                <input name="cost" defaultValue={r.cost} type="number" step="0.01" style={cell} placeholder="0.00" />
+              <div key={i} className="li-row">
+                <input name="desc" className="li-desc" defaultValue={r.desc} style={cell} placeholder={t(locale, "doc.desc")} />
+                <input name="qty" defaultValue={r.qty} type="number" step="0.001" style={cell} placeholder={t(locale, "doc.qty")} />
+                <input name="price" defaultValue={r.price} type="number" step="0.01" style={cell} placeholder={t(locale, "doc.unit")} />
+                <input name="cost" defaultValue={r.cost} type="number" step="0.01" style={cell} placeholder={t(locale, "doc.cost")} />
                 <button type="button" onClick={() => setRows(rows.filter((_, k) => k !== i))} style={xBtn}>✕</button>
               </div>
             ))}

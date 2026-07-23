@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export type CalJob = {
   id: string; title: string; service: string; status: string;
@@ -25,6 +25,7 @@ export default function Calendar({ jobs, he = false }: { jobs: CalJob[]; he?: bo
   const [view, setView] = useState<"day" | "week" | "month">("week");
   const [cursor, setCursor] = useState(new Date());
   const today = iso(new Date());
+  useEffect(() => { if (typeof window !== "undefined" && window.innerWidth < 700) setView("day"); }, []);
 
   const move = (dir: number) => {
     const d = new Date(cursor);

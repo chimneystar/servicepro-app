@@ -90,18 +90,19 @@ export default async function DashboardPage() {
         </Card>
 
         <Card span={8} title="Recent jobs">
-          <div className="scroll-x"><table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5, minWidth: 420 }}>
-            <tbody>
-              {recent.map((j: any, i) => (
-                <tr key={i} style={{ borderTop: i ? "1px solid #eef1f6" : "none" }}>
-                  <Td><b>{j.customers?.name ?? "—"}</b></Td><Td>{j.service}</Td>
-                  <Td>{fmtDate(j.scheduled_date)}</Td><Td><b>{money(j.price_minor, cur)}</b></Td>
-                  <Td><span style={statusChip(j.status)}>{j.status}</span></Td>
-                </tr>
-              ))}
-              {recent.length === 0 && <tr><Td>—</Td></tr>}
-            </tbody>
-          </table></div>
+          {recent.length === 0 && <div style={{ color: "#5c6675", fontSize: 13, padding: 8 }}>—</div>}
+          {recent.map((j: any, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 0", borderTop: i ? "1px solid #f1f4f9" : "none" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{j.customers?.name ?? "—"}</div>
+                <div style={{ fontSize: 12.5, color: "#5c6675" }}>{j.service} · {fmtDate(j.scheduled_date)}</div>
+              </div>
+              <div style={{ textAlign: "end", whiteSpace: "nowrap" }}>
+                <b>{money(j.price_minor, cur)}</b>
+                <div style={{ marginTop: 3 }}><span style={statusChip(j.status)}>{j.status}</span></div>
+              </div>
+            </div>
+          ))}
         </Card>
         <Card span={4} title="Top job types & sources">
           <Sub>Job types</Sub>

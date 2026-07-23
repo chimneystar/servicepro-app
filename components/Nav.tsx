@@ -5,17 +5,7 @@ import type { Role } from "@/lib/auth";
 import { t, type Locale } from "@/lib/i18n";
 import LanguageToggle from "@/components/LanguageToggle";
 import MobileTabs from "@/components/MobileTabs";
-
-const ITEMS: { href: string; key: string; icon: string; roles: Role[]; bottom?: boolean }[] = [
-  { href: "/", key: "nav.dashboard", icon: "📊", roles: ["owner", "office", "tech"], bottom: true },
-  { href: "/schedule", key: "nav.schedule", icon: "📅", roles: ["owner", "office", "tech"], bottom: true },
-  { href: "/customers", key: "nav.customers", icon: "👥", roles: ["owner", "office", "tech"], bottom: true },
-  { href: "/estimates", key: "nav.estimates", icon: "📝", roles: ["owner", "office"], bottom: true },
-  { href: "/invoices", key: "nav.invoices", icon: "🧾", roles: ["owner", "office"], bottom: true },
-  { href: "/reports", key: "nav.reports", icon: "📈", roles: ["owner", "office"] },
-  { href: "/team", key: "nav.team", icon: "🛠️", roles: ["owner"] },
-  { href: "/settings", key: "nav.settings", icon: "⚙️", roles: ["owner"] },
-];
+import { NAV_ITEMS } from "@/lib/nav";
 
 export default function Nav({ role, businessName, locale }: { role: Role; businessName: string; locale: Locale }) {
   async function signOut() {
@@ -26,9 +16,10 @@ export default function Nav({ role, businessName, locale }: { role: Role; busine
   }
 
   const roleKey = role === "owner" ? "role.owner" : role === "office" ? "role.office" : "role.tech";
-  const mine = ITEMS.filter((i) => i.roles.includes(role));
-  const bottomItems = mine.filter((i) => i.bottom).slice(0, 5).map((i) => ({ href: i.href, label: t(locale, i.key), icon: i.icon }));
-  const topExtra = mine.filter((i) => !i.bottom); // reports / settings on mobile top bar
+  const mine = NAV_ITEMS.filter((i) => i.roles.includes(role));
+  const bottomItems = mine.filter((i) => i.bottom).map((i) => ({ href: i.href, label: t(locale, i.key), icon: i.icon }));
+  const hasMore = mine.some((i) => !i.bottom);
+  const tabItems = hasMore ? [...bottomItems, { href: "/more", label: t(locale, "nav.more"), icon: "⋯" }] : bottomItems;
 
   return (
     <>
@@ -60,14 +51,11 @@ export default function Nav({ role, businessName, locale }: { role: Role; busine
           <div style={{ ...logo, width: 30, height: 30, fontSize: 16 }}>❄️</div>
           <b style={{ fontSize: 15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{businessName}</b>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {topExtra.map((i) => <Link key={i.href} href={i.href} style={{ color: "#fff", fontSize: 19, textDecoration: "none" }} title={t(locale, i.key)}>{i.icon}</Link>)}
-          <form action={signOut}><button type="submit" style={{ background: "rgba(255,255,255,.15)", color: "#fff", border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 12.5, fontWeight: 700 }}>{t(locale, "common.signOut")}</button></form>
-        </div>
+        <form action={signOut}><button type="submit" style={{ background: "rgba(255,255,255,.15)", color: "#fff", border: "none", borderRadius: 8, padding: "6px 10px", fontSize: 12.5, fontWeight: 700 }}>{t(locale, "common.signOut")}</button></form>
       </div>
 
       {/* Mobile bottom tabs */}
-      <MobileTabs items={bottomItems} />
+      <MobileTabs items={tabItems} />
     </>
   );
 }
