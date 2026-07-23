@@ -20,11 +20,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     : isLocale(org?.locale) ? (org!.locale as Locale) : DEFAULT_LOCALE;
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh" }} dir={dirFor(locale)}>
+    <div className="shell" dir={dirFor(locale)}>
       <Nav role={profile.role} businessName={org?.name ?? "ServicePro"} locale={locale} />
-      <main style={{ flex: 1, minWidth: 0, padding: "26px 30px", maxWidth: 1300, margin: "0 auto" }}>
-        {children}
-      </main>
+      <main className="app-content">{children}</main>
     </div>
   );
 }

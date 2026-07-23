@@ -90,7 +90,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: { pe
       </div>
 
       <Panel title="Sales by technician">
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+        <div className="scroll-x"><table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 480 }}>
           <thead><tr style={{ color: "#5c6675", fontSize: 12 }}>
             <Th>Technician</Th><Th>Paid invoices</Th><Th>Collected</Th><Th>Profit</Th><Th>Margin</Th>
           </tr></thead>
@@ -104,7 +104,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: { pe
             ))}
             {techRows.length === 0 && <tr><Td>No paid invoices in this period.</Td></tr>}
           </tbody>
-        </table>
+        </table></div>
       </Panel>
 
       <div style={{ background: "#e0ebff", color: "#1d4ed8", padding: "11px 14px", borderRadius: 12, fontSize: 12.5, marginTop: 4 }}>

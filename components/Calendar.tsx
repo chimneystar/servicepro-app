@@ -56,8 +56,10 @@ export default function Calendar({ jobs, he = false }: { jobs: CalJob[]; he?: bo
         </div>
       </div>
 
-      {view === "month" ? <MonthView cursor={cursor} jobs={jobs} today={today} he={he} />
-        : <TimeGrid cursor={cursor} jobs={jobs} today={today} he={he} days={view === "day" ? 1 : 7} />}
+      <div className="scroll-x">
+        {view === "month" ? <MonthView cursor={cursor} jobs={jobs} today={today} he={he} />
+          : <TimeGrid cursor={cursor} jobs={jobs} today={today} he={he} days={view === "day" ? 1 : 7} />}
+      </div>
     </div>
   );
 }
@@ -68,7 +70,7 @@ function TimeGrid({ cursor, jobs, today, days, he }: { cursor: Date; jobs: CalJo
   const hours = Array.from({ length: END_H - START_H }, (_, i) => START_H + i);
 
   return (
-    <div>
+    <div style={{ minWidth: days === 7 ? 680 : undefined }}>
       <div style={{ display: "grid", gridTemplateColumns: `56px repeat(${days},1fr)`, borderBottom: "1px solid #eef1f6" }}>
         <div />
         {cols.map((d) => {
@@ -115,7 +117,7 @@ function MonthView({ cursor, jobs, today, he }: { cursor: Date; jobs: CalJob[]; 
   const gridStart = addDays(first, -first.getDay());
   const cells = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i));
   return (
-    <div>
+    <div style={{ minWidth: 620 }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", borderBottom: "1px solid #eef1f6" }}>
         {DAYS.map((d) => <div key={d} style={{ textAlign: "center", padding: "8px 0", fontSize: 11, fontWeight: 700, color: "#5c6675" }}>{he ? He[d] : d}</div>)}
       </div>

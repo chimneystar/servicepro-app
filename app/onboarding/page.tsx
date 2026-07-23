@@ -14,6 +14,10 @@ export default async function OnboardingPage() {
     .from("profiles").select("organization_id").eq("id", user.id).maybeSingle();
   if (profile?.organization_id) redirect("/");
 
+  // If this user was invited to a business, join it automatically and skip setup.
+  const { data: joinedOrg } = await supabase.rpc("accept_invitation");
+  if (joinedOrg) redirect("/");
+
   const c = cookies().get("locale")?.value;
   const locale: Locale = isLocale(c) ? c : DEFAULT_LOCALE;
 

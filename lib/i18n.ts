@@ -131,6 +131,11 @@ const en: Dict = {
   "set.address": "Address", "set.city": "City", "set.currency": "Currency", "set.locale": "Language",
   "set.tax_label": "Tax label", "set.tax_rate": "Tax rate (%)", "set.section_biz": "Business profile",
   "set.section_loc": "Region & tax",
+  "nav.team": "Team",
+  "team.title": "Team", "team.invite": "Invite teammate", "team.email": "Email", "team.role": "Role",
+  "team.members": "Members", "team.pending": "Pending invites", "team.send": "Send invite",
+  "team.remove": "Remove", "team.cancelInvite": "Cancel", "team.you": "you", "team.invited": "Invited",
+  "team.invite_sent": "Invitation created. Ask them to sign up with this email.",
 };
 
 const he: Dict = {
@@ -244,6 +249,11 @@ const he: Dict = {
   "set.address": "כתובת", "set.city": "עיר", "set.currency": "מטבע", "set.locale": "שפה",
   "set.tax_label": "שם המס", "set.tax_rate": "שיעור מס (%)", "set.section_biz": "פרטי העסק",
   "set.section_loc": "אזור ומס",
+  "nav.team": "צוות",
+  "team.title": "צוות", "team.invite": "הזמנת איש צוות", "team.email": "אימייל", "team.role": "תפקיד",
+  "team.members": "חברי צוות", "team.pending": "הזמנות ממתינות", "team.send": "שלח הזמנה",
+  "team.remove": "הסר", "team.cancelInvite": "בטל", "team.you": "אתה", "team.invited": "הוזמן",
+  "team.invite_sent": "ההזמנה נוצרה. בקשו מהם להירשם עם האימייל הזה.",
 };
 
 const DICTS: Record<Locale, Dict> = { en, he };

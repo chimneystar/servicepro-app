@@ -50,7 +50,7 @@ export default async function DashboardPage() {
       <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 3 }}>{t(locale, "dash.greeting", { name: profile.full_name || "👋" })}</h1>
       <p style={{ color: "#5c6675", marginBottom: 20, fontSize: 13.5 }}>{t(locale, "dash.overview")}</p>
 
-      <div style={grid}>
+      <div className="dash" style={grid}>
         <Card span={4} title="Sales · this month">
           <Big>{money(monthSales, cur)}</Big>
           <Sub>{paid.length} paid invoices · {money(collectedAll, cur)} all time</Sub>
@@ -90,7 +90,7 @@ export default async function DashboardPage() {
         </Card>
 
         <Card span={8} title="Recent jobs">
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5 }}>
+          <div className="scroll-x"><table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5, minWidth: 420 }}>
             <tbody>
               {recent.map((j: any, i) => (
                 <tr key={i} style={{ borderTop: i ? "1px solid #eef1f6" : "none" }}>
@@ -101,7 +101,7 @@ export default async function DashboardPage() {
               ))}
               {recent.length === 0 && <tr><Td>—</Td></tr>}
             </tbody>
-          </table>
+          </table></div>
         </Card>
         <Card span={4} title="Top job types & sources">
           <Sub>Job types</Sub>

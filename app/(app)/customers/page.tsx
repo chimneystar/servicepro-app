@@ -28,8 +28,8 @@ export default async function CustomersPage() {
 
       {error && <div style={{ color: "#dc2626" }}>{error.message}</div>}
 
-      <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", boxShadow: "0 6px 18px rgba(15,42,94,.06)" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+      <div className="scroll-x" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, boxShadow: "0 6px 18px rgba(15,42,94,.06)" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 520 }}>
           <thead>
             <tr style={{ color: "#5c6675", fontSize: 12 }}>
               <Th>{t(locale, "cust.col.name")}</Th><Th>{t(locale, "cust.col.phone")}</Th>

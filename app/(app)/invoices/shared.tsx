@@ -17,8 +17,8 @@ export function DocTable({ rows, locale, currency, emptyKey, statusPrefix }: {
   rows: any[]; locale: Locale; currency: string; emptyKey: string; statusPrefix: "dst" | "ist";
 }) {
   return (
-    <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, overflow: "hidden", boxShadow: "0 6px 18px rgba(15,42,94,.06)" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+    <div className="scroll-x" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, boxShadow: "0 6px 18px rgba(15,42,94,.06)" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 480 }}>
         <thead>
           <tr style={{ color: "#5c6675", fontSize: 12 }}>
             <Th>{t(locale, "doc.number")}</Th><Th>{t(locale, "doc.customer")}</Th>
