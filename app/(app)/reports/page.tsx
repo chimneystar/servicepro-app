@@ -44,6 +44,15 @@ export default async function ReportsPage({ searchParams }: { searchParams: { pe
     items = data ?? [];
   }
   const { data: expenses } = await supabase.from("expenses").select("amount_minor").gte("expense_date", start).lte("expense_date", end);
+  const { data: unpaid } = await supabase.from("invoices").select("total_minor, issue_date").eq("status", "unpaid").is("deleted_at", null);
+
+  const nowMs = Date.now();
+  const buckets = [{ label: "0–30 days", min: 0, max: 30 }, { label: "31–60 days", min: 31, max: 60 }, { label: "61–90 days", min: 61, max: 90 }, { label: "90+ days", min: 91, max: 999999 }];
+  const aging = buckets.map((b) => {
+    const rows = (unpaid ?? []).filter((i) => { const age = Math.floor((nowMs - new Date(i.issue_date + "T00:00:00").getTime()) / 864e5); return age >= b.min && age <= b.max; });
+    return { label: b.label, count: rows.length, total: rows.reduce((s, i) => s + i.total_minor, 0) };
+  });
+  const agingTotal = (unpaid ?? []).reduce((s, i) => s + i.total_minor, 0);
 
   // per-invoice item revenue/cost
   const revByInv: Record<string, number> = {}, costByInv: Record<string, number> = {};
@@ -104,6 +113,17 @@ export default async function ReportsPage({ searchParams }: { searchParams: { pe
           </div>
         ))}
         {techRows.length === 0 && <div className="rempty">No paid invoices in this period.</div>}
+      </div>
+
+      <div style={{ fontWeight: 800, fontSize: 16, margin: "20px 4px 10px" }}>Aging — unpaid invoices ({money(agingTotal, cur)})</div>
+      <div className="rlist">
+        {aging.map((b) => (
+          <div className="ritem" key={b.label}>
+            <div className="rmain"><div className="rtitle">{b.label}</div><div className="rsub">{b.count} invoice{b.count === 1 ? "" : "s"}</div></div>
+            <div className="rend"><b style={{ fontSize: 15, color: b.label.startsWith("90+") && b.total > 0 ? "#dc2626" : "#0b1524" }}>{money(b.total, cur)}</b></div>
+          </div>
+        ))}
+        {agingTotal === 0 && <div className="rempty">No unpaid invoices 🎉</div>}
       </div>
 
       <div style={{ background: "#e0ebff", color: "#1d4ed8", padding: "11px 14px", borderRadius: 12, fontSize: 12.5, marginTop: 4 }}>

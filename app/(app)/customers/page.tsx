@@ -2,6 +2,7 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getLocale } from "@/lib/locale-server";
 import { t } from "@/lib/i18n";
+import Link from "next/link";
 import CustomerForm from "./CustomerForm";
 
 export const dynamic = "force-dynamic";
@@ -29,14 +30,15 @@ export default async function CustomersPage() {
 
       <div className="rlist">
         {(customers ?? []).map((c) => (
-          <div className="ritem" key={c.id}>
+          <Link className="ritem" href={`/customers/${c.id}`} key={c.id}>
             <div className="avatar-sm" style={{ background: colorFor(c.name) }}>{initials(c.name)}</div>
             <div className="rmain">
               <div className="rtitle">{c.name}</div>
               <div className="rsub">{c.phone}{c.city ? ` · ${c.city}` : ""}</div>
             </div>
             {c.source && <span className="pill" style={{ background: "#eef1f6", color: "#57606f" }}>{c.source}</span>}
-          </div>
+            <span style={{ color: "#b6bfcc", fontSize: 18 }}>›</span>
+          </Link>
         ))}
         {(!customers || customers.length === 0) && <div className="rempty">{t(locale, "cust.empty")}</div>}
       </div>

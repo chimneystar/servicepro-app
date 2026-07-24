@@ -6,13 +6,14 @@ import { createJob, type ActionResult } from "./actions";
 import { t, type Locale } from "@/lib/i18n";
 
 const initial: ActionResult = { ok: false };
-const SERVICES = ["AC Cleaning", "AC Install", "AC Repair", "Annual Maintenance", "Plumbing", "Electrical", "Renovation", "Other"];
+const DEFAULT_SERVICES = ["AC Cleaning", "AC Install", "AC Repair", "Annual Maintenance", "Plumbing", "Electrical", "Renovation", "Other"];
 
 type Opt = { id: string; label: string };
 
-export default function JobForm({ locale, customers, techs }: { locale: Locale; customers: Opt[]; techs: Opt[] }) {
+export default function JobForm({ locale, customers, techs, services }: { locale: Locale; customers: Opt[]; techs: Opt[]; services?: string[] }) {
   const [open, setOpen] = useState(false);
   const [state, formAction] = useFormState(createJob, initial);
+  const SERVICES = services && services.length ? services : DEFAULT_SERVICES;
   if (state.ok && open) setTimeout(() => setOpen(false), 0);
 
   return (

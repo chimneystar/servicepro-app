@@ -39,6 +39,7 @@ export async function updateSession(request: NextRequest) {
   const isPublic =
     path.startsWith("/login") ||
     path.startsWith("/auth") ||
+    path.startsWith("/p/") ||        // public client document links (view / sign)
     path.startsWith("/_next") ||
     path === "/favicon.ico";
 

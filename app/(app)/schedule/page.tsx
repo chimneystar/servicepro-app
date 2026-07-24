@@ -12,12 +12,13 @@ export default async function SchedulePage() {
   const locale = getLocale();
   const supabase = createClient();
 
-  const [{ data: jobs }, { data: customers }, { data: profiles }] = await Promise.all([
+  const [{ data: jobs }, { data: customers }, { data: profiles }, { data: org }] = await Promise.all([
     supabase.from("jobs")
       .select("id, service, status, scheduled_date, start_time, end_time, customers(name), profiles!jobs_assigned_to_fkey(full_name)")
       .is("deleted_at", null),
     supabase.from("customers").select("id, name").is("deleted_at", null).order("name"),
     supabase.from("profiles").select("id, full_name").order("full_name"),
+    supabase.from("organizations").select("job_types").single(),
   ]);
 
   const calJobs: CalJob[] = (jobs ?? []).map((j: any) => ({
@@ -38,7 +39,7 @@ export default async function SchedulePage() {
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <h1 style={{ fontSize: 24, fontWeight: 800 }}>{t(locale, "sched.title")}</h1>
-        <JobForm locale={locale} customers={custOpts} techs={techOpts} />
+        <JobForm locale={locale} customers={custOpts} techs={techOpts} services={org?.job_types ?? undefined} />
       </div>
       <Calendar jobs={calJobs} he={locale === "he"} />
     </div>

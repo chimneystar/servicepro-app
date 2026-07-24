@@ -4,11 +4,18 @@
 
 :root { color-scheme: light; }
 * { box-sizing: border-box; }
-html, body { padding: 0; margin: 0; }
+html, body { padding: 0; margin: 0; overflow-x: hidden; max-width: 100%; }
 body {
   background: #eef3fb;
   color: #0b1524;
   font-family: -apple-system, "Assistant", "Rubik", "Segoe UI", system-ui, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+img { max-width: 100%; height: auto; }
+/* Prevent iOS from auto-zooming when a field is focused (needs >=16px) */
+input, select, textarea { font-size: 16px; max-width: 100%; }
+@media (max-width: 860px) {
+  input, select, textarea { font-size: 16px !important; }
 }
 
 /* ---------------- Responsive app shell ---------------- */
@@ -52,6 +59,13 @@ body {
 
 /* horizontal scroll wrappers so wide tables/calendars never break layout */
 .scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* print / save-as-PDF (used on the public document page) */
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff !important; }
+  .print-card { box-shadow: none !important; border: none !important; border-radius: 0 !important; }
+}
 
 /* ---------------- Responsive stacked list (cards on mobile, rows on desktop) ---------------- */
 .rlist { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; box-shadow: 0 6px 18px rgba(15,42,94,.06); overflow: hidden; margin-bottom: 16px; }

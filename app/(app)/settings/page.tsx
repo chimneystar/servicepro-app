@@ -14,7 +14,7 @@ export default async function SettingsPage() {
   const supabase = createClient();
   const { data: org } = await supabase
     .from("organizations")
-    .select("name, tagline, phone, email, address, city, currency, locale, tax_label, tax_rate_bps")
+    .select("name, tagline, phone, email, address, city, currency, locale, tax_label, tax_rate_bps, job_types")
     .eq("id", profile.organization_id!)
     .single();
 

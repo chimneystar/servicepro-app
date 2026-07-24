@@ -4,6 +4,7 @@ import { getLocale } from "@/lib/locale-server";
 import { money, fmtDate } from "@/lib/format";
 import Link from "next/link";
 import JobPhotos, { type Photo } from "@/components/JobPhotos";
+import JobActions from "@/components/JobActions";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +50,15 @@ export default async function JobDetailPage({ params }: { params: { id: string }
       </div>
       {job.notes && <div style={{ background: "#f4f7fb", borderRadius: 12, padding: "12px 14px", marginBottom: 18, fontSize: 14 }}><b style={{ fontSize: 12, color: "#5c6675" }}>Notes</b><br />{job.notes}</div>}
 
+      <div style={{ display: "flex", gap: 18, justifyContent: "center", margin: "6px 0 16px" }}>
+        <a href={"tel:" + (c?.phone ?? "").replace(/[^0-9+]/g, "")} style={clink}>📞 Call</a>
+        <a href={"sms:" + (c?.phone ?? "")} style={clink}>💬 Text</a>
+        <a href={"https://maps.google.com/?q=" + encodeURIComponent([c?.address, c?.city].filter(Boolean).join(", "))} style={clink}>🧭 Navigate</a>
+      </div>
+      <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16, marginBottom: 18 }}>
+        <JobActions jobId={job.id} status={job.status} canInvoice={profile.role !== "tech"} />
+      </div>
+
       <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8 }}>📷 Photos</h3>
       <JobPhotos jobId={job.id} orgId={profile.organization_id!} photos={photos} />
     </div>
@@ -64,3 +74,4 @@ function Item({ label, value }: { label: string; value: string }) {
   );
 }
 const back: React.CSSProperties = { color: "#2563eb", fontWeight: 700, fontSize: 14, textDecoration: "none" };
+const clink: React.CSSProperties = { color: "#2563eb", textDecoration: "none", fontWeight: 700, fontSize: 13.5 };

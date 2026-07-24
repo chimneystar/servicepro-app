@@ -26,22 +26,24 @@ export async function updateSettings(_prev: ActionResult, formData: FormData): P
   const taxPct = Number(formData.get("tax_rate") ?? 0);
   const tax_rate_bps = Number.isFinite(taxPct) ? Math.max(0, Math.min(100000, Math.round(taxPct * 100))) : 0;
 
+  const jobTypes = String(formData.get("job_types") ?? "").split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+
+  const update: Record<string, unknown> = {
+    name,
+    tagline: String(formData.get("tagline") ?? "").trim() || null,
+    phone: String(formData.get("phone") ?? "").trim() || null,
+    email: String(formData.get("email") ?? "").trim() || null,
+    address: String(formData.get("address") ?? "").trim() || null,
+    city: String(formData.get("city") ?? "").trim() || null,
+    currency,
+    locale: lang,
+    tax_label: taxLabel,
+    tax_rate_bps,
+  };
+  if (jobTypes.length) update.job_types = jobTypes;
+
   const supabase = createClient();
-  const { error } = await supabase
-    .from("organizations")
-    .update({
-      name,
-      tagline: String(formData.get("tagline") ?? "").trim() || null,
-      phone: String(formData.get("phone") ?? "").trim() || null,
-      email: String(formData.get("email") ?? "").trim() || null,
-      address: String(formData.get("address") ?? "").trim() || null,
-      city: String(formData.get("city") ?? "").trim() || null,
-      currency,
-      locale: lang,
-      tax_label: taxLabel,
-      tax_rate_bps,
-    })
-    .eq("id", profile.organization_id!);
+  const { error } = await supabase.from("organizations").update(update).eq("id", profile.organization_id!);
 
   if (error) return { ok: false, error: error.message };
   revalidatePath("/settings");

@@ -4,7 +4,7 @@ import { getLocale } from "@/lib/locale-server";
 import { t } from "@/lib/i18n";
 import DocForm from "@/components/DocForm";
 import { createInvoice } from "./actions";
-import { DocTable } from "./shared";
+import DocList from "@/components/DocList";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +13,7 @@ export default async function InvoicesPage() {
   const locale = getLocale();
   const supabase = createClient();
   const [{ data: invoices }, { data: customers }, { data: org }, { data: catalog }] = await Promise.all([
-    supabase.from("invoices").select("id, number, status, total_minor, issue_date, customers(name)").is("deleted_at", null).order("number", { ascending: false }),
+    supabase.from("invoices").select("id, number, status, total_minor, issue_date, public_token, customers(name)").is("deleted_at", null).order("number", { ascending: false }),
     supabase.from("customers").select("id, name").is("deleted_at", null).order("name"),
     supabase.from("organizations").select("currency").single(),
     supabase.from("price_book").select("id, name, price_minor, cost_minor").order("name"),
@@ -26,7 +26,9 @@ export default async function InvoicesPage() {
         <h1 style={{ fontSize: 24, fontWeight: 800 }}>{t(locale, "inv.title")}</h1>
         <DocForm locale={locale} customers={custOpts} action={createInvoice} newKey="inv.new" catalog={catalog ?? []} />
       </div>
-      <DocTable rows={invoices ?? []} locale={locale} currency={org?.currency ?? "USD"} emptyKey="inv.empty" statusPrefix="ist" />
+      <DocList
+        rows={(invoices ?? []).map((e: any) => ({ id: e.id, number: e.number, status: e.status, total_minor: e.total_minor, issue_date: e.issue_date, public_token: e.public_token, customer_name: e.customers?.name ?? "—" }))}
+        locale={locale} currency={org?.currency ?? "USD"} kind="invoice" emptyKey="inv.empty" statusPrefix="ist" />
     </div>
   );
 }
