@@ -24,8 +24,11 @@ export default function CustomerForm({ locale }: { locale: Locale }) {
             <Field name="name" label={t(locale, "form.name")} />
             <Field name="phone" label={t(locale, "form.phone")} />
             <Field name="email" label={t(locale, "form.email")} type="email" />
-            <Field name="address" label={t(locale, "form.address")} />
+            <Field name="address" label={`${t(locale, "form.address")} (service)`} />
             <Field name="city" label={t(locale, "form.city")} />
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#5c6675", margin: "12px 0 -2px" }}>Billing address (leave blank if same)</div>
+            <Field name="billing_address" label="Billing address" />
+            <Field name="billing_city" label="Billing city" />
             <label style={lbl}>{t(locale, "form.source")}</label>
             <select name="source" style={inp} defaultValue="">
               <option value="">{t(locale, "form.source_choose")}</option>

@@ -16,6 +16,8 @@ function parse(formData: FormData) {
     email: formData.get("email") ?? "",
     address: formData.get("address") ?? "",
     city: formData.get("city") ?? "",
+    billing_address: formData.get("billing_address") ?? "",
+    billing_city: formData.get("billing_city") ?? "",
     source: formData.get("source") ?? "",
     notes: formData.get("notes") ?? "",
   });

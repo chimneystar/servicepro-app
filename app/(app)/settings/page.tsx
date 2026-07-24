@@ -4,6 +4,7 @@ import { getLocale } from "@/lib/locale-server";
 import { t } from "@/lib/i18n";
 import SettingsForm from "./SettingsForm";
 import JobTypesEditor from "@/components/JobTypesEditor";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +26,15 @@ export default async function SettingsPage() {
       <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 18 }}>{t(locale, "set.title")}</h1>
       <SettingsForm locale={locale} org={org ?? {}} />
       <JobTypesEditor types={jobTypes ?? []} currency={org?.currency ?? "USD"} />
+
+      <Link href="/settings/messages" style={{ display: "flex", alignItems: "center", gap: 12, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16, marginBottom: 16, textDecoration: "none", color: "#0b1524", boxShadow: "0 6px 18px rgba(15,42,94,.06)" }}>
+        <span style={{ fontSize: 22 }}>💬</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 800, fontSize: 15 }}>Client messages</div>
+          <div style={{ fontSize: 12.5, color: "#5c6675" }}>Customize the texts sent when a job is booked, the day before, and when the tech is on the way.</div>
+        </div>
+        <span style={{ color: "#b6bfcc", fontSize: 18 }}>›</span>
+      </Link>
     </div>
   );
 }

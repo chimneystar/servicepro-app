@@ -59,6 +59,8 @@ export async function createJob(_prev: ActionResult, formData: FormData): Promis
     scheduled_date,
     start_time: start,
     end_time: end,
+    job_address: String(formData.get("job_address") ?? "").trim() || null,
+    job_city: String(formData.get("job_city") ?? "").trim() || null,
     notes: String(formData.get("notes") ?? "").trim() || null,
   });
 

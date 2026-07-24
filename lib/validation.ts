@@ -11,6 +11,8 @@ export const customerSchema = z.object({
   email: z.string().trim().email("err.email_invalid").max(160).optional().or(z.literal("")),
   address: z.string().trim().max(200).optional().or(z.literal("")),
   city: z.string().trim().max(80).optional().or(z.literal("")),
+  billing_address: z.string().trim().max(200).optional().or(z.literal("")),
+  billing_city: z.string().trim().max(80).optional().or(z.literal("")),
   source: z.string().trim().max(60).optional().or(z.literal("")),
   notes: z.string().trim().max(2000).optional().or(z.literal("")),
 });

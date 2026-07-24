@@ -4,11 +4,15 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile, assertRole } from "@/lib/auth";
 // @ts-ignore
-import { computeDocument } from "@/lib/core/money.mjs";
+import { computeDocument, parseAmountToMinor, parseQtyToMilli } from "@/lib/core/money.mjs";
 
 export type PhotoResult = { ok: boolean; error?: string };
 
-/** Create an invoice from a job (single line: the service at the job price). */
+/**
+ * Create an invoice from a job. If the job has line items (Items tab), the
+ * invoice is built from those; otherwise it falls back to a single line
+ * (the service at the job price). Totals always come from the tested engine.
+ */
 export async function createInvoiceFromJob(jobId: string): Promise<PhotoResult> {
   let profile;
   try { profile = await requireProfile(); assertRole(profile, ["owner", "office"]); }
@@ -18,7 +22,15 @@ export async function createInvoiceFromJob(jobId: string): Promise<PhotoResult> 
   if (!job) return { ok: false, error: "not found" };
   const { data: org } = await supabase.from("organizations").select("tax_rate_bps").eq("id", profile.organization_id!).single();
   const taxRateBps = org?.tax_rate_bps ?? 0;
-  const totals = computeDocument({ items: [{ qtyMilli: 1000, unitPriceMinor: job.price_minor }], discountMinor: 0, taxRateBps });
+
+  const { data: jobItems } = await supabase.from("job_items")
+    .select("description, qty_milli, unit_price_minor, cost_minor, sort").eq("job_id", jobId).order("sort");
+
+  const lines = (jobItems && jobItems.length)
+    ? jobItems.map((it: any) => ({ description: it.description, qty_milli: it.qty_milli, unit_price_minor: it.unit_price_minor, cost_minor: it.cost_minor ?? 0 }))
+    : [{ description: job.service, qty_milli: 1000, unit_price_minor: job.price_minor, cost_minor: 0 }];
+
+  const totals = computeDocument({ items: lines.map((l) => ({ qtyMilli: l.qty_milli, unitPriceMinor: l.unit_price_minor })), discountMinor: 0, taxRateBps });
   const { data: number, error: nErr } = await supabase.rpc("next_document_number", { p_org: profile.organization_id, p_kind: "invoice" });
   if (nErr) return { ok: false, error: nErr.message };
   const { data: inv, error } = await supabase.from("invoices").insert({
@@ -27,10 +39,162 @@ export async function createInvoiceFromJob(jobId: string): Promise<PhotoResult> 
     tax_rate_bps: taxRateBps, total_minor: totals.totalMinor, discount_minor: 0,
   }).select("id").single();
   if (error) return { ok: false, error: error.message };
-  await supabase.from("invoice_items").insert({
+  await supabase.from("invoice_items").insert(lines.map((l, idx) => ({
     organization_id: profile.organization_id, invoice_id: inv.id,
-    description: job.service, qty_milli: 1000, unit_price_minor: job.price_minor, cost_minor: 0, sort: 0,
+    description: l.description, qty_milli: l.qty_milli, unit_price_minor: l.unit_price_minor, cost_minor: l.cost_minor, sort: idx,
+  })));
+  revalidatePath("/invoices");
+  revalidatePath(`/jobs/${jobId}`);
+  return { ok: true };
+}
+
+/** Save the job's service address. */
+export async function updateJobAddress(jobId: string, formData: FormData): Promise<PhotoResult> {
+  await requireProfile();
+  const supabase = createClient();
+  const { error } = await supabase.from("jobs").update({
+    job_address: String(formData.get("job_address") ?? "").trim() || null,
+    job_city: String(formData.get("job_city") ?? "").trim() || null,
+  }).eq("id", jobId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/jobs/${jobId}`);
+  return { ok: true };
+}
+
+// ---- Items ----------------------------------------------------------
+export async function addJobItem(jobId: string, formData: FormData): Promise<PhotoResult> {
+  const profile = await requireProfile();
+  const supabase = createClient();
+  const description = String(formData.get("description") ?? "").trim();
+  if (!description) return { ok: false, error: "Description required" };
+  let qty_milli = 1000, unit_price_minor = 0, cost_minor = 0;
+  try {
+    qty_milli = parseQtyToMilli(String(formData.get("qty") ?? "1"));
+    unit_price_minor = parseAmountToMinor(String(formData.get("price") ?? "0"));
+    cost_minor = parseAmountToMinor(String(formData.get("cost") ?? "0"));
+  } catch { return { ok: false, error: "Invalid number" }; }
+  const { error } = await supabase.from("job_items").insert({
+    organization_id: profile.organization_id, job_id: jobId, description, qty_milli, unit_price_minor, cost_minor,
   });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/jobs/${jobId}`);
+  return { ok: true };
+}
+export async function deleteJobItem(id: string, jobId: string): Promise<PhotoResult> {
+  await requireProfile();
+  const supabase = createClient();
+  const { error } = await supabase.from("job_items").delete().eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/jobs/${jobId}`);
+  return { ok: true };
+}
+
+// ---- Tasks ----------------------------------------------------------
+export async function addJobTask(jobId: string, title: string): Promise<PhotoResult> {
+  const profile = await requireProfile();
+  if (!title.trim()) return { ok: false, error: "Empty" };
+  const supabase = createClient();
+  const { error } = await supabase.from("job_tasks").insert({ organization_id: profile.organization_id, job_id: jobId, title: title.trim() });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/jobs/${jobId}`);
+  return { ok: true };
+}
+export async function toggleJobTask(id: string, done: boolean, jobId: string): Promise<PhotoResult> {
+  await requireProfile();
+  const supabase = createClient();
+  const { error } = await supabase.from("job_tasks").update({ done }).eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/jobs/${jobId}`);
+  return { ok: true };
+}
+export async function deleteJobTask(id: string, jobId: string): Promise<PhotoResult> {
+  await requireProfile();
+  const supabase = createClient();
+  const { error } = await supabase.from("job_tasks").delete().eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/jobs/${jobId}`);
+  return { ok: true };
+}
+
+// ---- Checklist ------------------------------------------------------
+export async function addChecklistItem(jobId: string, label: string): Promise<PhotoResult> {
+  const profile = await requireProfile();
+  if (!label.trim()) return { ok: false, error: "Empty" };
+  const supabase = createClient();
+  const { error } = await supabase.from("job_checklist_items").insert({ organization_id: profile.organization_id, job_id: jobId, label: label.trim() });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/jobs/${jobId}`);
+  return { ok: true };
+}
+export async function toggleChecklistItem(id: string, checked: boolean, jobId: string): Promise<PhotoResult> {
+  await requireProfile();
+  const supabase = createClient();
+  const { error } = await supabase.from("job_checklist_items").update({ checked }).eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/jobs/${jobId}`);
+  return { ok: true };
+}
+export async function deleteChecklistItem(id: string, jobId: string): Promise<PhotoResult> {
+  await requireProfile();
+  const supabase = createClient();
+  const { error } = await supabase.from("job_checklist_items").delete().eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/jobs/${jobId}`);
+  return { ok: true };
+}
+
+// ---- Equipment ------------------------------------------------------
+export async function addEquipment(jobId: string, formData: FormData): Promise<PhotoResult> {
+  const profile = await requireProfile();
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) return { ok: false, error: "Name required" };
+  const supabase = createClient();
+  const { error } = await supabase.from("job_equipment").insert({
+    organization_id: profile.organization_id, job_id: jobId, name,
+    serial: String(formData.get("serial") ?? "").trim() || null,
+    notes: String(formData.get("notes") ?? "").trim() || null,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/jobs/${jobId}`);
+  return { ok: true };
+}
+export async function deleteEquipment(id: string, jobId: string): Promise<PhotoResult> {
+  await requireProfile();
+  const supabase = createClient();
+  const { error } = await supabase.from("job_equipment").delete().eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/jobs/${jobId}`);
+  return { ok: true };
+}
+
+// ---- Payments -------------------------------------------------------
+/** Record a payment against an invoice; marks it paid once fully covered. */
+export async function recordJobPayment(invoiceId: string, jobId: string, amountStr: string, method: string): Promise<PhotoResult> {
+  let profile;
+  try { profile = await requireProfile(); assertRole(profile, ["owner", "office"]); }
+  catch { return { ok: false, error: "forbidden" }; }
+  const supabase = createClient();
+  let amount_minor = 0;
+  try { amount_minor = parseAmountToMinor(amountStr); } catch { return { ok: false, error: "Invalid amount" }; }
+  if (amount_minor <= 0) return { ok: false, error: "Amount must be greater than 0" };
+
+  const { data: inv } = await supabase.from("invoices").select("id, total_minor").eq("id", invoiceId).single();
+  if (!inv) return { ok: false, error: "Invoice not found" };
+
+  const { error: pErr } = await supabase.from("payments").insert({
+    organization_id: profile.organization_id, invoice_id: invoiceId,
+    amount_minor, status: "paid", method: method || "manual",
+    paid_at: new Date().toISOString(), created_by: profile.id,
+  });
+  if (pErr) return { ok: false, error: pErr.message };
+
+  // Recompute paid total; mark invoice paid if fully covered.
+  const { data: pays } = await supabase.from("payments").select("amount_minor").eq("invoice_id", invoiceId);
+  const paid = (pays ?? []).reduce((s: number, p: any) => s + p.amount_minor, 0);
+  if (paid >= inv.total_minor) {
+    await supabase.from("invoices").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", invoiceId);
+  }
+  revalidatePath(`/jobs/${jobId}`);
   revalidatePath("/invoices");
   return { ok: true };
 }

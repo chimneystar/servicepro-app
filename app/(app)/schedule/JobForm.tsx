@@ -91,6 +91,11 @@ export default function JobForm({ locale, customers, techs, jobTypes }: { locale
               <div><Label>{t(locale, "job.start")}</Label><input name="start" type="time" value={start} onChange={(e) => onStart(e.target.value)} style={inp} /></div>
               <div><Label>{t(locale, "job.end")}</Label><input name="end" type="time" value={end} onChange={(e) => setEnd(e.target.value)} style={inp} /></div>
             </Row>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#5c6675", margin: "12px 0 -2px" }}>Job address (leave blank to use client address)</div>
+            <Row>
+              <div><Label>Job address</Label><input name="job_address" style={inp} /></div>
+              <div><Label>Job city</Label><input name="job_city" style={inp} /></div>
+            </Row>
             <Label>{t(locale, "form.notes")}</Label>
             <textarea name="notes" rows={2} style={inp} />
             {state.error && <div style={err}>{state.error}</div>}
