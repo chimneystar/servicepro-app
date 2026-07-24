@@ -89,7 +89,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: { pe
           {pill("month", "This month")}{pill("year", "This year")}{pill("all", "All time")}
         </div>
       </div>
-      <p style={{ color: "#5c6675", fontSize: 13, marginBottom: 16 }}>{label}</p>
+      <p style={{ color: "#5c6675", fontSize: 13, marginBottom: 12 }}>{label}</p>
+      <Link href="/reports/custom" style={{ display: "inline-block", background: "#e0ebff", color: "#1d4ed8", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none", marginBottom: 16 }}>🧩 Build a custom report →</Link>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14, marginBottom: 20 }}>
         <Kpi icon="💰" tone="#15803d" label="Revenue collected" value={money(revenueCollected, cur)} />

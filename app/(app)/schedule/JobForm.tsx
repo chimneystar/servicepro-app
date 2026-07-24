@@ -27,6 +27,7 @@ export default function JobForm({ locale, customers, techs, jobTypes }: { locale
   const [start, setStart] = useState("09:00");
   const [end, setEnd] = useState("10:00");
   const [price, setPrice] = useState("");
+  const [customer, setCustomer] = useState(customers[0]?.id ?? "__new__");
 
   if (state.ok && open) setTimeout(() => setOpen(false), 0);
 
@@ -50,9 +51,23 @@ export default function JobForm({ locale, customers, techs, jobTypes }: { locale
           <form action={formAction} style={modal}>
             <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 14 }}>{t(locale, "sched.new")}</h3>
             <Label>{t(locale, "doc.customer")}</Label>
-            <select name="customer_id" style={inp} required>
+            <select name="customer_id" value={customer} onChange={(e) => setCustomer(e.target.value)} style={inp}>
+              <option value="__new__">➕ {t(locale, "cust.new")}</option>
               {customers.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
+            {customer === "__new__" && (
+              <div style={{ background: "#f8fbff", border: "1px solid #e2e8f0", borderRadius: 10, padding: 12, marginTop: 8 }}>
+                <Row>
+                  <div><Label>{t(locale, "form.name")}</Label><input name="new_name" style={inp} /></div>
+                  <div><Label>{t(locale, "form.phone")}</Label><input name="new_phone" style={inp} /></div>
+                </Row>
+                <Row>
+                  <div><Label>{t(locale, "form.email")}</Label><input name="new_email" type="email" style={inp} /></div>
+                  <div><Label>{t(locale, "form.city")}</Label><input name="new_city" style={inp} /></div>
+                </Row>
+                <Label>{t(locale, "form.address")}</Label><input name="new_address" style={inp} />
+              </div>
+            )}
             <Row>
               <div>
                 <Label>{t(locale, "job.service")}</Label>
