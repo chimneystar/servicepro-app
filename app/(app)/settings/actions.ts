@@ -26,7 +26,8 @@ export async function updateSettings(_prev: ActionResult, formData: FormData): P
   const taxPct = Number(formData.get("tax_rate") ?? 0);
   const tax_rate_bps = Number.isFinite(taxPct) ? Math.max(0, Math.min(100000, Math.round(taxPct * 100))) : 0;
 
-  const jobTypes = String(formData.get("job_types") ?? "").split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+  const invNext = parseInt(String(formData.get("invoice_next") ?? ""), 10);
+  const estNext = parseInt(String(formData.get("estimate_next") ?? ""), 10);
 
   const update: Record<string, unknown> = {
     name,
@@ -40,7 +41,8 @@ export async function updateSettings(_prev: ActionResult, formData: FormData): P
     tax_label: taxLabel,
     tax_rate_bps,
   };
-  if (jobTypes.length) update.job_types = jobTypes;
+  if (Number.isFinite(invNext) && invNext > 0) update.invoice_counter = invNext - 1;
+  if (Number.isFinite(estNext) && estNext > 0) update.estimate_counter = estNext - 1;
 
   const supabase = createClient();
   const { error } = await supabase.from("organizations").update(update).eq("id", profile.organization_id!);

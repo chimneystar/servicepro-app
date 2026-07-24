@@ -9,7 +9,7 @@ const initial: ActionResult = { ok: false };
 type Org = {
   name?: string; tagline?: string | null; phone?: string | null; email?: string | null;
   address?: string | null; city?: string | null; currency?: string; locale?: string;
-  tax_label?: string; tax_rate_bps?: number; job_types?: string[] | null;
+  tax_label?: string; tax_rate_bps?: number; invoice_counter?: number; estimate_counter?: number;
 };
 
 export default function SettingsForm({ locale, org }: { locale: Locale; org: Org }) {
@@ -44,10 +44,11 @@ export default function SettingsForm({ locale, org }: { locale: Locale; org: Org
         </Row>
       </Section>
 
-      <Section title="Job types">
-        <label style={{ fontSize: 12.5, color: "#5c6675", display: "block", marginBottom: 6 }}>One per line — these appear when creating a job.</label>
-        <textarea name="job_types" defaultValue={(org.job_types ?? []).join("\n")} rows={6}
-          style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 14, outline: "none", fontFamily: "inherit" }} />
+      <Section title="Document numbering">
+        <Row>
+          <Field name="invoice_next" label="Next invoice #" value={String((org.invoice_counter ?? 5000) + 1)} type="number" />
+          <Field name="estimate_next" label="Next estimate #" value={String((org.estimate_counter ?? 1000) + 1)} type="number" />
+        </Row>
       </Section>
 
       {state.error && <div style={err}>{state.error}</div>}

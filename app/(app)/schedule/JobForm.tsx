@@ -9,12 +9,38 @@ const initial: ActionResult = { ok: false };
 const DEFAULT_SERVICES = ["AC Cleaning", "AC Install", "AC Repair", "Annual Maintenance", "Plumbing", "Electrical", "Renovation", "Other"];
 
 type Opt = { id: string; label: string };
+export type JobTypeOpt = { name: string; color?: string; duration_min?: number; default_price_minor?: number };
 
-export default function JobForm({ locale, customers, techs, services }: { locale: Locale; customers: Opt[]; techs: Opt[]; services?: string[] }) {
+function addMinutes(hhmm: string, min: number) {
+  const [h, m] = hhmm.split(":").map(Number);
+  let total = h * 60 + m + min;
+  total = ((total % 1440) + 1440) % 1440;
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
+
+export default function JobForm({ locale, customers, techs, jobTypes }: { locale: Locale; customers: Opt[]; techs: Opt[]; jobTypes?: JobTypeOpt[] }) {
   const [open, setOpen] = useState(false);
   const [state, formAction] = useFormState(createJob, initial);
-  const SERVICES = services && services.length ? services : DEFAULT_SERVICES;
+  const types: JobTypeOpt[] = jobTypes && jobTypes.length ? jobTypes : DEFAULT_SERVICES.map((name) => ({ name }));
+
+  const [service, setService] = useState(types[0]?.name ?? "");
+  const [start, setStart] = useState("09:00");
+  const [end, setEnd] = useState("10:00");
+  const [price, setPrice] = useState("");
+
   if (state.ok && open) setTimeout(() => setOpen(false), 0);
+
+  function applyType(name: string, startTime = start) {
+    setService(name);
+    const tp = types.find((x) => x.name === name);
+    if (tp?.duration_min) setEnd(addMinutes(startTime, tp.duration_min));
+    if (tp?.default_price_minor) setPrice((tp.default_price_minor / 100).toFixed(2));
+  }
+  function onStart(v: string) {
+    setStart(v);
+    const tp = types.find((x) => x.name === service);
+    if (tp?.duration_min) setEnd(addMinutes(v, tp.duration_min));
+  }
 
   return (
     <>
@@ -30,7 +56,9 @@ export default function JobForm({ locale, customers, techs, services }: { locale
             <Row>
               <div>
                 <Label>{t(locale, "job.service")}</Label>
-                <select name="service" style={inp}>{SERVICES.map((s) => <option key={s}>{s}</option>)}</select>
+                <select name="service" value={service} onChange={(e) => applyType(e.target.value)} style={inp}>
+                  {types.map((s) => <option key={s.name}>{s.name}</option>)}
+                </select>
               </div>
               <div>
                 <Label>{t(locale, "job.tech")}</Label>
@@ -42,11 +70,11 @@ export default function JobForm({ locale, customers, techs, services }: { locale
             </Row>
             <Row>
               <div><Label>{t(locale, "job.date")}</Label><input name="date" type="date" style={inp} required /></div>
-              <div><Label>{t(locale, "job.price")}</Label><input name="price" type="number" step="0.01" style={inp} placeholder="0.00" /></div>
+              <div><Label>{t(locale, "job.price")}</Label><input name="price" type="number" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} style={inp} placeholder="0.00" /></div>
             </Row>
             <Row>
-              <div><Label>{t(locale, "job.start")}</Label><input name="start" type="time" style={inp} /></div>
-              <div><Label>{t(locale, "job.end")}</Label><input name="end" type="time" style={inp} /></div>
+              <div><Label>{t(locale, "job.start")}</Label><input name="start" type="time" value={start} onChange={(e) => onStart(e.target.value)} style={inp} /></div>
+              <div><Label>{t(locale, "job.end")}</Label><input name="end" type="time" value={end} onChange={(e) => setEnd(e.target.value)} style={inp} /></div>
             </Row>
             <Label>{t(locale, "form.notes")}</Label>
             <textarea name="notes" rows={2} style={inp} />
@@ -70,7 +98,7 @@ function Label({ children }: { children: React.ReactNode }) { return <label styl
 function Row({ children }: { children: React.ReactNode }) { return <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>{children}</div>; }
 
 const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", padding: "10px 16px", borderRadius: 10, fontWeight: 700, cursor: "pointer" };
-const overlay: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,30,61,.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 30, zIndex: 100, overflowY: "auto" };
+const overlay: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,30,61,.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 24, zIndex: 100, overflowY: "auto" };
 const modal: React.CSSProperties = { background: "#fff", borderRadius: 18, width: "100%", maxWidth: 500, padding: 22 };
 const lbl: React.CSSProperties = { fontSize: 12.5, fontWeight: 700, color: "#334155", display: "block", margin: "10px 0 6px" };
 const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 14, outline: "none" };

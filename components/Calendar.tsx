@@ -21,7 +21,7 @@ const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.get
 const startOfWeek = (d: Date) => addDays(d, -d.getDay());
 const minutes = (hhmm: string | null) => { if (!hhmm) return START_H * 60; const [h, m] = hhmm.split(":").map(Number); return h * 60 + m; };
 
-export default function Calendar({ jobs, he = false }: { jobs: CalJob[]; he?: boolean }) {
+export default function Calendar({ jobs, he = false, typeColors = {} }: { jobs: CalJob[]; he?: boolean; typeColors?: Record<string, string> }) {
   const [view, setView] = useState<"day" | "week" | "month">("week");
   const [cursor, setCursor] = useState(new Date());
   const today = iso(new Date());
@@ -58,14 +58,14 @@ export default function Calendar({ jobs, he = false }: { jobs: CalJob[]; he?: bo
       </div>
 
       <div className="scroll-x">
-        {view === "month" ? <MonthView cursor={cursor} jobs={jobs} today={today} he={he} />
-          : <TimeGrid cursor={cursor} jobs={jobs} today={today} he={he} days={view === "day" ? 1 : 7} />}
+        {view === "month" ? <MonthView cursor={cursor} jobs={jobs} today={today} he={he} typeColors={typeColors} />
+          : <TimeGrid cursor={cursor} jobs={jobs} today={today} he={he} days={view === "day" ? 1 : 7} typeColors={typeColors} />}
       </div>
     </div>
   );
 }
 
-function TimeGrid({ cursor, jobs, today, days, he }: { cursor: Date; jobs: CalJob[]; today: string; days: number; he: boolean }) {
+function TimeGrid({ cursor, jobs, today, days, he, typeColors = {} }: { cursor: Date; jobs: CalJob[]; today: string; days: number; he: boolean; typeColors?: Record<string, string> }) {
   const first = days === 1 ? new Date(cursor) : startOfWeek(cursor);
   const cols = Array.from({ length: days }, (_, i) => addDays(first, i));
   const hours = Array.from({ length: END_H - START_H }, (_, i) => START_H + i);
@@ -97,7 +97,7 @@ function TimeGrid({ cursor, jobs, today, days, he }: { cursor: Date; jobs: CalJo
                 const top = (minutes(j.start) - START_H * 60) / 60 * HOUR;
                 const dur = Math.max(30, (minutes(j.end) - minutes(j.start)) || 60);
                 const h = dur / 60 * HOUR;
-                const [bg] = statusColor(j.status);
+                const bg = typeColors[j.service] || statusColor(j.status)[0];
                 return (
                   <a key={j.id} href={`/jobs/${j.id}`} title={`${j.title} · ${j.service}`} style={{ position: "absolute", top: Math.max(0, top), left: 3, right: 3, height: Math.max(24, h - 3), background: bg, color: "#fff", borderRadius: 7, padding: "4px 7px", fontSize: 11, overflow: "hidden", boxShadow: "0 2px 6px rgba(0,0,0,.15)", textDecoration: "none", display: "block" }}>
                     <div style={{ fontWeight: 800 }}>{(j.start ?? "").slice(0, 5)} {j.title}</div>
@@ -113,7 +113,7 @@ function TimeGrid({ cursor, jobs, today, days, he }: { cursor: Date; jobs: CalJo
   );
 }
 
-function MonthView({ cursor, jobs, today, he }: { cursor: Date; jobs: CalJob[]; today: string; he: boolean }) {
+function MonthView({ cursor, jobs, today, he, typeColors = {} }: { cursor: Date; jobs: CalJob[]; today: string; he: boolean; typeColors?: Record<string, string> }) {
   const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
   const gridStart = addDays(first, -first.getDay());
   const cells = Array.from({ length: 42 }, (_, i) => addDays(gridStart, i));
@@ -131,7 +131,7 @@ function MonthView({ cursor, jobs, today, he }: { cursor: Date; jobs: CalJob[]; 
             <div key={iso(d)} style={{ minHeight: 92, borderInlineStart: "1px solid #f1f4f9", borderTop: "1px solid #f1f4f9", padding: 5, background: inMonth ? "#fff" : "#fafbfd" }}>
               <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 22, height: 22, borderRadius: "50%", fontSize: 12, fontWeight: 700, background: isToday ? "#2563eb" : "transparent", color: isToday ? "#fff" : inMonth ? "#0b1524" : "#b6bfcc" }}>{d.getDate()}</div>
               {dayJobs.slice(0, 3).map((j) => {
-                const [bg] = statusColor(j.status);
+                const bg = typeColors[j.service] || statusColor(j.status)[0];
                 return <a key={j.id} href={`/jobs/${j.id}`} style={{ display: "block", marginTop: 3, background: bg, color: "#fff", borderRadius: 5, padding: "2px 6px", fontSize: 10.5, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textDecoration: "none" }}>{(j.start ?? "").slice(0, 5)} {j.title}</a>;
               })}
               {dayJobs.length > 3 && <div style={{ fontSize: 10.5, color: "#5c6675", marginTop: 2 }}>+{dayJobs.length - 3} more</div>}

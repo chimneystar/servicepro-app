@@ -25,7 +25,10 @@ export default async function CustomersPage() {
           <h1 style={{ fontSize: 24, fontWeight: 800 }}>{t(locale, "cust.title")}</h1>
           <p style={{ color: "#5c6675", fontSize: 13 }}>{t(locale, "cust.count", { n: customers?.length ?? 0 })}</p>
         </div>
-        <CustomerForm locale={locale} />
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <Link href="/customers/import" style={{ background: "#e2e9f4", color: "#2563eb", borderRadius: 10, padding: "10px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>⬆ Import</Link>
+          <CustomerForm locale={locale} />
+        </div>
       </div>
 
       <div className="rlist">
