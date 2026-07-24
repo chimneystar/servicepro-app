@@ -16,8 +16,10 @@ export async function createEstimate(_prev: ActionResult, formData: FormData): P
   return res;
 }
 
-/** Create an invoice from an existing estimate (copies items, cost, tax). */
-export async function convertEstimateToInvoice(estimateId: string): Promise<ActionResult> {
+export type ConvertResult = { ok: boolean; error?: string; invoiceNumber?: number };
+
+/** Create an invoice from an existing estimate (copies items, cost, tax, photos). */
+export async function convertEstimateToInvoice(estimateId: string): Promise<ConvertResult> {
   const locale = getLocale();
   let profile;
   try { profile = await requireProfile(); assertRole(profile, ["owner", "office"]); }
@@ -27,7 +29,7 @@ export async function convertEstimateToInvoice(estimateId: string): Promise<Acti
   const { data: est } = await supabase.from("estimates").select("*").eq("id", estimateId).single();
   if (!est) return { ok: false, error: t(locale, "err.invalid") };
 
-  const { data: items } = await supabase.from("estimate_items").select("*").eq("estimate_id", estimateId);
+  const { data: items } = await supabase.from("estimate_items").select("*").eq("estimate_id", estimateId).order("sort");
   const { data: number, error: numErr } = await supabase.rpc("next_document_number", { p_org: profile.organization_id, p_kind: "invoice" });
   if (numErr) return { ok: false, error: numErr.message };
 
@@ -42,11 +44,11 @@ export async function convertEstimateToInvoice(estimateId: string): Promise<Acti
   if (items && items.length) {
     await supabase.from("invoice_items").insert(items.map((it: any, idx: number) => ({
       organization_id: profile.organization_id, invoice_id: inv.id,
-      description: it.description, qty_milli: it.qty_milli, unit_price_minor: it.unit_price_minor,
-      cost_minor: it.cost_minor ?? 0, sort: idx,
+      title: it.title, description: it.description, qty_milli: it.qty_milli, unit_price_minor: it.unit_price_minor,
+      cost_minor: it.cost_minor ?? 0, taxable: it.taxable ?? true, image_path: it.image_path ?? null, sort: idx,
     })));
   }
   await supabase.from("estimates").update({ status: "approved" }).eq("id", estimateId);
   revalidatePath("/estimates"); revalidatePath("/invoices");
-  return { ok: true };
+  return { ok: true, invoiceNumber: number as number };
 }

@@ -44,15 +44,20 @@ export default async function JobDetailPage({ params }: { params: { id: string }
     supabase.from("job_tasks").select("id, title, done").eq("job_id", params.id).order("created_at"),
     supabase.from("job_checklist_items").select("id, label, checked").eq("job_id", params.id).order("created_at"),
     supabase.from("job_equipment").select("id, name, serial, notes").eq("job_id", params.id).order("created_at"),
-    supabase.from("price_book").select("id, name, price_minor, cost_minor").order("name"),
+    supabase.from("price_book").select("id, name, description, price_minor, cost_minor, taxable, image_path").order("name"),
   ]);
 
   const invList = invoices ?? [];
   const invIds = invList.map((i) => i.id);
   let paidByInvoice: Record<string, number> = {};
+  let paysByInvoice: Record<string, any[]> = {};
   if (invIds.length) {
-    const { data: pays } = await supabase.from("payments").select("invoice_id, amount_minor").in("invoice_id", invIds);
-    (pays ?? []).forEach((p: any) => { if (p.invoice_id) paidByInvoice[p.invoice_id] = (paidByInvoice[p.invoice_id] ?? 0) + p.amount_minor; });
+    const { data: pays } = await supabase.from("payments").select("invoice_id, amount_minor, method, reference, paid_at").in("invoice_id", invIds).order("paid_at");
+    (pays ?? []).forEach((p: any) => {
+      if (!p.invoice_id) return;
+      paidByInvoice[p.invoice_id] = (paidByInvoice[p.invoice_id] ?? 0) + p.amount_minor;
+      (paysByInvoice[p.invoice_id] ??= []).push({ amount_minor: p.amount_minor, method: p.method, reference: p.reference, paid_at: p.paid_at });
+    });
   }
 
   const photos: Photo[] = await Promise.all((photoRows ?? []).map(async (r) => {
@@ -66,7 +71,7 @@ export default async function JobDetailPage({ params }: { params: { id: string }
   const serviceAddr = [job.job_address || c?.address, job.job_city || c?.city].filter(Boolean).join(", ");
   const billingAddr = [c?.billing_address || c?.address, c?.billing_city || c?.city].filter(Boolean).join(", ");
 
-  const payInvoices: InvPay[] = invList.map((i) => ({ id: i.id, number: i.number, total_minor: i.total_minor, status: i.status, paid_minor: paidByInvoice[i.id] ?? 0 }));
+  const payInvoices: InvPay[] = invList.map((i) => ({ id: i.id, number: i.number, total_minor: i.total_minor, status: i.status, paid_minor: paidByInvoice[i.id] ?? 0, payments: paysByInvoice[i.id] ?? [] }));
 
   const Details = (
     <div>
@@ -96,7 +101,7 @@ export default async function JobDetailPage({ params }: { params: { id: string }
 
   const EstimatesTab = (
     <div>
-      {canEdit && <div style={{ marginBottom: 12 }}><DocForm locale={locale} customers={custOpt} action={createEstimate} newKey="est.new" catalog={catalog ?? []} /></div>}
+      {canEdit && <div style={{ marginBottom: 12 }}><DocForm locale={locale} customers={custOpt} action={createEstimate} newKey="est.new" catalog={catalog ?? []} orgId={profile.organization_id!} /></div>}
       <div className="rlist">
         {(estimates ?? []).map((d: any) => <DocRow key={d.id} kind="Estimate" d={d} cur={cur} />)}
         {(estimates ?? []).length === 0 && <div className="rempty">No estimates for this client yet.</div>}
@@ -106,7 +111,7 @@ export default async function JobDetailPage({ params }: { params: { id: string }
 
   const InvoicesTab = (
     <div>
-      {canEdit && <div style={{ marginBottom: 12 }}><DocForm locale={locale} customers={custOpt} action={createInvoice} newKey="inv.new" catalog={catalog ?? []} /></div>}
+      {canEdit && <div style={{ marginBottom: 12 }}><DocForm locale={locale} customers={custOpt} action={createInvoice} newKey="inv.new" catalog={catalog ?? []} orgId={profile.organization_id!} /></div>}
       <div className="rlist">
         {invList.map((d: any) => <DocRow key={d.id} kind="Invoice" d={d} cur={cur} />)}
         {invList.length === 0 && <div className="rempty">No invoices yet. Create one from the Items tab or here.</div>}

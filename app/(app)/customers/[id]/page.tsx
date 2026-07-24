@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 const tel = (p?: string | null) => "tel:" + (p ?? "").replace(/[^0-9+]/g, "");
 
 export default async function CustomerDetailPage({ params }: { params: { id: string } }) {
-  await requireProfile();
+  const profile = await requireProfile();
   const locale = getLocale();
   const supabase = createClient();
   const { data: c } = await supabase.from("customers").select("*").eq("id", params.id).maybeSingle();
@@ -27,7 +27,7 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
     supabase.from("invoices").select("total_minor, status").eq("customer_id", params.id).is("deleted_at", null),
     supabase.from("estimates").select("id").eq("customer_id", params.id).is("deleted_at", null),
     supabase.from("reviews").select("id, rating, body, review_date").eq("customer_id", params.id).order("review_date", { ascending: false }),
-    supabase.from("price_book").select("id, name, price_minor, cost_minor").order("name"),
+    supabase.from("price_book").select("id, name, description, price_minor, cost_minor, taxable, image_path").order("name"),
   ]);
   const custOpt = [{ id: c.id, label: c.name }];
 
@@ -46,8 +46,8 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
       <p style={{ color: "#5c6675", marginBottom: 14 }}>{[c.city, c.source].filter(Boolean).join(" · ")}</p>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
-        <DocForm locale={locale} customers={custOpt} action={createEstimate} newKey="est.new" catalog={catalog ?? []} />
-        <DocForm locale={locale} customers={custOpt} action={createInvoice} newKey="inv.new" catalog={catalog ?? []} />
+        <DocForm locale={locale} customers={custOpt} action={createEstimate} newKey="est.new" catalog={catalog ?? []} orgId={profile.organization_id!} />
+        <DocForm locale={locale} customers={custOpt} action={createInvoice} newKey="inv.new" catalog={catalog ?? []} orgId={profile.organization_id!} />
       </div>
 
       <div style={{ display: "flex", gap: 18, justifyContent: "center", margin: "10px 0 18px" }}>

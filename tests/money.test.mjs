@@ -115,3 +115,43 @@ test("format money (USD default, ILS, EUR)", () => {
   assert.equal(formatMoney(33040, { currency: "ILS" }), "₪330.40");
   assert.equal(formatMoney(-2500, { currency: "USD" }), "-$25.00");
 });
+
+test("per-item taxable: only taxable lines are taxed", () => {
+  const r = computeDocument({
+    items: [
+      { qtyMilli: 1000, unitPriceMinor: 10000, taxable: true },  // $100 taxable
+      { qtyMilli: 1000, unitPriceMinor: 5000, taxable: false },  // $50 not taxable (e.g. labor)
+    ],
+    taxRateBps: 1000, // 10%
+  });
+  assert.equal(r.subtotalMinor, 15000);
+  assert.equal(r.taxableMinor, 10000);   // only the $100 line
+  assert.equal(r.taxMinor, 1000);        // 10% of $100 = $10
+  assert.equal(r.totalMinor, 16000);
+});
+
+test("per-item taxable: discount is split proportionally onto taxable base", () => {
+  const r = computeDocument({
+    items: [
+      { qtyMilli: 1000, unitPriceMinor: 10000, taxable: true },  // $100 taxable
+      { qtyMilli: 1000, unitPriceMinor: 10000, taxable: false }, // $100 non-taxable
+    ],
+    discountMinor: 4000, // $40 discount over $200 subtotal
+    taxRateBps: 1000,    // 10%
+  });
+  // taxable share = 100/200 => $20 of the discount hits the taxable base => taxBase $80
+  assert.equal(r.subtotalMinor, 20000);
+  assert.equal(r.taxableMinor, 8000);
+  assert.equal(r.taxMinor, 800);         // 10% of $80
+  assert.equal(r.totalMinor, 16800);     // 200 - 40 + 8
+});
+
+test("all non-taxable => zero tax", () => {
+  const r = computeDocument({
+    items: [{ qtyMilli: 1000, unitPriceMinor: 12345, taxable: false }],
+    taxRateBps: 825,
+  });
+  assert.equal(r.taxableMinor, 0);
+  assert.equal(r.taxMinor, 0);
+  assert.equal(r.totalMinor, 12345);
+});

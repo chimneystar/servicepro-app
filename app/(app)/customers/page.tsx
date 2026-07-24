@@ -13,7 +13,7 @@ export default async function CustomersPage() {
   const locale = getLocale();
   const supabase = createClient();
   const { data: customers } = await supabase
-    .from("customers").select("id, name, phone, city, address, email, source").is("deleted_at", null).order("name", { ascending: true });
+    .from("customers").select("id, name, phone, city, address, email, source").is("deleted_at", null).eq("archived", false).order("name", { ascending: true });
 
   return (
     <div>
@@ -23,6 +23,7 @@ export default async function CustomersPage() {
           <p style={{ color: "#5c6675", fontSize: 13 }}>{t(locale, "cust.count", { n: customers?.length ?? 0 })}</p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <Link href="/archive" style={{ background: "#fff7ed", color: "#9a3412", borderRadius: 10, padding: "10px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>🗄️ Archive</Link>
           <Link href="/customers/import" style={{ background: "#e2e9f4", color: "#2563eb", borderRadius: 10, padding: "10px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>⬆ Import</Link>
           <CustomerForm locale={locale} />
         </div>

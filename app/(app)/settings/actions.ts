@@ -29,6 +29,7 @@ export async function updateSettings(_prev: ActionResult, formData: FormData): P
   const invNext = parseInt(String(formData.get("invoice_next") ?? ""), 10);
   const estNext = parseInt(String(formData.get("estimate_next") ?? ""), 10);
 
+  const accent = String(formData.get("accent_color") ?? "").trim();
   const update: Record<string, unknown> = {
     name,
     tagline: String(formData.get("tagline") ?? "").trim() || null,
@@ -40,6 +41,10 @@ export async function updateSettings(_prev: ActionResult, formData: FormData): P
     locale: lang,
     tax_label: taxLabel,
     tax_rate_bps,
+    accent_color: /^#[0-9a-fA-F]{6}$/.test(accent) ? accent : "#2563eb",
+    estimate_terms: String(formData.get("estimate_terms") ?? "").trim() || null,
+    invoice_terms: String(formData.get("invoice_terms") ?? "").trim() || null,
+    document_footer: String(formData.get("document_footer") ?? "").trim() || null,
   };
   if (Number.isFinite(invNext) && invNext > 0) update.invoice_counter = invNext - 1;
   if (Number.isFinite(estNext) && estNext > 0) update.estimate_counter = estNext - 1;

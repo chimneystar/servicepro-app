@@ -16,7 +16,7 @@ export default async function SettingsPage() {
   const supabase = createClient();
   const [{ data: org }, { data: jobTypes }] = await Promise.all([
     supabase.from("organizations")
-      .select("name, tagline, phone, email, address, city, currency, locale, tax_label, tax_rate_bps, invoice_counter, estimate_counter")
+      .select("name, tagline, phone, email, address, city, currency, locale, tax_label, tax_rate_bps, invoice_counter, estimate_counter, accent_color, estimate_terms, invoice_terms, document_footer")
       .eq("id", profile.organization_id!).single(),
     supabase.from("job_types").select("id, name, color, duration_min, default_price_minor").order("sort").order("name"),
   ]);

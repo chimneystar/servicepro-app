@@ -169,7 +169,7 @@ export async function deleteEquipment(id: string, jobId: string): Promise<PhotoR
 
 // ---- Payments -------------------------------------------------------
 /** Record a payment against an invoice; marks it paid once fully covered. */
-export async function recordJobPayment(invoiceId: string, jobId: string, amountStr: string, method: string): Promise<PhotoResult> {
+export async function recordJobPayment(invoiceId: string, jobId: string, amountStr: string, method: string, reference?: string): Promise<PhotoResult> {
   let profile;
   try { profile = await requireProfile(); assertRole(profile, ["owner", "office"]); }
   catch { return { ok: false, error: "forbidden" }; }
@@ -178,12 +178,16 @@ export async function recordJobPayment(invoiceId: string, jobId: string, amountS
   try { amount_minor = parseAmountToMinor(amountStr); } catch { return { ok: false, error: "Invalid amount" }; }
   if (amount_minor <= 0) return { ok: false, error: "Amount must be greater than 0" };
 
+  // Non-card methods should carry a reference (check #, Zelle #, transfer #).
+  const needsRef = ["Check", "Zelle", "Bank transfer"].includes(method);
+  if (needsRef && !(reference ?? "").trim()) return { ok: false, error: `Please enter the ${method} reference number` };
+
   const { data: inv } = await supabase.from("invoices").select("id, total_minor").eq("id", invoiceId).single();
   if (!inv) return { ok: false, error: "Invoice not found" };
 
   const { error: pErr } = await supabase.from("payments").insert({
     organization_id: profile.organization_id, invoice_id: invoiceId,
-    amount_minor, status: "paid", method: method || "manual",
+    amount_minor, status: "paid", method: method || "manual", reference: (reference ?? "").trim() || null,
     paid_at: new Date().toISOString(), created_by: profile.id,
   });
   if (pErr) return { ok: false, error: pErr.message };

@@ -11,16 +11,16 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export default async function InvoicesPage({ searchParams }: { searchParams: { filter?: string } }) {
-  await requireProfile();
+  const profile = await requireProfile();
   const locale = getLocale();
   const supabase = createClient();
   const filter = searchParams.filter ?? "all";
 
   const [{ data: invoices }, { data: customers }, { data: org }, { data: catalog }] = await Promise.all([
-    supabase.from("invoices").select("id, number, status, total_minor, issue_date, public_token, customers(name)").is("deleted_at", null).order("number", { ascending: false }),
-    supabase.from("customers").select("id, name").is("deleted_at", null).order("name"),
-    supabase.from("organizations").select("currency").single(),
-    supabase.from("price_book").select("id, name, price_minor, cost_minor").order("name"),
+    supabase.from("invoices").select("id, number, status, total_minor, issue_date, public_token, customers(name, email, phone)").is("deleted_at", null).eq("archived", false).order("number", { ascending: false }),
+    supabase.from("customers").select("id, name").is("deleted_at", null).eq("archived", false).order("name"),
+    supabase.from("organizations").select("currency, name").single(),
+    supabase.from("price_book").select("id, name, description, price_minor, cost_minor, taxable, image_path").order("name"),
   ]);
   const custOpts = (customers ?? []).map((c) => ({ id: c.id, label: c.name }));
   const cur = org?.currency ?? "USD";
@@ -44,7 +44,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: { f
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <h1 style={{ fontSize: 24, fontWeight: 800 }}>{t(locale, "inv.title")}</h1>
-        <DocForm locale={locale} customers={custOpts} action={createInvoice} newKey="inv.new" catalog={catalog ?? []} />
+        <DocForm locale={locale} customers={custOpts} action={createInvoice} newKey="inv.new" catalog={catalog ?? []} orgId={profile.organization_id!} />
       </div>
 
       {/* Due vs paid summary */}
@@ -66,8 +66,8 @@ export default async function InvoicesPage({ searchParams }: { searchParams: { f
       </div>
 
       <DocList
-        rows={shown.map((e: any) => ({ id: e.id, number: e.number, status: e.status, total_minor: e.total_minor, issue_date: e.issue_date, public_token: e.public_token, customer_name: e.customers?.name ?? "—" }))}
-        locale={locale} currency={cur} kind="invoice" emptyKey="inv.empty" statusPrefix="ist" />
+        rows={shown.map((e: any) => ({ id: e.id, number: e.number, status: e.status, total_minor: e.total_minor, issue_date: e.issue_date, public_token: e.public_token, customer_name: e.customers?.name ?? "—", customer_email: e.customers?.email ?? null, customer_phone: e.customers?.phone ?? null }))}
+        locale={locale} currency={cur} orgName={org?.name ?? ""} kind="invoice" emptyKey="inv.empty" statusPrefix="ist" />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { updateSettings, type ActionResult } from "./actions";
 import { t, type Locale } from "@/lib/i18n";
@@ -10,11 +11,15 @@ type Org = {
   name?: string; tagline?: string | null; phone?: string | null; email?: string | null;
   address?: string | null; city?: string | null; currency?: string; locale?: string;
   tax_label?: string; tax_rate_bps?: number; invoice_counter?: number; estimate_counter?: number;
+  accent_color?: string | null; estimate_terms?: string | null; invoice_terms?: string | null; document_footer?: string | null;
 };
+
+const ACCENTS = ["#2563eb", "#0f2a5e", "#0891b2", "#15803d", "#7c3aed", "#db2777", "#d97706", "#dc2626", "#0b1524"];
 
 export default function SettingsForm({ locale, org }: { locale: Locale; org: Org }) {
   const [state, formAction] = useFormState(updateSettings, initial);
   const taxPct = ((org.tax_rate_bps ?? 0) / 100).toString();
+  const [accent, setAccent] = useState(org.accent_color ?? "#2563eb");
 
   return (
     <form action={formAction}>
@@ -42,6 +47,25 @@ export default function SettingsForm({ locale, org }: { locale: Locale; org: Org
           <Field name="tax_label" label={t(locale, "set.tax_label")} value={org.tax_label ?? "Sales Tax"} />
           <Field name="tax_rate" label={t(locale, "set.tax_rate")} value={taxPct} type="number" />
         </Row>
+      </Section>
+
+      <Section title="Document design & terms">
+        <input type="hidden" name="accent_color" value={accent} />
+        <label style={lbl}>Accent color (used on estimates & invoices)</label>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+          {ACCENTS.map((c) => (
+            <button type="button" key={c} onClick={() => setAccent(c)} style={{ width: 32, height: 32, borderRadius: 9, background: c, border: accent === c ? "3px solid #94a3b8" : "1px solid #e2e8f0", cursor: "pointer" }} aria-label={c} />
+          ))}
+        </div>
+        <div style={{ borderRadius: 12, overflow: "hidden", border: "1px solid #e2e8f0", marginBottom: 14 }}>
+          <div style={{ background: accent, color: "#fff", padding: "10px 14px", fontWeight: 800, fontSize: 13 }}>Preview — your documents will use this color</div>
+        </div>
+        <label style={lbl}>Estimate terms &amp; conditions</label>
+        <textarea name="estimate_terms" defaultValue={org.estimate_terms ?? ""} rows={3} style={{ ...inp, marginBottom: 12 }} placeholder="e.g. This estimate is valid for 30 days. A 50% deposit is required to schedule work." />
+        <label style={lbl}>Invoice terms &amp; conditions</label>
+        <textarea name="invoice_terms" defaultValue={org.invoice_terms ?? ""} rows={3} style={{ ...inp, marginBottom: 12 }} placeholder="e.g. Payment due within 14 days. Late payments subject to a 1.5% monthly fee." />
+        <label style={lbl}>Document footer (shown at the bottom of every document)</label>
+        <input name="document_footer" defaultValue={org.document_footer ?? ""} style={inp} placeholder="Thank you for your business!" />
       </Section>
 
       <Section title="Document numbering">
