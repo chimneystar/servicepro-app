@@ -12,6 +12,7 @@ import JobChecklist, { type Check } from "@/components/JobChecklist";
 import JobEquipment, { type Equip } from "@/components/JobEquipment";
 import JobPayments, { type InvPay } from "@/components/JobPayments";
 import JobAddressForm from "@/components/JobAddressForm";
+import JobFieldTools from "@/components/JobFieldTools";
 import DocForm from "@/components/DocForm";
 import { createEstimate } from "@/app/(app)/estimates/actions";
 import { createInvoice } from "@/app/(app)/invoices/actions";
@@ -26,7 +27,7 @@ export default async function JobDetailPage({ params }: { params: { id: string }
 
   const { data: job } = await supabase
     .from("jobs")
-    .select("id, service, status, price_minor, scheduled_date, start_time, end_time, notes, customer_id, job_address, job_city, customers(name, phone, address, city, billing_address, billing_city), profiles!jobs_assigned_to_fkey(full_name)")
+    .select("id, service, status, price_minor, scheduled_date, start_time, end_time, notes, customer_id, job_address, job_city, on_my_way_at, started_at, completed_at, completion_signed_by, customers(name, phone, address, city, billing_address, billing_city), profiles!jobs_assigned_to_fkey(full_name)")
     .eq("id", params.id).is("deleted_at", null).maybeSingle();
   const { data: org } = await supabase.from("organizations").select("currency").single();
   const cur = org?.currency ?? "USD";
@@ -65,6 +66,15 @@ export default async function JobDetailPage({ params }: { params: { id: string }
     return { id: r.id, path: r.storage_path, url: data?.signedUrl ?? null, label: r.label };
   }));
 
+  // Time tracking summary
+  const { data: timeEntries } = await supabase.from("job_time_entries").select("user_id, started_at, ended_at").eq("job_id", params.id);
+  const nowMs = Date.now();
+  const totalMinutes = Math.round((timeEntries ?? []).reduce((s: number, e: any) => {
+    const st = new Date(e.started_at).getTime(); const en = e.ended_at ? new Date(e.ended_at).getTime() : nowMs;
+    return s + Math.max(0, en - st);
+  }, 0) / 60000);
+  const clockedIn = (timeEntries ?? []).some((e: any) => e.user_id === profile.id && !e.ended_at);
+
   const c: any = job.customers;
   const techName = (job as any).profiles?.full_name;
   const custOpt = [{ id: job.customer_id, label: c?.name ?? "Customer" }];
@@ -75,6 +85,7 @@ export default async function JobDetailPage({ params }: { params: { id: string }
 
   const Details = (
     <div>
+      <JobFieldTools jobId={job.id} onMyWayAt={job.on_my_way_at} startedAt={job.started_at} completedAt={job.completed_at} clockedIn={clockedIn} totalMinutes={totalMinutes} signedBy={job.completion_signed_by} />
       <div style={{ display: "flex", gap: 18, justifyContent: "center", margin: "2px 0 16px" }}>
         <a href={"tel:" + (c?.phone ?? "").replace(/[^0-9+]/g, "")} style={clink}>📞 Call</a>
         <a href={"sms:" + (c?.phone ?? "")} style={clink}>💬 Text</a>
@@ -94,6 +105,7 @@ export default async function JobDetailPage({ params }: { params: { id: string }
       <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16, marginTop: 12 }}>
         <JobActions jobId={job.id} status={job.status} canInvoice={canEdit} />
       </div>
+      <a href={`/jobs/${job.id}/report`} style={{ display: "block", textAlign: "center", marginTop: 12, color: "#2563eb", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>🖨️ Open job completion report →</a>
     </div>
   );
 

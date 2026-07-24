@@ -4,6 +4,7 @@ import { t } from "@/lib/i18n";
 import { money } from "@/lib/format";
 import SignApprove from "@/components/SignApprove";
 import PrintButton from "@/components/PrintButton";
+import { providers } from "@/lib/providers";
 // @ts-ignore
 import { computeDocument, lineSubtotalMinor } from "@/lib/core/money.mjs";
 
@@ -30,6 +31,8 @@ export default async function PublicDocPage({ params }: { params: { token: strin
   const totals = computeDocument({ items: items.map((i) => ({ qtyMilli: i.qty_milli, unitPriceMinor: i.unit_price_minor, taxable: i.taxable })), discountMinor: doc.discount_minor, taxRateBps: doc.tax_rate_bps });
   const title = doc.kind === "invoice" ? "Invoice" : "Estimate";
   const signed = !!doc.signed_at;
+  const canPayOnline = doc.kind === "invoice" && doc.status !== "paid" && providers.stripe();
+  const isPaid = doc.status === "paid";
   const hasNonTaxable = items.some((i) => i.taxable === false);
   const imgUrl = (path: string) => supabase.storage.from("item-photos").getPublicUrl(path).data.publicUrl;
   const fmtD = (iso: string) => iso ? new Date(iso + "T00:00:00").toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "";
@@ -105,6 +108,15 @@ export default async function PublicDocPage({ params }: { params: { token: strin
               <span>Total</span><span>{money(totals.totalMinor, cur)}</span>
             </div>
           </div>
+
+          {isPaid && doc.kind === "invoice" && (
+            <div style={{ marginTop: 18, background: "#e6f6ec", color: "#15803d", padding: "14px 16px", borderRadius: 12, fontWeight: 800, textAlign: "center" }}>✓ Paid — thank you!</div>
+          )}
+          {canPayOnline && (
+            <a href={`/api/pay/${params.token}`} style={{ display: "block", marginTop: 18, background: accent, color: "#fff", padding: "15px 16px", borderRadius: 12, fontWeight: 800, fontSize: 16, textAlign: "center", textDecoration: "none" }}>
+              💳 Pay {money(totals.totalMinor, cur)} now
+            </a>
+          )}
 
           {doc.notes && <div style={{ marginTop: 18, background: "#f8fafc", borderRadius: 12, padding: 14, fontSize: 13, color: "#475569" }}><b>Notes</b><br />{doc.notes}</div>}
           {doc.org?.terms && <div style={{ marginTop: 12, padding: 14, border: "1px solid #eef1f6", borderRadius: 12 }}><div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 800, letterSpacing: .5, textTransform: "uppercase", marginBottom: 4 }}>Terms &amp; conditions</div><div style={{ fontSize: 12, color: "#64748b", whiteSpace: "pre-wrap" }}>{doc.org.terms}</div></div>}

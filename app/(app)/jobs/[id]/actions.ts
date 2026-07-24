@@ -239,3 +239,64 @@ export async function updateJobStatus(jobId: string, status: string): Promise<Ph
   revalidatePath(`/jobs/${jobId}`);
   return { ok: true };
 }
+
+// ---- Tech field tools ----------------------------------------------
+/** Mark the technician en route (records time; SMS fires if messaging is configured). */
+export async function setOnMyWay(jobId: string): Promise<PhotoResult> {
+  await requireProfile();
+  const supabase = createClient();
+  const { error } = await supabase.from("jobs").update({ on_my_way_at: new Date().toISOString() }).eq("id", jobId);
+  if (error) return { ok: false, error: error.message };
+  // Best-effort: notify the client if an SMS provider is connected.
+  try {
+    const { notifyOnMyWay } = await import("@/lib/notify");
+    await notifyOnMyWay(jobId);
+  } catch { /* messaging optional */ }
+  revalidatePath(`/jobs/${jobId}`);
+  return { ok: true };
+}
+
+/** Clock in: open a time entry and start the job. */
+export async function clockIn(jobId: string): Promise<PhotoResult> {
+  const profile = await requireProfile();
+  const supabase = createClient();
+  const { data: open } = await supabase.from("job_time_entries")
+    .select("id").eq("job_id", jobId).eq("user_id", profile.id).is("ended_at", null).limit(1);
+  if (open && open.length) return { ok: true }; // already clocked in
+  const { error } = await supabase.from("job_time_entries").insert({
+    organization_id: profile.organization_id, job_id: jobId, user_id: profile.id,
+  });
+  if (error) return { ok: false, error: error.message };
+  await supabase.from("jobs").update({ status: "in_progress", started_at: new Date().toISOString() }).eq("id", jobId).is("started_at", null);
+  revalidatePath(`/jobs/${jobId}`);
+  return { ok: true };
+}
+
+/** Clock out: close this user's open time entry. */
+export async function clockOut(jobId: string): Promise<PhotoResult> {
+  const profile = await requireProfile();
+  const supabase = createClient();
+  const { data: open } = await supabase.from("job_time_entries")
+    .select("id").eq("job_id", jobId).eq("user_id", profile.id).is("ended_at", null).order("started_at", { ascending: false }).limit(1);
+  if (!open || !open.length) return { ok: true };
+  const { error } = await supabase.from("job_time_entries").update({ ended_at: new Date().toISOString() }).eq("id", open[0].id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/jobs/${jobId}`);
+  return { ok: true };
+}
+
+/** Complete the job with an optional customer signature. Closes any open timer. */
+export async function completeJob(jobId: string, signature: string, signedBy: string): Promise<PhotoResult> {
+  const profile = await requireProfile();
+  const supabase = createClient();
+  await supabase.from("job_time_entries").update({ ended_at: new Date().toISOString() })
+    .eq("job_id", jobId).eq("user_id", profile.id).is("ended_at", null);
+  const { error } = await supabase.from("jobs").update({
+    status: "done", completed_at: new Date().toISOString(),
+    completion_signature: (signature || "").slice(0, 400000) || null,
+    completion_signed_by: (signedBy || "").trim().slice(0, 120) || null,
+  }).eq("id", jobId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/jobs/${jobId}`);
+  return { ok: true };
+}

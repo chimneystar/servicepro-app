@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { autoSendDocument } from "@/app/(app)/share-actions";
 
 export type ShareTarget = {
   kind: "estimate" | "invoice";
@@ -19,17 +20,28 @@ export default function ShareDoc({ target, onClose }: { target: ShareTarget; onC
   const [to, setTo] = useState(target.customerEmail ?? "");
   const [phone, setPhone] = useState(target.customerPhone ?? "");
   const [copied, setCopied] = useState(false);
+  const [pending, start] = useTransition();
+  const [sent, setSent] = useState<string | null>(null);
 
   const subject = `${target.orgName} — ${label} #${target.number}`;
   const body = `Hi ${target.customerName},\n\nPlease review your ${label} #${target.number} from ${target.orgName} here:\n${link}\n\nYou can approve and sign it online. Thank you!`;
 
   function sendEmail() {
-    const url = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.location.href = url;
+    setSent(null);
+    start(async () => {
+      const r = await autoSendDocument(target.token, "email", to, window.location.origin);
+      if (r.ok) { setSent("✓ Email sent to " + to); return; }
+      // fall back to the user's own email app
+      window.location.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    });
   }
   function sendText() {
-    const url = `sms:${encodeURIComponent(phone)}?&body=${encodeURIComponent(`${target.orgName}: your ${label} #${target.number} — ${link}`)}`;
-    window.location.href = url;
+    setSent(null);
+    start(async () => {
+      const r = await autoSendDocument(target.token, "text", phone, window.location.origin);
+      if (r.ok) { setSent("✓ Text sent to " + phone); return; }
+      window.location.href = `sms:${encodeURIComponent(phone)}?&body=${encodeURIComponent(`${target.orgName}: your ${label} #${target.number} — ${link}`)}`;
+    });
   }
   function copy() { navigator.clipboard?.writeText(link).catch(() => {}); setCopied(true); setTimeout(() => setCopied(false), 1600); }
 
@@ -48,15 +60,16 @@ export default function ShareDoc({ target, onClose }: { target: ShareTarget; onC
           <>
             <label style={lbl}>Send to email</label>
             <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="client@email.com" style={inp} />
-            <button onClick={sendEmail} disabled={!to} style={{ ...btn, marginTop: 12, width: "100%", opacity: to ? 1 : .5 }}>✉️ Open email to send</button>
+            <button onClick={sendEmail} disabled={!to || pending} style={{ ...btn, marginTop: 12, width: "100%", opacity: to ? 1 : .5 }}>{pending ? "Sending…" : "✉️ Send email"}</button>
           </>
         ) : (
           <>
             <label style={lbl}>Send to phone</label>
             <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 555 123 4567" style={inp} />
-            <button onClick={sendText} disabled={!phone} style={{ ...btn, marginTop: 12, width: "100%", opacity: phone ? 1 : .5 }}>💬 Open text to send</button>
+            <button onClick={sendText} disabled={!phone || pending} style={{ ...btn, marginTop: 12, width: "100%", opacity: phone ? 1 : .5 }}>{pending ? "Sending…" : "💬 Send text"}</button>
           </>
         )}
+        {sent && <div style={{ marginTop: 10, background: "#e6f6ec", color: "#15803d", padding: "9px 12px", borderRadius: 10, fontSize: 13, fontWeight: 700, textAlign: "center" }}>{sent}</div>}
 
         <div style={{ marginTop: 14, borderTop: "1px solid #eef1f6", paddingTop: 12 }}>
           <div style={{ fontSize: 12, color: "#5c6675", marginBottom: 6 }}>Or copy the link and paste it anywhere:</div>
