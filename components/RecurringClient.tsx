@@ -9,14 +9,13 @@ export type Plan = { id: string; customer_id: string; customer_name: string; ser
 type Opt = { id: string; label: string };
 const sym: Record<string, string> = { USD: "$", ILS: "₪", EUR: "€" };
 
-export default function RecurringClient({ plans, customers, techs, currency }: { plans: Plan[]; customers: Opt[]; techs: Opt[]; currency: string }) {
+export default function RecurringClient({ plans, customers, techs, currency, today }: { plans: Plan[]; customers: Opt[]; techs: Opt[]; currency: string; today: string }) {
   const router = useRouter();
   const [editing, setEditing] = useState<Plan | null | undefined>(undefined);
   const [pending, start] = useTransition();
   const [msg, setMsg] = useState<string | null>(null);
   const [state, formAction] = useFormState(savePlan, { ok: false } as ActionResult);
   const cur = sym[currency] ?? "$";
-  const today = new Date().toISOString().slice(0, 10);
   if (state.ok && editing !== undefined) setTimeout(() => { setEditing(undefined); router.refresh(); }, 0);
 
   const dueCount = plans.filter((p) => p.next_due <= today).length;

@@ -24,7 +24,7 @@ export default async function RecurringPage() {
         plans={(plans ?? []).map((p: any) => ({ id: p.id, customer_id: p.customer_id, customer_name: p.customers?.name ?? "—", service: p.service, interval_months: p.interval_months, price_minor: p.price_minor, next_due: p.next_due, assigned_to: p.assigned_to })) as Plan[]}
         customers={(customers ?? []).map((c) => ({ id: c.id, label: c.name }))}
         techs={(techs ?? []).map((t) => ({ id: t.id, label: t.full_name || "Tech" }))}
-        currency={org?.currency ?? "USD"} />
+        currency={org?.currency ?? "USD"} today={new Date().toISOString().slice(0, 10)} />
     </div>
   );
 }

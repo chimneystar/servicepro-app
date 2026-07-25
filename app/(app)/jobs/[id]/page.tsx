@@ -13,6 +13,8 @@ import JobEquipment, { type Equip } from "@/components/JobEquipment";
 import JobPayments, { type InvPay } from "@/components/JobPayments";
 import JobAddressForm from "@/components/JobAddressForm";
 import JobFieldTools from "@/components/JobFieldTools";
+import JobTagsEditor from "@/components/JobTagsEditor";
+import JobExpensesField from "@/components/JobExpensesField";
 import ReviewButton from "@/components/ReviewButton";
 import DocForm from "@/components/DocForm";
 import { createEstimate } from "@/app/(app)/estimates/actions";
@@ -28,10 +30,15 @@ export default async function JobDetailPage({ params }: { params: { id: string }
 
   const { data: job } = await supabase
     .from("jobs")
-    .select("id, service, status, price_minor, scheduled_date, start_time, end_time, notes, customer_id, job_address, job_city, on_my_way_at, started_at, completed_at, completion_signed_by, customers(name, phone, address, city, billing_address, billing_city), profiles!jobs_assigned_to_fkey(full_name)")
+    .select("id, service, status, stage, tags, job_expenses_minor, price_minor, scheduled_date, start_time, end_time, notes, customer_id, job_address, job_city, on_my_way_at, started_at, completed_at, completion_signed_by, customers(name, phone, address, city, billing_address, billing_city), profiles!jobs_assigned_to_fkey(full_name)")
     .eq("id", params.id).is("deleted_at", null).maybeSingle();
-  const { data: org } = await supabase.from("organizations").select("currency").single();
+  const [{ data: org }, { data: stageRows }] = await Promise.all([
+    supabase.from("organizations").select("currency").single(),
+    supabase.from("job_statuses").select("name, color").order("sort"),
+  ]);
   const cur = org?.currency ?? "USD";
+  const stages = (stageRows ?? []) as { name: string; color: string }[];
+  const stageColor = stages.find((s) => s.name === (job as any)?.stage)?.color ?? "#2563eb";
 
   if (!job) return <div><Link href="/schedule" style={back}>‹ Schedule</Link><div style={{ padding: 40, textAlign: "center", color: "#5c6675" }}>Job not found.</div></div>;
 
@@ -104,8 +111,10 @@ export default async function JobDetailPage({ params }: { params: { id: string }
       {canEdit && <JobAddressForm jobId={job.id} jobAddress={job.job_address} jobCity={job.job_city} />}
       {job.notes && <div style={{ background: "#f4f7fb", borderRadius: 12, padding: "12px 14px", margin: "12px 0", fontSize: 14 }}><b style={{ fontSize: 12, color: "#5c6675" }}>Notes</b><br />{job.notes}</div>}
       <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16, marginTop: 12 }}>
-        <JobActions jobId={job.id} status={job.status} canInvoice={canEdit} />
+        <JobActions jobId={job.id} stage={(job as any).stage ?? "Scheduled"} stages={stages} canInvoice={canEdit} />
       </div>
+      {canEdit && <JobTagsEditor jobId={job.id} tags={(job as any).tags ?? []} />}
+      {canEdit && <JobExpensesField jobId={job.id} value={(job as any).job_expenses_minor ?? 0} />}
       {job.completed_at && canEdit && <ReviewButton jobId={job.id} />}
       <a href={`/jobs/${job.id}/report`} style={{ display: "block", textAlign: "center", marginTop: 12, color: "#2563eb", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>🖨️ Open job completion report →</a>
     </div>
@@ -143,9 +152,17 @@ export default async function JobDetailPage({ params }: { params: { id: string }
 
   return (
     <div style={{ maxWidth: 860 }}>
-      <Link href="/schedule" style={back}>‹ Schedule</Link>
-      <h1 style={{ fontSize: 24, fontWeight: 800, margin: "8px 0 2px" }}>{job.service}</h1>
-      <p style={{ color: "#5c6675", marginBottom: 14 }}>{c?.name ?? "—"}</p>
+      <Link href="/jobs" style={back}>‹ Jobs</Link>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", margin: "8px 0 2px" }}>
+        <h1 style={{ fontSize: 24, fontWeight: 800 }}>{job.service}</h1>
+        <span className="pill" style={{ background: stageColor + "22", color: stageColor }}>{(job as any).stage ?? "Scheduled"}</span>
+      </div>
+      <p style={{ color: "#5c6675", marginBottom: 6 }}>{c?.name ?? "—"}</p>
+      {((job as any).tags ?? []).length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
+          {((job as any).tags as string[]).map((t) => <span key={t} className="pill" style={{ background: "#eef2f8", color: "#5c6675" }}>{t}</span>)}
+        </div>
+      )}
       <Tabs tabs={[
         { label: "Details", content: Details },
         { label: "Items", badge: (items ?? []).length ? String((items ?? []).length) : undefined, content: ItemsTab },

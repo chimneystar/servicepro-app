@@ -37,7 +37,7 @@ export default function DocView({ title, number, accent, currency, org, customer
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700, fontSize: 14 }}>{it.title || it.description}</div>
                 {it.description && it.description !== it.title && <div style={{ fontSize: 12.5, color: "#5c6675" }}>{it.description}</div>}
-                <div style={{ fontSize: 12, color: "#9aa3b2" }}>{(it.qty_milli / 1000).toLocaleString()} × {money(it.unit_price_minor, currency)}{hasNonTax && it.taxable === false ? " · no tax" : ""}</div>
+                <div style={{ fontSize: 12, color: "#9aa3b2" }}>{(it.qty_milli / 1000).toLocaleString("en-US")} × {money(it.unit_price_minor, currency)}{hasNonTax && it.taxable === false ? " · no tax" : ""}</div>
               </div>
               <b style={{ whiteSpace: "nowrap", fontSize: 14 }}>{money(line(it), currency)}</b>
             </div>

@@ -58,7 +58,7 @@ export default function LeadsBoard({ leads, orgId }: { leads: Lead[]; orgId: str
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 800, fontSize: 15 }}>{l.name}</div>
                   <div style={{ fontSize: 13, color: "#5c6675" }}>{[l.service, l.city].filter(Boolean).join(" · ") || "—"}</div>
-                  {l.preferred_date && <div style={{ fontSize: 12.5, color: "#5c6675" }}>📅 Prefers {new Date(l.preferred_date + "T00:00:00").toLocaleDateString()}</div>}
+                  {l.preferred_date && <div style={{ fontSize: 12.5, color: "#5c6675" }}>📅 Prefers {new Date(l.preferred_date + "T00:00:00").toLocaleDateString("en-US")}</div>}
                   {l.notes && <div style={{ fontSize: 12.5, color: "#475569", marginTop: 4 }}>{l.notes}</div>}
                 </div>
                 <span className="pill" style={{ background: bg, color: fg }}>{meta[1]}</span>

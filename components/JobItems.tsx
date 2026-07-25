@@ -35,7 +35,7 @@ export default function JobItems({ jobId, items, currency, canEdit }: { jobId: s
           <div className="ritem" key={it.id}>
             <div className="rmain">
               <div className="rtitle">{it.description}</div>
-              <div className="rsub">{(it.qty_milli / 1000).toLocaleString()} × {money(it.unit_price_minor, currency)}</div>
+              <div className="rsub">{(it.qty_milli / 1000).toLocaleString("en-US")} × {money(it.unit_price_minor, currency)}</div>
             </div>
             <div className="rend"><b>{money(lineTotal(it), currency)}</b></div>
             {canEdit && <button onClick={() => del(it.id)} disabled={pending} style={xBtn}>🗑️</button>}

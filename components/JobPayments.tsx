@@ -59,7 +59,7 @@ export default function JobPayments({ jobId, invoices, currency, canRecord }: { 
                 <div style={{ marginTop: 8, display: "grid", gap: 4 }}>
                   {(inv.payments ?? []).map((p, k) => (
                     <div key={k} style={{ fontSize: 12.5, color: "#5c6675", display: "flex", justifyContent: "space-between", gap: 8 }}>
-                      <span>{p.method || "Payment"}{p.reference ? ` · ${p.reference}` : ""}{p.paid_at ? ` · ${new Date(p.paid_at).toLocaleDateString()}` : ""}</span>
+                      <span>{p.method || "Payment"}{p.reference ? ` · ${p.reference}` : ""}{p.paid_at ? ` · ${new Date(p.paid_at).toLocaleDateString("en-US")}` : ""}</span>
                       <b style={{ color: "#15803d" }}>{money(p.amount_minor, currency)}</b>
                     </div>
                   ))}

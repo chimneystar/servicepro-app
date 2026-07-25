@@ -23,9 +23,22 @@ const minutes = (hhmm: string | null) => { if (!hhmm) return START_H * 60; const
 
 export default function Calendar({ jobs, he = false, typeColors = {} }: { jobs: CalJob[]; he?: boolean; typeColors?: Record<string, string> }) {
   const [view, setView] = useState<"day" | "week" | "month">("week");
-  const [cursor, setCursor] = useState(new Date());
-  const today = iso(new Date());
-  useEffect(() => { if (typeof window !== "undefined" && window.innerWidth < 700) setView("day"); }, []);
+  // Initialize date-dependent state AFTER mount so server HTML (which has no
+  // "now") and the client agree — avoids hydration mismatch (#418/#423).
+  const [cursor, setCursor] = useState<Date | null>(null);
+  const [today, setToday] = useState("");
+  useEffect(() => {
+    setCursor(new Date());
+    setToday(iso(new Date()));
+    if (typeof window !== "undefined" && window.innerWidth < 700) setView("day");
+  }, []);
+
+  if (!cursor) {
+    return <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, boxShadow: "0 6px 18px rgba(15,42,94,.06)", padding: 24 }}>
+      <div className="skeleton" style={{ height: 44, marginBottom: 12 }} />
+      <div className="skeleton" style={{ height: 260 }} />
+    </div>;
+  }
 
   const move = (dir: number) => {
     const d = new Date(cursor);

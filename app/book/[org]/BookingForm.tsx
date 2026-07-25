@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 
 export default function BookingForm({ orgId, accent, phone }: { orgId: string; accent: string; phone?: string | null }) {
   const supabase = createClient();
@@ -39,7 +40,8 @@ export default function BookingForm({ orgId, accent, phone }: { orgId: string; a
       <p style={{ color: "#5c6675", fontSize: 13, marginBottom: 14 }}>Fill this out and we’ll get right back to you.</p>
       <Row><F label="Your name *" v={f.name} on={(v) => set("name", v)} /><F label="Phone *" v={f.phone} on={(v) => set("phone", v)} type="tel" /></Row>
       <F label="Email" v={f.email} on={(v) => set("email", v)} type="email" />
-      <Row><F label="Address" v={f.address} on={(v) => set("address", v)} /><F label="City" v={f.city} on={(v) => set("city", v)} /></Row>
+      <label style={lbl}>Address</label>
+      <AddressAutocomplete value={f.address} city={f.city} onChange={(v) => set("address", v)} onCity={(v) => set("city", v)} />
       <Row><F label="Service needed" v={f.service} on={(v) => set("service", v)} placeholder="e.g. Chimney cleaning" /><F label="Preferred date" v={f.date} on={(v) => set("date", v)} type="date" /></Row>
       <label style={lbl}>Anything else?</label>
       <textarea value={f.notes} onChange={(e) => set("notes", e.target.value)} rows={3} style={inp} placeholder="Tell us about the job…" />

@@ -14,7 +14,7 @@ export default function JobFieldTools({ jobId, onMyWayAt, startedAt, completedAt
   const done = !!completedAt;
 
   const run = (fn: () => Promise<any>) => start(async () => { await fn(); router.refresh(); });
-  const fmtTime = (iso: string | null) => iso ? new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : null;
+  const fmtTime = (iso: string | null) => iso ? new Date(iso).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : null;
 
   return (
     <div style={{ background: "#0f2a5e", color: "#fff", borderRadius: 14, padding: 16, marginBottom: 12 }}>

@@ -303,6 +303,42 @@ export async function completeJob(jobId: string, signature: string, signedBy: st
   return { ok: true };
 }
 
+/** Set a job's custom pipeline stage; keeps the legacy enum status in sync for
+ *  the double-book constraint & reports, and records when the stage changed. */
+export async function setJobStage(jobId: string, stage: string): Promise<PhotoResult> {
+  await requireProfile();
+  const supabase = createClient();
+  const { data: st } = await supabase.from("job_statuses").select("is_done, is_cancelled").eq("name", stage).maybeSingle();
+  const enumStatus = st?.is_cancelled ? "cancelled" : st?.is_done ? "done" : /progress/i.test(stage) ? "in_progress" : "scheduled";
+  const { error } = await supabase.from("jobs").update({ stage, status: enumStatus, stage_changed_at: new Date().toISOString() }).eq("id", jobId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/jobs/${jobId}`); revalidatePath("/jobs"); revalidatePath("/schedule");
+  return { ok: true };
+}
+
+/** Add/remove tags on a job (free-form labels like "Follow up", "Waiting for payment"). */
+export async function setJobTags(jobId: string, tags: string[]): Promise<PhotoResult> {
+  await requireProfile();
+  const clean = Array.from(new Set(tags.map((t) => t.trim()).filter(Boolean))).slice(0, 20);
+  const supabase = createClient();
+  const { error } = await supabase.from("jobs").update({ tags: clean }).eq("id", jobId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/jobs/${jobId}`); revalidatePath("/jobs");
+  return { ok: true };
+}
+
+/** Set the manually-entered job costs used by the commission report. */
+export async function setJobExpenses(jobId: string, amountStr: string): Promise<PhotoResult> {
+  await requireProfile();
+  const supabase = createClient();
+  let cents = 0;
+  try { cents = parseAmountToMinor(amountStr); } catch { return { ok: false, error: "Invalid amount" }; }
+  const { error } = await supabase.from("jobs").update({ job_expenses_minor: Math.max(0, cents) }).eq("id", jobId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/jobs/${jobId}`);
+  return { ok: true };
+}
+
 /** Manually send a review request. Returns whether it auto-sent + fallback contact info. */
 export async function requestReview(jobId: string): Promise<{ ok: boolean; sent: boolean; reviewUrl: string | null; phone: string | null; email: string | null; error?: string }> {
   await requireProfile();

@@ -94,6 +94,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: { pe
         <Link href="/reports/custom" style={{ background: "#e0ebff", color: "#1d4ed8", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>🧩 Custom report</Link>
         <Link href="/reports/export" style={{ background: "#e6f6ec", color: "#15803d", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>⬇ Accounting export</Link>
         <Link href="/reports/timesheets" style={{ background: "#fdf1dc", color: "#b45309", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>⏱️ Timesheets</Link>
+        <Link href="/reports/commission" style={{ background: "#ede9fe", color: "#7c3aed", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>💵 Commission</Link>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14, marginBottom: 20 }}>

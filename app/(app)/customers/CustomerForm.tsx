@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { createCustomer, type ActionResult } from "./actions";
 import { t, sourceOptions, type Locale } from "@/lib/i18n";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 
 const initial: ActionResult = { ok: false };
 
@@ -11,8 +12,10 @@ export default function CustomerForm({ locale }: { locale: Locale }) {
   const [open, setOpen] = useState(false);
   const [state, formAction] = useFormState(createCustomer, initial);
   const sources = sourceOptions(locale);
+  const [addr, setAddr] = useState("");
+  const [city, setCity] = useState("");
 
-  if (state.ok && open) setTimeout(() => setOpen(false), 0);
+  if (state.ok && open) setTimeout(() => { setOpen(false); setAddr(""); setCity(""); }, 0);
 
   return (
     <>
@@ -24,8 +27,8 @@ export default function CustomerForm({ locale }: { locale: Locale }) {
             <Field name="name" label={t(locale, "form.name")} />
             <Field name="phone" label={t(locale, "form.phone")} />
             <Field name="email" label={t(locale, "form.email")} type="email" />
-            <Field name="address" label={`${t(locale, "form.address")} (service)`} />
-            <Field name="city" label={t(locale, "form.city")} />
+            <label style={lbl}>{`${t(locale, "form.address")} (service)`}</label>
+            <AddressAutocomplete value={addr} city={city} onChange={setAddr} onCity={setCity} />
             <div style={{ fontSize: 12, fontWeight: 700, color: "#5c6675", margin: "12px 0 -2px" }}>Billing address (leave blank if same)</div>
             <Field name="billing_address" label="Billing address" />
             <Field name="billing_city" label="Billing city" />
