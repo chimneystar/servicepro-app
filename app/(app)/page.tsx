@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getLocale } from "@/lib/locale-server";
 import { t } from "@/lib/i18n";
 import { money, todayISO, monthBounds, fmtDate } from "@/lib/format";
+import { Donut, Bars, Legend } from "@/components/MiniCharts";
+import SetupChecklist, { type Step } from "@/components/SetupChecklist";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -15,15 +17,27 @@ export default async function DashboardPage() {
   const today = todayISO();
   const past14 = new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10);
 
-  const [{ data: org }, { data: invoices }, { data: estimates }, { data: expenses }, { data: jobs }, { data: leads }] = await Promise.all([
-    supabase.from("organizations").select("currency").single(),
+  const [{ data: org }, { data: invoices }, { data: estimates }, { data: expenses }, { data: jobs }, { data: leads }, { count: custCount }] = await Promise.all([
+    supabase.from("organizations").select("currency, logo_url, tax_rate_bps, review_url, onboarding_dismissed").single(),
     supabase.from("invoices").select("status, total_minor, issue_date").is("deleted_at", null),
     supabase.from("estimates").select("status, total_minor").is("deleted_at", null),
     supabase.from("expenses").select("amount_minor, expense_date"),
     supabase.from("jobs").select("service, source, status, price_minor, scheduled_date, start_time, customer_id, customers(name)").is("deleted_at", null),
     supabase.from("leads").select("status"),
+    supabase.from("customers").select("id", { count: "exact", head: true }).is("deleted_at", null).eq("archived", false),
   ]);
   const openLeads = (leads ?? []).filter((l) => !["won", "lost"].includes(l.status)).length;
+
+  // Onboarding checklist (owner only, until dismissed / complete)
+  const steps: Step[] = [
+    { label: "Add your business logo", done: !!org?.logo_url, href: "/settings" },
+    { label: "Set your sales-tax rate", done: (org?.tax_rate_bps ?? 0) > 0, href: "/settings" },
+    { label: "Add your first customer", done: (custCount ?? 0) > 0, href: "/customers" },
+    { label: "Create your first estimate", done: (estimates ?? []).length > 0, href: "/estimates" },
+    { label: "Schedule your first job", done: (jobs ?? []).length > 0, href: "/schedule" },
+    { label: "Add your review link", done: !!org?.review_url, href: "/settings" },
+  ];
+  const showChecklist = profile.role === "owner" && !org?.onboarding_dismissed && steps.some((s) => !s.done);
   const cur = org?.currency ?? "USD";
   const inv = invoices ?? [], est = estimates ?? [], exp = expenses ?? [], jb = jobs ?? [];
 
@@ -39,6 +53,16 @@ export default async function DashboardPage() {
   const estBy = (st: string) => est.filter((e) => e.status === st);
   const wonN = estBy("approved").length, lostN = estBy("rejected").length;
   const winRate = wonN + lostN > 0 ? Math.round((wonN / (wonN + lostN)) * 100) : 0;
+
+  // 6-month revenue series (paid invoices) + paid-vs-due donut
+  const base = new Date();
+  const series = Array.from({ length: 6 }, (_, k) => {
+    const dt = new Date(base.getFullYear(), base.getMonth() - (5 - k), 1);
+    const ym = dt.toISOString().slice(0, 7);
+    const sum = paid.filter((i) => (i.issue_date ?? "").slice(0, 7) === ym).reduce((a, i) => a + i.total_minor, 0);
+    return { label: dt.toLocaleString("en-US", { month: "short" }), value: Math.round(sum / 100) };
+  });
+  const collectRate = collectedAll + dueSum > 0 ? Math.round((collectedAll / (collectedAll + dueSum)) * 100) : 0;
   const todayJobs = jb.filter((j) => j.scheduled_date === today).sort((a, b) => (a.start_time ?? "").localeCompare(b.start_time ?? ""));
   const upcoming = jb.filter((j) => j.scheduled_date >= today && j.status === "scheduled")
     .sort((a, b) => (a.scheduled_date + (a.start_time ?? "")).localeCompare(b.scheduled_date + (b.start_time ?? ""))).slice(0, 5);
@@ -55,6 +79,8 @@ export default async function DashboardPage() {
       <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 3 }}>{t(locale, "dash.greeting", { name: profile.full_name || "👋" })}</h1>
       <p style={{ color: "#5c6675", marginBottom: 14, fontSize: 13.5 }}>{t(locale, "dash.overview")}</p>
 
+      {showChecklist && <SetupChecklist steps={steps} />}
+
       <div className="scroll-x" style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         {[["/schedule", "📅 New job"], ["/estimates", "📝 Estimates"], ["/invoices", "🧾 Invoices"], ["/leads", "🎯 Leads"], ["/route", "🗺️ Today’s route"], ["/messages", "💬 Messages"], ["/reports", "📈 Reports"]].map(([href, label]) => (
           <Link key={href} href={href} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: "9px 13px", fontWeight: 700, fontSize: 13, color: "#0b1524", textDecoration: "none", whiteSpace: "nowrap" }}>{label}</Link>
@@ -62,6 +88,16 @@ export default async function DashboardPage() {
       </div>
 
       <div className="dash" style={grid}>
+        <Card span={8} title="Revenue · last 6 months">
+          <Bars data={series} />
+        </Card>
+        <Card span={4} title="Collections">
+          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+            <Donut segments={[{ value: collectedAll, color: "#15803d" }, { value: dueSum, color: "#f59e0b" }]} centerTop={`${collectRate}%`} centerSub="collected" />
+            <Legend items={[{ label: "Paid", color: "#15803d", value: money(collectedAll, cur) }, { label: "Due", color: "#f59e0b", value: money(dueSum, cur) }]} />
+          </div>
+        </Card>
+
         <Card span={4} title="Pipeline">
           <Row label="Open leads" value={String(openLeads)} />
           <Row label="Estimate win rate" value={`${winRate}%`} strong />

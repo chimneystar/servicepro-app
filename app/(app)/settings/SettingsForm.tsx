@@ -11,7 +11,7 @@ type Org = {
   name?: string; tagline?: string | null; phone?: string | null; email?: string | null;
   address?: string | null; city?: string | null; currency?: string; locale?: string;
   tax_label?: string; tax_rate_bps?: number; invoice_counter?: number; estimate_counter?: number;
-  accent_color?: string | null; estimate_terms?: string | null; invoice_terms?: string | null; document_footer?: string | null;
+  accent_color?: string | null; estimate_terms?: string | null; invoice_terms?: string | null; document_footer?: string | null; review_url?: string | null;
 };
 
 const ACCENTS = ["#2563eb", "#0f2a5e", "#0891b2", "#15803d", "#7c3aed", "#db2777", "#d97706", "#dc2626", "#0b1524"];
@@ -66,6 +66,12 @@ export default function SettingsForm({ locale, org }: { locale: Locale; org: Org
         <textarea name="invoice_terms" defaultValue={org.invoice_terms ?? ""} rows={3} style={{ ...inp, marginBottom: 12 }} placeholder="e.g. Payment due within 14 days. Late payments subject to a 1.5% monthly fee." />
         <label style={lbl}>Document footer (shown at the bottom of every document)</label>
         <input name="document_footer" defaultValue={org.document_footer ?? ""} style={inp} placeholder="Thank you for your business!" />
+      </Section>
+
+      <Section title="Reviews">
+        <label style={lbl}>Google review link</label>
+        <input name="review_url" defaultValue={org.review_url ?? ""} style={inp} placeholder="https://g.page/r/…/review" />
+        <div style={{ fontSize: 12, color: "#5c6675", marginTop: 6 }}>Used when you request a review after a completed job. Get it from your Google Business Profile → “Ask for reviews”.</div>
       </Section>
 
       <Section title="Document numbering">

@@ -297,6 +297,17 @@ export async function completeJob(jobId: string, signature: string, signedBy: st
     completion_signed_by: (signedBy || "").trim().slice(0, 120) || null,
   }).eq("id", jobId);
   if (error) return { ok: false, error: error.message };
+  // Best-effort: auto-send a review request if messaging + a review link are set up.
+  try { const { sendReviewRequest } = await import("@/lib/notify"); await sendReviewRequest(jobId); } catch { /* optional */ }
   revalidatePath(`/jobs/${jobId}`);
   return { ok: true };
+}
+
+/** Manually send a review request. Returns whether it auto-sent + fallback contact info. */
+export async function requestReview(jobId: string): Promise<{ ok: boolean; sent: boolean; reviewUrl: string | null; phone: string | null; email: string | null; error?: string }> {
+  await requireProfile();
+  const { sendReviewRequest } = await import("@/lib/notify");
+  const r = await sendReviewRequest(jobId);
+  if (!r.reviewUrl) return { ok: false, sent: false, reviewUrl: null, phone: r.phone, email: r.email, error: "Add your Google review link in Settings first." };
+  return { ok: true, ...r };
 }

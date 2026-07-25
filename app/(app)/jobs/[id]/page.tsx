@@ -13,6 +13,7 @@ import JobEquipment, { type Equip } from "@/components/JobEquipment";
 import JobPayments, { type InvPay } from "@/components/JobPayments";
 import JobAddressForm from "@/components/JobAddressForm";
 import JobFieldTools from "@/components/JobFieldTools";
+import ReviewButton from "@/components/ReviewButton";
 import DocForm from "@/components/DocForm";
 import { createEstimate } from "@/app/(app)/estimates/actions";
 import { createInvoice } from "@/app/(app)/invoices/actions";
@@ -105,6 +106,7 @@ export default async function JobDetailPage({ params }: { params: { id: string }
       <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16, marginTop: 12 }}>
         <JobActions jobId={job.id} status={job.status} canInvoice={canEdit} />
       </div>
+      {job.completed_at && canEdit && <ReviewButton jobId={job.id} />}
       <a href={`/jobs/${job.id}/report`} style={{ display: "block", textAlign: "center", marginTop: 12, color: "#2563eb", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>🖨️ Open job completion report →</a>
     </div>
   );

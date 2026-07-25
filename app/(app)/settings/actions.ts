@@ -45,6 +45,7 @@ export async function updateSettings(_prev: ActionResult, formData: FormData): P
     estimate_terms: String(formData.get("estimate_terms") ?? "").trim() || null,
     invoice_terms: String(formData.get("invoice_terms") ?? "").trim() || null,
     document_footer: String(formData.get("document_footer") ?? "").trim() || null,
+    review_url: String(formData.get("review_url") ?? "").trim() || null,
   };
   if (Number.isFinite(invNext) && invNext > 0) update.invoice_counter = invNext - 1;
   if (Number.isFinite(estNext) && estNext > 0) update.estimate_counter = estNext - 1;

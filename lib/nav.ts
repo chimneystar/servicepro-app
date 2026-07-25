@@ -6,6 +6,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/", key: "nav.dashboard", icon: "📊", roles: ["owner", "office", "tech"], bottom: true },
   { href: "/schedule", key: "nav.schedule", icon: "📅", roles: ["owner", "office", "tech"], bottom: true },
   { href: "/route", key: "nav.route", icon: "🗺️", roles: ["owner", "office", "tech"] },
+  { href: "/recurring", key: "nav.recurring", icon: "🔁", roles: ["owner", "office"] },
   { href: "/leads", key: "nav.leads", icon: "🎯", roles: ["owner", "office"] },
   { href: "/customers", key: "nav.customers", icon: "👥", roles: ["owner", "office", "tech"], bottom: true },
   { href: "/messages", key: "nav.messages", icon: "💬", roles: ["owner", "office"] },
