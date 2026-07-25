@@ -59,7 +59,7 @@ revoke execute on function public.assert_child_org() from public, anon, authenti
 do $$
 declare r record;
 begin
-  for r in (values
+  for r in select * from (values
     ('invoices','invoices_job_org_guard','jobs','job_id'),
     ('payments','payments_invoice_org_guard','invoices','invoice_id'),
     ('messages','messages_customer_org_guard','customers','customer_id'),

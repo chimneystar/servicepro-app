@@ -1,13 +1,10 @@
 -- =====================================================================
 --  ServicePro — GO-LIVE consolidated migration
 --  Run this ONCE in the Supabase SQL Editor (top to bottom).
---  It applies, in order: 012 (v15 features) -> 013 (security) ->
---  014 (tenant isolation) -> 015 (indexes).
---  Assumes migrations through 011 are already applied to this project.
---  Everything is idempotent (safe to re-run).
+--  Applies 012 (v15) -> 013 (security) -> 014 (isolation) -> 015 (indexes).
+--  Assumes migrations through 011 are already applied. Idempotent.
 --  After it succeeds, run 016_isolation_tests.sql to PROVE isolation.
 -- =====================================================================
-
 
 -- ######################## 012_v15.sql ########################
 
@@ -257,7 +254,7 @@ revoke execute on function public.assert_child_org() from public, anon, authenti
 do $$
 declare r record;
 begin
-  for r in (values
+  for r in select * from (values
     ('invoices','invoices_job_org_guard','jobs','job_id'),
     ('payments','payments_invoice_org_guard','invoices','invoice_id'),
     ('messages','messages_customer_org_guard','customers','customer_id'),
