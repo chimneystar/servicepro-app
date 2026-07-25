@@ -9,7 +9,7 @@ import type { CatalogItem } from "@/components/DocForm";
 
 type Opt = { id: string; label: string };
 type Row = { title: string; desc: string; qty: string; price: string; cost: string; taxable: boolean; image_path: string; uploading?: boolean };
-export type EditInitial = { customer_id: string; discount: string; notes: string; issue_date: string; items: Row[] };
+export type EditInitial = { customer_id: string; discount: string; notes: string; issue_date: string; deposit?: string; items: Row[] };
 
 export default function DocEditor({ kind, docId, action, customers, catalog = [], orgId, initial, returnHref }: {
   kind: "estimate" | "invoice"; docId: string;
@@ -85,6 +85,13 @@ export default function DocEditor({ kind, docId, action, customers, catalog = []
         <div><label style={lbl}>Discount</label><input name="discount" type="number" step="0.01" defaultValue={initial.discount} style={inp} /></div>
         <div><label style={lbl}>Date</label><input name="issue_date" type="date" defaultValue={initial.issue_date} style={inp} /></div>
       </div>
+      {kind === "estimate" && (
+        <div style={{ marginTop: 10 }}>
+          <label style={lbl}>Deposit to request (optional)</label>
+          <input name="deposit" type="number" step="0.01" defaultValue={initial.deposit ?? "0"} style={inp} placeholder="0.00" />
+          <div style={{ fontSize: 12, color: "#5c6675", marginTop: 4 }}>Shown on the estimate as the amount due to schedule the work.</div>
+        </div>
+      )}
       <div style={{ textAlign: "end", fontSize: 13, color: "#5c6675", margin: "6px 2px" }}>Items subtotal ≈ ${(subtotal / 100).toFixed(2)} · tax &amp; total recalculated on save</div>
       <label style={lbl}>Notes</label>
       <textarea name="notes" rows={3} defaultValue={initial.notes} style={inp} />

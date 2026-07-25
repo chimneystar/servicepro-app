@@ -90,7 +90,11 @@ export default async function ReportsPage({ searchParams }: { searchParams: { pe
         </div>
       </div>
       <p style={{ color: "#5c6675", fontSize: 13, marginBottom: 12 }}>{label}</p>
-      <Link href="/reports/custom" style={{ display: "inline-block", background: "#e0ebff", color: "#1d4ed8", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none", marginBottom: 16 }}>🧩 Build a custom report →</Link>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+        <Link href="/reports/custom" style={{ background: "#e0ebff", color: "#1d4ed8", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>🧩 Custom report</Link>
+        <Link href="/reports/export" style={{ background: "#e6f6ec", color: "#15803d", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>⬇ Accounting export</Link>
+        <Link href="/reports/timesheets" style={{ background: "#fdf1dc", color: "#b45309", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>⏱️ Timesheets</Link>
+      </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14, marginBottom: 20 }}>
         <Kpi icon="💰" tone="#15803d" label="Revenue collected" value={money(revenueCollected, cur)} />

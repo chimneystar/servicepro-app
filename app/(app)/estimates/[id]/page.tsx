@@ -1,5 +1,6 @@
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { money } from "@/lib/format";
 import Link from "next/link";
 import DocView, { type ViewItem } from "@/components/DocView";
 import DocDetailActions from "@/components/DocDetailActions";
@@ -13,7 +14,7 @@ export default async function EstimateDetailPage({ params }: { params: { id: str
   await requireProfile();
   const supabase = createClient();
   const { data: est } = await supabase.from("estimates")
-    .select("id, number, status, discount_minor, tax_rate_bps, issue_date, notes, public_token, customers(name, address, city, phone, email)")
+    .select("id, number, status, discount_minor, deposit_minor, tax_rate_bps, issue_date, notes, public_token, customers(name, address, city, phone, email)")
     .eq("id", params.id).is("deleted_at", null).maybeSingle();
   const { data: org } = await supabase.from("organizations").select("name, logo_url, tagline, phone, email, currency, tax_label, accent_color").single();
   if (!est) return <div><Link href="/estimates" style={back}>‹ Estimates</Link><div style={{ padding: 40, textAlign: "center", color: "#5c6675" }}>Estimate not found.</div></div>;
@@ -39,6 +40,12 @@ export default async function EstimateDetailPage({ params }: { params: { id: str
       </div>
       <DocView title="Estimate" number={est.number} accent={accent} currency={org?.currency ?? "USD"} org={org} customer={c}
         issueDate={est.issue_date} items={items} totals={totals} taxLabel={org?.tax_label ?? "Tax"} taxRateBps={est.tax_rate_bps} notes={est.notes} />
+      {(est.deposit_minor ?? 0) > 0 && (
+        <div style={{ marginTop: 12, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px 16px", display: "flex", justifyContent: "space-between" }}>
+          <span style={{ fontWeight: 700 }}>Deposit requested</span>
+          <b style={{ color: accent }}>{money(est.deposit_minor, org?.currency ?? "USD")}</b>
+        </div>
+      )}
     </div>
   );
 }

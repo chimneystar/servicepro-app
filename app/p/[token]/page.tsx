@@ -32,6 +32,8 @@ export default async function PublicDocPage({ params }: { params: { token: strin
   const title = doc.kind === "invoice" ? "Invoice" : "Estimate";
   const signed = !!doc.signed_at;
   const canPayOnline = doc.kind === "invoice" && doc.status !== "paid" && providers.stripe();
+  const depositMinor = doc.deposit_minor ?? 0;
+  const canPayDeposit = doc.kind === "estimate" && depositMinor > 0 && providers.stripe();
   const isPaid = doc.status === "paid";
   const hasNonTaxable = items.some((i) => i.taxable === false);
   const imgUrl = (path: string) => supabase.storage.from("item-photos").getPublicUrl(path).data.publicUrl;
@@ -109,6 +111,17 @@ export default async function PublicDocPage({ params }: { params: { token: strin
             </div>
           </div>
 
+          {depositMinor > 0 && doc.kind === "estimate" && (
+            <div style={{ marginTop: 16, background: "#f8fafc", border: `1px solid ${accent}33`, borderRadius: 12, padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontWeight: 700, fontSize: 14 }}>Deposit to schedule</span>
+              <b style={{ fontSize: 16, color: accent }}>{money(depositMinor, cur)}</b>
+            </div>
+          )}
+          {canPayDeposit && (
+            <a href={`/api/pay/${params.token}?deposit=1`} style={{ display: "block", marginTop: 12, background: accent, color: "#fff", padding: "15px 16px", borderRadius: 12, fontWeight: 800, fontSize: 16, textAlign: "center", textDecoration: "none" }}>
+              💳 Pay {money(depositMinor, cur)} deposit
+            </a>
+          )}
           {isPaid && doc.kind === "invoice" && (
             <div style={{ marginTop: 18, background: "#e6f6ec", color: "#15803d", padding: "14px 16px", borderRadius: 12, fontWeight: 800, textAlign: "center" }}>✓ Paid — thank you!</div>
           )}

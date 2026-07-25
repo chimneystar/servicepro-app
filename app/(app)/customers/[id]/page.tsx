@@ -5,6 +5,7 @@ import { money, fmtDate } from "@/lib/format";
 import Link from "next/link";
 import ReviewForm from "@/components/ReviewForm";
 import CustomerEditForm from "@/components/CustomerEditForm";
+import CopyLinkButton from "@/components/CopyLinkButton";
 import DocForm from "@/components/DocForm";
 import { createEstimate } from "@/app/(app)/estimates/actions";
 import { createInvoice } from "@/app/(app)/invoices/actions";
@@ -48,6 +49,7 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
         <DocForm locale={locale} customers={custOpt} action={createEstimate} newKey="est.new" catalog={catalog ?? []} orgId={profile.organization_id!} />
         <DocForm locale={locale} customers={custOpt} action={createInvoice} newKey="inv.new" catalog={catalog ?? []} orgId={profile.organization_id!} />
+        {c.portal_token && <CopyLinkButton path={`/portal/${c.portal_token}`} label="🔗 Portal link" />}
       </div>
 
       <div style={{ display: "flex", gap: 18, justifyContent: "center", margin: "10px 0 18px" }}>

@@ -41,6 +41,7 @@ export async function updateSession(request: NextRequest) {
     path.startsWith("/auth") ||
     path.startsWith("/p/") ||        // public client document links (view / sign)
     path.startsWith("/book/") ||     // public online-booking request page
+    path.startsWith("/portal/") ||   // public customer portal (magic link)
     path.startsWith("/api/") ||      // payment webhooks / pay redirect
     path.startsWith("/_next") ||
     path === "/favicon.ico";

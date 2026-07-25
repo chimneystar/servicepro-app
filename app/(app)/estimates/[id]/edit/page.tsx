@@ -11,7 +11,7 @@ export default async function EditEstimatePage({ params }: { params: { id: strin
   const profile = await requireProfile();
   if (profile.role === "tech") redirect("/");
   const supabase = createClient();
-  const { data: est } = await supabase.from("estimates").select("id, number, customer_id, discount_minor, notes, issue_date").eq("id", params.id).is("deleted_at", null).maybeSingle();
+  const { data: est } = await supabase.from("estimates").select("id, number, customer_id, discount_minor, deposit_minor, notes, issue_date").eq("id", params.id).is("deleted_at", null).maybeSingle();
   if (!est) return <div>Estimate not found.</div>;
   const [{ data: items }, { data: customers }, { data: catalog }] = await Promise.all([
     supabase.from("estimate_items").select("title, description, qty_milli, unit_price_minor, cost_minor, taxable, image_path").eq("estimate_id", params.id).order("sort"),
@@ -21,6 +21,7 @@ export default async function EditEstimatePage({ params }: { params: { id: strin
 
   const initial: EditInitial = {
     customer_id: est.customer_id, discount: (est.discount_minor / 100).toFixed(2), notes: est.notes ?? "", issue_date: est.issue_date ?? "",
+    deposit: ((est.deposit_minor ?? 0) / 100).toFixed(2),
     items: (items ?? []).map((r: any) => ({ title: r.title ?? "", desc: r.description ?? "", qty: (r.qty_milli / 1000).toString(), price: (r.unit_price_minor / 100).toFixed(2), cost: ((r.cost_minor ?? 0) / 100).toFixed(2), taxable: r.taxable !== false, image_path: r.image_path ?? "" })),
   };
 

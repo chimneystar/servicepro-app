@@ -33,10 +33,28 @@ export async function POST(request: NextRequest) {
 
   const session = event.data?.object ?? {};
   const token = session?.metadata?.token;
+  const payKind = session?.metadata?.kind;
   if (!token) return NextResponse.json({ ok: true, ignored: true });
 
   let admin;
   try { admin = createAdminClient(); } catch { return NextResponse.json({ ok: false, reason: "no service role" }, { status: 200 }); }
+
+  // Deposit paid against an ESTIMATE — record a standalone payment.
+  if (payKind === "deposit") {
+    const { data: est } = await admin.from("estimates").select("id, number, organization_id").eq("public_token", token).maybeSingle();
+    if (est) {
+      const { data: dup } = await admin.from("payments").select("id").eq("stripe_payment_intent_id", session.payment_intent ?? "__none__").limit(1);
+      if (!dup || dup.length === 0) {
+        await admin.from("payments").insert({
+          organization_id: est.organization_id, invoice_id: null,
+          amount_minor: session.amount_total ?? 0, currency: (session.currency ?? "usd").toUpperCase(),
+          status: "paid", method: "Credit card", reference: session.payment_intent ?? null, note: `Deposit for estimate #${est.number}`,
+          stripe_payment_intent_id: session.payment_intent ?? null, paid_at: new Date().toISOString(),
+        });
+      }
+    }
+    return NextResponse.json({ ok: true });
+  }
 
   const { data: inv } = await admin.from("invoices").select("id, organization_id, total_minor, status, stripe_session_id").eq("public_token", token).maybeSingle();
   if (!inv) return NextResponse.json({ ok: true, ignored: true });

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getLocale } from "@/lib/locale-server";
 import { t } from "@/lib/i18n";
 import { money, todayISO, monthBounds, fmtDate } from "@/lib/format";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -14,13 +15,15 @@ export default async function DashboardPage() {
   const today = todayISO();
   const past14 = new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10);
 
-  const [{ data: org }, { data: invoices }, { data: estimates }, { data: expenses }, { data: jobs }] = await Promise.all([
+  const [{ data: org }, { data: invoices }, { data: estimates }, { data: expenses }, { data: jobs }, { data: leads }] = await Promise.all([
     supabase.from("organizations").select("currency").single(),
     supabase.from("invoices").select("status, total_minor, issue_date").is("deleted_at", null),
     supabase.from("estimates").select("status, total_minor").is("deleted_at", null),
     supabase.from("expenses").select("amount_minor, expense_date"),
     supabase.from("jobs").select("service, source, status, price_minor, scheduled_date, start_time, customer_id, customers(name)").is("deleted_at", null),
+    supabase.from("leads").select("status"),
   ]);
+  const openLeads = (leads ?? []).filter((l) => !["won", "lost"].includes(l.status)).length;
   const cur = org?.currency ?? "USD";
   const inv = invoices ?? [], est = estimates ?? [], exp = expenses ?? [], jb = jobs ?? [];
 
@@ -34,6 +37,8 @@ export default async function DashboardPage() {
   const monthExp = exp.filter((e) => e.expense_date >= start && e.expense_date <= end).reduce((s, e) => s + e.amount_minor, 0);
 
   const estBy = (st: string) => est.filter((e) => e.status === st);
+  const wonN = estBy("approved").length, lostN = estBy("rejected").length;
+  const winRate = wonN + lostN > 0 ? Math.round((wonN / (wonN + lostN)) * 100) : 0;
   const todayJobs = jb.filter((j) => j.scheduled_date === today).sort((a, b) => (a.start_time ?? "").localeCompare(b.start_time ?? ""));
   const upcoming = jb.filter((j) => j.scheduled_date >= today && j.status === "scheduled")
     .sort((a, b) => (a.scheduled_date + (a.start_time ?? "")).localeCompare(b.scheduled_date + (b.start_time ?? ""))).slice(0, 5);
@@ -48,9 +53,20 @@ export default async function DashboardPage() {
   return (
     <div>
       <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 3 }}>{t(locale, "dash.greeting", { name: profile.full_name || "👋" })}</h1>
-      <p style={{ color: "#5c6675", marginBottom: 20, fontSize: 13.5 }}>{t(locale, "dash.overview")}</p>
+      <p style={{ color: "#5c6675", marginBottom: 14, fontSize: 13.5 }}>{t(locale, "dash.overview")}</p>
+
+      <div className="scroll-x" style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+        {[["/schedule", "📅 New job"], ["/estimates", "📝 Estimates"], ["/invoices", "🧾 Invoices"], ["/leads", "🎯 Leads"], ["/route", "🗺️ Today’s route"], ["/messages", "💬 Messages"], ["/reports", "📈 Reports"]].map(([href, label]) => (
+          <Link key={href} href={href} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: "9px 13px", fontWeight: 700, fontSize: 13, color: "#0b1524", textDecoration: "none", whiteSpace: "nowrap" }}>{label}</Link>
+        ))}
+      </div>
 
       <div className="dash" style={grid}>
+        <Card span={4} title="Pipeline">
+          <Row label="Open leads" value={String(openLeads)} />
+          <Row label="Estimate win rate" value={`${winRate}%`} strong />
+          <Row label="Approved / Declined" value={`${wonN} / ${lostN}`} />
+        </Card>
         <Card span={4} title="Sales · this month">
           <Big>{money(monthSales, cur)}</Big>
           <Sub>{paid.length} paid invoices · {money(collectedAll, cur)} all time</Sub>

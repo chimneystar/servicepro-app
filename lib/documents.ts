@@ -167,6 +167,8 @@ export async function updateDocument(
   });
 
   const issue = String(formData.get("issue_date") ?? "").trim();
+  let depositMinor = 0;
+  if (kind === "estimate") { try { depositMinor = parseAmountToMinor(String(formData.get("deposit") ?? "0")); } catch { depositMinor = 0; } }
   const { error: upErr } = await supabase.from(table).update({
     customer_id,
     discount_minor: totals.discountMinor,
@@ -174,6 +176,7 @@ export async function updateDocument(
     total_minor: totals.totalMinor,
     notes: String(formData.get("notes") ?? "").trim() || null,
     ...(issue ? { issue_date: issue } : {}),
+    ...(kind === "estimate" ? { deposit_minor: Math.min(depositMinor, totals.totalMinor) } : {}),
     updated_at: new Date().toISOString(),
   }).eq("id", id);
   if (upErr) return { ok: false, error: upErr.message };

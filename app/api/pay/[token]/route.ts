@@ -14,21 +14,29 @@ export async function GET(request: NextRequest, { params }: { params: { token: s
   const back = `${origin}/p/${params.token}`;
   if (!providers.stripe()) return NextResponse.redirect(back);
 
+  const isDeposit = new URL(request.url).searchParams.get("deposit") === "1";
   const supabase = createClient();
   const { data } = await supabase.rpc("public_document", { p_token: params.token });
   const doc: any = data;
-  if (!doc || doc.kind !== "invoice" || doc.status === "paid" || !doc.total_minor) {
-    return NextResponse.redirect(back);
-  }
+  if (!doc) return NextResponse.redirect(back);
+
+  // Deposit on an estimate, or full payment on an invoice.
+  const deposit = doc.deposit_minor ?? 0;
+  const payingDeposit = isDeposit && doc.kind === "estimate" && deposit > 0;
+  const payingInvoice = doc.kind === "invoice" && doc.status !== "paid" && doc.total_minor > 0;
+  if (!payingDeposit && !payingInvoice) return NextResponse.redirect(back);
+
+  const amount = payingDeposit ? deposit : doc.total_minor;
+  const label = payingDeposit ? `Deposit — Estimate #${doc.number}` : `Invoice #${doc.number}`;
 
   try {
     const url = await createCheckoutUrl({
-      amountMinor: doc.total_minor,
+      amountMinor: amount,
       currency: doc.currency ?? "USD",
-      description: `${doc.org?.name ?? "Invoice"} — Invoice #${doc.number}`,
+      description: `${doc.org?.name ?? ""} — ${label}`,
       successUrl: `${back}?paid=1`,
       cancelUrl: back,
-      metadata: { token: params.token, kind: "invoice" },
+      metadata: { token: params.token, kind: payingDeposit ? "deposit" : "invoice" },
     });
     return NextResponse.redirect(url);
   } catch {
