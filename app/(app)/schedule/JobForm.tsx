@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useFormState, useFormStatus } from "react-dom";
 import { createJob, type ActionResult } from "./actions";
 import { t, type Locale } from "@/lib/i18n";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 
 const initial: ActionResult = { ok: false };
 const DEFAULT_SERVICES = ["AC Cleaning", "AC Install", "AC Repair", "Annual Maintenance", "Plumbing", "Electrical", "Renovation", "Other"];
@@ -19,6 +21,7 @@ function addMinutes(hhmm: string, min: number) {
 }
 
 export default function JobForm({ locale, customers, techs, jobTypes }: { locale: Locale; customers: Opt[]; techs: Opt[]; jobTypes?: JobTypeOpt[] }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [state, formAction] = useFormState(createJob, initial);
   const types: JobTypeOpt[] = jobTypes && jobTypes.length ? jobTypes : DEFAULT_SERVICES.map((name) => ({ name }));
@@ -28,8 +31,11 @@ export default function JobForm({ locale, customers, techs, jobTypes }: { locale
   const [end, setEnd] = useState("10:00");
   const [price, setPrice] = useState("");
   const [customer, setCustomer] = useState(customers[0]?.id ?? "__new__");
+  const [newAddr, setNewAddr] = useState(""); const [newCity, setNewCity] = useState("");
+  const [jobAddr, setJobAddr] = useState(""); const [jobCity, setJobCity] = useState("");
 
-  if (state.ok && open) setTimeout(() => setOpen(false), 0);
+  // On success: close AND force the calendar/list to re-fetch immediately.
+  if (state.ok && open) setTimeout(() => { setOpen(false); router.refresh(); }, 0);
 
   function applyType(name: string, startTime = start) {
     setService(name);
@@ -61,11 +67,9 @@ export default function JobForm({ locale, customers, techs, jobTypes }: { locale
                   <div><Label>{t(locale, "form.name")}</Label><input name="new_name" style={inp} /></div>
                   <div><Label>{t(locale, "form.phone")}</Label><input name="new_phone" style={inp} /></div>
                 </Row>
-                <Row>
-                  <div><Label>{t(locale, "form.email")}</Label><input name="new_email" type="email" style={inp} /></div>
-                  <div><Label>{t(locale, "form.city")}</Label><input name="new_city" style={inp} /></div>
-                </Row>
-                <Label>{t(locale, "form.address")}</Label><input name="new_address" style={inp} />
+                <Label>{t(locale, "form.email")}</Label><input name="new_email" type="email" style={inp} />
+                <Label>{t(locale, "form.address")}</Label>
+                <AddressAutocomplete value={newAddr} city={newCity} onChange={setNewAddr} onCity={setNewCity} addressName="new_address" cityName="new_city" />
               </div>
             )}
             <Row>
@@ -91,11 +95,8 @@ export default function JobForm({ locale, customers, techs, jobTypes }: { locale
               <div><Label>{t(locale, "job.start")}</Label><input name="start" type="time" value={start} onChange={(e) => onStart(e.target.value)} style={inp} /></div>
               <div><Label>{t(locale, "job.end")}</Label><input name="end" type="time" value={end} onChange={(e) => setEnd(e.target.value)} style={inp} /></div>
             </Row>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#5c6675", margin: "12px 0 -2px" }}>Job address (leave blank to use client address)</div>
-            <Row>
-              <div><Label>Job address</Label><input name="job_address" style={inp} /></div>
-              <div><Label>Job city</Label><input name="job_city" style={inp} /></div>
-            </Row>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#5c6675", margin: "12px 0 6px" }}>Job address (leave blank to use client address)</div>
+            <AddressAutocomplete value={jobAddr} city={jobCity} onChange={setJobAddr} onCity={setJobCity} addressName="job_address" cityName="job_city" />
             <Label>{t(locale, "form.notes")}</Label>
             <textarea name="notes" rows={2} style={inp} />
             {state.error && <div style={err}>{state.error}</div>}

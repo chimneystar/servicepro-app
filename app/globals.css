@@ -65,6 +65,10 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .mobile-top { display: none; }
 .mobile-tabs { display: none; }
 
+/* Desktop top bar (search + messages + settings) */
+.topbar { display: flex; align-items: center; gap: 12px; margin: -8px 0 18px; }
+@media (max-width: 860px) { .topbar { display: none; } }
+
 @media (max-width: 860px) {
   .shell { flex-direction: column; }
   .desk-side { display: none !important; }

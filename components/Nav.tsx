@@ -5,6 +5,7 @@ import type { Role } from "@/lib/auth";
 import { t, type Locale } from "@/lib/i18n";
 import LanguageToggle from "@/components/LanguageToggle";
 import MobileTabs from "@/components/MobileTabs";
+import SidebarTools from "@/components/SidebarTools";
 import { NAV_ITEMS } from "@/lib/nav";
 
 export default function Nav({ role, businessName, locale }: { role: Role; businessName: string; locale: Locale }) {
@@ -17,6 +18,8 @@ export default function Nav({ role, businessName, locale }: { role: Role; busine
 
   const roleKey = role === "owner" ? "role.owner" : role === "office" ? "role.office" : "role.tech";
   const mine = NAV_ITEMS.filter((i) => i.roles.includes(role));
+  const primary = mine.filter((i) => i.group !== "tools");
+  const tools = mine.filter((i) => i.group === "tools").map((i) => ({ href: i.href, label: t(locale, i.key), icon: i.icon }));
   const bottomItems = mine.filter((i) => i.bottom).map((i) => ({ href: i.href, label: t(locale, i.key), icon: i.icon }));
   const hasMore = mine.some((i) => !i.bottom);
   const tabItems = hasMore ? [...bottomItems, { href: "/more", label: t(locale, "nav.more"), icon: "⋯" }] : bottomItems;
@@ -32,12 +35,13 @@ export default function Nav({ role, businessName, locale }: { role: Role; busine
             <div style={{ fontSize: 11.5, color: "#9db6e6" }}>{t(locale, roleKey)}</div>
           </div>
         </div>
-        <nav style={{ padding: 12, flex: 1 }}>
-          {mine.map((i) => (
+        <nav style={{ padding: 12, flex: 1, overflowY: "auto" }}>
+          {primary.map((i) => (
             <Link key={i.href} href={i.href} style={sideLink}>
               <span style={{ fontSize: 18, width: 22, textAlign: "center" }}>{i.icon}</span>{t(locale, i.key)}
             </Link>
           ))}
+          <SidebarTools items={tools} label={t(locale, "nav.tools")} />
         </nav>
         <div style={{ padding: "10px 14px", display: "flex", justifyContent: "center" }}><LanguageToggle current={locale} dark /></div>
         <form action={signOut} style={{ padding: 14, borderTop: "1px solid rgba(255,255,255,.08)" }}>

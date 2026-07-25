@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useFormState, useFormStatus } from "react-dom";
 import { createCustomer, type ActionResult } from "./actions";
 import { t, sourceOptions, type Locale } from "@/lib/i18n";
@@ -9,13 +10,14 @@ import AddressAutocomplete from "@/components/AddressAutocomplete";
 const initial: ActionResult = { ok: false };
 
 export default function CustomerForm({ locale }: { locale: Locale }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [state, formAction] = useFormState(createCustomer, initial);
   const sources = sourceOptions(locale);
   const [addr, setAddr] = useState("");
   const [city, setCity] = useState("");
 
-  if (state.ok && open) setTimeout(() => { setOpen(false); setAddr(""); setCity(""); }, 0);
+  if (state.ok && open) setTimeout(() => { setOpen(false); setAddr(""); setCity(""); router.refresh(); }, 0);
 
   return (
     <>

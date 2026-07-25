@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useFormState, useFormStatus } from "react-dom";
 import { createClient } from "@/lib/supabase/client";
 import { t, type Locale } from "@/lib/i18n";
@@ -18,10 +19,11 @@ export default function DocForm({ locale, customers, action, newKey, catalog = [
   locale: Locale; customers: Opt[]; action: Action; newKey: string; catalog?: CatalogItem[]; orgId: string;
 }) {
   const supabase = createClient();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<Row[]>([blankRow()]);
   const [state, formAction] = useFormState(action, initial);
-  if (state.ok && open) setTimeout(() => { setOpen(false); setRows([blankRow()]); }, 0);
+  if (state.ok && open) setTimeout(() => { setOpen(false); setRows([blankRow()]); router.refresh(); }, 0);
 
   function update(i: number, patch: Partial<Row>) { setRows((rs) => rs.map((r, k) => (k === i ? { ...r, ...patch } : r))); }
   function addFromCatalog(id: string) {
