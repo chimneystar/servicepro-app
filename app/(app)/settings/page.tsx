@@ -30,23 +30,17 @@ export default async function SettingsPage() {
       <JobTypesEditor types={jobTypes ?? []} currency={org?.currency ?? "USD"} />
       <JobStatusesEditor statuses={(jobStatuses ?? []) as JobStatus[]} />
 
-      <Link href="/team" style={{ display: "flex", alignItems: "center", gap: 12, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16, marginBottom: 16, textDecoration: "none", color: "#0b1524", boxShadow: "0 6px 18px rgba(15,42,94,.06)" }}>
-        <span style={{ fontSize: 22 }}>🛠️</span>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 800, fontSize: 15 }}>Team</div>
-          <div style={{ fontSize: 12.5, color: "#5c6675" }}>Invite technicians &amp; office staff and set their roles.</div>
-        </div>
-        <span style={{ color: "#b6bfcc", fontSize: 18 }}>›</span>
-      </Link>
-
-      <Link href="/settings/messages" style={{ display: "flex", alignItems: "center", gap: 12, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16, marginBottom: 16, textDecoration: "none", color: "#0b1524", boxShadow: "0 6px 18px rgba(15,42,94,.06)" }}>
-        <span style={{ fontSize: 22 }}>💬</span>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 800, fontSize: 15 }}>Client messages</div>
-          <div style={{ fontSize: 12.5, color: "#5c6675" }}>Customize the texts sent when a job is booked, the day before, and when the tech is on the way.</div>
-        </div>
-        <span style={{ color: "#b6bfcc", fontSize: 18 }}>›</span>
-      </Link>
+      <SettingsLink href="/settings/integrations" icon="🔌" title="Integrations" description="Connect Gmail, a local business text number, and Stripe payments." />
+      <SettingsLink href="/team" icon="🛠️" title="Team" description="Invite technicians and office staff and set their roles." />
+      <SettingsLink href="/settings/messages" icon="💬" title="Client messages" description="Customize the texts sent when a job is booked, the day before, and when the tech is on the way." />
     </div>
   );
+}
+
+function SettingsLink({ href, icon, title, description }: { href: string; icon: string; title: string; description: string }) {
+  return <Link href={href} style={{ display: "flex", alignItems: "center", gap: 12, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16, marginBottom: 16, textDecoration: "none", color: "#0b1524", boxShadow: "0 6px 18px rgba(15,42,94,.06)" }}>
+    <span style={{ fontSize: 22 }}>{icon}</span>
+    <div style={{ flex: 1 }}><div style={{ fontWeight: 800, fontSize: 15 }}>{title}</div><div style={{ fontSize: 12.5, color: "#5c6675" }}>{description}</div></div>
+    <span style={{ color: "#b6bfcc", fontSize: 18 }}>›</span>
+  </Link>;
 }
