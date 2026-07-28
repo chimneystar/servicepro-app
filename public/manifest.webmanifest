@@ -1,0 +1,14 @@
+{
+  "name": "ServicePro — ניהול העסק",
+  "short_name": "ServicePro",
+  "description": "לקוחות, עבודות וכספים במקום אחד",
+  "start_url": "/app",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#101a2e",
+  "lang": "he",
+  "dir": "rtl",
+  "icons": [
+    { "src": "/mark.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
