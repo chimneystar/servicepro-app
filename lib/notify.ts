@@ -13,7 +13,7 @@ export function fillTemplate(body: string, vars: Record<string, string>) {
  */
 export async function notifyOnMyWay(jobId: string): Promise<void> {
   if (!providers.sms()) return;
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: job } = await supabase.from("jobs")
     .select("service, scheduled_date, start_time, organization_id, customers(name, phone)")
     .eq("id", jobId).maybeSingle();
@@ -55,7 +55,7 @@ export async function notifyOnMyWay(jobId: string): Promise<void> {
  * back to the user's own phone/email app).
  */
 export async function sendReviewRequest(jobId: string): Promise<{ sent: boolean; reviewUrl: string | null; phone: string | null; email: string | null }> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: job } = await supabase.from("jobs")
     .select("organization_id, customers(name, phone, email)").eq("id", jobId).maybeSingle();
   const cust: any = job?.customers;

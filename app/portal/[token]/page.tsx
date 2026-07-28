@@ -5,9 +5,10 @@ export const dynamic = "force-dynamic";
 
 const SC: Record<string, string> = { draft: "#eef1f6|#57606f", sent: "#e0ebff|#2563eb", approved: "#e6f6ec|#15803d", rejected: "#fdeaea|#dc2626", unpaid: "#fdf1dc|#b45309", paid: "#e6f6ec|#15803d", scheduled: "#e0ebff|#2563eb", in_progress: "#fdf1dc|#b45309", done: "#e6f6ec|#15803d", cancelled: "#eef1f6|#57606f" };
 
-export default async function PortalPage({ params }: { params: { token: string } }) {
-  const supabase = createClient();
-  const { data } = await supabase.rpc("public_customer_portal", { p_token: params.token });
+export default async function PortalPage({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params;
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("public_customer_portal", { p_token: token });
   const d: any = data;
   if (!d) return <Wrap accent="#0f2a5e"><p style={{ color: "#5c6675" }}>This portal link is not valid.</p></Wrap>;
 

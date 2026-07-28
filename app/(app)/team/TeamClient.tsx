@@ -17,6 +17,7 @@ export default function TeamClient({ locale, members, invites, myId }: {
   const [state, formAction] = useFormState(inviteMember, initial);
   const [pending, start] = useTransition();
   const roleLabel = (r: string) => t(locale, r === "owner" ? "role.owner" : r === "office" ? "role.office" : "role.tech");
+  const he = locale === "he";
   const run = (fn: () => Promise<ActionResult>) => start(async () => { await fn(); router.refresh(); });
 
   return (
@@ -57,7 +58,7 @@ export default function TeamClient({ locale, members, invites, myId }: {
               <option value="office">{roleLabel("office")}</option>
               <option value="owner">{roleLabel("owner")}</option>
             </select>
-            {m.id !== myId && <button onClick={() => { if (confirm("Remove this member?")) run(() => removeMember(m.id)); }} disabled={pending} style={rm}>{t(locale, "team.remove")}</button>}
+            {m.id !== myId && <button onClick={() => { if (confirm(he ? "להסיר את העובד מהצוות?" : "Remove this team member?")) run(() => removeMember(m.id)); }} disabled={pending} style={rm}>{t(locale, "team.remove")}</button>}
           </div>
         ))}
       </div>
@@ -76,7 +77,7 @@ export default function TeamClient({ locale, members, invites, myId }: {
       )}
 
       <div style={{ background: "#e0ebff", color: "#1d4ed8", padding: "11px 14px", borderRadius: 12, fontSize: 12.5 }}>
-        ℹ️ Invited teammates sign up at your app URL with the invited email — they'll automatically join your business with the role you set. Technicians see only jobs assigned to them.
+        {he ? "עובדים שהוזמנו נרשמים לאפליקציה עם כתובת האימייל שאליה נשלחה ההזמנה. הם יצטרפו לעסק עם התפקיד שבחרת. טכנאים רואים רק עבודות ששובצו להם." : "Invited teammates sign up with the invited email address and automatically join your business with the role you selected. Technicians see only jobs assigned to them."}
       </div>
     </div>
   );

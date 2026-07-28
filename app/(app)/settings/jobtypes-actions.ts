@@ -22,7 +22,7 @@ export async function saveJobType(_prev: ActionResult, formData: FormData): Prom
 
   const row = { organization_id: profile.organization_id, name, color, duration_min, default_price_minor };
   const id = String(formData.get("id") ?? "");
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = id
     ? await supabase.from("job_types").update(row).eq("id", id)
     : await supabase.from("job_types").insert(row);
@@ -34,7 +34,7 @@ export async function saveJobType(_prev: ActionResult, formData: FormData): Prom
 export async function deleteJobType(id: string): Promise<ActionResult> {
   try { const p = await requireProfile(); assertRole(p, ["owner", "office"]); }
   catch { return { ok: false, error: "forbidden" }; }
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("job_types").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/settings");

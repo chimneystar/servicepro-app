@@ -3,11 +3,13 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addEquipment, deleteEquipment } from "@/app/(app)/jobs/[id]/actions";
+import { useAppLocale } from "@/components/LocaleProvider";
 
 export type Equip = { id: string; name: string; serial: string | null; notes: string | null };
 
 export default function JobEquipment({ jobId, equipment }: { jobId: string; equipment: Equip[] }) {
   const router = useRouter();
+  const he = useAppLocale() === "he";
   const [pending, start] = useTransition();
   const [adding, setAdding] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -16,7 +18,7 @@ export default function JobEquipment({ jobId, equipment }: { jobId: string; equi
     setErr(null);
     start(async () => {
       const r = await addEquipment(jobId, formData);
-      if (!r.ok) setErr(r.error ?? "Error"); else { setAdding(false); router.refresh(); }
+      if (!r.ok) setErr(r.error ?? (he ? "לא הצלחנו לשמור" : "Could not save")); else { setAdding(false); router.refresh(); }
     });
   }
 
@@ -33,19 +35,19 @@ export default function JobEquipment({ jobId, equipment }: { jobId: string; equi
             <button onClick={() => start(async () => { await deleteEquipment(e.id, jobId); router.refresh(); })} disabled={pending} style={xBtn}>🗑️</button>
           </div>
         ))}
-        {equipment.length === 0 && <div className="rempty">No equipment recorded.</div>}
+        {equipment.length === 0 && <div className="rempty">{he ? "עוד לא נשמר ציוד אצל הלקוח." : "No equipment recorded."}</div>}
       </div>
 
-      {!adding && <button onClick={() => setAdding(true)} style={btn}>➕ Add equipment</button>}
+      {!adding && <button onClick={() => setAdding(true)} style={btn}>{he ? "הוספת ציוד" : "Add equipment"}</button>}
       {adding && (
         <form action={submit} style={{ background: "#f8fbff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, marginTop: 10 }}>
-          <input name="name" placeholder="Equipment name (e.g. AC unit, model)" style={inp} autoFocus />
-          <input name="serial" placeholder="Serial number (optional)" style={{ ...inp, marginTop: 8 }} />
-          <input name="notes" placeholder="Notes (optional)" style={{ ...inp, marginTop: 8 }} />
+          <input name="name" placeholder={he ? "שם הציוד או הדגם" : "Equipment name or model"} style={inp} autoFocus />
+          <input name="serial" placeholder={he ? "מספר סידורי, אם יש" : "Serial number, if available"} style={{ ...inp, marginTop: 8 }} />
+          <input name="notes" placeholder={he ? "הערות" : "Notes"} style={{ ...inp, marginTop: 8 }} />
           {err && <div style={errBox}>{err}</div>}
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-            <button type="submit" disabled={pending} style={btn}>{pending ? "Saving…" : "💾 Save"}</button>
-            <button type="button" onClick={() => setAdding(false)} style={{ ...btn, background: "#e2e9f4", color: "#2563eb" }}>Cancel</button>
+            <button type="submit" disabled={pending} style={btn}>{pending ? (he ? "שומרים…" : "Saving…") : (he ? "שמירה" : "Save")}</button>
+            <button type="button" onClick={() => setAdding(false)} style={{ ...btn, background: "#e2e9f4", color: "#2563eb" }}>{he ? "ביטול" : "Cancel"}</button>
           </div>
         </form>
       )}

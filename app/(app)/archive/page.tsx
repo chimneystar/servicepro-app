@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export default async function ArchivePage() {
   const profile = await requireProfile();
   if (profile.role === "tech") redirect("/");
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data } = await supabase.from("customers")
     .select("id, name, phone, email, address, city, legacy_note")
     .is("deleted_at", null).eq("archived", true).order("name");

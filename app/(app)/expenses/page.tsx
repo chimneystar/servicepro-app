@@ -10,8 +10,8 @@ export const dynamic = "force-dynamic";
 export default async function ExpensesPage() {
   const profile = await requireProfile();
   if (profile.role === "tech") redirect("/");
-  const locale = getLocale();
-  const supabase = createClient();
+  const locale = (await getLocale());
+  const supabase = await createClient();
   const { start, end } = monthBounds();
 
   const [{ data: expenses }, { data: org }, { data: paidInv }] = await Promise.all([

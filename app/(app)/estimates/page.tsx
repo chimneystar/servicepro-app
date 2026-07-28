@@ -10,8 +10,8 @@ export const dynamic = "force-dynamic";
 
 export default async function EstimatesPage() {
   const profile = await requireProfile();
-  const locale = getLocale();
-  const supabase = createClient();
+  const locale = (await getLocale());
+  const supabase = await createClient();
   const [{ data: estimates }, { data: customers }, { data: org }, { data: catalog }] = await Promise.all([
     supabase.from("estimates").select("id, number, status, total_minor, issue_date, public_token, customers(name, email, phone)").is("deleted_at", null).eq("archived", false).order("number", { ascending: false }),
     supabase.from("customers").select("id, name").is("deleted_at", null).eq("archived", false).order("name"),

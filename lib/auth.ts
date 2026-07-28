@@ -16,7 +16,7 @@ export interface Profile {
  * - No organization -> redirect to /onboarding (first-run: create the business)
  */
 export async function requireProfile(): Promise<Profile> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

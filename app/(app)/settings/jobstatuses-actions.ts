@@ -20,7 +20,7 @@ export async function saveJobStatus(_prev: ActionResult, formData: FormData): Pr
     is_done: kind === "done", is_cancelled: kind === "cancelled",
   };
   const id = String(formData.get("id") ?? "");
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = id ? await supabase.from("job_statuses").update(row).eq("id", id) : await supabase.from("job_statuses").insert(row);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/settings");
@@ -30,7 +30,7 @@ export async function saveJobStatus(_prev: ActionResult, formData: FormData): Pr
 export async function deleteJobStatus(id: string): Promise<ActionResult> {
   try { const p = await requireProfile(); assertRole(p, ["owner", "office"]); }
   catch { return { ok: false, error: "forbidden" }; }
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("job_statuses").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/settings");

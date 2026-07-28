@@ -6,16 +6,17 @@ import PrintButton from "@/components/PrintButton";
 
 export const dynamic = "force-dynamic";
 
-export default async function JobReportPage({ params }: { params: { id: string } }) {
+export default async function JobReportPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const profile = await requireProfile();
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: job } = await supabase.from("jobs")
     .select("id, service, scheduled_date, price_minor, notes, on_my_way_at, started_at, completed_at, completion_signature, completion_signed_by, customers(name, phone, address, city), profiles!jobs_assigned_to_fkey(full_name)")
-    .eq("id", params.id).maybeSingle();
+    .eq("id", id).maybeSingle();
   const { data: org } = await supabase.from("organizations").select("name, logo_url, accent_color, phone, email, currency, document_footer").single();
   if (!job) return <div style={{ padding: 40 }}>Job not found.</div>;
 
-  const { data: rows } = await supabase.from("job_photos").select("storage_path, label").eq("job_id", params.id).order("created_at");
+  const { data: rows } = await supabase.from("job_photos").select("storage_path, label").eq("job_id", id).order("created_at");
   const photos = await Promise.all((rows ?? []).map(async (r) => {
     const { data } = await supabase.storage.from("job-photos").createSignedUrl(r.storage_path, 3600);
     return { url: data?.signedUrl ?? null, label: r.label };
@@ -28,7 +29,7 @@ export default async function JobReportPage({ params }: { params: { id: string }
   return (
     <div style={{ minHeight: "100vh", background: "#eef3fb", padding: "18px 14px" }}>
       <div className="no-print" style={{ maxWidth: 720, margin: "0 auto 10px", display: "flex", justifyContent: "space-between" }}>
-        <Link href={`/jobs/${params.id}`} style={{ color: "#2563eb", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>‹ Back to job</Link>
+        <Link href={`/jobs/${id}`} style={{ color: "#2563eb", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>‹ Back to job</Link>
         <PrintButton label="Save as PDF" />
       </div>
 

@@ -5,10 +5,11 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-export default async function RoutePage({ searchParams }: { searchParams: { date?: string } }) {
+export default async function RoutePage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
+  const search = await searchParams;
   const profile = await requireProfile();
-  const supabase = createClient();
-  const date = searchParams.date || todayISO();
+  const supabase = await createClient();
+  const date = search.date || todayISO();
 
   const { data: jobs } = await supabase.from("jobs")
     .select("id, service, status, price_minor, start_time, end_time, job_address, job_city, customers(name, address, city, phone), profiles!jobs_assigned_to_fkey(full_name)")

@@ -7,14 +7,15 @@ import { updateEstimate } from "@/app/(app)/estimates/actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function EditEstimatePage({ params }: { params: { id: string } }) {
+export default async function EditEstimatePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const profile = await requireProfile();
   if (profile.role === "tech") redirect("/");
-  const supabase = createClient();
-  const { data: est } = await supabase.from("estimates").select("id, number, customer_id, discount_minor, deposit_minor, notes, issue_date").eq("id", params.id).is("deleted_at", null).maybeSingle();
+  const supabase = await createClient();
+  const { data: est } = await supabase.from("estimates").select("id, number, customer_id, discount_minor, deposit_minor, notes, issue_date").eq("id", id).is("deleted_at", null).maybeSingle();
   if (!est) return <div>Estimate not found.</div>;
   const [{ data: items }, { data: customers }, { data: catalog }] = await Promise.all([
-    supabase.from("estimate_items").select("title, description, qty_milli, unit_price_minor, cost_minor, taxable, image_path").eq("estimate_id", params.id).order("sort"),
+    supabase.from("estimate_items").select("title, description, qty_milli, unit_price_minor, cost_minor, taxable, image_path").eq("estimate_id", id).order("sort"),
     supabase.from("customers").select("id, name").is("deleted_at", null).eq("archived", false).order("name"),
     supabase.from("price_book").select("id, name, description, price_minor, cost_minor, taxable, image_path").order("name"),
   ]);
@@ -27,7 +28,7 @@ export default async function EditEstimatePage({ params }: { params: { id: strin
 
   return (
     <div>
-      <Link href={`/estimates/${params.id}`} style={{ color: "#2563eb", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>‹ Back</Link>
+      <Link href={`/estimates/${id}`} style={{ color: "#2563eb", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>‹ Back</Link>
       <h1 style={{ fontSize: 24, fontWeight: 800, margin: "8px 0 14px" }}>Edit estimate #{est.number}</h1>
       <DocEditor kind="estimate" docId={est.id} action={updateEstimate.bind(null, est.id)} customers={(customers ?? []).map((c) => ({ id: c.id, label: c.name }))} catalog={catalog ?? []} orgId={profile.organization_id!} initial={initial} returnHref={`/estimates/${est.id}`} />
     </div>

@@ -6,7 +6,7 @@ import { t, isLocale, DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 import LanguageToggle from "@/components/LanguageToggle";
 
 export default async function OnboardingPage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
@@ -18,7 +18,7 @@ export default async function OnboardingPage() {
   const { data: joinedOrg } = await supabase.rpc("accept_invitation");
   if (joinedOrg) redirect("/");
 
-  const c = cookies().get("locale")?.value;
+  const c = (await cookies()).get("locale")?.value;
   const locale: Locale = isLocale(c) ? c : DEFAULT_LOCALE;
 
   async function createOrg(formData: FormData) {
@@ -31,7 +31,7 @@ export default async function OnboardingPage() {
     const taxPct = Number(formData.get("taxRate") ?? 0);
     const taxRateBps = Number.isFinite(taxPct) ? Math.max(0, Math.round(taxPct * 100)) : 0;
 
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: orgId, error } = await supabase.rpc("create_org_and_owner", {
       org_name: orgName, owner_name: ownerName,
     });
@@ -43,7 +43,7 @@ export default async function OnboardingPage() {
       .eq("id", orgId as string);
 
     // Match the UI language to the business choice.
-    if (isLocale(lang)) cookies().set("locale", lang, { path: "/", maxAge: 31536000, sameSite: "lax" });
+    if (isLocale(lang)) (await cookies()).set("locale", lang, { path: "/", maxAge: 31536000, sameSite: "lax" });
 
     revalidatePath("/");
     redirect("/");

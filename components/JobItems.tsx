@@ -4,11 +4,13 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { money } from "@/lib/format";
 import { addJobItem, deleteJobItem, createInvoiceFromJob } from "@/app/(app)/jobs/[id]/actions";
+import { useAppLocale } from "@/components/LocaleProvider";
 
 export type Item = { id: string; description: string; qty_milli: number; unit_price_minor: number; cost_minor: number };
 
 export default function JobItems({ jobId, items, currency, canEdit }: { jobId: string; items: Item[]; currency: string; canEdit: boolean }) {
   const router = useRouter();
+  const he = useAppLocale() === "he";
   const [pending, start] = useTransition();
   const [adding, setAdding] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -19,12 +21,12 @@ export default function JobItems({ jobId, items, currency, canEdit }: { jobId: s
     setErr(null);
     start(async () => {
       const r = await addJobItem(jobId, formData);
-      if (!r.ok) setErr(r.error ?? "Error"); else { setAdding(false); router.refresh(); }
+      if (!r.ok) setErr(r.error ?? (he ? "לא הצלחנו לשמור" : "Could not save")); else { setAdding(false); router.refresh(); }
     });
   }
   function del(id: string) { start(async () => { await deleteJobItem(id, jobId); router.refresh(); }); }
   function makeInvoice() {
-    if (!confirm("Create an invoice from these items?")) return;
+    if (!confirm(he ? "ליצור חשבונית מהפריטים האלה?" : "Create an invoice from these items?")) return;
     start(async () => { const r = await createInvoiceFromJob(jobId); if (r.ok) router.push("/invoices"); });
   }
 
@@ -41,30 +43,30 @@ export default function JobItems({ jobId, items, currency, canEdit }: { jobId: s
             {canEdit && <button onClick={() => del(it.id)} disabled={pending} style={xBtn}>🗑️</button>}
           </div>
         ))}
-        {items.length === 0 && <div className="rempty">No items yet.</div>}
+        {items.length === 0 && <div className="rempty">{he ? "עוד אין פריטים." : "No items yet."}</div>}
       </div>
 
       {items.length > 0 && (
         <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 4px", fontWeight: 800, fontSize: 16 }}>
-          <span>Subtotal</span><span>{money(subtotal, currency)}</span>
+          <span>{he ? "סכום ביניים" : "Subtotal"}</span><span>{money(subtotal, currency)}</span>
         </div>
       )}
 
-      {canEdit && !adding && <button onClick={() => setAdding(true)} style={btn}>➕ Add item</button>}
-      {canEdit && items.length > 0 && <button onClick={makeInvoice} disabled={pending} style={{ ...btn, background: "#e6f6ec", color: "#15803d", marginInlineStart: 8 }}>🧾 Create invoice from items</button>}
+      {canEdit && !adding && <button onClick={() => setAdding(true)} style={btn}>{he ? "הוספת פריט" : "Add item"}</button>}
+      {canEdit && items.length > 0 && <button onClick={makeInvoice} disabled={pending} style={{ ...btn, background: "#e6f6ec", color: "#15803d", marginInlineStart: 8 }}>{he ? "יצירת חשבונית מהפריטים" : "Create invoice from items"}</button>}
 
       {adding && (
         <form action={submit} style={{ background: "#f8fbff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, marginTop: 10 }}>
-          <input name="description" placeholder="Description" style={inp} autoFocus />
+          <input name="description" placeholder={he ? "תיאור" : "Description"} style={inp} autoFocus />
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 8 }}>
-            <input name="qty" type="number" step="0.001" defaultValue="1" placeholder="Qty" style={inp} />
-            <input name="price" type="number" step="0.01" placeholder="Unit price" style={inp} />
-            <input name="cost" type="number" step="0.01" placeholder="Cost" style={inp} />
+            <input name="qty" type="number" step="0.001" defaultValue="1" placeholder={he ? "כמות" : "Qty"} style={inp} />
+            <input name="price" type="number" step="0.01" placeholder={he ? "מחיר ליחידה" : "Unit price"} style={inp} />
+            <input name="cost" type="number" step="0.01" placeholder={he ? "עלות" : "Cost"} style={inp} />
           </div>
           {err && <div style={errBox}>{err}</div>}
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-            <button type="submit" disabled={pending} style={btn}>{pending ? "Saving…" : "💾 Save"}</button>
-            <button type="button" onClick={() => setAdding(false)} style={{ ...btn, background: "#e2e9f4", color: "#2563eb" }}>Cancel</button>
+            <button type="submit" disabled={pending} style={btn}>{pending ? (he ? "שומרים…" : "Saving…") : (he ? "שמירה" : "Save")}</button>
+            <button type="button" onClick={() => setAdding(false)} style={{ ...btn, background: "#e2e9f4", color: "#2563eb" }}>{he ? "ביטול" : "Cancel"}</button>
           </div>
         </form>
       )}

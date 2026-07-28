@@ -16,7 +16,7 @@ export async function autoSendDocument(token: string, channel: "email" | "text",
   if (channel === "email" && !providers.email()) return { ok: false, configured: false };
   if (channel === "text" && !providers.sms()) return { ok: false, configured: false };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data } = await supabase.rpc("public_document", { p_token: token });
   const doc: any = data;
   if (!doc) return { ok: false, configured: true, error: "Document not found" };

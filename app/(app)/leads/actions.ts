@@ -13,7 +13,7 @@ export async function updateLeadStatus(id: string, status: string): Promise<Acti
   try { profile = await requireProfile(); assertRole(profile, ["owner", "office"]); }
   catch { return { ok: false, error: "forbidden" }; }
   if (!STATUSES.includes(status)) return { ok: false, error: "invalid status" };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("leads").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/leads");
@@ -25,7 +25,7 @@ export async function convertLead(id: string): Promise<ActionResult> {
   let profile;
   try { profile = await requireProfile(); assertRole(profile, ["owner", "office"]); }
   catch { return { ok: false, error: "forbidden" }; }
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: lead } = await supabase.from("leads").select("*").eq("id", id).single();
   if (!lead) return { ok: false, error: "not found" };
 
@@ -46,7 +46,7 @@ export async function deleteLead(id: string): Promise<ActionResult> {
   let profile;
   try { profile = await requireProfile(); assertRole(profile, ["owner", "office"]); }
   catch { return { ok: false, error: "forbidden" }; }
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("leads").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/leads");

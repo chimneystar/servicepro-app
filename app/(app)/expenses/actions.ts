@@ -11,7 +11,7 @@ import { parseAmountToMinor } from "@/lib/core/money.mjs";
 export type ActionResult = { ok: boolean; error?: string };
 
 export async function addExpense(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
-  const locale = getLocale();
+  const locale = (await getLocale());
   let profile;
   try { profile = await requireProfile(); assertRole(profile, ["owner", "office"]); }
   catch { return { ok: false, error: t(locale, "err.forbidden") }; }
@@ -24,7 +24,7 @@ export async function addExpense(_prev: ActionResult, formData: FormData): Promi
   catch { return { ok: false, error: t(locale, "err.invalid") }; }
   if (amount_minor <= 0) return { ok: false, error: t(locale, "err.invalid") };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("expenses").insert({
     organization_id: profile.organization_id,
     created_by: profile.id,
@@ -40,10 +40,10 @@ export async function addExpense(_prev: ActionResult, formData: FormData): Promi
 }
 
 export async function deleteExpense(id: string): Promise<ActionResult> {
-  const locale = getLocale();
+  const locale = (await getLocale());
   try { const p = await requireProfile(); assertRole(p, ["owner", "office"]); }
   catch { return { ok: false, error: t(locale, "err.forbidden") }; }
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("expenses").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/expenses");

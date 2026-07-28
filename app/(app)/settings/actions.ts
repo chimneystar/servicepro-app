@@ -5,12 +5,13 @@ import { createClient } from "@/lib/supabase/server";
 import { requireProfile, assertRole } from "@/lib/auth";
 import { getLocale } from "@/lib/locale-server";
 import { t } from "@/lib/i18n";
+import { cookies } from "next/headers";
 
 export type ActionResult = { ok: boolean; error?: string };
 
 export async function updateSettings(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const profile = await requireProfile();
-  const locale = getLocale();
+  const locale = (await getLocale());
   try {
     assertRole(profile, ["owner"]);
   } catch {
@@ -50,10 +51,11 @@ export async function updateSettings(_prev: ActionResult, formData: FormData): P
   if (Number.isFinite(invNext) && invNext > 0) update.invoice_counter = invNext - 1;
   if (Number.isFinite(estNext) && estNext > 0) update.estimate_counter = estNext - 1;
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("organizations").update(update).eq("id", profile.organization_id!);
 
   if (error) return { ok: false, error: error.message };
+  if (lang === "en" || lang === "he") (await cookies()).set("locale", lang, { path: "/", maxAge: 31536000, sameSite: "lax" });
   revalidatePath("/settings");
   return { ok: true };
 }

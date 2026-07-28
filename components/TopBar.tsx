@@ -3,25 +3,29 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import AppIcon from "@/components/AppIcon";
+import type { Locale } from "@/lib/i18n";
 
-export default function TopBar({ canManage }: { canManage: boolean }) {
+export default function TopBar({ canManage, locale }: { canManage: boolean; locale: Locale }) {
   const router = useRouter();
-  const [q, setQ] = useState("");
-  function submit(e: React.FormEvent) { e.preventDefault(); const s = q.trim(); if (s) router.push(`/search?q=${encodeURIComponent(s)}`); }
+  const [query, setQuery] = useState("");
+  const he = locale === "he";
+  function submit(event: React.FormEvent) {
+    event.preventDefault();
+    const search = query.trim();
+    if (search) router.push(`/search?q=${encodeURIComponent(search)}`);
+  }
 
   return (
     <div className="topbar">
-      <form onSubmit={submit} style={{ flex: 1, maxWidth: 520, position: "relative" }}>
-        <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}>🔍</span>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search clients, jobs, invoices, estimates…"
-          style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 12, padding: "10px 12px 10px 38px", fontSize: 14, outline: "none", background: "#fff" }} />
+      <form onSubmit={submit} className="top-search" role="search">
+        <AppIcon name="search" />
+        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={he ? "חיפוש לקוח, עבודה, חשבונית או הצעת מחיר…" : "Search customers, jobs, invoices or estimates…"} aria-label={he ? "חיפוש" : "Search"} />
       </form>
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        {canManage && <Link href="/messages" title="Messages" style={icon}>💬</Link>}
-        {canManage && <Link href="/settings" title="Settings" style={icon}>⚙️</Link>}
+      <div className="top-actions">
+        {canManage && <Link href="/messages" title={he ? "הודעות" : "Messages"} className="top-icon"><AppIcon name="messages" /></Link>}
+        {canManage && <Link href="/settings" title={he ? "הגדרות" : "Settings"} className="top-icon"><AppIcon name="settings" /></Link>}
       </div>
     </div>
   );
 }
-
-const icon: React.CSSProperties = { width: 40, height: 40, borderRadius: 10, background: "#fff", border: "1px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, textDecoration: "none" };

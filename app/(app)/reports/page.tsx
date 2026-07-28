@@ -19,12 +19,13 @@ function range(period: string): { start: string; end: string; label: string } {
 const itemRev = (it: any) => Math.round((it.qty_milli * it.unit_price_minor) / 1000);
 const itemCost = (it: any) => Math.round((it.qty_milli * (it.cost_minor ?? 0)) / 1000);
 
-export default async function ReportsPage({ searchParams }: { searchParams: { period?: string } }) {
+export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ period?: string }> }) {
+  const search = await searchParams;
   const profile = await requireProfile();
   if (profile.role === "tech") redirect("/");
-  const locale = getLocale();
-  const supabase = createClient();
-  const period = searchParams.period ?? "month";
+  const locale = (await getLocale());
+  const supabase = await createClient();
+  const period = search.period ?? "month";
   const { start, end, label } = range(period);
 
   const { data: org } = await supabase.from("organizations").select("currency").single();

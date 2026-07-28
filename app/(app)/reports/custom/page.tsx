@@ -15,15 +15,16 @@ const ALL = [
 const itemRev = (it: any) => Math.round((it.qty_milli * it.unit_price_minor) / 1000);
 const itemCost = (it: any) => Math.round((it.qty_milli * (it.cost_minor ?? 0)) / 1000);
 
-export default async function CustomReportPage({ searchParams }: { searchParams: { from?: string; to?: string; sec?: string | string[] } }) {
+export default async function CustomReportPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string; sec?: string | string[] }> }) {
+  const search = await searchParams;
   const profile = await requireProfile();
   if (profile.role === "tech") redirect("/");
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const now = new Date();
-  const from = searchParams.from || new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-  const to = searchParams.to || new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
-  const secParam = searchParams.sec;
+  const from = search.from || new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const to = search.to || new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const secParam = search.sec;
   const selected = new Set(secParam == null ? ALL.map((s) => s[0]) : Array.isArray(secParam) ? secParam : [secParam]);
 
   const { data: org } = await supabase.from("organizations").select("currency, name").single();

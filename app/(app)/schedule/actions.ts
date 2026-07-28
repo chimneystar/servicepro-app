@@ -12,7 +12,7 @@ export type ActionResult = { ok: boolean; error?: string };
 
 export async function createJob(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const profile = await requireProfile();
-  const locale = getLocale();
+  const locale = (await getLocale());
 
   let customer_id = String(formData.get("customer_id") ?? "");
   const service = String(formData.get("service") ?? "").trim();
@@ -29,7 +29,7 @@ export async function createJob(_prev: ActionResult, formData: FormData): Promis
   try { price_minor = parseAmountToMinor(String(formData.get("price") ?? "0")); }
   catch { return { ok: false, error: t(locale, "err.invalid") }; }
 
-  const supabase = createClient();
+  const supabase = await createClient();
 
   // Inline new client: create the customer on the fly, then use it for the job.
   if (customer_id === "__new__" || !customer_id) {
@@ -76,7 +76,7 @@ export async function createJob(_prev: ActionResult, formData: FormData): Promis
 
 export async function setJobStatus(id: string, status: string): Promise<ActionResult> {
   await requireProfile();
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("jobs").update({ status }).eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/schedule");

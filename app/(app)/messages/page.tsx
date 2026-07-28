@@ -3,13 +3,15 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { providers } from "@/lib/providers";
+import { getLocale } from "@/lib/locale-server";
 
 export const dynamic = "force-dynamic";
 
 export default async function MessagesPage() {
   const profile = await requireProfile();
+  const he = (await getLocale()) === "he";
   if (profile.role === "tech") redirect("/");
-  const supabase = createClient();
+  const supabase = await createClient();
   const [{ data: msgs }, { data: customers }] = await Promise.all([
     supabase.from("sms_messages").select("to_phone, from_phone, body, direction, created_at").order("created_at", { ascending: false }),
     supabase.from("customers").select("name, phone").is("deleted_at", null),
@@ -28,11 +30,11 @@ export default async function MessagesPage() {
 
   return (
     <div style={{ maxWidth: 720 }}>
-      <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>Messages</h1>
-      <p style={{ color: "#5c6675", fontSize: 13, marginBottom: 8 }}>Text conversations with your clients.</p>
+      <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>{he ? "הודעות" : "Messages"}</h1>
+      <p style={{ color: "#5c6675", fontSize: 13, marginBottom: 8 }}>{he ? "כל ההתכתבויות עם הלקוחות במקום אחד." : "All customer text conversations in one place."}</p>
       {!providers.sms() && (
         <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", color: "#9a3412", borderRadius: 12, padding: "10px 14px", fontSize: 12.5, marginBottom: 14 }}>
-          💬 Connect a Twilio number to send & receive texts here automatically. Until then, opening a chat lets you text from your phone.
+          {he ? "כדי לשלוח ולקבל הודעות מתוך המערכת, מחברים מספר Twilio. עד אז אפשר לפתוח שיחה ולשלוח הודעה מהטלפון." : "Connect a Twilio number to send and receive messages here. Until then, open a conversation to text from your phone."}
         </div>
       )}
       <div style={{ display: "grid", gap: 8 }}>
@@ -46,7 +48,7 @@ export default async function MessagesPage() {
             <span style={{ color: "#b6bfcc" }}>›</span>
           </Link>
         ))}
-        {list.length === 0 && <div className="rempty">No conversations yet. Start one from a customer, or text a client from their record.</div>}
+        {list.length === 0 && <div className="rempty">{he ? "עוד אין שיחות. אפשר להתחיל שיחה מתוך כרטיס הלקוח." : "No conversations yet. Start one from a customer record."}</div>}
       </div>
     </div>
   );

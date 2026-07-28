@@ -10,8 +10,8 @@ export const dynamic = "force-dynamic";
 
 export default async function CustomersPage() {
   await requireProfile();
-  const locale = getLocale();
-  const supabase = createClient();
+  const locale = (await getLocale());
+  const supabase = await createClient();
   const { data: customers } = await supabase
     .from("customers").select("id, name, phone, city, address, email, source").is("deleted_at", null).eq("archived", false).order("name", { ascending: true });
 

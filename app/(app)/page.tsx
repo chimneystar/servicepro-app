@@ -11,8 +11,9 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const profile = await requireProfile();
-  const locale = getLocale();
-  const supabase = createClient();
+  const locale = (await getLocale());
+  const he = locale === "he";
+  const supabase = await createClient();
   const { start, end } = monthBounds();
   const today = todayISO();
   const past14 = new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10);
@@ -30,12 +31,12 @@ export default async function DashboardPage() {
 
   // Onboarding checklist (owner only, until dismissed / complete)
   const steps: Step[] = [
-    { label: "Add your business logo", done: !!org?.logo_url, href: "/settings" },
-    { label: "Set your sales-tax rate", done: (org?.tax_rate_bps ?? 0) > 0, href: "/settings" },
-    { label: "Add your first customer", done: (custCount ?? 0) > 0, href: "/customers" },
-    { label: "Create your first estimate", done: (estimates ?? []).length > 0, href: "/estimates" },
-    { label: "Schedule your first job", done: (jobs ?? []).length > 0, href: "/schedule" },
-    { label: "Add your review link", done: !!org?.review_url, href: "/settings" },
+    { label: he ? "הוספת לוגו לעסק" : "Add your business logo", done: !!org?.logo_url, href: "/settings" },
+    { label: he ? "הגדרת שיעור המס" : "Set your sales-tax rate", done: (org?.tax_rate_bps ?? 0) > 0, href: "/settings" },
+    { label: he ? "הוספת הלקוח הראשון" : "Add your first customer", done: (custCount ?? 0) > 0, href: "/customers" },
+    { label: he ? "יצירת הצעת המחיר הראשונה" : "Create your first estimate", done: (estimates ?? []).length > 0, href: "/estimates" },
+    { label: he ? "שיבוץ העבודה הראשונה" : "Schedule your first job", done: (jobs ?? []).length > 0, href: "/schedule" },
+    { label: he ? "הוספת קישור לביקורת" : "Add your review link", done: !!org?.review_url, href: "/settings" },
   ];
   const showChecklist = profile.role === "owner" && !org?.onboarding_dismissed && steps.some((s) => !s.done);
   const cur = org?.currency ?? "USD";
@@ -60,7 +61,7 @@ export default async function DashboardPage() {
     const dt = new Date(base.getFullYear(), base.getMonth() - (5 - k), 1);
     const ym = dt.toISOString().slice(0, 7);
     const sum = paid.filter((i) => (i.issue_date ?? "").slice(0, 7) === ym).reduce((a, i) => a + i.total_minor, 0);
-    return { label: dt.toLocaleString("en-US", { month: "short" }), value: Math.round(sum / 100) };
+    return { label: dt.toLocaleString(he ? "he-IL" : "en-US", { month: "short" }), value: Math.round(sum / 100) };
   });
   const collectRate = collectedAll + dueSum > 0 ? Math.round((collectedAll / (collectedAll + dueSum)) * 100) : 0;
   const todayJobs = jb.filter((j) => j.scheduled_date === today).sort((a, b) => (a.start_time ?? "").localeCompare(b.start_time ?? ""));
@@ -82,52 +83,52 @@ export default async function DashboardPage() {
       {showChecklist && <SetupChecklist steps={steps} />}
 
       <div className="scroll-x" style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-        {[["/schedule", "📅 New job"], ["/estimates", "📝 Estimates"], ["/invoices", "🧾 Invoices"], ["/leads", "🎯 Leads"], ["/route", "🗺️ Today’s route"], ["/messages", "💬 Messages"], ["/reports", "📈 Reports"]].map(([href, label]) => (
+        {[["/schedule", he ? "עבודה חדשה" : "New job"], ["/estimates", he ? "הצעות מחיר" : "Estimates"], ["/invoices", he ? "חשבוניות" : "Invoices"], ["/leads", he ? "לידים" : "Leads"], ["/route", he ? "המסלול של היום" : "Today’s route"], ["/messages", he ? "הודעות" : "Messages"], ["/reports", he ? "דוחות" : "Reports"]].map(([href, label]) => (
           <Link key={href} href={href} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: "9px 13px", fontWeight: 700, fontSize: 13, color: "#0b1524", textDecoration: "none", whiteSpace: "nowrap" }}>{label}</Link>
         ))}
       </div>
 
       <div className="dash" style={grid}>
-        <Card span={8} title="Revenue · last 6 months">
+        <Card span={8} title={he ? "הכנסות · ששת החודשים האחרונים" : "Revenue · last 6 months"}>
           <Bars data={series} />
         </Card>
-        <Card span={4} title="Collections">
+        <Card span={4} title={he ? "גבייה" : "Collections"}>
           <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-            <Donut segments={[{ value: collectedAll, color: "#15803d" }, { value: dueSum, color: "#f59e0b" }]} centerTop={`${collectRate}%`} centerSub="collected" />
-            <Legend items={[{ label: "Paid", color: "#15803d", value: money(collectedAll, cur) }, { label: "Due", color: "#f59e0b", value: money(dueSum, cur) }]} />
+            <Donut segments={[{ value: collectedAll, color: "#15803d" }, { value: dueSum, color: "#f59e0b" }]} centerTop={`${collectRate}%`} centerSub={he ? "נגבה" : "collected"} />
+            <Legend items={[{ label: he ? "שולם" : "Paid", color: "#15803d", value: money(collectedAll, cur) }, { label: he ? "לתשלום" : "Due", color: "#f59e0b", value: money(dueSum, cur) }]} />
           </div>
         </Card>
 
-        <Card span={4} title="Pipeline">
-          <Row label="Open leads" value={String(openLeads)} />
-          <Row label="Estimate win rate" value={`${winRate}%`} strong />
-          <Row label="Approved / Declined" value={`${wonN} / ${lostN}`} />
+        <Card span={4} title={he ? "צבר מכירות" : "Pipeline"}>
+          <Row label={he ? "לידים פתוחים" : "Open leads"} value={String(openLeads)} />
+          <Row label={he ? "אחוז הצעות שאושרו" : "Estimate win rate"} value={`${winRate}%`} strong />
+          <Row label={he ? "אושרו / נדחו" : "Approved / Declined"} value={`${wonN} / ${lostN}`} />
         </Card>
-        <Card span={4} title="Sales · this month">
+        <Card span={4} title={he ? "מכירות · החודש" : "Sales · this month"}>
           <Big>{money(monthSales, cur)}</Big>
-          <Sub>{paid.length} paid invoices · {money(collectedAll, cur)} all time</Sub>
+          <Sub>{he ? `${paid.length} חשבוניות שולמו · ${money(collectedAll, cur)} בסך הכול` : `${paid.length} paid invoices · ${money(collectedAll, cur)} all time`}</Sub>
         </Card>
-        <Card span={4} title="Invoices">
+        <Card span={4} title={he ? "חשבוניות" : "Invoices"}>
           <div style={{ borderInlineStart: "4px solid #b45309", paddingInlineStart: 12, marginBottom: 12 }}>
-            <Sub>Due · {unpaid.length}</Sub><Big small>{money(dueSum, cur)}</Big>
+            <Sub>{he ? "לתשלום" : "Due"} · {unpaid.length}</Sub><Big small>{money(dueSum, cur)}</Big>
           </div>
           <div style={{ borderInlineStart: "4px solid #dc2626", paddingInlineStart: 12 }}>
-            <Sub>Past due · {pastDue.length}</Sub><Big small>{money(pastDueSum, cur)}</Big>
+            <Sub>{he ? "באיחור" : "Past due"} · {pastDue.length}</Sub><Big small>{money(pastDueSum, cur)}</Big>
           </div>
         </Card>
-        <Card span={4} title="This month">
-          <Row label="Expenses" value={money(monthExp, cur)} />
-          <Row label="Net (sales − exp)" value={money(monthSales - monthExp, cur)} strong />
-          <Row label="Jobs today" value={String(todayJobs.length)} />
+        <Card span={4} title={he ? "החודש" : "This month"}>
+          <Row label={he ? "הוצאות" : "Expenses"} value={money(monthExp, cur)} />
+          <Row label={he ? "נטו אחרי הוצאות" : "Net after expenses"} value={money(monthSales - monthExp, cur)} strong />
+          <Row label={he ? "עבודות היום" : "Jobs today"} value={String(todayJobs.length)} />
         </Card>
 
-        <Card span={3} title="Estimates">
-          {[["draft", "Draft"], ["sent", "Sent"], ["approved", "Approved"], ["rejected", "Declined"]].map(([k, l]) => (
+        <Card span={3} title={he ? "הצעות מחיר" : "Estimates"}>
+          {[["draft", he ? "טיוטה" : "Draft"], ["sent", he ? "נשלחו" : "Sent"], ["approved", he ? "אושרו" : "Approved"], ["rejected", he ? "נדחו" : "Declined"]].map(([k, l]) => (
             <Row key={k} label={l} value={`${estBy(k).length} · ${money(estBy(k).reduce((s, e) => s + e.total_minor, 0), cur)}`} />
           ))}
         </Card>
-        <Card span={5} title="Today">
-          {todayJobs.length === 0 ? <Sub>No jobs today 🌤️</Sub> : todayJobs.map((j: any, i) => (
+        <Card span={5} title={he ? "היום" : "Today"}>
+          {todayJobs.length === 0 ? <Sub>{he ? "אין עבודות היום" : "No jobs today"}</Sub> : todayJobs.map((j: any, i) => (
             <div key={i} style={rowLine}>
               <b style={{ minWidth: 48 }}>{(j.start_time ?? "").slice(0, 5) || "—"}</b>
               <span style={{ flex: 1 }}>{j.customers?.name ?? "—"} · {j.service}</span>
@@ -135,13 +136,13 @@ export default async function DashboardPage() {
             </div>
           ))}
         </Card>
-        <Card span={4} title="Coming up">
-          {upcoming.length === 0 ? <Sub>Nothing scheduled</Sub> : upcoming.map((j: any, i) => (
+        <Card span={4} title={he ? "בהמשך" : "Coming up"}>
+          {upcoming.length === 0 ? <Sub>{he ? "אין עבודות מתוכננות" : "Nothing scheduled"}</Sub> : upcoming.map((j: any, i) => (
             <div key={i} style={rowLine}><span style={{ flex: 1 }}>{j.customers?.name ?? "—"}</span><Sub>{fmtDate(j.scheduled_date)}</Sub></div>
           ))}
         </Card>
 
-        <Card span={8} title="Recent jobs">
+        <Card span={8} title={he ? "עבודות אחרונות" : "Recent jobs"}>
           {recent.length === 0 && <div style={{ color: "#5c6675", fontSize: 13, padding: 8 }}>—</div>}
           {recent.map((j: any, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 0", borderTop: i ? "1px solid #f1f4f9" : "none" }}>
@@ -151,16 +152,16 @@ export default async function DashboardPage() {
               </div>
               <div style={{ textAlign: "end", whiteSpace: "nowrap" }}>
                 <b>{money(j.price_minor, cur)}</b>
-                <div style={{ marginTop: 3 }}><span style={statusChip(j.status)}>{j.status}</span></div>
+                <div style={{ marginTop: 3 }}><span style={statusChip(j.status)}>{t(locale, `st.${j.status}`)}</span></div>
               </div>
             </div>
           ))}
         </Card>
-        <Card span={4} title="Top job types & sources">
-          <Sub>Job types</Sub>
+        <Card span={4} title={he ? "סוגי עבודות ומקורות מובילים" : "Top job types & sources"}>
+          <Sub>{he ? "סוגי עבודות" : "Job types"}</Sub>
           {topType.map(([k, v]) => <Row key={k} label={k} value={String(v)} />)}
           <div style={{ height: 8 }} />
-          <Sub>Lead sources</Sub>
+          <Sub>{he ? "מקורות לידים" : "Lead sources"}</Sub>
           {topSrc.map(([k, v]) => (
             <div key={k} style={{ marginBottom: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5 }}><b>{k}</b><b>{v}</b></div>

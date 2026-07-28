@@ -5,10 +5,11 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-export default async function SearchPage({ searchParams }: { searchParams: { q?: string } }) {
+export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  const search = await searchParams;
   await requireProfile();
-  const q = (searchParams.q ?? "").trim();
-  const supabase = createClient();
+  const q = (search.q ?? "").trim();
+  const supabase = await createClient();
   const { data: org } = await supabase.from("organizations").select("currency").single();
   const cur = org?.currency ?? "USD";
 

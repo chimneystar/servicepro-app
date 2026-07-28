@@ -3,11 +3,13 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addJobTask, toggleJobTask, deleteJobTask } from "@/app/(app)/jobs/[id]/actions";
+import { useAppLocale } from "@/components/LocaleProvider";
 
 export type Task = { id: string; title: string; done: boolean };
 
 export default function JobTasks({ jobId, tasks }: { jobId: string; tasks: Task[] }) {
   const router = useRouter();
+  const he = useAppLocale() === "he";
   const [pending, start] = useTransition();
   const [text, setText] = useState("");
   const doneCount = tasks.filter((t) => t.done).length;
@@ -20,9 +22,9 @@ export default function JobTasks({ jobId, tasks }: { jobId: string; tasks: Task[
 
   return (
     <div>
-      {tasks.length > 0 && <div style={{ fontSize: 13, color: "#5c6675", marginBottom: 8 }}>{doneCount} of {tasks.length} done</div>}
+      {tasks.length > 0 && <div style={{ fontSize: 13, color: "#5c6675", marginBottom: 8 }}>{he ? `${doneCount} מתוך ${tasks.length} הושלמו` : `${doneCount} of ${tasks.length} complete`}</div>}
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-        <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder="Add a task…" style={inp} />
+        <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder={he ? "הוספת משימה…" : "Add a task…"} style={inp} />
         <button onClick={add} disabled={pending} style={btn}>➕</button>
       </div>
       <div style={{ display: "grid", gap: 8 }}>
@@ -33,7 +35,7 @@ export default function JobTasks({ jobId, tasks }: { jobId: string; tasks: Task[
             <button onClick={() => start(async () => { await deleteJobTask(t.id, jobId); router.refresh(); })} style={xBtn}>🗑️</button>
           </div>
         ))}
-        {tasks.length === 0 && <div className="rempty">No tasks yet.</div>}
+        {tasks.length === 0 && <div className="rempty">{he ? "עוד אין משימות." : "No tasks yet."}</div>}
       </div>
     </div>
   );

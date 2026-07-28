@@ -19,7 +19,7 @@ export async function saveMessageTemplate(_prev: ActionResult, formData: FormDat
   const enabled = String(formData.get("enabled") ?? "") === "on";
   const body = String(formData.get("body") ?? "").trim();
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("message_templates").upsert(
     { organization_id: profile.organization_id, trigger, enabled, body },
     { onConflict: "organization_id,trigger" }

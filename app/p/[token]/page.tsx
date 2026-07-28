@@ -17,10 +17,11 @@ function shade(hex: string, pct: number) {
   return `rgb(${r},${g},${b})`;
 }
 
-export default async function PublicDocPage({ params }: { params: { token: string } }) {
-  const locale = getLocale();
-  const supabase = createClient();
-  const { data } = await supabase.rpc("public_document", { p_token: params.token });
+export default async function PublicDocPage({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params;
+  const locale = (await getLocale());
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("public_document", { p_token: token });
   const doc: any = data;
   if (!doc) return <Center accent="#0f2a5e"><p style={{ color: "#5c6675" }}>This link is invalid or has expired.</p></Center>;
 
@@ -118,7 +119,7 @@ export default async function PublicDocPage({ params }: { params: { token: strin
             </div>
           )}
           {canPayDeposit && (
-            <a href={`/api/pay/${params.token}?deposit=1`} style={{ display: "block", marginTop: 12, background: accent, color: "#fff", padding: "15px 16px", borderRadius: 12, fontWeight: 800, fontSize: 16, textAlign: "center", textDecoration: "none" }}>
+            <a href={`/api/pay/${token}?deposit=1`} style={{ display: "block", marginTop: 12, background: accent, color: "#fff", padding: "15px 16px", borderRadius: 12, fontWeight: 800, fontSize: 16, textAlign: "center", textDecoration: "none" }}>
               💳 Pay {money(depositMinor, cur)} deposit
             </a>
           )}
@@ -126,7 +127,7 @@ export default async function PublicDocPage({ params }: { params: { token: strin
             <div style={{ marginTop: 18, background: "#e6f6ec", color: "#15803d", padding: "14px 16px", borderRadius: 12, fontWeight: 800, textAlign: "center" }}>✓ Paid — thank you!</div>
           )}
           {canPayOnline && (
-            <a href={`/api/pay/${params.token}`} style={{ display: "block", marginTop: 18, background: accent, color: "#fff", padding: "15px 16px", borderRadius: 12, fontWeight: 800, fontSize: 16, textAlign: "center", textDecoration: "none" }}>
+            <a href={`/api/pay/${token}`} style={{ display: "block", marginTop: 18, background: accent, color: "#fff", padding: "15px 16px", borderRadius: 12, fontWeight: 800, fontSize: 16, textAlign: "center", textDecoration: "none" }}>
               💳 Pay {money(totals.totalMinor, cur)} now
             </a>
           )}
@@ -141,7 +142,7 @@ export default async function PublicDocPage({ params }: { params: { token: strin
                 ✓ {t(locale, "doc.approved")} — {doc.signer_name} · {new Date(doc.signed_at).toLocaleDateString()}
               </div>
             ) : (
-              <div className="no-print"><SignApprove token={params.token} locale={locale} /></div>
+              <div className="no-print"><SignApprove token={token} locale={locale} /></div>
             )}
           </div>
         </div>

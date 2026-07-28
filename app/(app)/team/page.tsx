@@ -10,8 +10,8 @@ export const dynamic = "force-dynamic";
 export default async function TeamPage() {
   const profile = await requireProfile();
   if (profile.role !== "owner") redirect("/");
-  const locale = getLocale();
-  const supabase = createClient();
+  const locale = (await getLocale());
+  const supabase = await createClient();
 
   const [{ data: members }, { data: invites }] = await Promise.all([
     supabase.from("profiles").select("id, full_name, role").order("role"),

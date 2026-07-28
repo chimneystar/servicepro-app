@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function MorePage() {
   const profile = await requireProfile();
-  const locale = getLocale();
+  const locale = (await getLocale());
   const items = NAV_ITEMS.filter((i) => i.roles.includes(profile.role) && !i.bottom);
 
   return (

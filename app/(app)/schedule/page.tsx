@@ -9,8 +9,8 @@ export const dynamic = "force-dynamic";
 
 export default async function SchedulePage() {
   await requireProfile();
-  const locale = getLocale();
-  const supabase = createClient();
+  const locale = (await getLocale());
+  const supabase = await createClient();
 
   const [{ data: jobs }, { data: customers }, { data: profiles }, { data: jobTypes }] = await Promise.all([
     supabase.from("jobs")

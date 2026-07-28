@@ -6,13 +6,14 @@ import TimesheetExport, { type TSRow } from "@/components/TimesheetExport";
 
 export const dynamic = "force-dynamic";
 
-export default async function TimesheetsPage({ searchParams }: { searchParams: { from?: string; to?: string } }) {
+export default async function TimesheetsPage({ searchParams }: { searchParams: Promise<{ from?: string; to?: string }> }) {
+  const search = await searchParams;
   const profile = await requireProfile();
   if (profile.role === "tech") redirect("/");
-  const supabase = createClient();
+  const supabase = await createClient();
   const now = new Date();
-  const from = searchParams.from || new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-  const to = searchParams.to || new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const from = search.from || new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const to = search.to || new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
 
   const { data: entries } = await supabase.from("job_time_entries")
     .select("started_at, ended_at, profiles(full_name), jobs(service)")

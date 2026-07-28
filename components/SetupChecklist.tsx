@@ -4,11 +4,13 @@ import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { dismissOnboarding } from "@/app/(app)/dashboard-actions";
+import { useAppLocale } from "@/components/LocaleProvider";
 
 export type Step = { label: string; done: boolean; href: string };
 
 export default function SetupChecklist({ steps }: { steps: Step[] }) {
   const router = useRouter();
+  const he = useAppLocale() === "he";
   const [pending, start] = useTransition();
   const done = steps.filter((s) => s.done).length;
   const pct = Math.round((done / steps.length) * 100);
@@ -17,10 +19,10 @@ export default function SetupChecklist({ steps }: { steps: Step[] }) {
     <div className="pop-in" style={{ background: "linear-gradient(135deg,#0f2a5e,#2563eb)", color: "#fff", borderRadius: 16, padding: 18, marginBottom: 16, boxShadow: "0 18px 50px rgba(15,42,94,.18)" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
         <div>
-          <div style={{ fontSize: 17, fontWeight: 800 }}>🚀 Get set up</div>
-          <div style={{ fontSize: 12.5, opacity: .9 }}>{done} of {steps.length} done — you’re {pct}% ready to go.</div>
+          <div style={{ fontSize: 17, fontWeight: 800 }}>{he ? "מסיימים את ההגדרה" : "Finish setting up"}</div>
+          <div style={{ fontSize: 12.5, opacity: .9 }}>{he ? `${done} מתוך ${steps.length} הושלמו · ${pct}% מוכן` : `${done} of ${steps.length} complete · ${pct}% ready`}</div>
         </div>
-        <button onClick={() => start(async () => { await dismissOnboarding(); router.refresh(); })} disabled={pending} style={{ background: "rgba(255,255,255,.18)", color: "#fff", border: "none", borderRadius: 8, padding: "6px 10px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>Dismiss</button>
+        <button onClick={() => start(async () => { await dismissOnboarding(); router.refresh(); })} disabled={pending} style={{ background: "rgba(255,255,255,.18)", color: "#fff", border: "none", borderRadius: 8, padding: "6px 10px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>{he ? "הסתרה" : "Dismiss"}</button>
       </div>
 
       <div style={{ height: 7, background: "rgba(255,255,255,.22)", borderRadius: 99, margin: "12px 0 14px" }}>

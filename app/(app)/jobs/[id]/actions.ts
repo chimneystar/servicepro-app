@@ -17,7 +17,7 @@ export async function createInvoiceFromJob(jobId: string): Promise<PhotoResult> 
   let profile;
   try { profile = await requireProfile(); assertRole(profile, ["owner", "office"]); }
   catch { return { ok: false, error: "forbidden" }; }
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: job } = await supabase.from("jobs").select("*").eq("id", jobId).single();
   if (!job) return { ok: false, error: "not found" };
   const { data: org } = await supabase.from("organizations").select("tax_rate_bps").eq("id", profile.organization_id!).single();
@@ -51,7 +51,7 @@ export async function createInvoiceFromJob(jobId: string): Promise<PhotoResult> 
 /** Save the job's service address. */
 export async function updateJobAddress(jobId: string, formData: FormData): Promise<PhotoResult> {
   await requireProfile();
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("jobs").update({
     job_address: String(formData.get("job_address") ?? "").trim() || null,
     job_city: String(formData.get("job_city") ?? "").trim() || null,
@@ -64,7 +64,7 @@ export async function updateJobAddress(jobId: string, formData: FormData): Promi
 // ---- Items ----------------------------------------------------------
 export async function addJobItem(jobId: string, formData: FormData): Promise<PhotoResult> {
   const profile = await requireProfile();
-  const supabase = createClient();
+  const supabase = await createClient();
   const description = String(formData.get("description") ?? "").trim();
   if (!description) return { ok: false, error: "Description required" };
   let qty_milli = 1000, unit_price_minor = 0, cost_minor = 0;
@@ -82,7 +82,7 @@ export async function addJobItem(jobId: string, formData: FormData): Promise<Pho
 }
 export async function deleteJobItem(id: string, jobId: string): Promise<PhotoResult> {
   await requireProfile();
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("job_items").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/jobs/${jobId}`);
@@ -93,7 +93,7 @@ export async function deleteJobItem(id: string, jobId: string): Promise<PhotoRes
 export async function addJobTask(jobId: string, title: string): Promise<PhotoResult> {
   const profile = await requireProfile();
   if (!title.trim()) return { ok: false, error: "Empty" };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("job_tasks").insert({ organization_id: profile.organization_id, job_id: jobId, title: title.trim() });
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/jobs/${jobId}`);
@@ -101,7 +101,7 @@ export async function addJobTask(jobId: string, title: string): Promise<PhotoRes
 }
 export async function toggleJobTask(id: string, done: boolean, jobId: string): Promise<PhotoResult> {
   await requireProfile();
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("job_tasks").update({ done }).eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/jobs/${jobId}`);
@@ -109,7 +109,7 @@ export async function toggleJobTask(id: string, done: boolean, jobId: string): P
 }
 export async function deleteJobTask(id: string, jobId: string): Promise<PhotoResult> {
   await requireProfile();
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("job_tasks").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/jobs/${jobId}`);
@@ -120,7 +120,7 @@ export async function deleteJobTask(id: string, jobId: string): Promise<PhotoRes
 export async function addChecklistItem(jobId: string, label: string): Promise<PhotoResult> {
   const profile = await requireProfile();
   if (!label.trim()) return { ok: false, error: "Empty" };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("job_checklist_items").insert({ organization_id: profile.organization_id, job_id: jobId, label: label.trim() });
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/jobs/${jobId}`);
@@ -128,7 +128,7 @@ export async function addChecklistItem(jobId: string, label: string): Promise<Ph
 }
 export async function toggleChecklistItem(id: string, checked: boolean, jobId: string): Promise<PhotoResult> {
   await requireProfile();
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("job_checklist_items").update({ checked }).eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/jobs/${jobId}`);
@@ -136,7 +136,7 @@ export async function toggleChecklistItem(id: string, checked: boolean, jobId: s
 }
 export async function deleteChecklistItem(id: string, jobId: string): Promise<PhotoResult> {
   await requireProfile();
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("job_checklist_items").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/jobs/${jobId}`);
@@ -148,7 +148,7 @@ export async function addEquipment(jobId: string, formData: FormData): Promise<P
   const profile = await requireProfile();
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { ok: false, error: "Name required" };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("job_equipment").insert({
     organization_id: profile.organization_id, job_id: jobId, name,
     serial: String(formData.get("serial") ?? "").trim() || null,
@@ -160,7 +160,7 @@ export async function addEquipment(jobId: string, formData: FormData): Promise<P
 }
 export async function deleteEquipment(id: string, jobId: string): Promise<PhotoResult> {
   await requireProfile();
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("job_equipment").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/jobs/${jobId}`);
@@ -173,7 +173,7 @@ export async function recordJobPayment(invoiceId: string, jobId: string, amountS
   let profile;
   try { profile = await requireProfile(); assertRole(profile, ["owner", "office"]); }
   catch { return { ok: false, error: "forbidden" }; }
-  const supabase = createClient();
+  const supabase = await createClient();
   let amount_minor = 0;
   try { amount_minor = parseAmountToMinor(amountStr); } catch { return { ok: false, error: "Invalid amount" }; }
   if (amount_minor <= 0) return { ok: false, error: "Amount must be greater than 0" };
@@ -206,7 +206,7 @@ export async function recordJobPayment(invoiceId: string, jobId: string, amountS
 /** Record a job photo row after the file has been uploaded to Storage. */
 export async function recordPhoto(jobId: string, path: string, label: string): Promise<PhotoResult> {
   const profile = await requireProfile();
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("job_photos").insert({
     organization_id: profile.organization_id,
     job_id: jobId,
@@ -222,7 +222,7 @@ export async function recordPhoto(jobId: string, path: string, label: string): P
 /** Delete a job photo (storage object + row). */
 export async function deletePhoto(id: string, path: string, jobId: string): Promise<PhotoResult> {
   await requireProfile();
-  const supabase = createClient();
+  const supabase = await createClient();
   await supabase.storage.from("job-photos").remove([path]);
   const { error } = await supabase.from("job_photos").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
@@ -233,7 +233,7 @@ export async function deletePhoto(id: string, path: string, jobId: string): Prom
 /** Update a job's status from the detail page. */
 export async function updateJobStatus(jobId: string, status: string): Promise<PhotoResult> {
   await requireProfile();
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("jobs").update({ status }).eq("id", jobId);
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/jobs/${jobId}`);
@@ -244,7 +244,7 @@ export async function updateJobStatus(jobId: string, status: string): Promise<Ph
 /** Mark the technician en route (records time; SMS fires if messaging is configured). */
 export async function setOnMyWay(jobId: string): Promise<PhotoResult> {
   await requireProfile();
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("jobs").update({ on_my_way_at: new Date().toISOString() }).eq("id", jobId);
   if (error) return { ok: false, error: error.message };
   // Best-effort: notify the client if an SMS provider is connected.
@@ -259,7 +259,7 @@ export async function setOnMyWay(jobId: string): Promise<PhotoResult> {
 /** Clock in: open a time entry and start the job. */
 export async function clockIn(jobId: string): Promise<PhotoResult> {
   const profile = await requireProfile();
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: open } = await supabase.from("job_time_entries")
     .select("id").eq("job_id", jobId).eq("user_id", profile.id).is("ended_at", null).limit(1);
   if (open && open.length) return { ok: true }; // already clocked in
@@ -275,7 +275,7 @@ export async function clockIn(jobId: string): Promise<PhotoResult> {
 /** Clock out: close this user's open time entry. */
 export async function clockOut(jobId: string): Promise<PhotoResult> {
   const profile = await requireProfile();
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: open } = await supabase.from("job_time_entries")
     .select("id").eq("job_id", jobId).eq("user_id", profile.id).is("ended_at", null).order("started_at", { ascending: false }).limit(1);
   if (!open || !open.length) return { ok: true };
@@ -288,7 +288,7 @@ export async function clockOut(jobId: string): Promise<PhotoResult> {
 /** Complete the job with an optional customer signature. Closes any open timer. */
 export async function completeJob(jobId: string, signature: string, signedBy: string): Promise<PhotoResult> {
   const profile = await requireProfile();
-  const supabase = createClient();
+  const supabase = await createClient();
   await supabase.from("job_time_entries").update({ ended_at: new Date().toISOString() })
     .eq("job_id", jobId).eq("user_id", profile.id).is("ended_at", null);
   const { error } = await supabase.from("jobs").update({
@@ -307,7 +307,7 @@ export async function completeJob(jobId: string, signature: string, signedBy: st
  *  the double-book constraint & reports, and records when the stage changed. */
 export async function setJobStage(jobId: string, stage: string): Promise<PhotoResult> {
   await requireProfile();
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: st } = await supabase.from("job_statuses").select("is_done, is_cancelled").eq("name", stage).maybeSingle();
   const enumStatus = st?.is_cancelled ? "cancelled" : st?.is_done ? "done" : /progress/i.test(stage) ? "in_progress" : "scheduled";
   const { error } = await supabase.from("jobs").update({ stage, status: enumStatus, stage_changed_at: new Date().toISOString() }).eq("id", jobId);
@@ -320,7 +320,7 @@ export async function setJobStage(jobId: string, stage: string): Promise<PhotoRe
 export async function setJobTags(jobId: string, tags: string[]): Promise<PhotoResult> {
   await requireProfile();
   const clean = Array.from(new Set(tags.map((t) => t.trim()).filter(Boolean))).slice(0, 20);
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("jobs").update({ tags: clean }).eq("id", jobId);
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/jobs/${jobId}`); revalidatePath("/jobs");
@@ -330,7 +330,7 @@ export async function setJobTags(jobId: string, tags: string[]): Promise<PhotoRe
 /** Set the manually-entered job costs used by the commission report. */
 export async function setJobExpenses(jobId: string, amountStr: string): Promise<PhotoResult> {
   await requireProfile();
-  const supabase = createClient();
+  const supabase = await createClient();
   let cents = 0;
   try { cents = parseAmountToMinor(amountStr); } catch { return { ok: false, error: "Invalid amount" }; }
   const { error } = await supabase.from("jobs").update({ job_expenses_minor: Math.max(0, cents) }).eq("id", jobId);

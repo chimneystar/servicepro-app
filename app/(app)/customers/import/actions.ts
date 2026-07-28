@@ -25,7 +25,7 @@ export async function bulkImportCustomers(rows: { name: string; phone?: string; 
 
   if (!clean.length) return { ok: false, inserted: 0, error: "No valid rows found (need at least a name)." };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   // insert in chunks to stay well within limits
   let inserted = 0;
   for (let i = 0; i < clean.length; i += 500) {

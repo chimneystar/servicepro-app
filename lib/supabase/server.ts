@@ -8,8 +8,8 @@ type CookieToSet = { name: string; value: string; options?: CookieOptions };
  * Uses the anon key. All access is still constrained by Row-Level Security
  * to the currently logged-in user's organization.
  */
-export function createClient() {
-  const cookieStore = cookies();
+export async function createClient() {
+  const cookieStore = await cookies();
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,

@@ -10,11 +10,12 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-export default async function InvoicesPage({ searchParams }: { searchParams: { filter?: string } }) {
+export default async function InvoicesPage({ searchParams }: { searchParams: Promise<{ filter?: string }> }) {
+  const search = await searchParams;
   const profile = await requireProfile();
-  const locale = getLocale();
-  const supabase = createClient();
-  const filter = searchParams.filter ?? "all";
+  const locale = (await getLocale());
+  const supabase = await createClient();
+  const filter = search.filter ?? "all";
 
   const [{ data: invoices }, { data: customers }, { data: org }, { data: catalog }] = await Promise.all([
     supabase.from("invoices").select("id, number, status, total_minor, issue_date, public_token, customers(name, email, phone)").is("deleted_at", null).eq("archived", false).order("number", { ascending: false }),

@@ -9,14 +9,15 @@ export const dynamic = "force-dynamic";
  * creates a Stripe Checkout session, and sends the customer to Stripe.
  * If Stripe isn't configured, it just returns them to the document page.
  */
-export async function GET(request: NextRequest, { params }: { params: { token: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params;
   const origin = new URL(request.url).origin;
-  const back = `${origin}/p/${params.token}`;
+  const back = `${origin}/p/${token}`;
   if (!providers.stripe()) return NextResponse.redirect(back);
 
   const isDeposit = new URL(request.url).searchParams.get("deposit") === "1";
-  const supabase = createClient();
-  const { data } = await supabase.rpc("public_document", { p_token: params.token });
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("public_document", { p_token: token });
   const doc: any = data;
   if (!doc) return NextResponse.redirect(back);
 
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest, { params }: { params: { token: s
       description: `${doc.org?.name ?? ""} — ${label}`,
       successUrl: `${back}?paid=1`,
       cancelUrl: back,
-      metadata: { token: params.token, kind: payingDeposit ? "deposit" : "invoice" },
+      metadata: { token: token, kind: payingDeposit ? "deposit" : "invoice" },
     });
     return NextResponse.redirect(url);
   } catch {

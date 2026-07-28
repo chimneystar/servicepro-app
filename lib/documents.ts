@@ -60,7 +60,7 @@ export async function createDocument(
   try { discountMinor = parseAmountToMinor(String(formData.get("discount") ?? "0")); }
   catch { return { ok: false, error: t(locale, "err.invalid") }; }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: org } = await supabase
     .from("organizations").select("tax_rate_bps").eq("id", profile.organization_id!).single();
   const taxRateBps = org?.tax_rate_bps ?? 0;
@@ -146,7 +146,7 @@ export async function updateDocument(
   const table = kind === "invoice" ? "invoices" : "estimates";
   const itemsTable = kind === "invoice" ? "invoice_items" : "estimate_items";
   const parentKey = kind === "invoice" ? "invoice_id" : "estimate_id";
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const customer_id = String(formData.get("customer_id") ?? "");
   if (!customer_id) return { ok: false, error: t(locale, "err.invalid") };
@@ -200,7 +200,7 @@ export async function duplicateDocument(
   const table = kind === "invoice" ? "invoices" : "estimates";
   const itemsTable = kind === "invoice" ? "invoice_items" : "estimate_items";
   const parentKey = kind === "invoice" ? "invoice_id" : "estimate_id";
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: src } = await supabase.from(table).select("*").eq("id", id).single();
   if (!src) return { ok: false, error: "not found" };
@@ -228,7 +228,7 @@ export async function duplicateDocument(
 /** Soft-delete (void) an estimate/invoice. */
 export async function softDeleteDocument(kind: "estimate" | "invoice", id: string): Promise<ActionResult> {
   const table = kind === "invoice" ? "invoices" : "estimates";
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from(table).update({ deleted_at: new Date().toISOString() }).eq("id", id);
   if (error) return { ok: false, error: error.message };
   return { ok: true };

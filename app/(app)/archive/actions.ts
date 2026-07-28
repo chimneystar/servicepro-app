@@ -35,7 +35,7 @@ export async function bulkImportLegacy(rows: LegacyRow[]): Promise<ImportResult>
 
   if (!clean.length) return { ok: false, inserted: 0, error: "No valid rows found (need at least a name)." };
 
-  const supabase = createClient();
+  const supabase = await createClient();
   let inserted = 0;
   for (let i = 0; i < clean.length; i += 500) {
     const chunk = clean.slice(i, i + 500);
@@ -52,7 +52,7 @@ export async function restoreFromArchive(id: string): Promise<{ ok: boolean; err
   let profile;
   try { profile = await requireProfile(); assertRole(profile, ["owner", "office"]); }
   catch { return { ok: false, error: "forbidden" }; }
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("customers").update({ archived: false }).eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/archive"); revalidatePath("/customers");

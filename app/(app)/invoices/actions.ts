@@ -7,18 +7,16 @@ import { t } from "@/lib/i18n";
 import { createClient } from "@/lib/supabase/server";
 import { createDocument, updateDocument, duplicateDocument, softDeleteDocument, type ActionResult } from "@/lib/documents";
 
-export type { ActionResult };
-
 export async function createInvoice(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const profile = await requireProfile();
-  const res = await createDocument("invoice", formData, profile, getLocale());
+  const res = await createDocument("invoice", formData, profile, (await getLocale()));
   if (res.ok) revalidatePath("/invoices");
   return res;
 }
 
 export async function updateInvoice(id: string, _prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const profile = await requireProfile();
-  const res = await updateDocument("invoice", id, formData, profile, getLocale());
+  const res = await updateDocument("invoice", id, formData, profile, (await getLocale()));
   if (res.ok) { revalidatePath("/invoices"); revalidatePath(`/invoices/${id}`); }
   return res;
 }
@@ -26,7 +24,7 @@ export async function updateInvoice(id: string, _prev: ActionResult, formData: F
 export async function duplicateInvoice(id: string): Promise<{ ok: boolean; error?: string; newId?: string }> {
   let profile;
   try { profile = await requireProfile(); assertRole(profile, ["owner", "office"]); }
-  catch { return { ok: false, error: t(getLocale(), "err.forbidden") }; }
+  catch { return { ok: false, error: t((await getLocale()), "err.forbidden") }; }
   const res = await duplicateDocument("invoice", id, profile);
   if (res.ok) revalidatePath("/invoices");
   return res;
@@ -34,7 +32,7 @@ export async function duplicateInvoice(id: string): Promise<{ ok: boolean; error
 
 export async function deleteInvoice(id: string): Promise<ActionResult> {
   try { const p = await requireProfile(); assertRole(p, ["owner", "office"]); }
-  catch { return { ok: false, error: t(getLocale(), "err.forbidden") }; }
+  catch { return { ok: false, error: t((await getLocale()), "err.forbidden") }; }
   const res = await softDeleteDocument("invoice", id);
   if (res.ok) revalidatePath("/invoices");
   return res;
@@ -45,7 +43,7 @@ export async function setInvoicePaid(invoiceId: string, paid: boolean): Promise<
   let profile;
   try { profile = await requireProfile(); assertRole(profile, ["owner", "office"]); }
   catch { return { ok: false, error: "forbidden" }; }
-  const supabase = createClient();
+  const supabase = await createClient();
 
   const { data: inv } = await supabase.from("invoices").select("id, total_minor").eq("id", invoiceId).single();
   if (!inv) return { ok: false, error: "not found" };

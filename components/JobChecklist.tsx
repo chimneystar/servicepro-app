@@ -3,11 +3,13 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addChecklistItem, toggleChecklistItem, deleteChecklistItem } from "@/app/(app)/jobs/[id]/actions";
+import { useAppLocale } from "@/components/LocaleProvider";
 
 export type Check = { id: string; label: string; checked: boolean };
 
 export default function JobChecklist({ jobId, items }: { jobId: string; items: Check[] }) {
   const router = useRouter();
+  const he = useAppLocale() === "he";
   const [pending, start] = useTransition();
   const [text, setText] = useState("");
   const done = items.filter((i) => i.checked).length;
@@ -23,12 +25,12 @@ export default function JobChecklist({ jobId, items }: { jobId: string; items: C
     <div>
       {items.length > 0 && (
         <div style={{ marginBottom: 12 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#5c6675", marginBottom: 4 }}><span>Progress</span><span>{pct}%</span></div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#5c6675", marginBottom: 4 }}><span>{he ? "התקדמות" : "Progress"}</span><span>{pct}%</span></div>
           <div style={{ height: 8, background: "#eef2f8", borderRadius: 99 }}><div style={{ width: `${pct}%`, height: "100%", background: "#15803d", borderRadius: 99 }} /></div>
         </div>
       )}
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-        <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder="Add checklist item…" style={inp} />
+        <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder={he ? "הוספת סעיף לבדיקה…" : "Add checklist item…"} style={inp} />
         <button onClick={add} disabled={pending} style={btn}>➕</button>
       </div>
       <div style={{ display: "grid", gap: 8 }}>
@@ -39,7 +41,7 @@ export default function JobChecklist({ jobId, items }: { jobId: string; items: C
             <button onClick={() => start(async () => { await deleteChecklistItem(it.id, jobId); router.refresh(); })} style={xBtn}>🗑️</button>
           </div>
         ))}
-        {items.length === 0 && <div className="rempty">No checklist items yet.</div>}
+        {items.length === 0 && <div className="rempty">{he ? "עוד אין סעיפים ברשימת הבדיקה." : "No checklist items yet."}</div>}
       </div>
     </div>
   );

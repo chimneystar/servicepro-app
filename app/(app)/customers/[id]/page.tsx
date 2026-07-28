@@ -13,21 +13,22 @@ import { createInvoice } from "@/app/(app)/invoices/actions";
 export const dynamic = "force-dynamic";
 const tel = (p?: string | null) => "tel:" + (p ?? "").replace(/[^0-9+]/g, "");
 
-export default async function CustomerDetailPage({ params }: { params: { id: string } }) {
+export default async function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const profile = await requireProfile();
-  const locale = getLocale();
-  const supabase = createClient();
-  const { data: c } = await supabase.from("customers").select("*").eq("id", params.id).maybeSingle();
+  const locale = (await getLocale());
+  const supabase = await createClient();
+  const { data: c } = await supabase.from("customers").select("*").eq("id", id).maybeSingle();
   const { data: org } = await supabase.from("organizations").select("currency").single();
   const cur = org?.currency ?? "USD";
 
   if (!c) return <div><Link href="/customers" style={back}>‹ Customers</Link><div style={{ padding: 40, textAlign: "center", color: "#5c6675" }}>Customer not found.</div></div>;
 
   const [{ data: jobs }, { data: invoices }, { data: estimates }, { data: reviews }, { data: catalog }] = await Promise.all([
-    supabase.from("jobs").select("id, service, scheduled_date, price_minor, status").eq("customer_id", params.id).is("deleted_at", null).order("scheduled_date", { ascending: false }),
-    supabase.from("invoices").select("total_minor, status").eq("customer_id", params.id).is("deleted_at", null),
-    supabase.from("estimates").select("id").eq("customer_id", params.id).is("deleted_at", null),
-    supabase.from("reviews").select("id, rating, body, review_date").eq("customer_id", params.id).order("review_date", { ascending: false }),
+    supabase.from("jobs").select("id, service, scheduled_date, price_minor, status").eq("customer_id", id).is("deleted_at", null).order("scheduled_date", { ascending: false }),
+    supabase.from("invoices").select("total_minor, status").eq("customer_id", id).is("deleted_at", null),
+    supabase.from("estimates").select("id").eq("customer_id", id).is("deleted_at", null),
+    supabase.from("reviews").select("id, rating, body, review_date").eq("customer_id", id).order("review_date", { ascending: false }),
     supabase.from("price_book").select("id, name, description, price_minor, cost_minor, taxable, image_path").order("name"),
   ]);
   const custOpt = [{ id: c.id, label: c.name }];
@@ -88,7 +89,7 @@ export default async function CustomerDetailPage({ params }: { params: { id: str
       </div>
 
       <h3 style={h3}>Reviews {avg ? <span style={{ color: "#eab308" }}>{stars(avg)}</span> : null}</h3>
-      <ReviewForm customerId={params.id} />
+      <ReviewForm customerId={id} />
       {revs.map((r) => (
         <div key={r.id} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, marginBottom: 8 }}>
           <div style={{ color: "#eab308" }}>{stars(r.rating)}</div>

@@ -6,12 +6,13 @@ import MessageComposer from "@/components/MessageComposer";
 
 export const dynamic = "force-dynamic";
 
-export default async function ThreadPage({ params }: { params: { phone: string } }) {
+export default async function ThreadPage({ params }: { params: Promise<{ phone: string }> }) {
+  const { phone: encodedPhone } = await params;
   const profile = await requireProfile();
   if (profile.role === "tech") redirect("/");
-  const phone = decodeURIComponent(params.phone);
+  const phone = decodeURIComponent(encodedPhone);
   const last10 = phone.replace(/[^0-9]/g, "").slice(-10);
-  const supabase = createClient();
+  const supabase = await createClient();
   const [{ data: msgs }, { data: cust }] = await Promise.all([
     supabase.from("sms_messages").select("body, direction, created_at, to_phone, from_phone").order("created_at"),
     supabase.from("customers").select("name, phone").is("deleted_at", null),

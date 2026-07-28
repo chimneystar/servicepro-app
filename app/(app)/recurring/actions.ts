@@ -29,7 +29,7 @@ export async function savePlan(_prev: ActionResult, formData: FormData): Promise
     active: true, created_by: profile.id, updated_at: new Date().toISOString(),
   };
   const id = String(formData.get("id") ?? "");
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = id ? await supabase.from("recurring_plans").update(row).eq("id", id) : await supabase.from("recurring_plans").insert(row);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/recurring");
@@ -39,7 +39,7 @@ export async function savePlan(_prev: ActionResult, formData: FormData): Promise
 export async function deletePlan(id: string): Promise<ActionResult> {
   try { const p = await requireProfile(); assertRole(p, ["owner", "office"]); }
   catch { return { ok: false, error: "forbidden" }; }
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("recurring_plans").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/recurring");
@@ -51,7 +51,7 @@ export async function generateDuePlans(): Promise<ActionResult> {
   let profile;
   try { profile = await requireProfile(); assertRole(profile, ["owner", "office"]); }
   catch { return { ok: false, error: "forbidden" }; }
-  const supabase = createClient();
+  const supabase = await createClient();
   const today = new Date().toISOString().slice(0, 10);
   const { data: due } = await supabase.from("recurring_plans").select("*").eq("active", true).lte("next_due", today);
   let created = 0;

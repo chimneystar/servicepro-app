@@ -8,8 +8,8 @@ export const dynamic = "force-dynamic";
 
 export default async function JobsPage() {
   const profile = await requireProfile();
-  const locale = getLocale();
-  const supabase = createClient();
+  const locale = (await getLocale());
+  const supabase = await createClient();
   const [{ data: jobs }, { data: stages }, { data: org }, { data: custs }, { data: techs }, { data: jobTypes }] = await Promise.all([
     supabase.from("jobs")
       .select("id, service, stage, tags, price_minor, scheduled_date, start_time, stage_changed_at, customers(name, address, city), profiles!jobs_assigned_to_fkey(full_name)")

@@ -7,18 +7,16 @@ import { getLocale } from "@/lib/locale-server";
 import { t } from "@/lib/i18n";
 import { createDocument, updateDocument, duplicateDocument, softDeleteDocument, type ActionResult } from "@/lib/documents";
 
-export type { ActionResult };
-
 export async function createEstimate(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const profile = await requireProfile();
-  const res = await createDocument("estimate", formData, profile, getLocale());
+  const res = await createDocument("estimate", formData, profile, (await getLocale()));
   if (res.ok) revalidatePath("/estimates");
   return res;
 }
 
 export async function updateEstimate(id: string, _prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const profile = await requireProfile();
-  const res = await updateDocument("estimate", id, formData, profile, getLocale());
+  const res = await updateDocument("estimate", id, formData, profile, (await getLocale()));
   if (res.ok) { revalidatePath("/estimates"); revalidatePath(`/estimates/${id}`); }
   return res;
 }
@@ -26,7 +24,7 @@ export async function updateEstimate(id: string, _prev: ActionResult, formData: 
 export async function duplicateEstimate(id: string): Promise<{ ok: boolean; error?: string; newId?: string }> {
   let profile;
   try { profile = await requireProfile(); assertRole(profile, ["owner", "office"]); }
-  catch { return { ok: false, error: t(getLocale(), "err.forbidden") }; }
+  catch { return { ok: false, error: t((await getLocale()), "err.forbidden") }; }
   const res = await duplicateDocument("estimate", id, profile);
   if (res.ok) revalidatePath("/estimates");
   return res;
@@ -34,7 +32,7 @@ export async function duplicateEstimate(id: string): Promise<{ ok: boolean; erro
 
 export async function deleteEstimate(id: string): Promise<ActionResult> {
   try { const p = await requireProfile(); assertRole(p, ["owner", "office"]); }
-  catch { return { ok: false, error: t(getLocale(), "err.forbidden") }; }
+  catch { return { ok: false, error: t((await getLocale()), "err.forbidden") }; }
   const res = await softDeleteDocument("estimate", id);
   if (res.ok) revalidatePath("/estimates");
   return res;
@@ -43,25 +41,25 @@ export async function deleteEstimate(id: string): Promise<ActionResult> {
 /** Set an estimate's status (sent / approved / rejected / draft). */
 export async function setEstimateStatus(id: string, status: string): Promise<ActionResult> {
   try { const p = await requireProfile(); assertRole(p, ["owner", "office"]); }
-  catch { return { ok: false, error: t(getLocale(), "err.forbidden") }; }
+  catch { return { ok: false, error: t((await getLocale()), "err.forbidden") }; }
   if (!["draft", "sent", "approved", "rejected"].includes(status)) return { ok: false, error: "invalid" };
-  const supabase = createClient();
+  const supabase = await createClient();
   const { error } = await supabase.from("estimates").update({ status }).eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/estimates"); revalidatePath(`/estimates/${id}`);
   return { ok: true };
 }
 
-export type ConvertResult = { ok: boolean; error?: string; invoiceNumber?: number };
+type ConvertResult = { ok: boolean; error?: string; invoiceNumber?: number };
 
 /** Create an invoice from an existing estimate (copies items, cost, tax, photos). */
 export async function convertEstimateToInvoice(estimateId: string): Promise<ConvertResult> {
-  const locale = getLocale();
+  const locale = (await getLocale());
   let profile;
   try { profile = await requireProfile(); assertRole(profile, ["owner", "office"]); }
   catch { return { ok: false, error: t(locale, "err.forbidden") }; }
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: est } = await supabase.from("estimates").select("*").eq("id", estimateId).single();
   if (!est) return { ok: false, error: t(locale, "err.invalid") };
 

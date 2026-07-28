@@ -18,7 +18,7 @@ const money = (minor: number) => (minor / 100).toFixed(2);
 export async function exportCsv(kind: "invoices" | "payments" | "expenses", from: string, to: string): Promise<ExportResult> {
   try { const p = await requireProfile(); assertRole(p, ["owner", "office"]); }
   catch { return { ok: false, error: "forbidden" }; }
-  const supabase = createClient();
+  const supabase = await createClient();
 
   if (kind === "invoices") {
     const { data } = await supabase.from("invoices")

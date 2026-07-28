@@ -26,7 +26,7 @@ export async function sendText(phone: string, body: string): Promise<SendResult>
 }
 
 async function supabaseLog(org: string, to: string, body: string, sid: string | null, status: string, error?: string) {
-  const supabase = createClient();
+  const supabase = await createClient();
   await supabase.from("sms_messages").insert({
     organization_id: org, to_phone: to, body, direction: "outbound",
     provider: "twilio", provider_message_id: sid, status, error: error ?? null, sent_at: new Date().toISOString(),

@@ -3,9 +3,10 @@ import BookingForm from "./BookingForm";
 
 export const dynamic = "force-dynamic";
 
-export default async function BookingPage({ params }: { params: { org: string } }) {
-  const supabase = createClient();
-  const { data } = await supabase.rpc("public_booking_info", { p_org: params.org });
+export default async function BookingPage({ params }: { params: Promise<{ org: string }> }) {
+  const { org: orgId } = await params;
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("public_booking_info", { p_org: orgId });
   const org: any = data;
   const accent = org?.accent_color || "#2563eb";
 
@@ -28,7 +29,7 @@ export default async function BookingPage({ params }: { params: { org: string } 
           </div>
         </div>
         <div style={{ background: "#fff", borderRadius: "0 0 18px 18px", padding: 22, boxShadow: "0 20px 60px rgba(15,42,94,.15)" }}>
-          <BookingForm orgId={params.org} accent={accent} phone={org.phone} />
+          <BookingForm orgId={orgId} accent={accent} phone={org.phone} />
         </div>
         <p style={{ textAlign: "center", color: "#94a3b8", fontSize: 12, marginTop: 14 }}>Powered by {org.name}</p>
       </div>

@@ -9,6 +9,7 @@ export type CalJob = {
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const HE_MONTHS = ["ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני", "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר"];
 const He = { Sun: "א", Mon: "ב", Tue: "ג", Wed: "ד", Thu: "ה", Fri: "ו", Sat: "ש" } as Record<string, string>;
 const START_H = 7, END_H = 20, HOUR = 46;
 
@@ -48,24 +49,25 @@ export default function Calendar({ jobs, he = false, typeColors = {} }: { jobs: 
     setCursor(d);
   };
 
+  const months = he ? HE_MONTHS : MONTHS;
   const label = view === "month"
-    ? `${MONTHS[cursor.getMonth()]} ${cursor.getFullYear()}`
+    ? `${months[cursor.getMonth()]} ${cursor.getFullYear()}`
     : view === "day"
-      ? `${DAYS[cursor.getDay()]} ${cursor.getDate()} ${MONTHS[cursor.getMonth()]}`
-      : (() => { const s = startOfWeek(cursor); const e = addDays(s, 6); return `${s.getDate()} ${MONTHS[s.getMonth()].slice(0, 3)} – ${e.getDate()} ${MONTHS[e.getMonth()].slice(0, 3)} ${e.getFullYear()}`; })();
+      ? `${he ? He[DAYS[cursor.getDay()]] : DAYS[cursor.getDay()]} ${cursor.getDate()} ${months[cursor.getMonth()]}`
+      : (() => { const s = startOfWeek(cursor); const e = addDays(s, 6); return `${s.getDate()} ${months[s.getMonth()].slice(0, 3)} – ${e.getDate()} ${months[e.getMonth()].slice(0, 3)} ${e.getFullYear()}`; })();
 
   return (
     <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, boxShadow: "0 6px 18px rgba(15,42,94,.06)", overflow: "hidden" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #eef1f6", flexWrap: "wrap", gap: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button onClick={() => setCursor(new Date())} style={btnGhost}>Today</button>
+          <button onClick={() => setCursor(new Date())} style={btnGhost}>{he ? "היום" : "Today"}</button>
           <button onClick={() => move(-1)} style={navBtn}>‹</button>
           <button onClick={() => move(1)} style={navBtn}>›</button>
           <b style={{ fontSize: 16, marginInlineStart: 6 }}>{label}</b>
         </div>
         <div style={{ display: "flex", background: "#eef2f8", borderRadius: 10, padding: 3 }}>
           {(["day", "week", "month"] as const).map((v) => (
-            <button key={v} onClick={() => setView(v)} style={{ ...seg, ...(view === v ? segOn : {}) }}>{cap(v)}</button>
+            <button key={v} onClick={() => setView(v)} style={{ ...seg, ...(view === v ? segOn : {}) }}>{he ? ({ day: "יום", week: "שבוע", month: "חודש" }[v]) : cap(v)}</button>
           ))}
         </div>
       </div>
@@ -99,7 +101,7 @@ function TimeGrid({ cursor, jobs, today, days, he, typeColors = {} }: { cursor: 
       </div>
       <div style={{ display: "grid", gridTemplateColumns: `56px repeat(${days},1fr)`, maxHeight: 560, overflowY: "auto", position: "relative" }}>
         <div>
-          {hours.map((h) => <div key={h} style={{ height: HOUR, fontSize: 10.5, color: "#94a3b8", textAlign: "end", paddingInlineEnd: 6, paddingTop: 2 }}>{fmtHour(h)}</div>)}
+          {hours.map((h) => <div key={h} style={{ height: HOUR, fontSize: 10.5, color: "#94a3b8", textAlign: "end", paddingInlineEnd: 6, paddingTop: 2 }}>{fmtHour(h, he)}</div>)}
         </div>
         {cols.map((d) => {
           const dayJobs = jobs.filter((j) => j.date === iso(d));
@@ -147,7 +149,7 @@ function MonthView({ cursor, jobs, today, he, typeColors = {} }: { cursor: Date;
                 const bg = typeColors[j.service] || statusColor(j.status)[0];
                 return <a key={j.id} href={`/jobs/${j.id}`} style={{ display: "block", marginTop: 3, background: bg, color: "#fff", borderRadius: 5, padding: "2px 6px", fontSize: 10.5, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textDecoration: "none" }}>{(j.start ?? "").slice(0, 5)} {j.title}</a>;
               })}
-              {dayJobs.length > 3 && <div style={{ fontSize: 10.5, color: "#5c6675", marginTop: 2 }}>+{dayJobs.length - 3} more</div>}
+              {dayJobs.length > 3 && <div style={{ fontSize: 10.5, color: "#5c6675", marginTop: 2 }}>+{dayJobs.length - 3} {he ? "נוספות" : "more"}</div>}
             </div>
           );
         })}
@@ -157,7 +159,7 @@ function MonthView({ cursor, jobs, today, he, typeColors = {} }: { cursor: Date;
 }
 
 const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
-const fmtHour = (h: number) => h === 12 ? "12 PM" : h > 12 ? `${h - 12} PM` : `${h} AM`;
+const fmtHour = (h: number, he: boolean) => he ? `${String(h).padStart(2, "0")}:00` : h === 12 ? "12 PM" : h > 12 ? `${h - 12} PM` : `${h} AM`;
 const navBtn: React.CSSProperties = { width: 30, height: 30, borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: 16, color: "#334155" };
 const btnGhost: React.CSSProperties = { padding: "6px 12px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontWeight: 700, fontSize: 13 };
 const seg: React.CSSProperties = { border: "none", background: "transparent", padding: "6px 14px", borderRadius: 8, fontWeight: 700, fontSize: 13, color: "#5c6675", cursor: "pointer" };
