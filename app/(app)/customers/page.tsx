@@ -8,7 +8,8 @@ import CustomerList, { type Cust } from "@/components/CustomerList";
 
 export const dynamic = "force-dynamic";
 
-export default async function CustomersPage() {
+export default async function CustomersPage({ searchParams }: { searchParams: Promise<{ new?: string }> }) {
+  const search = await searchParams;
   await requireProfile();
   const locale = (await getLocale());
   const supabase = await createClient();
@@ -25,7 +26,7 @@ export default async function CustomersPage() {
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <Link href="/archive" style={{ background: "#fff7ed", color: "#9a3412", borderRadius: 10, padding: "10px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>🗄️ Archive</Link>
           <Link href="/customers/import" style={{ background: "#e2e9f4", color: "#2563eb", borderRadius: 10, padding: "10px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>⬆ Import</Link>
-          <CustomerForm locale={locale} />
+          <CustomerForm locale={locale} initialOpen={search.new === "1"} />
         </div>
       </div>
 

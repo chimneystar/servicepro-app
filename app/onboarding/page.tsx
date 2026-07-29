@@ -51,6 +51,9 @@ export default async function OnboardingPage() {
 
     if (trades.length > 0) {
       const items = catalogItemsFor(trades, includeParts, packLocale);
+      const selectedServices = INDUSTRY_PACKS.filter((pack) => trades.includes(pack.key)).flatMap((pack) =>
+        pack.items.filter((item) => item.kind === "service").map((item) => ({ pack, item })),
+      );
       const { data: batch } = await supabase.from("catalog_import_batches").insert({
         organization_id: orgId,
         source: "onboarding",
@@ -66,6 +69,17 @@ export default async function OnboardingPage() {
         parts_imported: includeParts,
       })));
       if (items.length > 0) await supabase.from("price_book").insert(items.map((item) => ({ ...item, organization_id: orgId, import_batch_id: batch?.id ?? null })));
+      if (selectedServices.length > 0) {
+        const jobTypes = selectedServices.map(({ item }, sort) => ({
+          id: randomUUID(), organization_id: orgId, name: packLocale === "he" ? item.he : item.en,
+          duration_min: 60, default_price_minor: 0, color: "#2b66f6", sort,
+        }));
+        await supabase.from("job_types").insert(jobTypes);
+        await supabase.from("booking_services").upsert(selectedServices.map(({ item }, sort) => ({
+          organization_id: orgId, job_type_id: jobTypes[sort].id, name_en: item.en, name_he: item.he,
+          duration_min: 60, price_minor: 0, book_as: "job", active: true, sort,
+        })), { onConflict: "organization_id,job_type_id" });
+      }
     }
 
     if (addSampleData) {
@@ -119,10 +133,10 @@ export default async function OnboardingPage() {
         <p style={{ color: "#64748b", fontSize: 14, marginBottom: 18 }}>{t(locale, "onb.desc")}</p>
 
         <label style={label}>{t(locale, "onb.orgName")}</label>
-        <input name="orgName" required placeholder={t(locale, "onb.orgNamePh")} style={field} />
+        <input name="orgName" required defaultValue={String(user.user_metadata?.business_name ?? "")} placeholder={t(locale, "onb.orgNamePh")} style={field} />
 
         <label style={label}>{t(locale, "onb.yourName")}</label>
-        <input name="ownerName" placeholder={t(locale, "onb.yourNamePh")} style={field} />
+        <input name="ownerName" defaultValue={String(user.user_metadata?.full_name ?? "")} placeholder={t(locale, "onb.yourNamePh")} style={field} />
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div>

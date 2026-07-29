@@ -38,6 +38,9 @@ export async function updateSession(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const isPublic =
     path.startsWith("/login") ||
+    path.startsWith("/signup") ||
+    path.startsWith("/forgot-password") ||
+    path.startsWith("/reset-password") ||
     path.startsWith("/auth") ||
     path.startsWith("/p/") ||        // public client document links (view / sign)
     path.startsWith("/book/") ||     // public online-booking request page

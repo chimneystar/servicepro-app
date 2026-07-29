@@ -7,7 +7,8 @@ import Calendar, { type CalJob } from "@/components/Calendar";
 
 export const dynamic = "force-dynamic";
 
-export default async function SchedulePage() {
+export default async function SchedulePage({ searchParams }: { searchParams: Promise<{ new?: string }> }) {
+  const search = await searchParams;
   await requireProfile();
   const locale = (await getLocale());
   const supabase = await createClient();
@@ -40,7 +41,7 @@ export default async function SchedulePage() {
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <h1 style={{ fontSize: 24, fontWeight: 800 }}>{t(locale, "sched.title")}</h1>
-        <JobForm locale={locale} customers={custOpts} techs={techOpts} jobTypes={jobTypes ?? undefined} />
+        <JobForm locale={locale} customers={custOpts} techs={techOpts} jobTypes={jobTypes ?? undefined} initialOpen={search.new === "1"} />
       </div>
       <Calendar jobs={calJobs} he={locale === "he"} typeColors={typeColors} />
     </div>

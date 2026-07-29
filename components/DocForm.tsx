@@ -15,12 +15,12 @@ type Row = { title: string; desc: string; qty: string; price: string; cost: stri
 const blankRow = (): Row => ({ title: "", desc: "", qty: "1", price: "", cost: "", taxable: true, image_path: "" });
 const initial: ActionResult = { ok: false };
 
-export default function DocForm({ locale, customers, action, newKey, catalog = [], orgId }: {
-  locale: Locale; customers: Opt[]; action: Action; newKey: string; catalog?: CatalogItem[]; orgId: string;
+export default function DocForm({ locale, customers, action, newKey, catalog = [], orgId, initialOpen = false }: {
+  locale: Locale; customers: Opt[]; action: Action; newKey: string; catalog?: CatalogItem[]; orgId: string; initialOpen?: boolean;
 }) {
   const supabase = createClient();
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initialOpen);
   const [rows, setRows] = useState<Row[]>([blankRow()]);
   const [state, formAction] = useFormState(action, initial);
   if (state.ok && open) setTimeout(() => { setOpen(false); setRows([blankRow()]); router.refresh(); }, 0);

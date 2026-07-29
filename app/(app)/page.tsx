@@ -16,15 +16,17 @@ export default async function DashboardPage() {
   const supabase = await createClient();
   const { start, end } = monthBounds();
   const today = todayISO();
-  const past14 = new Date(Date.now() - 14 * 864e5).toISOString().slice(0, 10);
+  const past14Date = new Date(`${today}T12:00:00Z`);
+  past14Date.setUTCDate(past14Date.getUTCDate() - 14);
+  const past14 = past14Date.toISOString().slice(0, 10);
 
   const [{ data: org }, { data: invoices }, { data: estimates }, { data: expenses }, { data: jobs }, { data: leads }, { count: custCount }] = await Promise.all([
     supabase.from("organizations").select("currency, logo_url, tax_rate_bps, review_url, onboarding_dismissed").single(),
-    supabase.from("invoices").select("status, total_minor, issue_date").is("deleted_at", null),
-    supabase.from("estimates").select("status, total_minor").is("deleted_at", null),
+    supabase.from("invoices").select("id, number, status, total_minor, issue_date").is("deleted_at", null),
+    supabase.from("estimates").select("id, number, status, total_minor").is("deleted_at", null),
     supabase.from("expenses").select("amount_minor, expense_date"),
-    supabase.from("jobs").select("service, source, status, price_minor, scheduled_date, start_time, customer_id, customers(name)").is("deleted_at", null),
-    supabase.from("leads").select("status"),
+    supabase.from("jobs").select("id, assigned_to, service, source, status, price_minor, scheduled_date, start_time, customer_id, customers(name)").is("deleted_at", null),
+    supabase.from("leads").select("id, name, status, created_at"),
     supabase.from("customers").select("id", { count: "exact", head: true }).is("deleted_at", null).eq("archived", false),
   ]);
   const openLeads = (leads ?? []).filter((l) => !["won", "lost"].includes(l.status)).length;
@@ -74,13 +76,29 @@ export default async function DashboardPage() {
   const bySrc: Record<string, number> = {}; jb.forEach((j) => { if (j.source) bySrc[j.source] = (bySrc[j.source] || 0) + 1; });
   const topSrc = Object.entries(bySrc).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const srcMax = Math.max(...topSrc.map((s) => s[1]), 1);
+  const unassigned = jb.filter((job: any) => !job.assigned_to && job.status !== "cancelled" && job.scheduled_date >= today);
+  const waitingEstimates = est.filter((estimate: any) => estimate.status === "sent");
+  const newLeads = (leads ?? []).filter((lead: any) => lead.status === "new");
+  const nextAssigned = jb.filter((job: any) => job.assigned_to === profile.id && job.status !== "cancelled" && job.status !== "done" && job.scheduled_date >= today).sort((a: any,b: any)=>(a.scheduled_date+(a.start_time??"")).localeCompare(b.scheduled_date+(b.start_time??"")))[0] as any;
+  const focus = profile.role === "owner"
+    ? { eyebrow: he ? "ממתין לגבייה" : "Waiting to be collected", title: money(dueSum, cur), copy: he ? `${unpaid.length} חשבוניות פתוחות, מהן ${pastDue.length} באיחור.` : `${unpaid.length} open invoices, including ${pastDue.length} past due.`, href: "/invoices?filter=unpaid", action: he ? "לחשבוניות הפתוחות" : "Open invoices" }
+    : profile.role === "office"
+      ? { eyebrow: he ? "צריך לשבץ" : "Needs dispatch", title: he ? `${unassigned.length} עבודות ללא שיבוץ` : `${unassigned.length} unassigned jobs`, copy: he ? "פותחים את לוח השיבוץ ומחברים את העבודה לאדם הנכון." : "Open dispatch and put the right person on each job.", href: "/dispatch", action: he ? "ללוח השיבוץ" : "Open dispatch" }
+      : { eyebrow: he ? "העבודה הבאה" : "Your next stop", title: nextAssigned ? `${(nextAssigned.start_time??"").slice(0,5)||"—"} · ${nextAssigned.customers?.name??nextAssigned.service}` : (he ? "אין עבודה נוספת" : "No next job"), copy: nextAssigned ? `${nextAssigned.service} · ${fmtDate(nextAssigned.scheduled_date)}` : (he ? "אפשר לבדוק שהסנכרון מעודכן או לפנות למשרד." : "Check sync status or contact the office if you expect an assignment."), href: nextAssigned ? `/jobs/${nextAssigned.id}` : "/tech", action: nextAssigned ? (he ? "לפרטי העבודה" : "Open job") : (he ? "ליום העבודה" : "My workday") };
+  const attention = [
+    ...(pastDue.length ? [{ tone:"danger", title: he ? `${pastDue.length} חשבוניות באיחור` : `${pastDue.length} past-due invoices`, copy: money(pastDueSum,cur), href:"/invoices?filter=unpaid" }] : []),
+    ...(unassigned.length ? [{ tone:"warning", title: he ? `${unassigned.length} עבודות ללא שיבוץ` : `${unassigned.length} jobs need dispatch`, copy: he ? "העבודה הקרובה מחכה לאיש צוות" : "Upcoming work is waiting for a team member", href:"/dispatch" }] : []),
+    ...(newLeads.length ? [{ tone:"blue", title: he ? `${newLeads.length} לידים חדשים` : `${newLeads.length} new leads`, copy: he ? "כדאי לחזור אליהם לפני שימשיכו הלאה" : "Respond before they move on", href:"/leads" }] : []),
+    ...(waitingEstimates.length ? [{ tone:"blue", title: he ? `${waitingEstimates.length} הצעות מחכות לתשובה` : `${waitingEstimates.length} estimates await a decision`, copy: he ? "אפשר לקבוע מעקב מהיר" : "Schedule a clear follow-up", href:"/growth" }] : []),
+  ].slice(0,4);
 
   return (
-    <div>
-      <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 3 }}>{t(locale, "dash.greeting", { name: profile.full_name || "👋" })}</h1>
-      <p style={{ color: "#5c6675", marginBottom: 14, fontSize: 13.5 }}>{t(locale, "dash.overview")}</p>
+    <div className="dashboard-experience">
+      <section className="dashboard-hero"><div><span className="dashboard-live"><i />{new Intl.DateTimeFormat(he?"he-IL":"en-US",{weekday:"long",month:"long",day:"numeric"}).format(new Date())}</span><h1>{t(locale, "dash.greeting", { name: profile.full_name || "👋" })}</h1><p>{profile.role==="owner"?(he?"העסק מול העיניים. מתחילים במה שהכי חשוב.":"Start with what needs your attention, then review the numbers."):profile.role==="office"?(he?"השיבוץ והלקוחות מסודרים לפי מה שצריך לקרות עכשיו.":"Dispatch and customer work are ordered by what happens next."):(he?"כל מה שצריך לעבודה הבאה נמצא כאן.":"Everything for your next stop is ready here.")}</p></div><article className="dashboard-focus"><span>{focus.eyebrow}</span><strong>{focus.title}</strong><p>{focus.copy}</p><Link href={focus.href}>{focus.action}<b>→</b></Link></article></section>
 
       {showChecklist && <SetupChecklist steps={steps} />}
+
+      <section className="dashboard-now"><JobPulse jobs={todayJobs as any[]} he={he}/><AttentionQueue rows={attention} he={he}/></section>
 
       <div className="scroll-x" style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         {[["/schedule", he ? "עבודה חדשה" : "New job"], ["/estimates", he ? "הצעות מחיר" : "Estimates"], ["/invoices", he ? "חשבוניות" : "Invoices"], ["/leads", he ? "לידים" : "Leads"], ["/route", he ? "המסלול של היום" : "Today’s route"], ["/messages", he ? "הודעות" : "Messages"], ["/reports", he ? "דוחות" : "Reports"]].map(([href, label]) => (
@@ -175,6 +193,10 @@ export default async function DashboardPage() {
 }
 
 const grid: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat(12,1fr)", gap: 14 };
+function JobPulse({ jobs, he }: { jobs: any[]; he: boolean }) {
+  return <article className="job-pulse"><header><div><span>{he?"מה קורה היום":"Today’s job pulse"}</span><h2>{he?"מה הסתיים, מה הבא ומה מחכה":"Done, next, and coming up"}</h2></div><Link href="/schedule">{he?"לכל היומן":"Full schedule"}</Link></header><div className="job-pulse-track">{jobs.length?jobs.slice(0,7).map((job,index)=>{const done=job.status==="done",active=!done&&index===jobs.findIndex((row)=>row.status!=="done"&&row.status!=="cancelled");return <Link href={`/jobs/${job.id}`} key={job.id} className={`${done?"done":""}${active?" active":""}`}><i>{done?"✓":index+1}</i><b>{(job.start_time??"").slice(0,5)||"—"}</b><strong>{job.customers?.name??job.service}</strong><small>{job.service}</small></Link>}):<div className="job-pulse-empty">{he?"אין עבודות היום. אפשר לפתוח את היומן ולהוסיף עבודה.":"No jobs today. Open the schedule to add one."}</div>}</div></article>;
+}
+function AttentionQueue({rows,he}:{rows:{tone:string;title:string;copy:string;href:string}[];he:boolean}){return <aside className="dashboard-attention"><header><div><span>{he?"צריך טיפול":"Needs attention"}</span><h2>{he?"מה לא כדאי לפספס":"Don’t let these wait"}</h2></div><b>{rows.length}</b></header>{rows.length?rows.map((row,index)=><Link href={row.href} key={`${row.href}-${index}`}><i className={row.tone}/><span><strong>{row.title}</strong><small>{row.copy}</small></span><b>›</b></Link>):<div className="dashboard-all-clear"><span>✓</span>{he?"אין כרגע דברים דחופים.":"Nothing urgent right now."}</div>}</aside>}
 function Card({ span, title, children }: { span: number; title: string; children: React.ReactNode }) {
   return (
     <div style={{ gridColumn: `span ${span}`, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16, boxShadow: "0 6px 18px rgba(15,42,94,.06)", minWidth: 0 }}>

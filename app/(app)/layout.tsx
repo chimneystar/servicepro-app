@@ -5,6 +5,7 @@ import Nav from "@/components/Nav";
 import TopBar from "@/components/TopBar";
 import { DEFAULT_LOCALE, dirFor, isLocale, type Locale } from "@/lib/i18n";
 import { LocaleProvider } from "@/components/LocaleProvider";
+import QuickCreate from "@/components/QuickCreate";
 
 /** Protected area. Loads the profile (redirects if not logged in / no org). */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -24,6 +25,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="shell" dir={dirFor(locale)}>
       <Nav role={profile.role} businessName={org?.name ?? "ServicePro"} locale={locale} />
+      {profile.role !== "tech" && <QuickCreate locale={locale} mobile />}
       <main className="app-content">
         <LocaleProvider locale={locale}>
           <TopBar canManage={profile.role !== "tech"} locale={locale} />

@@ -8,7 +8,8 @@ import DocList from "@/components/DocList";
 
 export const dynamic = "force-dynamic";
 
-export default async function EstimatesPage() {
+export default async function EstimatesPage({ searchParams }: { searchParams: Promise<{ new?: string }> }) {
+  const search = await searchParams;
   const profile = await requireProfile();
   const locale = (await getLocale());
   const supabase = await createClient();
@@ -24,7 +25,7 @@ export default async function EstimatesPage() {
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
         <h1 style={{ fontSize: 24, fontWeight: 800 }}>{t(locale, "est.title")}</h1>
-        <DocForm locale={locale} customers={custOpts} action={createEstimate} newKey="est.new" catalog={catalog ?? []} orgId={profile.organization_id!} />
+        <DocForm locale={locale} customers={custOpts} action={createEstimate} newKey="est.new" catalog={catalog ?? []} orgId={profile.organization_id!} initialOpen={search.new === "1"} />
       </div>
       <DocList
         rows={(estimates ?? []).map((e: any) => ({ id: e.id, number: e.number, status: e.status, total_minor: e.total_minor, issue_date: e.issue_date, public_token: e.public_token, customer_name: e.customers?.name ?? "—", customer_email: e.customers?.email ?? null, customer_phone: e.customers?.phone ?? null }))}
