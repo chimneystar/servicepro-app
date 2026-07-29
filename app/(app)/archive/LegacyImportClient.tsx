@@ -46,7 +46,7 @@ export default function LegacyImportClient() {
       </p>
 
       <div style={{ background: "#f4f7fb", borderRadius: 10, padding: 12, fontSize: 12.5, color: "#475569", marginBottom: 12, fontFamily: "monospace", whiteSpace: "pre-wrap" }}>
-        name,phone,email,address,city,history{"\n"}Jane Cohen,555-1234,jane@mail.com,12 Oak St,Austin,"3 past jobs; last invoice $450 paid 2024"
+        name,phone,email,address,city,history{"\n"}Jane Cohen,555-1234,jane@mail.com,12 Oak St,Austin,&quot;3 past jobs; last invoice $450 paid 2024&quot;
       </div>
 
       <textarea value={text} onChange={(e) => setText(e.target.value)} rows={10} placeholder="Paste CSV here…"
