@@ -3,6 +3,7 @@
   "protectedRoutes": [
     { "path": "/", "file": "app/(app)/page.tsx", "roles": ["owner", "office", "tech"] },
     { "path": "/schedule", "file": "app/(app)/schedule/page.tsx", "roles": ["owner", "office", "tech"] },
+    { "path": "/dispatch", "file": "app/(app)/dispatch/page.tsx", "roles": ["owner", "office"] },
     { "path": "/jobs", "file": "app/(app)/jobs/page.tsx", "roles": ["owner", "office", "tech"] },
     { "path": "/jobs/[id]", "file": "app/(app)/jobs/[id]/page.tsx", "roles": ["owner", "office", "tech"] },
     { "path": "/jobs/[id]/report", "file": "app/(app)/jobs/[id]/report/page.tsx", "roles": ["owner", "office", "tech"] },
@@ -34,7 +35,11 @@
     { "path": "/team", "file": "app/(app)/team/page.tsx", "roles": ["owner"] },
     { "path": "/settings", "file": "app/(app)/settings/page.tsx", "roles": ["owner"] },
     { "path": "/settings/messages", "file": "app/(app)/settings/messages/page.tsx", "roles": ["owner"] },
-    { "path": "/settings/payments", "file": "app/(app)/settings/payments/page.tsx", "roles": ["owner", "office"] }
+    { "path": "/settings/payments", "file": "app/(app)/settings/payments/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/operations", "file": "app/(app)/operations/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/fleet", "file": "app/(app)/fleet/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/growth", "file": "app/(app)/growth/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/migration", "file": "app/(app)/migration/page.tsx", "roles": ["owner", "office"] }
   ],
   "publicWorkflows": [
     { "path": "/book/[org]", "file": "app/book/[org]/page.tsx" },

@@ -147,6 +147,20 @@ create table if not exists public.push_notification_events (
 create index if not exists idx_push_events_pending on public.push_notification_events(status, created_at)
   where status in ('pending','failed');
 
+do $$
+declare r record;
+begin
+  for r in select * from (values
+    ('profile_capabilities','profile_capabilities_profile_org_guard','profiles','profile_id'),
+    ('catalog_import_batches','catalog_batches_creator_org_guard','profiles','created_by'),
+    ('device_subscriptions','device_subscriptions_profile_org_guard','profiles','profile_id'),
+    ('push_notification_events','push_events_profile_org_guard','profiles','profile_id')
+  ) as t(tbl,trg,parent,fkcol) loop
+    execute format('drop trigger if exists %I on public.%I;',r.trg,r.tbl);
+    execute format('create trigger %I before insert or update on public.%I for each row execute function public.assert_child_org(%L,%L);',r.trg,r.tbl,r.parent,r.fkcol);
+  end loop;
+end $$;
+
 drop trigger if exists trg_profile_capabilities_updated on public.profile_capabilities;
 create trigger trg_profile_capabilities_updated before update on public.profile_capabilities
   for each row execute function public.set_updated_at();

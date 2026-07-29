@@ -3,10 +3,40 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile, assertRole } from "@/lib/auth";
+import { getLocale } from "@/lib/locale-server";
 // @ts-ignore
 import { computeDocument, parseAmountToMinor, parseQtyToMilli } from "@/lib/core/money.mjs";
 
 export type PhotoResult = { ok: boolean; error?: string };
+
+export async function generateJobSummary(jobId: string): Promise<PhotoResult> {
+  const profile = await requireProfile(); const locale = await getLocale(); const he = locale === "he"; const supabase = await createClient();
+  const [{ data: job }, { data: tasks }, { data: checks }, { data: photos }] = await Promise.all([
+    supabase.from("jobs").select("id,service,status,notes,assigned_to,customers(name)").eq("id", jobId).maybeSingle(),
+    supabase.from("job_tasks").select("title,done").eq("job_id", jobId),
+    supabase.from("job_checklist_items").select("label,checked").eq("job_id", jobId),
+    supabase.from("job_photos").select("id,label").eq("job_id", jobId),
+  ]);
+  if (!job || (profile.role === "tech" && job.assigned_to !== profile.id)) return { ok: false, error: "forbidden" };
+  const customer = Array.isArray(job.customers) ? job.customers[0]?.name : null;
+  const sources = { service: job.service, customer, status: job.status, notes: job.notes ?? "", completedTasks: (tasks ?? []).filter((row) => row.done).map((row) => row.title), openTasks: (tasks ?? []).filter((row) => !row.done).map((row) => row.title), checklist: (checks ?? []).filter((row) => row.checked).map((row) => row.label), photoLabels: (photos ?? []).map((row) => row.label).filter(Boolean) };
+  let summary = he
+    ? `${job.service}${customer ? ` עבור ${customer}` : ""}. ${job.notes ? `לפי הערות הטכנאי: ${job.notes}` : "לא נוספו הערות טכנאי."} הושלמו ${sources.completedTasks.length} משימות ו-${sources.checklist.length} סעיפים ברשימת הבדיקה. ${sources.openTasks.length ? `נשארו לטיפול: ${sources.openTasks.join(", ")}.` : "לא נשארו משימות פתוחות."}`
+    : `${job.service}${customer ? ` for ${customer}` : ""}. ${job.notes ? `Technician notes: ${job.notes}` : "No technician notes were added."} ${sources.completedTasks.length} tasks and ${sources.checklist.length} checklist items were completed. ${sources.openTasks.length ? `Still needs attention: ${sources.openTasks.join(", ")}.` : "No open tasks remain."}`;
+  let provider = "ServicePro structured summary"; let model: string | null = null;
+  const endpoint = process.env.AI_SUMMARY_ENDPOINT; const key = process.env.AI_SUMMARY_API_KEY;
+  if (endpoint && key) {
+    try { const response = await fetch(endpoint, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${key}` }, body: JSON.stringify({ locale, sources }) }); const payload = await response.json(); if (response.ok && typeof payload.summary === "string" && payload.summary.trim()) { summary = payload.summary.trim().slice(0,8000); provider = "configured AI provider"; model = typeof payload.model === "string" ? payload.model.slice(0,120) : null; } } catch { /* Keep the safe local draft. */ }
+  }
+  const { error } = await supabase.from("job_summary_drafts").insert({ organization_id: profile.organization_id, job_id: jobId, summary, source_refs: { taskCount: tasks?.length ?? 0, checklistCount: checks?.length ?? 0, photoIds: (photos ?? []).map((row) => row.id) }, provider, model, created_by: profile.id });
+  if (error) return { ok: false, error: error.message }; revalidatePath(`/jobs/${jobId}`); return { ok: true };
+}
+
+export async function approveJobSummary(summaryId: string, jobId: string): Promise<PhotoResult> {
+  const profile = await requireProfile(); const supabase = await createClient();
+  const { error } = await supabase.from("job_summary_drafts").update({ status: "approved", approved_by: profile.id, approved_at: new Date().toISOString() }).eq("id", summaryId).eq("job_id", jobId);
+  if (error) return { ok: false, error: error.message }; revalidatePath(`/jobs/${jobId}`); return { ok: true };
+}
 
 /**
  * Create an invoice from a job. If the job has line items (Items tab), the
@@ -204,7 +234,7 @@ export async function recordJobPayment(invoiceId: string, jobId: string, amountS
 }
 
 /** Record a job photo row after the file has been uploaded to Storage. */
-export async function recordPhoto(jobId: string, path: string, label: string): Promise<PhotoResult> {
+export async function recordPhoto(jobId: string, path: string, label: string, mediaType: "image" | "video" = "image", parentPhotoId?: string): Promise<PhotoResult> {
   const profile = await requireProfile();
   const supabase = await createClient();
   const { error } = await supabase.from("job_photos").insert({
@@ -212,6 +242,8 @@ export async function recordPhoto(jobId: string, path: string, label: string): P
     job_id: jobId,
     storage_path: path,
     label: label || null,
+    media_type: mediaType,
+    parent_photo_id: parentPhotoId || null,
     created_by: profile.id,
   });
   if (error) return { ok: false, error: error.message };

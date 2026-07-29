@@ -1,61 +1,28 @@
 import { createClient } from "@/lib/supabase/server";
 import { money } from "@/lib/format";
+import { submitPortalRequest } from "./actions";
 
 export const dynamic = "force-dynamic";
-
-const SC: Record<string, string> = { draft: "#eef1f6|#57606f", sent: "#e0ebff|#2563eb", approved: "#e6f6ec|#15803d", rejected: "#fdeaea|#dc2626", unpaid: "#fdf1dc|#b45309", paid: "#e6f6ec|#15803d", scheduled: "#e0ebff|#2563eb", in_progress: "#fdf1dc|#b45309", done: "#e6f6ec|#15803d", cancelled: "#eef1f6|#57606f" };
+const SC: Record<string,string> = { draft: "#eef1f6|#57606f", sent: "#e0ebff|#2563eb", approved: "#e8efff|#2458c9", rejected: "#fdeaea|#dc2626", unpaid: "#fff5c9|#735b00", paid: "#e6f6ec|#15803d", scheduled: "#e0ebff|#2563eb", in_progress: "#fff5c9|#735b00", done: "#e6f6ec|#15803d", cancelled: "#eef1f6|#57606f" };
 
 export default async function PortalPage({ params }: { params: Promise<{ token: string }> }) {
-  const { token } = await params;
-  const supabase = await createClient();
-  const { data } = await supabase.rpc("public_customer_portal", { p_token: token });
-  const d: any = data;
-  if (!d) return <Wrap accent="#0f2a5e"><p style={{ color: "#5c6675" }}>This portal link is not valid.</p></Wrap>;
-
-  const accent = d.org?.accent_color || "#2563eb";
-  const cur = d.org?.currency ?? "USD";
-
-  return (
-    <Wrap accent={accent}>
-      <div style={{ width: "100%", maxWidth: 640 }}>
-        <div style={{ background: accent, color: "#fff", borderRadius: "18px 18px 0 0", padding: "22px 24px", display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(255,255,255,.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, overflow: "hidden" }}>
-            {d.org?.logo_url ? <img src={d.org.logo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : "❄️"}
-          </div>
-          <div><div style={{ fontSize: 19, fontWeight: 800 }}>{d.org?.name}</div><div style={{ fontSize: 13, opacity: .9 }}>Welcome back, {String(d.customer?.name ?? "").split(" ")[0]}</div></div>
-        </div>
-        <div style={{ background: "#fff", borderRadius: "0 0 18px 18px", padding: 20, boxShadow: "0 20px 60px rgba(15,42,94,.15)" }}>
-          <Section title="Invoices">
-            {(d.invoices ?? []).length === 0 ? <Empty /> : (d.invoices ?? []).map((x: any, i: number) => <Doc key={i} kind="Invoice" x={x} cur={cur} accent={accent} />)}
-          </Section>
-          <Section title="Estimates">
-            {(d.estimates ?? []).length === 0 ? <Empty /> : (d.estimates ?? []).map((x: any, i: number) => <Doc key={i} kind="Estimate" x={x} cur={cur} accent={accent} />)}
-          </Section>
-          <Section title="Service history">
-            {(d.jobs ?? []).length === 0 ? <Empty /> : (d.jobs ?? []).map((j: any, i: number) => (
-              <div key={i} style={rowLine}><span style={{ flex: 1 }}>{j.service}</span><Pill s={j.status} /><span style={{ fontSize: 12.5, color: "#5c6675", minWidth: 92, textAlign: "end" }}>{j.date}</span></div>
-            ))}
-          </Section>
-          <p style={{ textAlign: "center", color: "#94a3b8", fontSize: 12, marginTop: 8 }}>Questions? Call {d.org?.phone || d.org?.email}.</p>
-        </div>
-      </div>
-    </Wrap>
-  );
+  const { token } = await params; const supabase = await createClient(); const { data } = await supabase.rpc("public_customer_portal", { p_token: token }); const d: any = data;
+  if (!d) return <Wrap accent="#102a56"><p className="portal-empty">This portal link is not valid.<br/><span dir="rtl">הקישור לאזור הלקוח אינו תקין.</span></p></Wrap>;
+  const he = d.org?.locale === "he"; const accent = d.org?.accent_color || "#2463eb"; const cur = d.org?.currency ?? "USD"; const now = new Date().toISOString().slice(0,10); const upcoming = (d.jobs ?? []).filter((job: any) => job.date >= now && !["done","cancelled"].includes(job.status)).sort((a:any,b:any) => a.date.localeCompare(b.date));
+  return <Wrap accent={accent}><div className="customer-portal" style={{ "--portal-accent": accent } as React.CSSProperties} dir={he ? "rtl" : "ltr"}>
+    <header className="portal-brand"><div>{d.org?.logo_url ? <img src={d.org.logo_url} alt="" /> : <span>SP</span>}</div><div><strong>{d.org?.name}</strong><small>{he ? `טוב לראות אותך, ${String(d.customer?.name ?? "").split(" ")[0]}` : `Welcome back, ${String(d.customer?.name ?? "").split(" ")[0]}`}</small></div></header>
+    <main>
+      {upcoming.length > 0 && <Section title={he ? "התור הבא" : "Next appointment"}><article className="portal-next"><div><small>{new Intl.DateTimeFormat(he ? "he-IL" : "en-US", { weekday: "long", month: "long", day: "numeric" }).format(new Date(`${upcoming[0].date}T12:00:00`))}</small><strong>{upcoming[0].service}</strong><p>{[(upcoming[0].start_time ?? "").slice(0,5),upcoming[0].address,upcoming[0].city].filter(Boolean).join(" · ")}</p></div><Pill s={upcoming[0].status} /><details><summary>{he ? "בקשה לשינוי מועד" : "Request a different date"}</summary><form action={submitPortalRequest.bind(null,token)}><input type="hidden" name="type" value="reschedule"/><input type="hidden" name="jobId" value={upcoming[0].id}/><input type="date" name="date" min={now} required/><textarea name="message" placeholder={he ? "שעה מועדפת או משהו שחשוב שנדע" : "Preferred time or anything we should know"}/><button>{he ? "שליחת הבקשה" : "Send request"}</button></form></details></article></Section>}
+      <div className="portal-two"><Section title={he ? "חשבוניות" : "Invoices"}>{(d.invoices ?? []).length ? (d.invoices ?? []).map((row:any,index:number) => <Doc key={index} kind={he ? "חשבונית" : "Invoice"} row={row} cur={cur}/>) : <Empty he={he}/>}</Section><Section title={he ? "הצעות מחיר" : "Estimates"}>{(d.estimates ?? []).length ? (d.estimates ?? []).map((row:any,index:number) => <Doc key={index} kind={he ? "הצעה" : "Estimate"} row={row} cur={cur}/>) : <Empty he={he}/>}</Section></div>
+      <Section title={he ? "היסטוריית שירות" : "Service history"}><div className="portal-history">{(d.jobs ?? []).length ? (d.jobs ?? []).map((job:any,index:number) => <div key={index}><div><strong>{job.service}</strong><small>{new Intl.DateTimeFormat(he ? "he-IL" : "en-US", { dateStyle: "medium" }).format(new Date(`${job.date}T12:00:00`))}</small></div><Pill s={job.status}/></div>) : <Empty he={he}/>}</div></Section>
+      <Section title={he ? "איך נוח לקבל עדכונים?" : "How should we keep you updated?"}><form className="portal-preferences" action={submitPortalRequest.bind(null,token)}><input type="hidden" name="type" value="preferences"/><label><input type="checkbox" name="emailOptIn" defaultChecked={d.customer?.email_opt_in}/><span><strong>Email</strong><small>{d.customer?.email || (he ? "לא הוגדר" : "Not provided")}</small></span></label><label><input type="checkbox" name="smsOptIn" defaultChecked={d.customer?.sms_opt_in}/><span><strong>SMS</strong><small>{d.customer?.phone}</small></span></label><button>{he ? "שמירת העדפות" : "Save preferences"}</button></form></Section>
+      <p className="portal-contact">{he ? "יש שאלה? אפשר לפנות אלינו" : "Questions? Contact us"}: {d.org?.phone || d.org?.email}.</p>
+    </main>
+  </div></Wrap>;
 }
 
-function Doc({ kind, x, cur, accent }: { kind: string; x: any; cur: string; accent: string }) {
-  return (
-    <a href={`/p/${x.token}`} target="_blank" style={{ ...rowLine, textDecoration: "none", color: "inherit" }}>
-      <span style={{ flex: 1 }}>{kind} #{x.number}</span>
-      <b style={{ color: accent }}>{money(x.total_minor, cur)}</b>
-      <Pill s={x.status} />
-    </a>
-  );
-}
-function Pill({ s }: { s: string }) { const [bg, fg] = (SC[s] ?? "#eef1f6|#57606f").split("|"); return <span style={{ background: bg, color: fg, padding: "3px 9px", borderRadius: 20, fontSize: 11.5, fontWeight: 700 }}>{s}</span>; }
-function Section({ title, children }: { title: string; children: React.ReactNode }) { return <div style={{ marginBottom: 14 }}><h3 style={{ fontSize: 14, fontWeight: 800, marginBottom: 6 }}>{title}</h3>{children}</div>; }
-function Empty() { return <div style={{ color: "#94a3b8", fontSize: 13, padding: "6px 0" }}>Nothing here yet.</div>; }
-function Wrap({ children, accent }: { children: React.ReactNode; accent: string }) {
-  return <div style={{ minHeight: "100vh", background: "#eef3fb", borderTop: `5px solid ${accent}`, display: "flex", justifyContent: "center", padding: "24px 14px" }}>{children}</div>;
-}
-const rowLine: React.CSSProperties = { display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderTop: "1px solid #f1f4f9" };
+function Doc({ kind,row,cur }: { kind:string; row:any; cur:string }) { return <a className="portal-doc" href={`/p/${row.token}`} target="_blank"><div><strong>{kind} #{row.number}</strong><small>{row.issue_date}</small></div><b>{money(row.total_minor,cur)}</b><Pill s={row.status}/></a>; }
+function Pill({ s }: { s:string }) { const [bg,fg] = (SC[s] ?? "#eef1f6|#57606f").split("|"); return <span className="portal-pill" style={{ background:bg,color:fg }}>{s?.replaceAll("_"," ")}</span>; }
+function Section({ title,children }: { title:string; children:React.ReactNode }) { return <section className="portal-section"><h2>{title}</h2>{children}</section>; }
+function Empty({ he }: { he:boolean }) { return <div className="portal-empty">{he ? "עוד אין כאן פריטים." : "Nothing here yet."}</div>; }
+function Wrap({ children,accent }: { children:React.ReactNode; accent:string }) { return <div className="portal-wrap" style={{ borderColor:accent }}>{children}</div>; }

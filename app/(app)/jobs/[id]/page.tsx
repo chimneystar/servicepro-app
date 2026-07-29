@@ -21,6 +21,7 @@ import { createEstimate } from "@/app/(app)/estimates/actions";
 import { createInvoice } from "@/app/(app)/invoices/actions";
 import ActivityTimeline from "@/components/ActivityTimeline";
 import { loadActivity } from "@/lib/activity";
+import JobSummaryPanel, { type SummaryDraft } from "@/components/JobSummaryPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -49,9 +50,9 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
 
   const [
     { data: photoRows }, { data: invoices }, { data: estimates }, { data: items },
-    { data: tasks }, { data: checklist }, { data: equipment }, { data: catalog },
+    { data: tasks }, { data: checklist }, { data: equipment }, { data: catalog }, { data: summaries },
   ] = await Promise.all([
-    supabase.from("job_photos").select("id, storage_path, label").eq("job_id", id).order("created_at"),
+    supabase.from("job_photos").select("id, storage_path, label, media_type, parent_photo_id, customer_visible").eq("job_id", id).order("created_at"),
     supabase.from("invoices").select("id, number, total_minor, status, public_token").eq("job_id", id).is("deleted_at", null).order("number", { ascending: false }),
     supabase.from("estimates").select("id, number, total_minor, status, public_token").eq("customer_id", job.customer_id).is("deleted_at", null).order("number", { ascending: false }),
     supabase.from("job_items").select("id, description, qty_milli, unit_price_minor, cost_minor").eq("job_id", id).order("sort"),
@@ -59,6 +60,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
     supabase.from("job_checklist_items").select("id, label, checked").eq("job_id", id).order("created_at"),
     supabase.from("job_equipment").select("id, name, serial, notes").eq("job_id", id).order("created_at"),
     supabase.from("price_book").select("id, name, description, price_minor, cost_minor, taxable, image_path").order("name"),
+    supabase.from("job_summary_drafts").select("id,summary,provider,model,status,created_at").eq("job_id", id).order("created_at", { ascending: false }).limit(10),
   ]);
 
   const invList = invoices ?? [];
@@ -76,7 +78,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
 
   const photos: Photo[] = await Promise.all((photoRows ?? []).map(async (r) => {
     const { data } = await supabase.storage.from("job-photos").createSignedUrl(r.storage_path, 3600);
-    return { id: r.id, path: r.storage_path, url: data?.signedUrl ?? null, label: r.label };
+    return { id: r.id, path: r.storage_path, url: data?.signedUrl ?? null, label: r.label, mediaType: r.media_type === "video" ? "video" : "image", parentPhotoId: r.parent_photo_id, customerVisible: r.customer_visible };
   }));
 
   // Time tracking summary
@@ -179,6 +181,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         { label: he ? "ציוד אצל הלקוח" : "Equipment", badge: (equipment ?? []).length ? String((equipment ?? []).length) : undefined, content: EquipmentTab },
         { label: he ? "רשימות בדיקה" : "Checklists", badge: (checklist ?? []).length ? String((checklist ?? []).length) : undefined, content: ChecklistsTab },
       ]} />
+      <JobSummaryPanel jobId={job.id} locale={locale} drafts={(summaries ?? []) as SummaryDraft[]} />
       <ActivityTimeline entries={activity} locale={locale} />
     </div>
   );
