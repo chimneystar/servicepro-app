@@ -7,5 +7,5 @@ out/
 *.log
 tsconfig.tsbuildinfo
 .DS_Store
-.vercel
-.env*
+.vercel/
+
