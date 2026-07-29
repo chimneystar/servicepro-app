@@ -51,6 +51,8 @@ export default async function CustomReportPage({ searchParams }: { searchParams:
   const byTech: Record<string, { collected: number; profit: number; count: number }> = {};
   invs.forEach((i: any) => { const n = i.jobs?.profiles?.full_name || "Unassigned"; const b = byTech[n] || { collected: 0, profit: 0, count: 0 }; b.collected += i.total_minor; b.profit += (revByInv[i.id] || 0) - (costByInv[i.id] || 0); b.count++; byTech[n] = b; });
 
+  // Server request time is intentionally captured once for the aging report.
+  // eslint-disable-next-line react-hooks/purity
   const nowMs = Date.now();
   const buckets = [["0–30 days", 0, 30], ["31–60 days", 31, 60], ["61–90 days", 61, 90], ["90+ days", 91, 9e9]] as const;
   const aging = buckets.map(([label, min, max]) => { const rows = (unpaid ?? []).filter((i) => { const age = Math.floor((nowMs - new Date(i.issue_date + "T00:00:00").getTime()) / 864e5); return age >= min && age <= max; }); return { label, total: rows.reduce((s, i) => s + i.total_minor, 0), count: rows.length }; });

@@ -19,6 +19,8 @@ export default async function TimesheetsPage({ searchParams }: { searchParams: P
     .select("started_at, ended_at, profiles(full_name), jobs(service)")
     .gte("started_at", `${from}T00:00:00`).lte("started_at", `${to}T23:59:59`).order("started_at");
 
+  // Server request time is intentionally captured once for open time entries.
+  // eslint-disable-next-line react-hooks/purity
   const nowMs = Date.now();
   const rows: TSRow[] = (entries ?? []).map((e: any) => {
     const st = new Date(e.started_at).getTime(); const en = e.ended_at ? new Date(e.ended_at).getTime() : nowMs;

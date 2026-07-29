@@ -28,13 +28,16 @@ export default async function JobsPage() {
   }));
 
   const canEdit = profile.role !== "tech";
+  // Server request time is intentionally captured once for stable aging labels.
+  // eslint-disable-next-line react-hooks/purity
+  const nowMs = Date.now();
   return (
     <div style={{ maxWidth: 900 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
         <h1 style={{ fontSize: 24, fontWeight: 800 }}>Jobs</h1>
         {canEdit && <JobForm locale={locale} customers={(custs ?? []).map((c) => ({ id: c.id, label: c.name }))} techs={(techs ?? []).map((p) => ({ id: p.id, label: p.full_name || "—" }))} jobTypes={jobTypes ?? undefined} />}
       </div>
-      <JobsList jobs={rows} stages={(stages ?? []) as StageDef[]} currency={org?.currency ?? "USD"} nowMs={Date.now()} />
+      <JobsList jobs={rows} stages={(stages ?? []) as StageDef[]} currency={org?.currency ?? "USD"} nowMs={nowMs} />
     </div>
   );
 }
