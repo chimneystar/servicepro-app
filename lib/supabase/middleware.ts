@@ -44,6 +44,7 @@ export async function updateSession(request: NextRequest) {
     path.startsWith("/portal/") ||   // public customer portal (magic link)
     path.startsWith("/api/") ||      // payment webhooks / pay redirect
     path.startsWith("/_next") ||
+    path === "/manifest.webmanifest" ||
     path === "/favicon.ico";
 
   if (!user && !isPublic) {
