@@ -22,6 +22,7 @@ Every file is **idempotent** (safe to re-run).
 | 0013 | `013_security_hardening.sql` | **Go-live:** fixed search_path, EXECUTE lockdown, booking rate-limit, webhook_events policy, btree_gist move |
 | 0014 | `014_tenant_isolation.sql` | **Go-live:** composite tenant FKs + org-guard triggers |
 | 0015 | `015_indexes.sql` | **Go-live:** high-volume access-path indexes |
+| 0017 | `017_helcim_payments.sql` | Helcim connected accounts, provider-neutral payments, schedules, manual verification, and payment settings |
 | — | `016_isolation_tests.sql` | Runnable proof that cross-tenant writes are rejected (not a migration) |
 
 ## Going live now (single run)
@@ -37,4 +38,4 @@ you see `✔ ALL ISOLATION TESTS PASSED`.
 
 ## Fresh project (disaster recovery)
 
-Run `schema.sql`, then `002_*` … `015_*` in order, then create the two storage buckets.
+Run `schema.sql`, then `002_*` … `015_*`, followed by `017_*`, then create the two storage buckets.

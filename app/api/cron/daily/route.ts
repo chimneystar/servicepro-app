@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { runRecurringGeneration, runReminders } from "@/lib/cron-tasks";
+import { reconcilePendingHelcimPayments } from "@/lib/payments/server";
+import { retryFailedPaymentReceipts } from "@/lib/payments/receipts";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -9,6 +11,7 @@ export const maxDuration = 60;
  * - Generates jobs for any due maintenance plans (works with no extra keys).
  * - Sends day-before appointment reminders + weekly overdue nudges (needs
  *   Twilio + SUPABASE_SERVICE_ROLE_KEY; silently no-ops otherwise).
+ * - Reconciles ACH payments that Helcim still reports as processing.
  * Protected by CRON_SECRET when that env var is set.
  */
 export async function GET(request: NextRequest) {
@@ -19,5 +22,7 @@ export async function GET(request: NextRequest) {
   const result: any = { ok: true };
   try { result.recurringJobsCreated = await runRecurringGeneration(); } catch (e: any) { result.recurringError = String(e?.message ?? e); }
   try { result.reminders = await runReminders(); } catch (e: any) { result.remindersError = String(e?.message ?? e); }
+  try { result.pendingPayments = await reconcilePendingHelcimPayments(); } catch (e: any) { result.pendingPaymentsError = String(e?.message ?? e); }
+  try { result.paymentReceipts = await retryFailedPaymentReceipts(); } catch (e: any) { result.paymentReceiptsError = String(e?.message ?? e); }
   return NextResponse.json(result);
 }

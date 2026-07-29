@@ -41,6 +41,7 @@ export default function SignApprove({ token, locale }: { token: string; locale: 
       if (error) throw error;
       if (!data) throw new Error("Could not approve");
       setDone(true);
+      window.dispatchEvent(new Event("servicepro:document-approved"));
     } catch (err: any) {
       setError(err?.message ?? "Error");
     } finally { setBusy(false); }

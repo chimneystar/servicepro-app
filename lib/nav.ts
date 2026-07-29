@@ -11,6 +11,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/messages", key: "nav.messages", icon: "💬", roles: ["owner", "office"] },
   { href: "/estimates", key: "nav.estimates", icon: "📝", roles: ["owner", "office"] },
   { href: "/invoices", key: "nav.invoices", icon: "🧾", roles: ["owner", "office"], bottom: true },
+  { href: "/settings/payments", key: "nav.payments", icon: "💳", roles: ["owner", "office"] },
   { href: "/reports", key: "nav.reports", icon: "📈", roles: ["owner", "office"] },
   { href: "/settings", key: "nav.settings", icon: "⚙️", roles: ["owner"] },
 
