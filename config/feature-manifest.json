@@ -14,6 +14,7 @@
     { "path": "/leads", "file": "app/(app)/leads/page.tsx", "roles": ["owner", "office"] },
     { "path": "/messages", "file": "app/(app)/messages/page.tsx", "roles": ["owner", "office"] },
     { "path": "/messages/[phone]", "file": "app/(app)/messages/[phone]/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/calls", "file": "app/(app)/calls/page.tsx", "roles": ["owner", "office"] },
     { "path": "/estimates", "file": "app/(app)/estimates/page.tsx", "roles": ["owner", "office"] },
     { "path": "/estimates/[id]", "file": "app/(app)/estimates/[id]/page.tsx", "roles": ["owner", "office"] },
     { "path": "/estimates/[id]/edit", "file": "app/(app)/estimates/[id]/edit/page.tsx", "roles": ["owner", "office"] },
@@ -38,6 +39,7 @@
     { "path": "/settings/messages", "file": "app/(app)/settings/messages/page.tsx", "roles": ["owner"] },
     { "path": "/settings/payments", "file": "app/(app)/settings/payments/page.tsx", "roles": ["owner", "office"] },
     { "path": "/operations", "file": "app/(app)/operations/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/warranties", "file": "app/(app)/warranties/page.tsx", "roles": ["owner", "office"] },
     { "path": "/fleet", "file": "app/(app)/fleet/page.tsx", "roles": ["owner", "office"] },
     { "path": "/growth", "file": "app/(app)/growth/page.tsx", "roles": ["owner", "office"] },
     { "path": "/migration", "file": "app/(app)/migration/page.tsx", "roles": ["owner", "office"] }

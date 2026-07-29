@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test:features": "node --test tests/feature-preservation.test.mjs tests/booking.test.mjs"
+    "test:features": "node --test tests/feature-preservation.test.mjs tests/booking.test.mjs tests/calls.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

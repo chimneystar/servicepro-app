@@ -14,9 +14,22 @@ test("every protected and public workflow still has a page", async () => {
 
 test("the sellable CRM keeps its essential workflows", () => {
   const routes = new Set(manifest.protectedRoutes.map((route) => route.path));
-  for (const route of ["/schedule", "/jobs", "/customers", "/leads", "/messages", "/estimates", "/invoices", "/inventory", "/pricebook", "/recurring", "/reports", "/team", "/settings"]) {
+  for (const route of ["/schedule", "/jobs", "/customers", "/leads", "/messages", "/calls", "/warranties", "/estimates", "/invoices", "/inventory", "/pricebook", "/recurring", "/reports", "/team", "/settings"]) {
     assert.ok(routes.has(route), `protected feature was removed: ${route}`);
   }
+});
+
+test("job history, warranties and calls keep their database protections", async () => {
+  const sql = (await readFile(resolve(root, "db/021_job_history_warranty_calls.sql"), "utf8")).toLowerCase();
+  for (const table of ["job_actions", "job_warranties", "warranty_callbacks", "tracked_phone_numbers", "call_events"]) {
+    assert.ok(sql.includes(`create table if not exists public.${table}`), `missing table ${table}`);
+    assert.ok(sql.includes(`alter table public.%i enable row level security`) || sql.includes(`alter table public.${table} enable row level security`), `RLS setup missing for ${table}`);
+  }
+  for (const guard of ["job_actions_job_org_guard", "warranty_callbacks_original_job_org_guard", "call_events_customer_org_guard", "call_events_job_org_guard"]) {
+    assert.ok(sql.includes(guard), `missing tenant guard ${guard}`);
+  }
+  assert.ok(sql.includes("revoke all on public.job_actions"), "anonymous access was not revoked");
+  assert.ok(sql.includes("security invoker"), "linked callback scheduling must respect the caller's RLS");
 });
 
 test("owner, office and technician experiences remain explicit", () => {
