@@ -1,20 +1,21 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { useFormState, useFormStatus } from "react-dom";
-import { inviteMember, changeRole, removeMember, cancelInvite, type ActionResult } from "./actions";
+import { useFormStatus } from "react-dom";
+import { inviteMember, changeRole, removeMember, cancelInvite, updatePaymentPermissions, type ActionResult } from "./actions";
 import { t, type Locale } from "@/lib/i18n";
 
 type Member = { id: string; full_name: string; role: string };
 type Invite = { id: string; email: string; role: string };
+type PaymentPermission = { profile_id: string; can_confirm_manual_payments: boolean; can_refund_payments: boolean; can_override_ach_holds: boolean };
 const initial: ActionResult = { ok: false };
 
-export default function TeamClient({ locale, members, invites, myId }: {
-  locale: Locale; members: Member[]; invites: Invite[]; myId: string;
+export default function TeamClient({ locale, members, invites, paymentPermissions, myId }: {
+  locale: Locale; members: Member[]; invites: Invite[]; paymentPermissions: PaymentPermission[]; myId: string;
 }) {
   const router = useRouter();
-  const [state, formAction] = useFormState(inviteMember, initial);
+  const [state, formAction] = useActionState(inviteMember, initial);
   const [pending, start] = useTransition();
   const roleLabel = (r: string) => t(locale, r === "owner" ? "role.owner" : r === "office" ? "role.office" : "role.tech");
   const he = locale === "he";
@@ -47,20 +48,22 @@ export default function TeamClient({ locale, members, invites, myId }: {
       {/* Members */}
       <div style={card}>
         <h3 style={h3}>{t(locale, "team.members")} ({members.length})</h3>
-        {members.map((m) => (
-          <div key={m.id} style={row}>
-            <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#2563eb", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 13 }}>{(m.full_name || "?").slice(0, 2)}</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <b>{m.full_name || "—"}{m.id === myId ? ` (${t(locale, "team.you")})` : ""}</b>
-            </div>
-            <select value={m.role} disabled={m.id === myId || pending} onChange={(e) => run(() => changeRole(m.id, e.target.value))} style={{ ...inp, width: "auto", padding: "7px 10px", fontSize: 13 }}>
-              <option value="tech">{roleLabel("tech")}</option>
-              <option value="office">{roleLabel("office")}</option>
-              <option value="owner">{roleLabel("owner")}</option>
-            </select>
-            {m.id !== myId && <button onClick={() => { if (confirm(he ? "להסיר את העובד מהצוות?" : "Remove this team member?")) run(() => removeMember(m.id)); }} disabled={pending} style={rm}>{t(locale, "team.remove")}</button>}
-          </div>
-        ))}
+        {members.map((m) => {
+          const paymentAccess = paymentPermissions.find((entry) => entry.profile_id === m.id);
+          return <div key={m.id} style={{ ...row, alignItems: "flex-start" }}>
+              <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#2563eb", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 13 }}>{(m.full_name || "?").slice(0, 2)}</div>
+              <div style={{ flex: 1, minWidth: 180 }}>
+                <b>{m.full_name || "—"}{m.id === myId ? ` (${t(locale, "team.you")})` : ""}</b>
+                {m.role === "office" && m.id !== myId && <PaymentPermissionEditor locale={locale} memberId={m.id} initial={paymentAccess} onSaved={() => router.refresh()} />}
+              </div>
+              <select value={m.role} disabled={m.id === myId || pending} onChange={(e) => run(() => changeRole(m.id, e.target.value))} style={{ ...inp, width: "auto", padding: "7px 10px", fontSize: 13 }}>
+                <option value="tech">{roleLabel("tech")}</option>
+                <option value="office">{roleLabel("office")}</option>
+                <option value="owner">{roleLabel("owner")}</option>
+              </select>
+              {m.id !== myId && <button onClick={() => { if (confirm(he ? "להסיר את העובד מהצוות?" : "Remove this team member?")) run(() => removeMember(m.id)); }} disabled={pending} style={rm}>{t(locale, "team.remove")}</button>}
+            </div>;
+        })}
       </div>
 
       {/* Pending invites */}
@@ -81,6 +84,28 @@ export default function TeamClient({ locale, members, invites, myId }: {
       </div>
     </div>
   );
+}
+
+function PaymentPermissionEditor({ locale, memberId, initial, onSaved }: { locale: Locale; memberId: string; initial?: PaymentPermission; onSaved: () => void }) {
+  const he = locale === "he";
+  const [values, setValues] = useState({
+    confirmManual: !!initial?.can_confirm_manual_payments,
+    refund: !!initial?.can_refund_payments,
+    overrideAchHold: !!initial?.can_override_ach_holds,
+  });
+  const [saving, startSaving] = useTransition();
+  const [message, setMessage] = useState<string | null>(null);
+  const options = [
+    { key: "confirmManual" as const, label: he ? "אישור Zelle וצ׳קים" : "Confirm Zelle & checks" },
+    { key: "refund" as const, label: he ? "ביצוע החזרים" : "Issue refunds" },
+    { key: "overrideAchHold" as const, label: he ? "שחרור עבודת ACH בהמתנה" : "Override ACH holds" },
+  ];
+  return <div className="team-payment-permissions">
+    <span>{he ? "הרשאות תשלום" : "Payment permissions"}</span>
+    <div>{options.map((option) => <label key={option.key}><input type="checkbox" checked={values[option.key]} onChange={(event) => { setValues((current) => ({ ...current, [option.key]: event.target.checked })); setMessage(null); }} />{option.label}</label>)}</div>
+    <button type="button" disabled={saving} onClick={() => startSaving(async () => { const result = await updatePaymentPermissions(memberId, values); setMessage(result.ok ? (he ? "נשמר" : "Saved") : (result.error ?? (he ? "לא נשמר" : "Not saved"))); if (result.ok) onSaved(); })}>{saving ? (he ? "שומרים…" : "Saving…") : (he ? "שמירת הרשאות" : "Save access")}</button>
+    {message && <small>{message}</small>}
+  </div>;
 }
 
 function SendBtn({ locale }: { locale: Locale }) {

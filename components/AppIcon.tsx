@@ -4,7 +4,7 @@ export type AppIconName =
   | "dashboard" | "calendar" | "briefcase" | "target" | "customers"
   | "messages" | "document" | "invoice" | "reports" | "settings"
   | "route" | "recurring" | "inventory" | "book" | "tools"
-  | "search" | "chevron" | "team";
+  | "search" | "chevron" | "team" | "payments";
 
 export function iconForHref(href: string): AppIconName {
   if (href === "/") return "dashboard";
@@ -16,6 +16,7 @@ export function iconForHref(href: string): AppIconName {
   if (href.startsWith("/estimates")) return "document";
   if (href.startsWith("/invoices")) return "invoice";
   if (href.startsWith("/reports")) return "reports";
+  if (href.startsWith("/settings/payments")) return "payments";
   if (href.startsWith("/settings")) return "settings";
   if (href.startsWith("/route")) return "route";
   if (href.startsWith("/recurring")) return "recurring";
@@ -47,7 +48,7 @@ export default function AppIcon({ name, ...props }: { name: AppIconName } & SVGP
       {name === "search" && <><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></>}
       {name === "chevron" && <path d="m9 18 6-6-6-6"/>}
       {name === "team" && <><circle cx="9" cy="8" r="4"/><path d="M2 21v-2a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v2M16 4a4 4 0 0 1 0 8M18 14a5 5 0 0 1 4 5v2"/></>}
+      {name === "payments" && <><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18M7 15h3M16 14v2M15 15h2"/></>}
     </svg>
   );
 }
-

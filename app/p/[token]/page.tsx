@@ -5,6 +5,8 @@ import { money } from "@/lib/format";
 import SignApprove from "@/components/SignApprove";
 import PrintButton from "@/components/PrintButton";
 import { providers } from "@/lib/providers";
+import CustomerPaymentOptions from "@/components/CustomerPaymentOptions";
+import type { PublicPaymentOptions } from "@/lib/payments/types";
 // @ts-ignore
 import { computeDocument, lineSubtotalMinor } from "@/lib/core/money.mjs";
 
@@ -21,7 +23,10 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
   const { token } = await params;
   const locale = (await getLocale());
   const supabase = await createClient();
-  const { data } = await supabase.rpc("public_document", { p_token: token });
+  const [{ data }, { data: paymentData }] = await Promise.all([
+    supabase.rpc("public_document", { p_token: token }),
+    supabase.rpc("public_payment_options", { p_token: token }),
+  ]);
   const doc: any = data;
   if (!doc) return <Center accent="#0f2a5e"><p style={{ color: "#5c6675" }}>This link is invalid or has expired.</p></Center>;
 
@@ -32,9 +37,11 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
   const totals = computeDocument({ items: items.map((i) => ({ qtyMilli: i.qty_milli, unitPriceMinor: i.unit_price_minor, taxable: i.taxable })), discountMinor: doc.discount_minor, taxRateBps: doc.tax_rate_bps });
   const title = doc.kind === "invoice" ? "Invoice" : "Estimate";
   const signed = !!doc.signed_at;
-  const canPayOnline = doc.kind === "invoice" && doc.status !== "paid" && providers.stripe();
+  const paymentOptions = paymentData as PublicPaymentOptions | null;
+  const hasNewPayments = !!paymentOptions?.methods;
+  const canPayOnline = !hasNewPayments && doc.kind === "invoice" && doc.status !== "paid" && providers.stripe();
   const depositMinor = doc.deposit_minor ?? 0;
-  const canPayDeposit = doc.kind === "estimate" && depositMinor > 0 && providers.stripe();
+  const canPayDeposit = !hasNewPayments && signed && doc.kind === "estimate" && depositMinor > 0 && providers.stripe();
   const isPaid = doc.status === "paid";
   const hasNonTaxable = items.some((i) => i.taxable === false);
   const imgUrl = (path: string) => supabase.storage.from("item-photos").getPublicUrl(path).data.publicUrl;
@@ -145,6 +152,7 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
               <div className="no-print"><SignApprove token={token} locale={locale} /></div>
             )}
           </div>
+          {paymentOptions && <div className="no-print" style={{ marginTop: 18 }}><CustomerPaymentOptions token={token} locale={locale} options={paymentOptions} accent={accent} /></div>}
         </div>
 
         {/* Footer */}
