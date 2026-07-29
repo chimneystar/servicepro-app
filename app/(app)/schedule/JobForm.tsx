@@ -20,9 +20,9 @@ function addMinutes(hhmm: string, min: number) {
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
-export default function JobForm({ locale, customers, techs, jobTypes }: { locale: Locale; customers: Opt[]; techs: Opt[]; jobTypes?: JobTypeOpt[] }) {
+export default function JobForm({ locale, customers, techs, jobTypes, initialOpen = false }: { locale: Locale; customers: Opt[]; techs: Opt[]; jobTypes?: JobTypeOpt[]; initialOpen?: boolean }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initialOpen);
   const [state, formAction] = useFormState(createJob, initial);
   const types: JobTypeOpt[] = jobTypes && jobTypes.length ? jobTypes : DEFAULT_SERVICES.map((name) => ({ name }));
 

@@ -9,9 +9,9 @@ import AddressAutocomplete from "@/components/AddressAutocomplete";
 
 const initial: ActionResult = { ok: false };
 
-export default function CustomerForm({ locale }: { locale: Locale }) {
+export default function CustomerForm({ locale, initialOpen = false }: { locale: Locale; initialOpen?: boolean }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(initialOpen);
   const [state, formAction] = useFormState(createCustomer, initial);
   const sources = sourceOptions(locale);
   const [addr, setAddr] = useState("");

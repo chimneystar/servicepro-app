@@ -10,7 +10,7 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-export default async function InvoicesPage({ searchParams }: { searchParams: Promise<{ filter?: string }> }) {
+export default async function InvoicesPage({ searchParams }: { searchParams: Promise<{ filter?: string; new?: string }> }) {
   const search = await searchParams;
   const profile = await requireProfile();
   const locale = (await getLocale());
@@ -45,7 +45,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <h1 style={{ fontSize: 24, fontWeight: 800 }}>{t(locale, "inv.title")}</h1>
-        <DocForm locale={locale} customers={custOpts} action={createInvoice} newKey="inv.new" catalog={catalog ?? []} orgId={profile.organization_id!} />
+        <DocForm locale={locale} customers={custOpts} action={createInvoice} newKey="inv.new" catalog={catalog ?? []} orgId={profile.organization_id!} initialOpen={search.new === "1"} />
       </div>
 
       {/* Due vs paid summary */}

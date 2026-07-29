@@ -34,6 +34,7 @@
     { "path": "/archive/import", "file": "app/(app)/archive/import/page.tsx", "roles": ["owner", "office"] },
     { "path": "/team", "file": "app/(app)/team/page.tsx", "roles": ["owner"] },
     { "path": "/settings", "file": "app/(app)/settings/page.tsx", "roles": ["owner"] },
+    { "path": "/settings/booking", "file": "app/(app)/settings/booking/page.tsx", "roles": ["owner"] },
     { "path": "/settings/messages", "file": "app/(app)/settings/messages/page.tsx", "roles": ["owner"] },
     { "path": "/settings/payments", "file": "app/(app)/settings/payments/page.tsx", "roles": ["owner", "office"] },
     { "path": "/operations", "file": "app/(app)/operations/page.tsx", "roles": ["owner", "office"] },
@@ -42,6 +43,10 @@
     { "path": "/migration", "file": "app/(app)/migration/page.tsx", "roles": ["owner", "office"] }
   ],
   "publicWorkflows": [
+    { "path": "/login", "file": "app/login/page.tsx" },
+    { "path": "/signup", "file": "app/signup/page.tsx" },
+    { "path": "/forgot-password", "file": "app/forgot-password/page.tsx" },
+    { "path": "/reset-password", "file": "app/reset-password/page.tsx" },
     { "path": "/book/[org]", "file": "app/book/[org]/page.tsx" },
     { "path": "/p/[token]", "file": "app/p/[token]/page.tsx" },
     { "path": "/portal/[token]", "file": "app/portal/[token]/page.tsx" },

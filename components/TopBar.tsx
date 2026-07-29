@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AppIcon from "@/components/AppIcon";
 import type { Locale } from "@/lib/i18n";
+import QuickCreate from "@/components/QuickCreate";
 
 export default function TopBar({ canManage, locale }: { canManage: boolean; locale: Locale }) {
   const router = useRouter();
@@ -23,6 +24,7 @@ export default function TopBar({ canManage, locale }: { canManage: boolean; loca
         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={he ? "חיפוש לקוח, עבודה, חשבונית או הצעת מחיר…" : "Search customers, jobs, invoices or estimates…"} aria-label={he ? "חיפוש" : "Search"} />
       </form>
       <div className="top-actions">
+        {canManage && <QuickCreate locale={locale} />}
         {canManage && <Link href="/messages" title={he ? "הודעות" : "Messages"} className="top-icon"><AppIcon name="messages" /></Link>}
         {canManage && <Link href="/settings" title={he ? "הגדרות" : "Settings"} className="top-icon"><AppIcon name="settings" /></Link>}
       </div>
