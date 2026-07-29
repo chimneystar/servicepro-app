@@ -47,6 +47,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const { data: expenses } = await supabase.from("expenses").select("amount_minor").gte("expense_date", start).lte("expense_date", end);
   const { data: unpaid } = await supabase.from("invoices").select("total_minor, issue_date").eq("status", "unpaid").is("deleted_at", null);
 
+  // Server request time is intentionally captured once for the aging report.
+  // eslint-disable-next-line react-hooks/purity
   const nowMs = Date.now();
   const buckets = [{ label: "0–30 days", min: 0, max: 30 }, { label: "31–60 days", min: 31, max: 60 }, { label: "61–90 days", min: 61, max: 90 }, { label: "90+ days", min: 91, max: 999999 }];
   const aging = buckets.map((b) => {

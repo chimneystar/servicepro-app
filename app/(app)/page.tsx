@@ -6,11 +6,14 @@ import { money, todayISO, monthBounds, fmtDate } from "@/lib/format";
 import { Donut, Bars, Legend } from "@/components/MiniCharts";
 import SetupChecklist, { type Step } from "@/components/SetupChecklist";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const profile = await requireProfile();
+  if (profile.role === "tech") redirect("/tech");
+  if (profile.role === "office") redirect("/dispatch");
   const locale = (await getLocale());
   const he = locale === "he";
   const supabase = await createClient();

@@ -1,15 +1,17 @@
-import { requireProfile } from "@/lib/auth";
+import { loadCapabilities, requireProfile } from "@/lib/auth";
 import { getLocale } from "@/lib/locale-server";
 import { t } from "@/lib/i18n";
 import { NAV_ITEMS } from "@/lib/nav";
 import Link from "next/link";
+import { isPlatformAdmin } from "@/lib/platform-admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function MorePage() {
   const profile = await requireProfile();
   const locale = (await getLocale());
-  const items = NAV_ITEMS.filter((i) => i.roles.includes(profile.role) && !i.bottom);
+  const [capabilitySet, platformAdmin] = await Promise.all([loadCapabilities(profile), profile.role === "owner" ? isPlatformAdmin(profile.id) : Promise.resolve(false)]);
+  const items = NAV_ITEMS.filter((i) => i.roles.includes(profile.role) && !i.bottom && (!i.capability || capabilitySet.has(i.capability)) && (!i.platformOnly || platformAdmin));
 
   return (
     <div>

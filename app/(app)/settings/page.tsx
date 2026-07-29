@@ -34,7 +34,10 @@ export default async function SettingsPage() {
           <JobStatusesEditor locale={locale} statuses={(jobStatuses ?? []) as JobStatus[]} />
           <SettingsLink href="/settings/booking" icon="calendar" title={he ? "הזמנה מקוונת" : "Online booking"} text={he ? "שירותים, זמינות, אזורי שירות, מקדמות וקישור לאתר." : "Services, availability, service areas, deposits and website link."} />
           <SettingsLink href="/settings/payments" icon="payments" title={he ? "תשלומים והפקדות" : "Payments & deposits"} text={he ? "Helcim, כרטיס, ACH, Zelle, צ׳קים, מקדמות וקבלות." : "Helcim, card, ACH, Zelle, checks, deposits and receipts."} />
+          <SettingsLink href="/finance" icon="finance" title={he ? "כספים, מסים והתאמות" : "Finance, tax & reconciliation"} text={he ? "מעקב אחרי מסים, הפקדות, התאמות בנק ומחלוקות תשלום." : "Track tax periods, deposits, bank reconciliation and disputes."} />
           <SettingsLink href="/team" icon="team" title={he ? "צוות והרשאות" : "Team & permissions"} text={he ? "הזמנת עובדים, בחירת תפקידים ושינוי הרשאות." : "Invite teammates, assign roles and manage access."} />
+          <SettingsLink href="/appearance" icon="appearance" title={he ? "מראה ונגישות" : "Appearance & accessibility"} text={he ? "ערכת צבעים, גודל טקסט, ניגודיות והפחתת תנועה." : "Theme, text size, contrast and reduced motion."} />
+          <SettingsLink href="/settings/privacy" icon="privacy" title={he ? "פרטיות ושמירת מידע" : "Privacy & data retention"} text={he ? "הסכמות, בקשות פרטיות, תקופות שמירה ומחיקה מבוקרת." : "Consent, privacy requests, retention periods and controlled deletion."} />
           <SettingsLink href="/settings/messages" icon="messages" title={he ? "הודעות ללקוחות" : "Customer messages"} text={he ? "עריכת ההודעות שנשלחות בהזמנה, בתזכורת ובסיום עבודה." : "Edit booking, reminder, on-the-way and completion messages."} />
         </aside>
       </div>
@@ -42,6 +45,6 @@ export default async function SettingsPage() {
   );
 }
 
-function SettingsLink({ href, icon, title, text }: { href: string; icon: "team" | "messages" | "payments" | "calendar"; title: string; text: string }) {
+function SettingsLink({ href, icon, title, text }: { href: string; icon: "team" | "messages" | "payments" | "calendar" | "finance" | "appearance" | "privacy"; title: string; text: string }) {
   return <Link href={href} className="settings-link-card"><span className="settings-link-icon"><AppIcon name={icon} /></span><span className="settings-link-copy"><strong>{title}</strong><small>{text}</small></span><span className="settings-arrow">›</span></Link>;
 }

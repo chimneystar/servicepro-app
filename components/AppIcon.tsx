@@ -4,7 +4,7 @@ export type AppIconName =
   | "dashboard" | "calendar" | "briefcase" | "target" | "customers"
   | "messages" | "document" | "invoice" | "reports" | "settings"
   | "route" | "recurring" | "inventory" | "book" | "tools"
-  | "search" | "chevron" | "team" | "payments";
+  | "search" | "chevron" | "team" | "payments" | "finance" | "appearance" | "privacy" | "admin";
 
 export function iconForHref(href: string): AppIconName {
   if (href === "/") return "dashboard";
@@ -17,6 +17,10 @@ export function iconForHref(href: string): AppIconName {
   if (href.startsWith("/invoices")) return "invoice";
   if (href.startsWith("/reports")) return "reports";
   if (href.startsWith("/settings/payments")) return "payments";
+  if (href.startsWith("/settings/privacy")) return "privacy";
+  if (href.startsWith("/finance")) return "finance";
+  if (href.startsWith("/appearance")) return "appearance";
+  if (href.startsWith("/admin")) return "admin";
   if (href.startsWith("/settings")) return "settings";
   if (href.startsWith("/route")) return "route";
   if (href.startsWith("/recurring")) return "recurring";
@@ -49,6 +53,10 @@ export default function AppIcon({ name, ...props }: { name: AppIconName } & SVGP
       {name === "chevron" && <path d="m9 18 6-6-6-6"/>}
       {name === "team" && <><circle cx="9" cy="8" r="4"/><path d="M2 21v-2a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v2M16 4a4 4 0 0 1 0 8M18 14a5 5 0 0 1 4 5v2"/></>}
       {name === "payments" && <><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18M7 15h3M16 14v2M15 15h2"/></>}
+      {name === "finance" && <><path d="M3 20h18M5 20v-9M10 20V7M15 20v-5M20 20V4"/><path d="m4 7 5-4 5 6 6-6"/></>}
+      {name === "appearance" && <><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z"/><path d="M8 9h.01M8 15h.01"/></>}
+      {name === "privacy" && <><path d="M12 3 4 6v5c0 5 3.4 8.4 8 10 4.6-1.6 8-5 8-10V6z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></>}
+      {name === "admin" && <><rect x="4" y="10" width="16" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></>}
     </svg>
   );
 }

@@ -15,20 +15,25 @@ export const metadata: Metadata = {
   },
 };
 
-// App-like behaviour on phones: no accidental pinch/double-tap/focus zoom.
+// Keep the app comfortable on phones without blocking accessibility zoom.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
+  userScalable: true,
   viewportFit: "cover",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const cookieLocale = (await cookies()).get("locale")?.value;
+  const cookieStore = await cookies();
+  const cookieLocale = cookieStore.get("locale")?.value;
   const locale: Locale = isLocale(cookieLocale) ? cookieLocale : DEFAULT_LOCALE;
+  const theme = ["light", "dark", "system"].includes(cookieStore.get("ui_theme")?.value ?? "") ? cookieStore.get("ui_theme")!.value : "system";
+  const contrast = cookieStore.get("ui_contrast")?.value === "high" ? "high" : "normal";
+  const textScale = cookieStore.get("ui_text_scale")?.value === "large" ? "large" : "normal";
+  const reduceMotion = cookieStore.get("ui_reduce_motion")?.value === "true" ? "true" : "false";
   return (
-    <html lang={locale} dir={dirFor(locale)} suppressHydrationWarning>
+    <html lang={locale} dir={dirFor(locale)} data-theme={theme} data-contrast={contrast} data-text-scale={textScale} data-reduce-motion={reduceMotion} suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

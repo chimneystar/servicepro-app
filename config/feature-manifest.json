@@ -34,7 +34,10 @@
     { "path": "/archive", "file": "app/(app)/archive/page.tsx", "roles": ["owner", "office"] },
     { "path": "/archive/import", "file": "app/(app)/archive/import/page.tsx", "roles": ["owner", "office"] },
     { "path": "/team", "file": "app/(app)/team/page.tsx", "roles": ["owner"] },
+    { "path": "/appearance", "file": "app/(app)/appearance/page.tsx", "roles": ["owner", "office", "tech"] },
+    { "path": "/finance", "file": "app/(app)/finance/page.tsx", "roles": ["owner", "office"] },
     { "path": "/settings", "file": "app/(app)/settings/page.tsx", "roles": ["owner"] },
+    { "path": "/settings/privacy", "file": "app/(app)/settings/privacy/page.tsx", "roles": ["owner"] },
     { "path": "/settings/booking", "file": "app/(app)/settings/booking/page.tsx", "roles": ["owner"] },
     { "path": "/settings/messages", "file": "app/(app)/settings/messages/page.tsx", "roles": ["owner"] },
     { "path": "/settings/payments", "file": "app/(app)/settings/payments/page.tsx", "roles": ["owner", "office"] },
@@ -42,7 +45,8 @@
     { "path": "/warranties", "file": "app/(app)/warranties/page.tsx", "roles": ["owner", "office"] },
     { "path": "/fleet", "file": "app/(app)/fleet/page.tsx", "roles": ["owner", "office"] },
     { "path": "/growth", "file": "app/(app)/growth/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/migration", "file": "app/(app)/migration/page.tsx", "roles": ["owner", "office"] }
+    { "path": "/migration", "file": "app/(app)/migration/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/admin", "file": "app/(app)/admin/page.tsx", "roles": ["owner"] }
   ],
   "publicWorkflows": [
     { "path": "/login", "file": "app/login/page.tsx" },
@@ -57,6 +61,8 @@
   "settingsCapabilities": [
     "business profile", "branding", "tax and currency", "job types", "job statuses",
     "message templates", "online booking", "review requests", "team roles", "payment methods",
-    "Helcim card and ACH", "Zelle", "mailed checks", "estimate deposits", "payment permissions"
+    "Helcim card and ACH", "Zelle", "mailed checks", "estimate deposits", "payment permissions",
+    "personal theme", "accessibility preferences", "tax operations", "settlement reconciliation",
+    "chargeback operations", "consent history", "privacy requests", "data retention", "controlled releases"
   ]
 }

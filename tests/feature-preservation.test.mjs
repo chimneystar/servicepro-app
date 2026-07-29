@@ -14,9 +14,31 @@ test("every protected and public workflow still has a page", async () => {
 
 test("the sellable CRM keeps its essential workflows", () => {
   const routes = new Set(manifest.protectedRoutes.map((route) => route.path));
-  for (const route of ["/schedule", "/jobs", "/customers", "/leads", "/messages", "/calls", "/warranties", "/estimates", "/invoices", "/inventory", "/pricebook", "/recurring", "/reports", "/team", "/settings"]) {
+  for (const route of ["/schedule", "/jobs", "/customers", "/leads", "/messages", "/calls", "/warranties", "/estimates", "/invoices", "/inventory", "/pricebook", "/recurring", "/reports", "/team", "/appearance", "/finance", "/settings", "/settings/privacy", "/admin"]) {
     assert.ok(routes.has(route), `protected feature was removed: ${route}`);
   }
+});
+
+test("team, role homes and appearance remain discoverable", async () => {
+  const nav = await readFile(resolve(root, "lib/nav.ts"), "utf8");
+  const dashboard = await readFile(resolve(root, "app/(app)/page.tsx"), "utf8");
+  const layout = await readFile(resolve(root, "app/layout.tsx"), "utf8");
+  assert.match(nav, /href: "\/team"/);
+  assert.match(nav, /href: "\/appearance"/);
+  assert.match(nav, /href: "\/finance"/);
+  assert.match(dashboard, /profile\.role === "tech"\) redirect\("\/tech"\)/);
+  assert.match(dashboard, /profile\.role === "office"\) redirect\("\/dispatch"\)/);
+  assert.match(layout, /userScalable: true/);
+});
+
+test("operations, privacy and platform tables are protected", async () => {
+  const sql = (await readFile(resolve(root, "db/022_operations_privacy_team_admin.sql"), "utf8")).toLowerCase();
+  for (const table of ["tax_jurisdictions", "settlement_batches", "payment_disputes", "consent_events", "privacy_requests", "retention_holds", "platform_admins", "support_sessions", "feature_flags", "release_records"]) {
+    assert.ok(sql.includes(`create table if not exists public.${table}`), `missing table ${table}`);
+    assert.ok(sql.includes(`alter table public.%i enable row level security`) || sql.includes(`alter table public.${table} enable row level security`) || sql.includes("enable row level security"), `RLS setup missing for ${table}`);
+  }
+  assert.match(sql, /last_owner_required/);
+  assert.match(sql, /revoke all on public\.%i from anon, authenticated/);
 });
 
 test("job history, warranties and calls keep their database protections", async () => {
@@ -39,7 +61,7 @@ test("owner, office and technician experiences remain explicit", () => {
 });
 
 test("settings cannot silently lose major sections", () => {
-  assert.ok(manifest.settingsCapabilities.length >= 14);
+  assert.ok(manifest.settingsCapabilities.length >= 23);
   for (const capability of ["job types", "job statuses", "message templates", "team roles", "payment methods", "Helcim card and ACH", "Zelle", "mailed checks"]) {
     assert.ok(manifest.settingsCapabilities.includes(capability), `settings capability was removed: ${capability}`);
   }

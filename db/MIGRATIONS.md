@@ -27,6 +27,7 @@ Every file is **idempotent** (safe to re-run).
 | 0019 | `019_operations_growth.sql` | Dispatch crews, custom fields, automations, operations, growth, migration, offline receipts, and customer portal |
 | 0020 | `020_booking_experience.sql` | Availability-aware bilingual online booking, intake questions, and booking settings |
 | 0021 | `021_job_history_warranty_calls.sql` | Unified job actions, warranties, callbacks, linked return visits, and call tracking |
+| 0022 | `022_operations_privacy_team_admin.sql` | Personal appearance, last-owner protection, finance/tax/settlement/disputes, privacy/retention, and service-role-only platform administration |
 | — | `016_isolation_tests.sql` | Runnable proof that cross-tenant writes are rejected (not a migration) |
 
 ## Going live now (single run)

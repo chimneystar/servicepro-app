@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { runRecurringGeneration, runReminders } from "@/lib/cron-tasks";
 import { reconcilePendingHelcimPayments } from "@/lib/payments/server";
 import { retryFailedPaymentReceipts } from "@/lib/payments/receipts";
+import { runAutomaticDataRetention } from "@/lib/data-retention";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -24,5 +25,6 @@ export async function GET(request: NextRequest) {
   try { result.reminders = await runReminders(); } catch (e: any) { result.remindersError = String(e?.message ?? e); }
   try { result.pendingPayments = await reconcilePendingHelcimPayments(); } catch (e: any) { result.pendingPaymentsError = String(e?.message ?? e); }
   try { result.paymentReceipts = await retryFailedPaymentReceipts(); } catch (e: any) { result.paymentReceiptsError = String(e?.message ?? e); }
+  try { result.dataRetention = await runAutomaticDataRetention(); } catch (e: any) { result.dataRetentionError = String(e?.message ?? e); }
   return NextResponse.json(result);
 }

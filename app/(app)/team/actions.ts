@@ -16,6 +16,9 @@ export type CapabilityValues = {
 
 function guardOwner() { return requireProfile().then((p) => { assertRole(p, ["owner"]); return p; }); }
 const saveError = (locale: "en" | "he") => locale === "he" ? "לא הצלחנו לשמור את השינוי. נסו שוב בעוד רגע." : "We couldn't save the change. Please try again.";
+const memberError = (locale: "en" | "he", message?: string) => message?.includes("last_owner_required")
+  ? (locale === "he" ? "אי אפשר להסיר או לשנות את התפקיד של הבעלים האחרון. קודם הוסיפו בעלים נוסף." : "The last owner cannot be removed or changed. Add another owner first.")
+  : saveError(locale);
 
 /** Owner invites a teammate by email + role. They join on sign-up. */
 export async function inviteMember(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
@@ -36,7 +39,7 @@ export async function inviteMember(_prev: ActionResult, formData: FormData): Pro
     token: randomUUID(),
     invited_by: profile.id,
   });
-  if (error) return { ok: false, error: saveError(locale) };
+  if (error) return { ok: false, error: memberError(locale, error.message) };
   revalidatePath("/team");
   return { ok: true };
 }
@@ -48,7 +51,7 @@ export async function changeRole(memberId: string, role: string): Promise<Action
   if (!["owner", "office", "tech"].includes(role)) return { ok: false, error: t(locale, "err.invalid") };
   const supabase = await createClient();
   const { error } = await supabase.from("profiles").update({ role }).eq("id", memberId);
-  if (error) return { ok: false, error: saveError(locale) };
+  if (error) return { ok: false, error: memberError(locale, error.message) };
   const office = role === "office";
   const owner = role === "owner";
   await supabase.from("profile_capabilities").upsert({
@@ -135,7 +138,7 @@ export async function removeMember(memberId: string): Promise<ActionResult> {
   if (memberId === profile.id) return { ok: false, error: t(locale, "err.invalid") };
   const supabase = await createClient();
   const { error } = await supabase.from("profiles").delete().eq("id", memberId);
-  if (error) return { ok: false, error: saveError(locale) };
+  if (error) return { ok: false, error: memberError(locale, error.message) };
   revalidatePath("/team");
   return { ok: true };
 }
