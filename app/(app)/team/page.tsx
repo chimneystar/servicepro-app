@@ -13,15 +13,16 @@ export default async function TeamPage() {
   const locale = (await getLocale());
   const supabase = await createClient();
 
-  const [{ data: members }, { data: invites }] = await Promise.all([
+  const [{ data: members }, { data: invites }, { data: paymentPermissions }] = await Promise.all([
     supabase.from("profiles").select("id, full_name, role").order("role"),
     supabase.from("invitations").select("id, email, role").is("accepted_at", null).order("created_at", { ascending: false }),
+    supabase.from("profile_payment_permissions").select("profile_id, can_confirm_manual_payments, can_refund_payments, can_override_ach_holds"),
   ]);
 
   return (
     <div>
       <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 16 }}>{t(locale, "team.title")}</h1>
-      <TeamClient locale={locale} members={members ?? []} invites={invites ?? []} myId={profile.id} />
+      <TeamClient locale={locale} members={members ?? []} invites={invites ?? []} paymentPermissions={paymentPermissions ?? []} myId={profile.id} />
     </div>
   );
 }
