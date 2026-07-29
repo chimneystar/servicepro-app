@@ -19,9 +19,10 @@ import ReviewButton from "@/components/ReviewButton";
 import DocForm from "@/components/DocForm";
 import { createEstimate } from "@/app/(app)/estimates/actions";
 import { createInvoice } from "@/app/(app)/invoices/actions";
-import ActivityTimeline from "@/components/ActivityTimeline";
-import { loadActivity } from "@/lib/activity";
 import JobSummaryPanel, { type SummaryDraft } from "@/components/JobSummaryPanel";
+import JobHistoryPanel from "@/components/JobHistoryPanel";
+import JobWarrantyPanel, { type JobWarranty, type WarrantyCallback } from "@/components/JobWarrantyPanel";
+import { loadJobHistory } from "@/lib/job-history";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +39,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
     .select("id, service, status, stage, tags, job_expenses_minor, price_minor, scheduled_date, start_time, end_time, notes, customer_id, job_address, job_city, on_my_way_at, started_at, completed_at, completion_signed_by, customers(name, phone, address, city, billing_address, billing_city), profiles!jobs_assigned_to_fkey(full_name)")
     .eq("id", id).is("deleted_at", null).maybeSingle();
   const [{ data: org }, { data: stageRows }] = await Promise.all([
-    supabase.from("organizations").select("currency").single(),
+    supabase.from("organizations").select("currency,phone").single(),
     supabase.from("job_statuses").select("name, color").order("sort"),
   ]);
   const cur = org?.currency ?? "USD";
@@ -46,11 +47,12 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const stageColor = stages.find((s) => s.name === (job as any)?.stage)?.color ?? "#2563eb";
 
   if (!job) return <div><Link href="/schedule" style={back}>{he ? "חזרה ליומן" : "Back to schedule"}</Link><div style={{ padding: 40, textAlign: "center", color: "#5c6675" }}>{he ? "העבודה לא נמצאה." : "Job not found."}</div></div>;
-  const activity = await loadActivity("jobs", id);
+  const history = await loadJobHistory(id, locale, profile.id);
 
   const [
     { data: photoRows }, { data: invoices }, { data: estimates }, { data: items },
     { data: tasks }, { data: checklist }, { data: equipment }, { data: catalog }, { data: summaries },
+    { data: teamRows }, { data: warranty }, { data: callbacks },
   ] = await Promise.all([
     supabase.from("job_photos").select("id, storage_path, label, media_type, parent_photo_id, customer_visible").eq("job_id", id).order("created_at"),
     supabase.from("invoices").select("id, number, total_minor, status, public_token").eq("job_id", id).is("deleted_at", null).order("number", { ascending: false }),
@@ -61,6 +63,9 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
     supabase.from("job_equipment").select("id, name, serial, notes").eq("job_id", id).order("created_at"),
     supabase.from("price_book").select("id, name, description, price_minor, cost_minor, taxable, image_path").order("name"),
     supabase.from("job_summary_drafts").select("id,summary,provider,model,status,created_at").eq("job_id", id).order("created_at", { ascending: false }).limit(10),
+    supabase.from("profiles").select("id,full_name").in("role", ["owner", "office", "tech"]).order("full_name"),
+    supabase.from("job_warranties").select("id,coverage_type,starts_on,expires_on,terms,status").eq("job_id", id).maybeSingle(),
+    supabase.from("warranty_callbacks").select("id,issue,priority,responsibility,status,scheduled_for,resolution,internal_cost_minor,callback_job_id,reported_at").eq("original_job_id", id).order("reported_at", { ascending: false }),
   ]);
 
   const invList = invoices ?? [];
@@ -83,6 +88,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
 
   // Time tracking summary
   const { data: timeEntries } = await supabase.from("job_time_entries").select("user_id, started_at, ended_at").eq("job_id", id);
+  // Server-rendered request timestamp; it is intentionally fixed for this response.
+  // eslint-disable-next-line react-hooks/purity
   const nowMs = Date.now();
   const totalMinutes = Math.round((timeEntries ?? []).reduce((s: number, e: any) => {
     const st = new Date(e.started_at).getTime(); const en = e.ended_at ? new Date(e.ended_at).getTime() : nowMs;
@@ -154,6 +161,9 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const TasksTab = <JobTasks jobId={job.id} tasks={(tasks ?? []) as Task[]} />;
   const EquipmentTab = <JobEquipment jobId={job.id} equipment={(equipment ?? []) as Equip[]} />;
   const ChecklistsTab = <JobChecklist jobId={job.id} items={(checklist ?? []) as Check[]} />;
+  const team = (teamRows ?? []).map((person) => ({ id: person.id, name: person.full_name || (he ? "ללא שם" : "Unnamed") }));
+  const HistoryTab = <JobHistoryPanel jobId={job.id} locale={locale} entries={history} team={team} customerPhone={c?.phone ?? ""} businessPhone={org?.phone ?? ""} canManage={canEdit} />;
+  const WarrantyTab = <JobWarrantyPanel jobId={job.id} locale={locale} warranty={(warranty as JobWarranty | null) ?? null} callbacks={(callbacks ?? []) as WarrantyCallback[]} team={team} completedOn={job.completed_at} scheduledOn={job.scheduled_date} canManage={canEdit} currency={cur} />;
 
   const openTasks = (tasks ?? []).filter((t: any) => !t.done).length;
 
@@ -177,12 +187,13 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         { label: he ? "הצעות מחיר" : "Estimates", badge: (estimates ?? []).length ? String((estimates ?? []).length) : undefined, content: EstimatesTab },
         { label: he ? "חשבוניות" : "Invoices", badge: invList.length ? String(invList.length) : undefined, content: InvoicesTab },
         { label: he ? "קבצים ותמונות" : "Attachments", badge: photos.length ? String(photos.length) : undefined, content: AttachmentsTab },
+        { label: he ? "היסטוריה" : "History", badge: history.length ? String(history.length) : undefined, content: HistoryTab },
+        { label: he ? "אחריות וחזרות" : "Warranty", badge: (callbacks ?? []).filter((row) => !["resolved", "denied"].includes(row.status)).length ? String((callbacks ?? []).filter((row) => !["resolved", "denied"].includes(row.status)).length) : undefined, content: WarrantyTab },
         { label: he ? "משימות" : "Tasks", badge: openTasks ? String(openTasks) : undefined, content: TasksTab },
         { label: he ? "ציוד אצל הלקוח" : "Equipment", badge: (equipment ?? []).length ? String((equipment ?? []).length) : undefined, content: EquipmentTab },
         { label: he ? "רשימות בדיקה" : "Checklists", badge: (checklist ?? []).length ? String((checklist ?? []).length) : undefined, content: ChecklistsTab },
       ]} />
       <JobSummaryPanel jobId={job.id} locale={locale} drafts={(summaries ?? []) as SummaryDraft[]} />
-      <ActivityTimeline entries={activity} locale={locale} />
     </div>
   );
 }

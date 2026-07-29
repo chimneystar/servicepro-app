@@ -23,6 +23,10 @@ Every file is **idempotent** (safe to re-run).
 | 0014 | `014_tenant_isolation.sql` | **Go-live:** composite tenant FKs + org-guard triggers |
 | 0015 | `015_indexes.sql` | **Go-live:** high-volume access-path indexes |
 | 0017 | `017_helcim_payments.sql` | Helcim connected accounts, provider-neutral payments, schedules, manual verification, and payment settings |
+| 0018 | `018_product_foundation.sql` | Permissions, industry onboarding catalogs, device subscriptions, and push-event foundation |
+| 0019 | `019_operations_growth.sql` | Dispatch crews, custom fields, automations, operations, growth, migration, offline receipts, and customer portal |
+| 0020 | `020_booking_experience.sql` | Availability-aware bilingual online booking, intake questions, and booking settings |
+| 0021 | `021_job_history_warranty_calls.sql` | Unified job actions, warranties, callbacks, linked return visits, and call tracking |
 | — | `016_isolation_tests.sql` | Runnable proof that cross-tenant writes are rejected (not a migration) |
 
 ## Going live now (single run)
