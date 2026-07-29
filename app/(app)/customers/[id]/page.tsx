@@ -9,6 +9,8 @@ import CopyLinkButton from "@/components/CopyLinkButton";
 import DocForm from "@/components/DocForm";
 import { createEstimate } from "@/app/(app)/estimates/actions";
 import { createInvoice } from "@/app/(app)/invoices/actions";
+import ActivityTimeline from "@/components/ActivityTimeline";
+import { loadActivity } from "@/lib/activity";
 
 export const dynamic = "force-dynamic";
 const tel = (p?: string | null) => "tel:" + (p ?? "").replace(/[^0-9+]/g, "");
@@ -23,6 +25,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   const cur = org?.currency ?? "USD";
 
   if (!c) return <div><Link href="/customers" style={back}>‹ Customers</Link><div style={{ padding: 40, textAlign: "center", color: "#5c6675" }}>Customer not found.</div></div>;
+  const activity = await loadActivity("customers", id);
 
   const [{ data: jobs }, { data: invoices }, { data: estimates }, { data: reviews }, { data: catalog }] = await Promise.all([
     supabase.from("jobs").select("id, service, scheduled_date, price_minor, status").eq("customer_id", id).is("deleted_at", null).order("scheduled_date", { ascending: false }),
@@ -97,6 +100,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           <div style={{ fontSize: 12, color: "#5c6675", marginTop: 3 }}>{fmtDate(r.review_date)}</div>
         </div>
       ))}
+      <ActivityTimeline entries={activity} locale={locale} />
     </div>
   );
 }

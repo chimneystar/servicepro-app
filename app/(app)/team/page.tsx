@@ -13,16 +13,17 @@ export default async function TeamPage() {
   const locale = (await getLocale());
   const supabase = await createClient();
 
-  const [{ data: members }, { data: invites }, { data: paymentPermissions }] = await Promise.all([
+  const [{ data: members }, { data: invites }, { data: paymentPermissions }, { data: capabilities }] = await Promise.all([
     supabase.from("profiles").select("id, full_name, role").order("role"),
     supabase.from("invitations").select("id, email, role").is("accepted_at", null).order("created_at", { ascending: false }),
     supabase.from("profile_payment_permissions").select("profile_id, can_confirm_manual_payments, can_refund_payments, can_override_ach_holds"),
+    supabase.from("profile_capabilities").select("profile_id, can_view_customers, can_edit_customers, can_manage_schedule, can_edit_jobs, can_manage_estimates, can_manage_invoices, can_manage_payments, can_view_reports, can_manage_purchasing, can_manage_automations, can_manage_settings, can_manage_team"),
   ]);
 
   return (
     <div>
       <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 16 }}>{t(locale, "team.title")}</h1>
-      <TeamClient locale={locale} members={members ?? []} invites={invites ?? []} paymentPermissions={paymentPermissions ?? []} myId={profile.id} />
+      <TeamClient locale={locale} members={members ?? []} invites={invites ?? []} paymentPermissions={paymentPermissions ?? []} capabilities={capabilities ?? []} myId={profile.id} />
     </div>
   );
 }

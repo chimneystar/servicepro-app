@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import "./globals.css";
 import { DEFAULT_LOCALE, dirFor, isLocale, type Locale } from "@/lib/i18n";
+import PwaRegistration from "@/components/PwaRegistration";
 
 export const metadata: Metadata = {
   title: "ServicePro | ניהול עסקי שירות",
@@ -34,7 +35,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&family=Rubik:wght@600;700;800&display=swap" rel="stylesheet" />
         <meta name="theme-color" content="#101a2e" />
       </head>
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning><PwaRegistration />{children}</body>
     </html>
   );
 }

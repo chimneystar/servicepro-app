@@ -17,12 +17,13 @@ export async function createJob(_prev: ActionResult, formData: FormData): Promis
   let customer_id = String(formData.get("customer_id") ?? "");
   const service = String(formData.get("service") ?? "").trim();
   const scheduled_date = String(formData.get("date") ?? "");
+  const end_date = String(formData.get("end_date") ?? "") || scheduled_date;
   const assignedRaw = String(formData.get("assigned_to") ?? "");
   const assigned_to = assignedRaw ? assignedRaw : null;
   const start = String(formData.get("start") ?? "") || null;
   const end = String(formData.get("end") ?? "") || null;
 
-  if (!service || !scheduled_date) return { ok: false, error: t(locale, "err.invalid") };
+  if (!service || !scheduled_date || end_date < scheduled_date) return { ok: false, error: t(locale, "err.invalid") };
   if (start && end && end <= start) return { ok: false, error: t(locale, "err.invalid") };
 
   let price_minor = 0;
@@ -57,6 +58,7 @@ export async function createJob(_prev: ActionResult, formData: FormData): Promis
     service,
     price_minor,
     scheduled_date,
+    end_date,
     start_time: start,
     end_time: end,
     job_address: String(formData.get("job_address") ?? "").trim() || null,

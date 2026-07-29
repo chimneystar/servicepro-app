@@ -29,6 +29,8 @@ export default function JobForm({ locale, customers, techs, jobTypes }: { locale
   const [service, setService] = useState(types[0]?.name ?? "");
   const [start, setStart] = useState("09:00");
   const [end, setEnd] = useState("10:00");
+  const [jobDate, setJobDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [price, setPrice] = useState("");
   const [customer, setCustomer] = useState(customers[0]?.id ?? "__new__");
   const [newAddr, setNewAddr] = useState(""); const [newCity, setNewCity] = useState("");
@@ -88,9 +90,11 @@ export default function JobForm({ locale, customers, techs, jobTypes }: { locale
               </div>
             </Row>
             <Row>
-              <div><Label>{t(locale, "job.date")}</Label><input name="date" type="date" style={inp} required /></div>
+              <div><Label>{t(locale, "job.date")}</Label><input name="date" type="date" value={jobDate} onChange={(e) => { setJobDate(e.target.value); if (!endDate || endDate < e.target.value) setEndDate(e.target.value); }} style={inp} required /></div>
               <div><Label>{t(locale, "job.price")}</Label><input name="price" type="number" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} style={inp} placeholder="0.00" /></div>
             </Row>
+            <Label>{locale === "he" ? "תאריך סיום (לעבודה של כמה ימים)" : "End date (for a multi-day job)"}</Label>
+            <input name="end_date" type="date" value={endDate} min={jobDate || undefined} onChange={(e) => setEndDate(e.target.value)} style={inp} />
             <Row>
               <div><Label>{t(locale, "job.start")}</Label><input name="start" type="time" value={start} onChange={(e) => onStart(e.target.value)} style={inp} /></div>
               <div><Label>{t(locale, "job.end")}</Label><input name="end" type="time" value={end} onChange={(e) => setEnd(e.target.value)} style={inp} /></div>
