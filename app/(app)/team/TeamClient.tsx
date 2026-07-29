@@ -3,16 +3,21 @@
 import { useActionState, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useFormStatus } from "react-dom";
-import { inviteMember, changeRole, removeMember, cancelInvite, updatePaymentPermissions, type ActionResult } from "./actions";
+import { inviteMember, changeRole, removeMember, cancelInvite, updatePaymentPermissions, updateCapabilities, type ActionResult, type CapabilityValues } from "./actions";
 import { t, type Locale } from "@/lib/i18n";
 
 type Member = { id: string; full_name: string; role: string };
 type Invite = { id: string; email: string; role: string };
 type PaymentPermission = { profile_id: string; can_confirm_manual_payments: boolean; can_refund_payments: boolean; can_override_ach_holds: boolean };
+type CapabilityRow = {
+  profile_id: string; can_view_customers: boolean; can_edit_customers: boolean; can_manage_schedule: boolean; can_edit_jobs: boolean;
+  can_manage_estimates: boolean; can_manage_invoices: boolean; can_manage_payments: boolean; can_view_reports: boolean;
+  can_manage_purchasing: boolean; can_manage_automations: boolean; can_manage_settings: boolean; can_manage_team: boolean;
+};
 const initial: ActionResult = { ok: false };
 
-export default function TeamClient({ locale, members, invites, paymentPermissions, myId }: {
-  locale: Locale; members: Member[]; invites: Invite[]; paymentPermissions: PaymentPermission[]; myId: string;
+export default function TeamClient({ locale, members, invites, paymentPermissions, capabilities, myId }: {
+  locale: Locale; members: Member[]; invites: Invite[]; paymentPermissions: PaymentPermission[]; capabilities: CapabilityRow[]; myId: string;
 }) {
   const router = useRouter();
   const [state, formAction] = useActionState(inviteMember, initial);
@@ -50,10 +55,12 @@ export default function TeamClient({ locale, members, invites, paymentPermission
         <h3 style={h3}>{t(locale, "team.members")} ({members.length})</h3>
         {members.map((m) => {
           const paymentAccess = paymentPermissions.find((entry) => entry.profile_id === m.id);
+          const capabilityAccess = capabilities.find((entry) => entry.profile_id === m.id);
           return <div key={m.id} style={{ ...row, alignItems: "flex-start" }}>
               <div style={{ width: 34, height: 34, borderRadius: "50%", background: "#2563eb", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 13 }}>{(m.full_name || "?").slice(0, 2)}</div>
               <div style={{ flex: 1, minWidth: 180 }}>
                 <b>{m.full_name || "—"}{m.id === myId ? ` (${t(locale, "team.you")})` : ""}</b>
+                {m.role !== "owner" && m.id !== myId && <CapabilityEditor locale={locale} memberId={m.id} role={m.role} initial={capabilityAccess} onSaved={() => router.refresh()} />}
                 {m.role === "office" && m.id !== myId && <PaymentPermissionEditor locale={locale} memberId={m.id} initial={paymentAccess} onSaved={() => router.refresh()} />}
               </div>
               <select value={m.role} disabled={m.id === myId || pending} onChange={(e) => run(() => changeRole(m.id, e.target.value))} style={{ ...inp, width: "auto", padding: "7px 10px", fontSize: 13 }}>
@@ -84,6 +91,45 @@ export default function TeamClient({ locale, members, invites, paymentPermission
       </div>
     </div>
   );
+}
+
+function CapabilityEditor({ locale, memberId, role, initial, onSaved }: { locale: Locale; memberId: string; role: string; initial?: CapabilityRow; onSaved: () => void }) {
+  const he = locale === "he";
+  const office = role === "office";
+  const [open, setOpen] = useState(false);
+  const [values, setValues] = useState<CapabilityValues>({
+    viewCustomers: initial?.can_view_customers ?? true,
+    editCustomers: initial?.can_edit_customers ?? office,
+    manageSchedule: initial?.can_manage_schedule ?? office,
+    editJobs: initial?.can_edit_jobs ?? true,
+    manageEstimates: initial?.can_manage_estimates ?? office,
+    manageInvoices: initial?.can_manage_invoices ?? office,
+    managePayments: initial?.can_manage_payments ?? office,
+    viewReports: initial?.can_view_reports ?? office,
+    managePurchasing: initial?.can_manage_purchasing ?? office,
+    manageAutomations: initial?.can_manage_automations ?? office,
+    manageSettings: initial?.can_manage_settings ?? false,
+    manageTeam: initial?.can_manage_team ?? false,
+  });
+  const [saving, startSaving] = useTransition();
+  const [message, setMessage] = useState<string | null>(null);
+  const options: { key: keyof CapabilityValues; en: string; he: string }[] = [
+    { key: "viewCustomers", en: "View customers", he: "צפייה בלקוחות" }, { key: "editCustomers", en: "Edit customers", he: "עריכת לקוחות" },
+    { key: "manageSchedule", en: "Manage schedule", he: "ניהול לוח הזמנים" }, { key: "editJobs", en: "Update jobs", he: "עדכון עבודות" },
+    { key: "manageEstimates", en: "Manage estimates", he: "ניהול הצעות מחיר" }, { key: "manageInvoices", en: "Manage invoices", he: "ניהול חשבוניות" },
+    { key: "managePayments", en: "Manage payments", he: "ניהול תשלומים" }, { key: "viewReports", en: "View reports", he: "צפייה בדוחות" },
+    { key: "managePurchasing", en: "Purchasing and vendors", he: "רכש וספקים" }, { key: "manageAutomations", en: "Manage automations", he: "ניהול אוטומציות" },
+    { key: "manageSettings", en: "Business settings", he: "הגדרות העסק" }, { key: "manageTeam", en: "Team and permissions", he: "צוות והרשאות" },
+  ];
+  return <div className="team-capability-editor">
+    <button type="button" className="team-capability-toggle" onClick={() => setOpen((current) => !current)} aria-expanded={open}>{he ? "הרשאות באפליקציה" : "App access"}<span>{open ? "−" : "+"}</span></button>
+    {open && <div className="team-capability-panel">
+      <p>{he ? "בחרו בדיוק מה העובד יכול לראות ולעשות." : "Choose exactly what this team member can see and do."}</p>
+      <div className="team-capability-grid">{options.map((option) => <label key={option.key}><input type="checkbox" checked={values[option.key]} onChange={(event) => { setValues((current) => ({ ...current, [option.key]: event.target.checked })); setMessage(null); }} /><span>{he ? option.he : option.en}</span></label>)}</div>
+      <button type="button" className="team-capability-save" disabled={saving} onClick={() => startSaving(async () => { const result = await updateCapabilities(memberId, values); setMessage(result.ok ? (he ? "ההרשאות נשמרו" : "Access saved") : (result.error ?? (he ? "לא הצלחנו לשמור" : "Couldn't save"))); if (result.ok) onSaved(); })}>{saving ? (he ? "שומרים…" : "Saving…") : (he ? "שמירת הרשאות" : "Save access")}</button>
+      {message && <small>{message}</small>}
+    </div>}
+  </div>;
 }
 
 function PaymentPermissionEditor({ locale, memberId, initial, onSaved }: { locale: Locale; memberId: string; initial?: PaymentPermission; onSaved: () => void }) {

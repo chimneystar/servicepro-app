@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "protectedRoutes": [
+    { "path": "/", "file": "app/(app)/page.tsx", "roles": ["owner", "office", "tech"] },
+    { "path": "/schedule", "file": "app/(app)/schedule/page.tsx", "roles": ["owner", "office", "tech"] },
+    { "path": "/jobs", "file": "app/(app)/jobs/page.tsx", "roles": ["owner", "office", "tech"] },
+    { "path": "/jobs/[id]", "file": "app/(app)/jobs/[id]/page.tsx", "roles": ["owner", "office", "tech"] },
+    { "path": "/jobs/[id]/report", "file": "app/(app)/jobs/[id]/report/page.tsx", "roles": ["owner", "office", "tech"] },
+    { "path": "/tech", "file": "app/(app)/tech/page.tsx", "roles": ["tech"] },
+    { "path": "/customers", "file": "app/(app)/customers/page.tsx", "roles": ["owner", "office", "tech"] },
+    { "path": "/customers/[id]", "file": "app/(app)/customers/[id]/page.tsx", "roles": ["owner", "office", "tech"] },
+    { "path": "/customers/import", "file": "app/(app)/customers/import/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/leads", "file": "app/(app)/leads/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/messages", "file": "app/(app)/messages/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/messages/[phone]", "file": "app/(app)/messages/[phone]/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/estimates", "file": "app/(app)/estimates/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/estimates/[id]", "file": "app/(app)/estimates/[id]/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/estimates/[id]/edit", "file": "app/(app)/estimates/[id]/edit/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/invoices", "file": "app/(app)/invoices/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/invoices/[id]", "file": "app/(app)/invoices/[id]/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/invoices/[id]/edit", "file": "app/(app)/invoices/[id]/edit/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/expenses", "file": "app/(app)/expenses/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/inventory", "file": "app/(app)/inventory/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/pricebook", "file": "app/(app)/pricebook/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/recurring", "file": "app/(app)/recurring/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/route", "file": "app/(app)/route/page.tsx", "roles": ["owner", "office", "tech"] },
+    { "path": "/reports", "file": "app/(app)/reports/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/reports/custom", "file": "app/(app)/reports/custom/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/reports/export", "file": "app/(app)/reports/export/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/reports/commission", "file": "app/(app)/reports/commission/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/reports/timesheets", "file": "app/(app)/reports/timesheets/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/archive", "file": "app/(app)/archive/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/archive/import", "file": "app/(app)/archive/import/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/team", "file": "app/(app)/team/page.tsx", "roles": ["owner"] },
+    { "path": "/settings", "file": "app/(app)/settings/page.tsx", "roles": ["owner"] },
+    { "path": "/settings/messages", "file": "app/(app)/settings/messages/page.tsx", "roles": ["owner"] },
+    { "path": "/settings/payments", "file": "app/(app)/settings/payments/page.tsx", "roles": ["owner", "office"] }
+  ],
+  "publicWorkflows": [
+    { "path": "/book/[org]", "file": "app/book/[org]/page.tsx" },
+    { "path": "/p/[token]", "file": "app/p/[token]/page.tsx" },
+    { "path": "/portal/[token]", "file": "app/portal/[token]/page.tsx" },
+    { "path": "/offline", "file": "app/offline/page.tsx" }
+  ],
+  "settingsCapabilities": [
+    "business profile", "branding", "tax and currency", "job types", "job statuses",
+    "message templates", "online booking", "review requests", "team roles", "payment methods",
+    "Helcim card and ACH", "Zelle", "mailed checks", "estimate deposits", "payment permissions"
+  ]
+}

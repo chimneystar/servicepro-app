@@ -19,6 +19,8 @@ import ReviewButton from "@/components/ReviewButton";
 import DocForm from "@/components/DocForm";
 import { createEstimate } from "@/app/(app)/estimates/actions";
 import { createInvoice } from "@/app/(app)/invoices/actions";
+import ActivityTimeline from "@/components/ActivityTimeline";
+import { loadActivity } from "@/lib/activity";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +45,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const stageColor = stages.find((s) => s.name === (job as any)?.stage)?.color ?? "#2563eb";
 
   if (!job) return <div><Link href="/schedule" style={back}>{he ? "חזרה ליומן" : "Back to schedule"}</Link><div style={{ padding: 40, textAlign: "center", color: "#5c6675" }}>{he ? "העבודה לא נמצאה." : "Job not found."}</div></div>;
+  const activity = await loadActivity("jobs", id);
 
   const [
     { data: photoRows }, { data: invoices }, { data: estimates }, { data: items },
@@ -176,6 +179,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         { label: he ? "ציוד אצל הלקוח" : "Equipment", badge: (equipment ?? []).length ? String((equipment ?? []).length) : undefined, content: EquipmentTab },
         { label: he ? "רשימות בדיקה" : "Checklists", badge: (checklist ?? []).length ? String((checklist ?? []).length) : undefined, content: ChecklistsTab },
       ]} />
+      <ActivityTimeline entries={activity} locale={locale} />
     </div>
   );
 }

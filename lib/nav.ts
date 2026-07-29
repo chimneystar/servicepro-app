@@ -3,6 +3,7 @@ import type { Role } from "./auth";
 export type NavItem = { href: string; key: string; icon: string; roles: Role[]; bottom?: boolean; group?: "tools" };
 
 export const NAV_ITEMS: NavItem[] = [
+  { href: "/tech", key: "nav.tech", icon: "🛠️", roles: ["tech"], bottom: true },
   { href: "/", key: "nav.dashboard", icon: "📊", roles: ["owner", "office", "tech"], bottom: true },
   { href: "/schedule", key: "nav.schedule", icon: "📅", roles: ["owner", "office", "tech"], bottom: true },
   { href: "/jobs", key: "nav.jobs", icon: "💼", roles: ["owner", "office", "tech"] },

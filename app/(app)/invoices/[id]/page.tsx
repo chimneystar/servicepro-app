@@ -7,18 +7,23 @@ import DocDetailActions from "@/components/DocDetailActions";
 import PrintButton from "@/components/PrintButton";
 // @ts-ignore
 import { computeDocument } from "@/lib/core/money.mjs";
+import ActivityTimeline from "@/components/ActivityTimeline";
+import { loadActivity } from "@/lib/activity";
+import { getLocale } from "@/lib/locale-server";
 
 export const dynamic = "force-dynamic";
 
 export default async function InvoiceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   await requireProfile();
+  const locale = await getLocale();
   const supabase = await createClient();
   const { data: inv } = await supabase.from("invoices")
     .select("id, number, status, discount_minor, tax_rate_bps, issue_date, notes, public_token, customers(name, address, city, phone, email)")
     .eq("id", id).is("deleted_at", null).maybeSingle();
   const { data: org } = await supabase.from("organizations").select("name, logo_url, tagline, phone, email, currency, tax_label, accent_color").single();
   if (!inv) return <div><Link href="/invoices" style={back}>‹ Invoices</Link><div style={{ padding: 40, textAlign: "center", color: "#5c6675" }}>Invoice not found.</div></div>;
+  const activity = await loadActivity("invoices", id);
 
   const { data: rows } = await supabase.from("invoice_items").select("title, description, qty_milli, unit_price_minor, taxable, image_path").eq("invoice_id", id).order("sort");
   const items: ViewItem[] = (rows ?? []).map((r: any) => ({
@@ -55,6 +60,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
 
       <DocView title="Invoice" number={inv.number} accent={accent} currency={cur} org={org} customer={c}
         issueDate={inv.issue_date} items={items} totals={totals} taxLabel={org?.tax_label ?? "Tax"} taxRateBps={inv.tax_rate_bps} notes={inv.notes} />
+      <ActivityTimeline entries={activity} locale={locale} />
     </div>
   );
 }

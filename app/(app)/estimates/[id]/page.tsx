@@ -7,18 +7,23 @@ import DocDetailActions from "@/components/DocDetailActions";
 import PrintButton from "@/components/PrintButton";
 // @ts-ignore
 import { computeDocument } from "@/lib/core/money.mjs";
+import ActivityTimeline from "@/components/ActivityTimeline";
+import { loadActivity } from "@/lib/activity";
+import { getLocale } from "@/lib/locale-server";
 
 export const dynamic = "force-dynamic";
 
 export default async function EstimateDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   await requireProfile();
+  const locale = await getLocale();
   const supabase = await createClient();
   const { data: est } = await supabase.from("estimates")
     .select("id, number, status, discount_minor, deposit_minor, tax_rate_bps, issue_date, notes, public_token, customers(name, address, city, phone, email)")
     .eq("id", id).is("deleted_at", null).maybeSingle();
   const { data: org } = await supabase.from("organizations").select("name, logo_url, tagline, phone, email, currency, tax_label, accent_color").single();
   if (!est) return <div><Link href="/estimates" style={back}>‹ Estimates</Link><div style={{ padding: 40, textAlign: "center", color: "#5c6675" }}>Estimate not found.</div></div>;
+  const activity = await loadActivity("estimates", id);
 
   const { data: rows } = await supabase.from("estimate_items").select("title, description, qty_milli, unit_price_minor, taxable, image_path").eq("estimate_id", id).order("sort");
   const items: ViewItem[] = (rows ?? []).map((r: any) => ({
@@ -47,6 +52,7 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
           <b style={{ color: accent }}>{money(est.deposit_minor, org?.currency ?? "USD")}</b>
         </div>
       )}
+      <ActivityTimeline entries={activity} locale={locale} />
     </div>
   );
 }

@@ -43,6 +43,8 @@ export async function updateSession(request: NextRequest) {
     path.startsWith("/book/") ||     // public online-booking request page
     path.startsWith("/portal/") ||   // public customer portal (magic link)
     path.startsWith("/api/") ||      // payment webhooks / pay redirect
+    path === "/offline" ||
+    path === "/sw.js" ||
     path.startsWith("/_next") ||
     path === "/manifest.webmanifest" ||
     path === "/favicon.ico";
