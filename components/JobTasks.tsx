@@ -22,7 +22,7 @@ export default function JobTasks({ jobId, tasks }: { jobId: string; tasks: Task[
 
   return (
     <div>
-      {tasks.length > 0 && <div style={{ fontSize: 13, color: "#5c6675", marginBottom: 8 }}>{he ? `${doneCount} מתוך ${tasks.length} הושלמו` : `${doneCount} of ${tasks.length} complete`}</div>}
+      {tasks.length > 0 && <div style={{ fontSize: 14, color: "#5c6675", marginBottom: 8 }}>{he ? `${doneCount} מתוך ${tasks.length} הושלמו` : `${doneCount} of ${tasks.length} complete`}</div>}
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
         <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder={he ? "הוספת משימה…" : "Add a task…"} style={inp} />
         <button onClick={add} disabled={pending} style={btn}>➕</button>

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import type { Locale } from "@/lib/i18n";
 
-/** Small EN / עברית switch. Stores the choice in a cookie and reloads. */
+/** Accessible EN / עברית switch. Stores the choice in a cookie and reloads. */
 export default function LanguageToggle({ current, dark = false }: { current: Locale; dark?: boolean }) {
   const router = useRouter();
 
@@ -15,21 +15,10 @@ export default function LanguageToggle({ current, dark = false }: { current: Loc
     window.location.reload();
   }
 
-  const base: React.CSSProperties = {
-    border: "none", padding: "5px 10px", borderRadius: 8, fontSize: 12.5, fontWeight: 700,
-    cursor: "pointer",
-  };
-  const on = dark
-    ? { background: "rgba(255,255,255,.2)", color: "#fff" }
-    : { background: "#2563eb", color: "#fff" };
-  const off = dark
-    ? { background: "transparent", color: "#c6d6f5" }
-    : { background: "#e7ecf5", color: "#475569" };
-
   return (
-    <div style={{ display: "inline-flex", gap: 4 }}>
-      <button style={{ ...base, ...(current === "en" ? on : off) }} onClick={() => set("en")}>EN</button>
-      <button style={{ ...base, ...(current === "he" ? on : off) }} onClick={() => set("he")}>עב</button>
+    <div className={`language-toggle${dark ? " dark" : ""}`} role="group" aria-label={current === "he" ? "בחירת שפה" : "Choose language"}>
+      <button type="button" aria-pressed={current === "en"} aria-label="English" lang="en" onClick={() => set("en")}>EN</button>
+      <button type="button" aria-pressed={current === "he"} aria-label="עברית" lang="he" onClick={() => set("he")}>עב</button>
     </div>
   );
 }

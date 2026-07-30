@@ -39,32 +39,37 @@ export default function SignApprove({ token, locale }: { token: string; locale: 
       const supabase = createClient();
       const { data, error } = await supabase.rpc("approve_document", { p_token: token, p_name: name.trim(), p_sig: sig });
       if (error) throw error;
-      if (!data) throw new Error("Could not approve");
+      if (!data) throw new Error(t(locale, "doc.approve_error"));
       setDone(true);
       window.dispatchEvent(new Event("servicepro:document-approved"));
-    } catch (err: any) {
-      setError(err?.message ?? "Error");
+    } catch {
+      setError(t(locale, "doc.approve_error"));
     } finally { setBusy(false); }
   }
 
-  if (done) return <div style={{ background: "#e6f6ec", color: "#15803d", padding: "16px", borderRadius: 12, fontWeight: 700, textAlign: "center" }}>✓ {t(locale, "doc.thanks")}</div>;
+  if (done) return <div className="sign-approve-success" role="status">✓ {t(locale, "doc.thanks")}</div>;
 
   return (
-    <div style={{ border: "1px solid #e2e8f0", borderRadius: 14, padding: 16 }}>
-      <label style={{ fontSize: 12.5, fontWeight: 700, color: "#334155", display: "block", marginBottom: 6 }}>{t(locale, "doc.your_name")}</label>
-      <input value={name} onChange={(e) => setName(e.target.value)} style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "11px 12px", fontSize: 16, outline: "none", marginBottom: 12 }} placeholder="John Smith" />
+    <section className="sign-approve" aria-labelledby="sign-approve-title">
+      <header className="sign-approve-heading">
+        <span aria-hidden="true">✓</span>
+        <div><h2 id="sign-approve-title">{t(locale, "doc.sign_heading")}</h2><p>{t(locale, "doc.sign_help")}</p></div>
+      </header>
+      <label className="sign-approve-field" htmlFor="signer-name"><span>{t(locale, "doc.your_name")}</span>
+        <input id="signer-name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} placeholder={t(locale, "doc.name_placeholder")} />
+      </label>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-        <label style={{ fontSize: 12.5, fontWeight: 700, color: "#334155" }}>{t(locale, "doc.sign_here")}</label>
-        <button type="button" onClick={clear} style={{ background: "none", border: "none", color: "#2563eb", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>{t(locale, "doc.clear")}</button>
+      <div className="sign-approve-label">
+        <div><span>{t(locale, "doc.sign_here")}</span><small>{t(locale, "doc.signature_hint")}</small></div>
+        <button type="button" onClick={clear}>{t(locale, "doc.clear")}</button>
       </div>
       <canvas ref={canvasRef} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerLeave={up}
-        style={{ width: "100%", height: 150, border: "1px dashed #b9c8e6", borderRadius: 10, touchAction: "none", background: "#fbfdff" }} />
+        className="sign-approve-canvas" aria-label={t(locale, "doc.sign_here")} />
 
-      {error && <div style={{ color: "#dc2626", fontSize: 13, marginTop: 8 }}>{error}</div>}
-      <button onClick={approve} disabled={busy} style={{ width: "100%", background: "#15803d", color: "#fff", border: "none", borderRadius: 12, padding: 15, fontSize: 16, fontWeight: 800, cursor: "pointer", marginTop: 12 }}>
+      {error && <div className="sign-approve-error" role="alert">{error}</div>}
+      <button className="sign-approve-submit" onClick={approve} disabled={busy}>
         {busy ? "…" : `✓ ${t(locale, "doc.approve")}`}
       </button>
-    </div>
+    </section>
   );
 }

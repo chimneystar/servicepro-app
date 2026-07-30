@@ -92,12 +92,12 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           {pill("month", "This month")}{pill("year", "This year")}{pill("all", "All time")}
         </div>
       </div>
-      <p style={{ color: "#5c6675", fontSize: 13, marginBottom: 12 }}>{label}</p>
+      <p style={{ color: "#5c6675", fontSize: 14, marginBottom: 12 }}>{label}</p>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-        <Link href="/reports/custom" style={{ background: "#e0ebff", color: "#1d4ed8", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>🧩 Custom report</Link>
-        <Link href="/reports/export" style={{ background: "#e6f6ec", color: "#15803d", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>⬇ Accounting export</Link>
-        <Link href="/reports/timesheets" style={{ background: "#fdf1dc", color: "#b45309", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>⏱️ Timesheets</Link>
-        <Link href="/reports/commission" style={{ background: "#ede9fe", color: "#7c3aed", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>💵 Commission</Link>
+        <Link href="/reports/custom" style={{ background: "#e0ebff", color: "#1d4ed8", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>🧩 Custom report</Link>
+        <Link href="/reports/export" style={{ background: "#e6f6ec", color: "#15803d", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>⬇ Accounting export</Link>
+        <Link href="/reports/timesheets" style={{ background: "#fdf1dc", color: "#b45309", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>⏱️ Timesheets</Link>
+        <Link href="/reports/commission" style={{ background: "#ede9fe", color: "#7c3aed", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>💵 Commission</Link>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14, marginBottom: 20 }}>
@@ -117,7 +117,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
             </div>
             <div className="rend">
               <b style={{ fontSize: 15 }}>{money(b.collected, cur)}</b>
-              <span style={{ fontSize: 12.5, fontWeight: 700, color: b.profit >= 0 ? "#15803d" : "#dc2626" }}>{money(b.profit, cur)} profit</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: b.profit >= 0 ? "#15803d" : "#dc2626" }}>{money(b.profit, cur)} profit</span>
             </div>
           </div>
         ))}
@@ -135,7 +135,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         {agingTotal === 0 && <div className="rempty">No unpaid invoices 🎉</div>}
       </div>
 
-      <div style={{ background: "#e0ebff", color: "#1d4ed8", padding: "11px 14px", borderRadius: 12, fontSize: 12.5, marginTop: 4 }}>
+      <div style={{ background: "#e0ebff", color: "#1d4ed8", padding: "11px 14px", borderRadius: 12, fontSize: 14, marginTop: 4 }}>
         ℹ️ Profit uses the <b>cost</b> you enter per line item. Add costs on estimates/invoices (and later in the Price Book) to make profitability precise.
       </div>
     </div>
@@ -147,7 +147,7 @@ function Kpi({ icon, tone, label, value }: { icon: string; tone: string; label: 
     <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16, boxShadow: "0 6px 18px rgba(15,42,94,.06)" }}>
       <div style={{ fontSize: 22 }}>{icon}</div>
       <div style={{ fontSize: 24, fontWeight: 800, color: tone, marginTop: 6 }}>{value}</div>
-      <div style={{ fontSize: 12.5, color: "#5c6675", fontWeight: 600 }}>{label}</div>
+      <div style={{ fontSize: 14, color: "#5c6675", fontWeight: 600 }}>{label}</div>
     </div>
   );
 }
@@ -161,5 +161,5 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 }
 function Th({ children }: { children: React.ReactNode }) { return <th style={{ padding: "10px 8px", borderBottom: "2px solid #e2e8f0", fontWeight: 700, textAlign: "start" }}>{children}</th>; }
 function Td({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) { return <td style={{ padding: "11px 8px", textAlign: "start", ...style }}>{children}</td>; }
-const seg: React.CSSProperties = { padding: "6px 14px", borderRadius: 8, fontWeight: 700, fontSize: 13, color: "#5c6675", textDecoration: "none" };
+const seg: React.CSSProperties = { padding: "6px 14px", borderRadius: 8, fontWeight: 700, fontSize: 14, color: "#5c6675", textDecoration: "none" };
 const segOn: React.CSSProperties = { background: "#fff", color: "#0b1524", boxShadow: "0 1px 3px rgba(0,0,0,.12)" };

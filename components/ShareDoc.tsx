@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { autoSendDocument } from "@/app/(app)/share-actions";
+import { dirFor, t, type Locale } from "@/lib/i18n";
 
 export type ShareTarget = {
   kind: "estimate" | "invoice";
@@ -13,83 +14,126 @@ export type ShareTarget = {
   orgName: string;
 };
 
-export default function ShareDoc({ target, onClose }: { target: ShareTarget; onClose: () => void }) {
+export default function ShareDoc({ target, locale, onClose }: { target: ShareTarget; locale: Locale; onClose: () => void }) {
   const link = typeof window !== "undefined" ? `${window.location.origin}/p/${target.token}` : "";
-  const label = target.kind === "invoice" ? "invoice" : "estimate";
   const [mode, setMode] = useState<"email" | "text">(target.customerEmail ? "email" : "text");
   const [to, setTo] = useState(target.customerEmail ?? "");
   const [phone, setPhone] = useState(target.customerPhone ?? "");
   const [copied, setCopied] = useState(false);
   const [pending, start] = useTransition();
-  const [sent, setSent] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ tone: "success" | "error"; text: string } | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+  const headingId = useId();
 
-  const subject = `${target.orgName} — ${label} #${target.number}`;
-  const body = `Hi ${target.customerName},\n\nPlease review your ${label} #${target.number} from ${target.orgName} here:\n${link}\n\nYou can approve and sign it online. Thank you!`;
+  useEffect(() => {
+    openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    modalRef.current?.querySelector<HTMLElement>("button, input")?.focus();
+    return () => openerRef.current?.focus();
+  }, []);
 
-  function sendEmail() {
-    setSent(null);
+  function handleDialogKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      onClose();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const focusable = Array.from(modalRef.current?.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), a[href]") ?? []);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  function send(channel: "email" | "text") {
+    const recipient = channel === "email" ? to : phone;
+    setNotice(null);
     start(async () => {
-      const r = await autoSendDocument(target.token, "email", to, window.location.origin);
-      if (r.ok) { setSent("✓ Email sent to " + to); return; }
-      // fall back to the user's own email app
-      window.location.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      const result = await autoSendDocument(target.token, channel, recipient, window.location.origin, locale);
+      if (result.ok) {
+        setNotice({
+          tone: "success",
+          text: t(locale, channel === "email" ? "share.sent_email" : "share.sent_text", { target: recipient }),
+        });
+        return;
+      }
+      setNotice({ tone: "error", text: t(locale, result.configured ? "share.failed" : "share.unavailable") });
     });
   }
-  function sendText() {
-    setSent(null);
-    start(async () => {
-      const r = await autoSendDocument(target.token, "text", phone, window.location.origin);
-      if (r.ok) { setSent("✓ Text sent to " + phone); return; }
-      window.location.href = `sms:${encodeURIComponent(phone)}?&body=${encodeURIComponent(`${target.orgName}: your ${label} #${target.number} — ${link}`)}`;
-    });
+
+  function copy() {
+    navigator.clipboard?.writeText(link).catch(() => {});
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1600);
   }
-  function copy() { navigator.clipboard?.writeText(link).catch(() => {}); setCopied(true); setTimeout(() => setCopied(false), 1600); }
 
   return (
-    <div style={overlay} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div style={modal}>
-        <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 4 }}>Send {label} #{target.number}</h3>
-        <p style={{ color: "#5c6675", fontSize: 13, marginBottom: 14 }}>To {target.customerName}</p>
+    <div className="share-dialog-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+      <div
+        ref={modalRef}
+        className="share-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={headingId}
+        dir={dirFor(locale)}
+        onKeyDown={handleDialogKeyDown}
+      >
+        <header className="share-dialog-heading">
+          <div>
+            <h2 id={headingId}>{t(locale, `share.title_${target.kind}`, { number: target.number })}</h2>
+            <p>{t(locale, "share.to_customer", { name: target.customerName })}</p>
+          </div>
+          <button type="button" className="share-dialog-dismiss" onClick={onClose} aria-label={t(locale, "share.close")}>×</button>
+        </header>
 
-        <div style={{ display: "inline-flex", background: "#eef2f8", borderRadius: 10, padding: 3, marginBottom: 14 }}>
-          <button onClick={() => setMode("email")} style={{ ...seg, ...(mode === "email" ? segOn : {}) }}>✉️ Email</button>
-          <button onClick={() => setMode("text")} style={{ ...seg, ...(mode === "text" ? segOn : {}) }}>💬 Text</button>
+        <div className="share-channel-tabs" role="tablist" aria-label={t(locale, "share.channel_label")}>
+          <button type="button" role="tab" aria-selected={mode === "email"} onClick={() => { setMode("email"); setNotice(null); }}>
+            <span aria-hidden="true">✉</span>{t(locale, "share.email")}
+          </button>
+          <button type="button" role="tab" aria-selected={mode === "text"} onClick={() => { setMode("text"); setNotice(null); }}>
+            <span aria-hidden="true">●</span>{t(locale, "share.text")}
+          </button>
         </div>
 
-        {mode === "email" ? (
-          <>
-            <label style={lbl}>Send to email</label>
-            <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="client@email.com" style={inp} />
-            <button onClick={sendEmail} disabled={!to || pending} style={{ ...btn, marginTop: 12, width: "100%", opacity: to ? 1 : .5 }}>{pending ? "Sending…" : "✉️ Send email"}</button>
-          </>
-        ) : (
-          <>
-            <label style={lbl}>Send to phone</label>
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+1 555 123 4567" style={inp} />
-            <button onClick={sendText} disabled={!phone || pending} style={{ ...btn, marginTop: 12, width: "100%", opacity: phone ? 1 : .5 }}>{pending ? "Sending…" : "💬 Send text"}</button>
-          </>
-        )}
-        {sent && <div style={{ marginTop: 10, background: "#e6f6ec", color: "#15803d", padding: "9px 12px", borderRadius: 10, fontSize: 13, fontWeight: 700, textAlign: "center" }}>{sent}</div>}
+        <div className="share-channel-panel" role="tabpanel">
+          {mode === "email" ? (
+            <>
+              <label htmlFor="share-customer-email">{t(locale, "share.email_label")}</label>
+              <input id="share-customer-email" type="email" dir="ltr" value={to} onChange={(event) => setTo(event.target.value)} placeholder="client@example.com" autoComplete="email" />
+              <button type="button" className="share-primary" onClick={() => send("email")} disabled={!to || pending}>
+                {pending ? t(locale, "share.sending") : t(locale, "share.send_email")}
+              </button>
+            </>
+          ) : (
+            <>
+              <label htmlFor="share-customer-phone">{t(locale, "share.phone_label")}</label>
+              <input id="share-customer-phone" type="tel" dir="ltr" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+1 555 123 4567" autoComplete="tel" />
+              <button type="button" className="share-primary" onClick={() => send("text")} disabled={!phone || pending}>
+                {pending ? t(locale, "share.sending") : t(locale, "share.send_text")}
+              </button>
+            </>
+          )}
+        </div>
 
-        <div style={{ marginTop: 14, borderTop: "1px solid #eef1f6", paddingTop: 12 }}>
-          <div style={{ fontSize: 12, color: "#5c6675", marginBottom: 6 }}>Or copy the link and paste it anywhere:</div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input readOnly value={link} style={{ ...inp, fontSize: 12.5, color: "#5c6675" }} />
-            <button onClick={copy} style={{ ...btn, background: "#eef2f8", color: "#2563eb", flexShrink: 0 }}>{copied ? "✓ Copied" : "Copy"}</button>
+        {notice && <p className={`share-notice ${notice.tone}`} role="status">{notice.text}</p>}
+
+        <div className="share-copy-area">
+          <label htmlFor="share-secure-link">{t(locale, "share.copy_help")}</label>
+          <div>
+            <input id="share-secure-link" readOnly dir="ltr" value={link} />
+            <button type="button" onClick={copy}>{copied ? t(locale, "share.copied") : t(locale, "share.copy")}</button>
           </div>
         </div>
 
-        <button onClick={onClose} style={{ ...btn, background: "#e2e9f4", color: "#2563eb", width: "100%", marginTop: 14 }}>Close</button>
-        <p style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 10, textAlign: "center" }}>Opens your own email/messages app with everything pre-filled. Automatic 1-click sending comes when you connect an email/SMS provider.</p>
+        <p className="share-security-note"><span aria-hidden="true">●</span>{t(locale, "share.security_note")}</p>
       </div>
     </div>
   );
 }
-
-const overlay: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,30,61,.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 24, zIndex: 120, overflowY: "auto" };
-const modal: React.CSSProperties = { background: "#fff", borderRadius: 18, width: "100%", maxWidth: 420, padding: 22 };
-const seg: React.CSSProperties = { border: "none", background: "transparent", padding: "7px 16px", borderRadius: 8, fontWeight: 700, fontSize: 13.5, color: "#5c6675", cursor: "pointer" };
-const segOn: React.CSSProperties = { background: "#fff", color: "#0b1524", boxShadow: "0 1px 3px rgba(0,0,0,.12)" };
-const lbl: React.CSSProperties = { fontSize: 12.5, fontWeight: 700, color: "#334155", display: "block", marginBottom: 6 };
-const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 16, outline: "none" };
-const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", padding: "11px 16px", borderRadius: 10, fontWeight: 700, cursor: "pointer" };

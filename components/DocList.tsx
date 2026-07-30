@@ -84,7 +84,7 @@ export default function DocList({ rows, locale, currency, kind, emptyKey, status
               </div>
             </Link>
             <div style={{ display: "flex", gap: 8, width: "100%", marginTop: 8, flexWrap: "wrap" }}>
-              <button onClick={() => setShare({ kind, number: r.number, token: r.public_token, customerName: r.customer_name, customerEmail: r.customer_email ?? null, customerPhone: r.customer_phone ?? null, orgName })} style={{ ...actBtn, background: "#2563eb", color: "#fff" }}>📤 Send</button>
+              <button onClick={() => setShare({ kind, number: r.number, token: r.public_token, customerName: r.customer_name, customerEmail: r.customer_email ?? null, customerPhone: r.customer_phone ?? null, orgName })} style={{ ...actBtn, background: "#2563eb", color: "#fff" }}>📤 {t(locale, "doc.send")}</button>
               <button onClick={() => copyLink(r.public_token)} style={actBtn}>{copied === r.public_token ? t(locale, "doc.copied") : `🔗 ${t(locale, "doc.link")}`}</button>
               {kind === "estimate" && <button onClick={() => convert(r)} disabled={pending} style={{ ...actBtn, background: "#e6f6ec", color: "#15803d" }}>🧾 {t(locale, "doc.to_invoice")}</button>}
               {kind === "invoice" && r.status === "unpaid" && <button onClick={() => togglePaid(r.id, true)} disabled={pending} style={{ ...actBtn, background: "#e6f6ec", color: "#15803d" }}>✓ Mark paid</button>}
@@ -95,9 +95,9 @@ export default function DocList({ rows, locale, currency, kind, emptyKey, status
       })}
       {rows.length === 0 && <div className="rempty">{t(locale, emptyKey)}</div>}
       {rows.length > 0 && visible.length === 0 && <div className="rempty">No matches for “{q}”.</div>}
-      {share && <ShareDoc target={share} onClose={() => setShare(null)} />}
+      {share && <ShareDoc target={share} locale={locale} onClose={() => setShare(null)} />}
     </div>
   );
 }
 
-const actBtn: React.CSSProperties = { background: "#eef2f8", color: "#2563eb", border: "none", borderRadius: 9, padding: "8px 12px", fontWeight: 700, fontSize: 13, cursor: "pointer" };
+const actBtn: React.CSSProperties = { minHeight: 44, background: "#eef2f8", color: "#2563eb", border: "none", borderRadius: 9, padding: "8px 12px", fontWeight: 700, fontSize: 14, cursor: "pointer" };

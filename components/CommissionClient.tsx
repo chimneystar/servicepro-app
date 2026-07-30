@@ -36,10 +36,10 @@ export default function CommissionClient({ rows, currency, canEditPct }: { rows:
   return (
     <div>
       <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 14 }}>
-        <label style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>Credit-card fee %
+        <label style={{ fontSize: 14, fontWeight: 700, color: "#334155" }}>Credit-card fee %
           <input value={ccFee} onChange={(e) => setCcFee(e.target.value)} type="number" step="0.01" style={{ width: 80, marginInlineStart: 8, border: "1px solid #e2e8f0", borderRadius: 8, padding: "7px 10px", fontSize: 15 }} />
         </label>
-        <button onClick={exportCsv} style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>⬇ Export CSV</button>
+        <button onClick={exportCsv} style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>⬇ Export CSV</button>
         <div style={{ marginInlineStart: "auto", fontWeight: 800, fontSize: 16 }}>Total payout: <span style={{ color: "#15803d" }}>{m(totalCommission)}</span></div>
       </div>
 
@@ -52,7 +52,7 @@ export default function CommissionClient({ rows, currency, canEditPct }: { rows:
                 <b style={{ fontSize: 15 }}>{r.name}</b>
                 <div style={{ fontWeight: 800, color: "#15803d", fontSize: 16 }}>{m(c.commission)}</div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(90px,1fr))", gap: 8, margin: "10px 0", fontSize: 12.5 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(90px,1fr))", gap: 8, margin: "10px 0", fontSize: 14 }}>
                 <KV label="Jobs done" v={String(r.jobs)} />
                 <KV label="Revenue" v={m(r.revenueMinor)} />
                 <KV label="Job costs" v={m(r.expensesMinor)} />
@@ -60,21 +60,21 @@ export default function CommissionClient({ rows, currency, canEditPct }: { rows:
                 <KV label="Net" v={m(c.net)} strong />
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 13, color: "#5c6675", fontWeight: 600 }}>Commission</span>
+                <span style={{ fontSize: 14, color: "#5c6675", fontWeight: 600 }}>Commission</span>
                 <input type="number" value={pcts[r.profileId] ?? 0} disabled={!canEditPct} onChange={(e) => setPcts({ ...pcts, [r.profileId]: parseInt(e.target.value, 10) || 0 })} style={{ width: 70, border: "1px solid #e2e8f0", borderRadius: 8, padding: "7px 10px", fontSize: 15 }} />
-                <span style={{ fontSize: 13, color: "#5c6675" }}>%</span>
-                {canEditPct && <button onClick={() => savePct(r.profileId)} disabled={pending} style={{ background: "#eef2f8", color: "#2563eb", border: "none", borderRadius: 8, padding: "7px 12px", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>Save %</button>}
+                <span style={{ fontSize: 14, color: "#5c6675" }}>%</span>
+                {canEditPct && <button onClick={() => savePct(r.profileId)} disabled={pending} style={{ background: "#eef2f8", color: "#2563eb", border: "none", borderRadius: 8, padding: "7px 12px", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Save %</button>}
               </div>
             </div>
           );
         })}
         {rows.length === 0 && <div className="rempty">No completed jobs with an assigned technician in this period.</div>}
       </div>
-      <p style={{ color: "#5c6675", fontSize: 12, marginTop: 12 }}>Net = job revenue − job costs (entered on each job) − credit-card fees. Commission = net × the technician’s %. Only jobs in a “Done” status count.</p>
+      <p style={{ color: "#5c6675", fontSize: 14, marginTop: 12 }}>Net = job revenue − job costs (entered on each job) − credit-card fees. Commission = net × the technician’s %. Only jobs in a “Done” status count.</p>
     </div>
   );
 }
 
 function KV({ label, v, strong }: { label: string; v: string; strong?: boolean }) {
-  return <div style={{ background: "#f8fafc", borderRadius: 8, padding: "7px 10px" }}><div style={{ color: "#94a3b8", fontWeight: 700, fontSize: 10.5 }}>{label}</div><b style={{ color: strong ? "#15803d" : "#0b1524" }}>{v}</b></div>;
+  return <div style={{ background: "#f8fafc", borderRadius: 8, padding: "7px 10px" }}><div style={{ color: "#94a3b8", fontWeight: 700, fontSize: 14 }}>{label}</div><b style={{ color: strong ? "#15803d" : "#0b1524" }}>{v}</b></div>;
 }

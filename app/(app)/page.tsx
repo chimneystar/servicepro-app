@@ -105,11 +105,20 @@ export default async function DashboardPage() {
 
       <div className="scroll-x" style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         {[["/schedule", he ? "עבודה חדשה" : "New job"], ["/estimates", he ? "הצעות מחיר" : "Estimates"], ["/invoices", he ? "חשבוניות" : "Invoices"], ["/leads", he ? "לידים" : "Leads"], ["/route", he ? "המסלול של היום" : "Today’s route"], ["/messages", he ? "הודעות" : "Messages"], ["/reports", he ? "דוחות" : "Reports"]].map(([href, label]) => (
-          <Link key={href} href={href} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: "9px 13px", fontWeight: 700, fontSize: 13, color: "#0b1524", textDecoration: "none", whiteSpace: "nowrap" }}>{label}</Link>
+          <Link key={href} href={href} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: "9px 13px", fontWeight: 700, fontSize: 14, color: "#0b1524", textDecoration: "none", whiteSpace: "nowrap" }}>{label}</Link>
         ))}
       </div>
 
-      <div className="dash" style={grid}>
+      <section className="dashboard-kpis" aria-label={he ? "המספרים החשובים" : "Key business numbers"}>
+        <Link href="/invoices"><span>{he ? "מכירות החודש" : "Sales this month"}</span><strong>{money(monthSales, cur)}</strong></Link>
+        <Link href="/invoices?filter=unpaid"><span>{he ? "ממתין לגבייה" : "Waiting to collect"}</span><strong>{money(dueSum, cur)}</strong></Link>
+        <Link href="/schedule"><span>{he ? "עבודות היום" : "Jobs today"}</span><strong>{todayJobs.length}</strong></Link>
+        <Link href="/leads"><span>{he ? "לידים פתוחים" : "Open leads"}</span><strong>{openLeads}</strong></Link>
+      </section>
+
+      <details className="dashboard-insights">
+        <summary><span><strong>{he ? "המספרים והדוחות של העסק" : "Business performance and reports"}</strong><small>{he ? "הכנסות, גבייה, הצעות, עבודות ומקורות לידים" : "Revenue, collections, estimates, jobs, and lead sources"}</small></span><b>{he ? "פתיחה" : "View details"}</b></summary>
+        <div className="dash" style={grid}>
         <Card span={8} title={he ? "הכנסות · ששת החודשים האחרונים" : "Revenue · last 6 months"}>
           <Bars data={series} />
         </Card>
@@ -164,12 +173,12 @@ export default async function DashboardPage() {
         </Card>
 
         <Card span={8} title={he ? "עבודות אחרונות" : "Recent jobs"}>
-          {recent.length === 0 && <div style={{ color: "#5c6675", fontSize: 13, padding: 8 }}>—</div>}
+          {recent.length === 0 && <div style={{ color: "#5c6675", fontSize: 14, padding: 8 }}>—</div>}
           {recent.map((j: any, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 0", borderTop: i ? "1px solid #f1f4f9" : "none" }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700, fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{j.customers?.name ?? "—"}</div>
-                <div style={{ fontSize: 12.5, color: "#5c6675" }}>{j.service} · {fmtDate(j.scheduled_date)}</div>
+                <div style={{ fontSize: 14, color: "#5c6675" }}>{j.service} · {fmtDate(j.scheduled_date)}</div>
               </div>
               <div style={{ textAlign: "end", whiteSpace: "nowrap" }}>
                 <b>{money(j.price_minor, cur)}</b>
@@ -185,12 +194,13 @@ export default async function DashboardPage() {
           <Sub>{he ? "מקורות לידים" : "Lead sources"}</Sub>
           {topSrc.map(([k, v]) => (
             <div key={k} style={{ marginBottom: 8 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5 }}><b>{k}</b><b>{v}</b></div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}><b>{k}</b><b>{v}</b></div>
               <div style={{ height: 6, background: "#eef1f6", borderRadius: 5, overflow: "hidden" }}><i style={{ display: "block", height: "100%", width: `${v / srcMax * 100}%`, background: "linear-gradient(90deg,#2563eb,#38bdf8)" }} /></div>
             </div>
           ))}
         </Card>
-      </div>
+        </div>
+      </details>
     </div>
   );
 }
@@ -209,14 +219,14 @@ function Card({ span, title, children }: { span: number; title: string; children
   );
 }
 function Big({ children, small }: { children: React.ReactNode; small?: boolean }) { return <div style={{ fontSize: small ? 22 : 28, fontWeight: 800, letterSpacing: "-.3px" }}>{children}</div>; }
-function Sub({ children }: { children: React.ReactNode }) { return <div style={{ fontSize: 12.5, color: "#5c6675", fontWeight: 600 }}>{children}</div>; }
+function Sub({ children }: { children: React.ReactNode }) { return <div style={{ fontSize: 14, color: "#5c6675", fontWeight: 600 }}>{children}</div>; }
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
-  return <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #f1f4f9", fontSize: 13.5 }}><span style={{ color: "#5c6675" }}>{label}</span><b style={{ color: strong ? "#15803d" : "#0b1524" }}>{value}</b></div>;
+  return <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #f1f4f9", fontSize: 14 }}><span style={{ color: "#5c6675" }}>{label}</span><b style={{ color: strong ? "#15803d" : "#0b1524" }}>{value}</b></div>;
 }
-const rowLine: React.CSSProperties = { display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: "1px solid #f1f4f9", fontSize: 13.5 };
+const rowLine: React.CSSProperties = { display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: "1px solid #f1f4f9", fontSize: 14 };
 function Td({ children }: { children: React.ReactNode }) { return <td style={{ padding: "9px 6px", textAlign: "start" }}>{children}</td>; }
 function statusChip(s: string): React.CSSProperties {
   const map: Record<string, string> = { scheduled: "#e0ebff|#2563eb", in_progress: "#fdf1dc|#b45309", done: "#e6f6ec|#15803d", cancelled: "#eef1f6|#57606f" };
   const [bg, fg] = (map[s] ?? "#eef1f6|#57606f").split("|");
-  return { background: bg, color: fg, padding: "3px 9px", borderRadius: 20, fontSize: 11.5, fontWeight: 700 };
+  return { background: bg, color: fg, padding: "3px 9px", borderRadius: 20, fontSize: 14, fontWeight: 700 };
 }

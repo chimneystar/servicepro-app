@@ -89,7 +89,7 @@ export default async function CustomReportPage({ searchParams }: { searchParams:
       <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 22 }} className="print-card">
         <div style={{ textAlign: "center", marginBottom: 16 }}>
           <div style={{ fontSize: 20, fontWeight: 800 }}>{org?.name}</div>
-          <div style={{ color: "#5c6675", fontSize: 13 }}>Report · {fmt(from)} – {fmt(to)}</div>
+          <div style={{ color: "#5c6675", fontSize: 14 }}>Report · {fmt(from)} – {fmt(to)}</div>
         </div>
 
         {chk("sales") && <Section title="Sales summary">
@@ -134,7 +134,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function KV({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #f1f4f9", fontSize: 14 }}><span style={{ color: "#334155" }}>{label}</span><b style={{ color: strong ? "#15803d" : "#0b1524" }}>{value}</b></div>;
 }
-function Empty() { return <div style={{ color: "#5c6675", fontSize: 13, padding: "6px 0" }}>No data in this period.</div>; }
+function Empty() { return <div style={{ color: "#5c6675", fontSize: 14, padding: "6px 0" }}>No data in this period.</div>; }
 function fmt(iso: string) { const d = new Date(iso + "T00:00:00"); return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`; }
-const lbl: React.CSSProperties = { fontSize: 12.5, fontWeight: 700, color: "#334155", display: "block", marginBottom: 5 };
+const lbl: React.CSSProperties = { fontSize: 14, fontWeight: 700, color: "#334155", display: "block", marginBottom: 5 };
 const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 14, outline: "none" };

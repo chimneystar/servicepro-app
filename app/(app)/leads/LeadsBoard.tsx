@@ -35,9 +35,9 @@ export default function LeadsBoard({ leads, orgId }: { leads: Lead[]; orgId: str
       {/* Booking link card */}
       <div style={{ background: "#0f2a5e", color: "#fff", borderRadius: 14, padding: 16, marginBottom: 16 }}>
         <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 4 }}>🔗 Your online booking link</div>
-        <div style={{ fontSize: 12.5, opacity: .85, marginBottom: 10 }}>Share this so clients can request appointments. Each request shows up here as a lead.</div>
+        <div style={{ fontSize: 14, opacity: .85, marginBottom: 10 }}>Share this so clients can request appointments. Each request shows up here as a lead.</div>
         <div style={{ display: "flex", gap: 8 }}>
-          <input readOnly value={typeof window !== "undefined" ? bookingLink() : ""} style={{ flex: 1, border: "none", borderRadius: 9, padding: "9px 11px", fontSize: 12.5, color: "#0b1524" }} />
+          <input readOnly value={typeof window !== "undefined" ? bookingLink() : ""} style={{ flex: 1, border: "none", borderRadius: 9, padding: "9px 11px", fontSize: 14, color: "#0b1524" }} />
           <button onClick={copyLink} style={{ background: "#fff", color: "#2563eb", border: "none", borderRadius: 9, padding: "9px 14px", fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>{copied ? "✓ Copied" : "Copy"}</button>
         </div>
       </div>
@@ -57,9 +57,9 @@ export default function LeadsBoard({ leads, orgId }: { leads: Lead[]; orgId: str
               <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 800, fontSize: 15 }}>{l.name}</div>
-                  <div style={{ fontSize: 13, color: "#5c6675" }}>{[l.service, l.city].filter(Boolean).join(" · ") || "—"}</div>
-                  {l.preferred_date && <div style={{ fontSize: 12.5, color: "#5c6675" }}>📅 Prefers {new Date(l.preferred_date + "T00:00:00").toLocaleDateString("en-US")}</div>}
-                  {l.notes && <div style={{ fontSize: 12.5, color: "#475569", marginTop: 4 }}>{l.notes}</div>}
+                  <div style={{ fontSize: 14, color: "#5c6675" }}>{[l.service, l.city].filter(Boolean).join(" · ") || "—"}</div>
+                  {l.preferred_date && <div style={{ fontSize: 14, color: "#5c6675" }}>📅 Prefers {new Date(l.preferred_date + "T00:00:00").toLocaleDateString("en-US")}</div>}
+                  {l.notes && <div style={{ fontSize: 14, color: "#475569", marginTop: 4 }}>{l.notes}</div>}
                 </div>
                 <span className="pill" style={{ background: bg, color: fg }}>{meta[1]}</span>
               </div>
@@ -86,8 +86,8 @@ export default function LeadsBoard({ leads, orgId }: { leads: Lead[]; orgId: str
 
 function Tab({ k, label, filter, setFilter }: { k: string; label: string; filter: string; setFilter: (s: string) => void }) {
   const on = filter === k;
-  return <button onClick={() => setFilter(k)} style={{ border: "none", borderRadius: 9, padding: "7px 12px", fontWeight: 700, fontSize: 12.5, whiteSpace: "nowrap", cursor: "pointer", background: on ? "#2563eb" : "#eef2f8", color: on ? "#fff" : "#5c6675" }}>{label}</button>;
+  return <button onClick={() => setFilter(k)} style={{ border: "none", borderRadius: 9, padding: "7px 12px", fontWeight: 700, fontSize: 14, whiteSpace: "nowrap", cursor: "pointer", background: on ? "#2563eb" : "#eef2f8", color: on ? "#fff" : "#5c6675" }}>{label}</button>;
 }
-const clink: React.CSSProperties = { color: "#2563eb", textDecoration: "none", fontWeight: 700, fontSize: 13 };
-const btn: React.CSSProperties = { border: "none", borderRadius: 9, padding: "8px 12px", fontWeight: 700, fontSize: 12.5, cursor: "pointer" };
-const sel: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 9, padding: "8px 10px", fontSize: 13, fontWeight: 600, background: "#fff" };
+const clink: React.CSSProperties = { color: "#2563eb", textDecoration: "none", fontWeight: 700, fontSize: 14 };
+const btn: React.CSSProperties = { border: "none", borderRadius: 9, padding: "8px 12px", fontWeight: 700, fontSize: 14, cursor: "pointer" };
+const sel: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 9, padding: "8px 10px", fontSize: 14, fontWeight: 600, background: "#fff" };

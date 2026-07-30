@@ -31,7 +31,7 @@ export default function CustomerList({ customers, emptyText }: { customers: Cust
         />
         {q && <button onClick={() => setQ("")} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", border: "none", background: "#eef2f8", borderRadius: 8, padding: "4px 8px", cursor: "pointer", color: "#5c6675" }}>✕</button>}
       </div>
-      {q && <div style={{ fontSize: 12.5, color: "#5c6675", margin: "0 4px 8px" }}>{filtered.length} match{filtered.length === 1 ? "" : "es"}</div>}
+      {q && <div style={{ fontSize: 14, color: "#5c6675", margin: "0 4px 8px" }}>{filtered.length} match{filtered.length === 1 ? "" : "es"}</div>}
 
       <div className="rlist">
         {filtered.map((c) => (

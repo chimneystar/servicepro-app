@@ -42,7 +42,7 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
       </div>
       <div className="no-print" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 14, marginBottom: 14 }}>
         <DocDetailActions kind="estimate" id={est.id} token={est.public_token} status={est.status} number={est.number}
-          customerName={c?.name ?? "—"} customerEmail={c?.email ?? null} customerPhone={c?.phone ?? null} orgName={org?.name ?? ""} />
+          customerName={c?.name ?? "—"} customerEmail={c?.email ?? null} customerPhone={c?.phone ?? null} orgName={org?.name ?? ""} locale={locale} />
       </div>
       <DocView title="Estimate" number={est.number} accent={accent} currency={org?.currency ?? "USD"} org={org} customer={c}
         issueDate={est.issue_date} items={items} totals={totals} taxLabel={org?.tax_label ?? "Tax"} taxRateBps={est.tax_rate_bps} notes={est.notes} />

@@ -95,7 +95,7 @@ function TimeGrid({ cursor, jobs, today, days, he, typeColors = {} }: { cursor: 
           const isToday = iso(d) === today;
           return (
             <div key={iso(d)} style={{ textAlign: "center", padding: "8px 0", borderInlineStart: "1px solid #eef1f6" }}>
-              <div style={{ fontSize: 11, color: "#5c6675", fontWeight: 700 }}>{he ? He[DAYS[d.getDay()]] : DAYS[d.getDay()]}</div>
+              <div style={{ fontSize: 14, color: "#5c6675", fontWeight: 700 }}>{he ? He[DAYS[d.getDay()]] : DAYS[d.getDay()]}</div>
               <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: "50%", fontWeight: 800, fontSize: 15, marginTop: 2, background: isToday ? "#2563eb" : "transparent", color: isToday ? "#fff" : "#0b1524" }}>{d.getDate()}</div>
             </div>
           );
@@ -103,7 +103,7 @@ function TimeGrid({ cursor, jobs, today, days, he, typeColors = {} }: { cursor: 
       </div>
       <div style={{ display: "grid", gridTemplateColumns: `56px repeat(${days},1fr)`, maxHeight: 560, overflowY: "auto", position: "relative" }}>
         <div>
-          {hours.map((h) => <div key={h} style={{ height: HOUR, fontSize: 10.5, color: "#94a3b8", textAlign: "end", paddingInlineEnd: 6, paddingTop: 2 }}>{fmtHour(h, he)}</div>)}
+          {hours.map((h) => <div key={h} style={{ height: HOUR, fontSize: 14, color: "#94a3b8", textAlign: "end", paddingInlineEnd: 6, paddingTop: 2 }}>{fmtHour(h, he)}</div>)}
         </div>
         {cols.map((d) => {
           const dayJobs = jobs.filter((j) => j.date === iso(d));
@@ -116,7 +116,7 @@ function TimeGrid({ cursor, jobs, today, days, he, typeColors = {} }: { cursor: 
                 const h = dur / 60 * HOUR;
                 const bg = typeColors[j.service] || statusColor(j.status)[0];
                 return (
-                  <a key={j.id} href={`/jobs/${j.id}`} title={`${j.title} · ${j.service}`} style={{ position: "absolute", top: Math.max(0, top), left: 3, right: 3, height: Math.max(24, h - 3), background: bg, color: "#fff", borderRadius: 7, padding: "4px 7px", fontSize: 11, overflow: "hidden", boxShadow: "0 2px 6px rgba(0,0,0,.15)", textDecoration: "none", display: "block" }}>
+                  <a key={j.id} href={`/jobs/${j.id}`} title={`${j.title} · ${j.service}`} style={{ position: "absolute", top: Math.max(0, top), left: 3, right: 3, height: Math.max(24, h - 3), background: bg, color: "#fff", borderRadius: 7, padding: "4px 7px", fontSize: 14, overflow: "hidden", boxShadow: "0 2px 6px rgba(0,0,0,.15)", textDecoration: "none", display: "block" }}>
                     <div style={{ fontWeight: 800 }}>{(j.start ?? "").slice(0, 5)} {j.title}</div>
                     <div style={{ opacity: .9 }}>{j.service}{j.tech ? " · " + j.tech : ""}</div>
                   </a>
@@ -137,7 +137,7 @@ function MonthView({ cursor, jobs, today, he, typeColors = {} }: { cursor: Date;
   return (
     <div style={{ minWidth: 620 }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", borderBottom: "1px solid #eef1f6" }}>
-        {DAYS.map((d) => <div key={d} style={{ textAlign: "center", padding: "8px 0", fontSize: 11, fontWeight: 700, color: "#5c6675" }}>{he ? He[d] : d}</div>)}
+        {DAYS.map((d) => <div key={d} style={{ textAlign: "center", padding: "8px 0", fontSize: 14, fontWeight: 700, color: "#5c6675" }}>{he ? He[d] : d}</div>)}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)" }}>
         {cells.map((d) => {
@@ -146,12 +146,12 @@ function MonthView({ cursor, jobs, today, he, typeColors = {} }: { cursor: Date;
           const isToday = iso(d) === today;
           return (
             <div key={iso(d)} style={{ minHeight: 92, borderInlineStart: "1px solid #f1f4f9", borderTop: "1px solid #f1f4f9", padding: 5, background: inMonth ? "#fff" : "#fafbfd" }}>
-              <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 22, height: 22, borderRadius: "50%", fontSize: 12, fontWeight: 700, background: isToday ? "#2563eb" : "transparent", color: isToday ? "#fff" : inMonth ? "#0b1524" : "#b6bfcc" }}>{d.getDate()}</div>
+              <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 22, height: 22, borderRadius: "50%", fontSize: 14, fontWeight: 700, background: isToday ? "#2563eb" : "transparent", color: isToday ? "#fff" : inMonth ? "#0b1524" : "#b6bfcc" }}>{d.getDate()}</div>
               {dayJobs.slice(0, 3).map((j) => {
                 const bg = typeColors[j.service] || statusColor(j.status)[0];
-                return <a key={j.id} href={`/jobs/${j.id}`} style={{ display: "block", marginTop: 3, background: bg, color: "#fff", borderRadius: 5, padding: "2px 6px", fontSize: 10.5, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textDecoration: "none" }}>{(j.start ?? "").slice(0, 5)} {j.title}</a>;
+                return <a key={j.id} href={`/jobs/${j.id}`} style={{ display: "block", marginTop: 3, background: bg, color: "#fff", borderRadius: 5, padding: "2px 6px", fontSize: 14, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textDecoration: "none" }}>{(j.start ?? "").slice(0, 5)} {j.title}</a>;
               })}
-              {dayJobs.length > 3 && <div style={{ fontSize: 10.5, color: "#5c6675", marginTop: 2 }}>+{dayJobs.length - 3} {he ? "נוספות" : "more"}</div>}
+              {dayJobs.length > 3 && <div style={{ fontSize: 14, color: "#5c6675", marginTop: 2 }}>+{dayJobs.length - 3} {he ? "נוספות" : "more"}</div>}
             </div>
           );
         })}
@@ -163,6 +163,6 @@ function MonthView({ cursor, jobs, today, he, typeColors = {} }: { cursor: Date;
 const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 const fmtHour = (h: number, he: boolean) => he ? `${String(h).padStart(2, "0")}:00` : h === 12 ? "12 PM" : h > 12 ? `${h - 12} PM` : `${h} AM`;
 const navBtn: React.CSSProperties = { width: 30, height: 30, borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: 16, color: "#334155" };
-const btnGhost: React.CSSProperties = { padding: "6px 12px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontWeight: 700, fontSize: 13 };
-const seg: React.CSSProperties = { border: "none", background: "transparent", padding: "6px 14px", borderRadius: 8, fontWeight: 700, fontSize: 13, color: "#5c6675", cursor: "pointer" };
+const btnGhost: React.CSSProperties = { padding: "6px 12px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontWeight: 700, fontSize: 14 };
+const seg: React.CSSProperties = { border: "none", background: "transparent", padding: "6px 14px", borderRadius: 8, fontWeight: 700, fontSize: 14, color: "#5c6675", cursor: "pointer" };
 const segOn: React.CSSProperties = { background: "#fff", color: "#0b1524", boxShadow: "0 1px 3px rgba(0,0,0,.12)" };

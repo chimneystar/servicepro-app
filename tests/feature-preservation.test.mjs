@@ -1,10 +1,19 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile, access } from "node:fs/promises";
+import { readFile, access, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
 const manifest = JSON.parse(await readFile(resolve(root, "config/feature-manifest.json"), "utf8"));
+
+async function sourceFiles(directory) {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const nested = await Promise.all(entries.map((entry) => {
+    const path = resolve(directory, entry.name);
+    return entry.isDirectory() ? sourceFiles(path) : /\.(?:css|tsx?)$/.test(entry.name) ? [path] : [];
+  }));
+  return nested.flat();
+}
 
 test("every protected and public workflow still has a page", async () => {
   for (const route of [...manifest.protectedRoutes, ...manifest.publicWorkflows]) {
@@ -73,4 +82,30 @@ test("English and Hebrew dictionaries contain the same keys", async () => {
   const hebrew = source.match(/const he: Dict = \{([\s\S]*?)\n\};\n\nconst DICTS/)?.[1] ?? "";
   const keys = (block) => [...block.matchAll(/"([a-zA-Z0-9_.]+)"\s*:/g)].map((match) => match[1]).sort();
   assert.deepEqual(keys(hebrew), keys(english));
+});
+
+test("readable typography and public-page theme isolation cannot regress", async () => {
+  const files = [...await sourceFiles(resolve(root, "app")), ...await sourceFiles(resolve(root, "components"))];
+  for (const file of files) {
+    const source = await readFile(file, "utf8");
+    const inlineSizes = [...source.matchAll(/fontSize:\s*([0-9]+(?:\.[0-9]+)?)/g)].map((match) => Number(match[1]));
+    const stylesheetSizes = [...source.matchAll(/font-size:\s*([0-9]+(?:\.[0-9]+)?)px/g)].map((match) => Number(match[1]));
+    assert.ok([...inlineSizes, ...stylesheetSizes].every((size) => size >= 12), `text below the 12px support floor in ${file}`);
+  }
+  const css = await readFile(resolve(root, "app/globals.css"), "utf8");
+  assert.match(css, /\.auth-page[^}]*color-scheme:light/);
+  assert.match(css, /\.booking-page[^}]*color-scheme:light/);
+  assert.match(css, /\.public-document-page[^}]*color-scheme:light/);
+  assert.match(css, /\.portal-wrap[^}]*color-scheme:light/);
+  assert.match(css, /\.auth-form input[^}]*background:#fff[^}]*color:#101a2e/);
+});
+
+test("mobile and desktop navigation keep every allowed destination reachable", async () => {
+  const more = await readFile(resolve(root, "app/(app)/more/page.tsx"), "utf8");
+  const nav = await readFile(resolve(root, "components/Nav.tsx"), "utf8");
+  const css = await readFile(resolve(root, "app/globals.css"), "utf8");
+  assert.doesNotMatch(more, /!i\.bottom/);
+  assert.match(more, /NAV_ITEMS\.filter/);
+  assert.match(nav, /className="side-utilities"/);
+  assert.match(css, /\.side-utilities\s*\{[^}]*flex:0 0 auto/);
 });

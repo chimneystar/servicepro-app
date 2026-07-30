@@ -3,11 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import AppIcon, { iconForHref } from "@/components/AppIcon";
+import AppIcon, { iconForHref, type AppIconName } from "@/components/AppIcon";
 
 export type ToolItem = { href: string; label: string; icon: string };
 
-export default function SidebarTools({ items, label }: { items: ToolItem[]; label: string }) {
+export default function SidebarTools({ items, label, icon = "tools" }: { items: ToolItem[]; label: string; icon?: AppIconName }) {
   const pathname = usePathname();
   const active = items.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
   const [open, setOpen] = useState(active);
@@ -16,7 +16,7 @@ export default function SidebarTools({ items, label }: { items: ToolItem[]; labe
   return (
     <div className="tools-wrap">
       <button type="button" onClick={() => setOpen((value) => !value)} className="tools-trigger" aria-expanded={open}>
-        <AppIcon className="nav-icon" name="tools" /><span>{label}</span><AppIcon className={`nav-icon tools-chevron${open ? " open" : ""}`} name="chevron" />
+        <AppIcon className="nav-icon" name={icon} /><span>{label}</span><AppIcon className={`nav-icon tools-chevron${open ? " open" : ""}`} name="chevron" />
       </button>
       {open && <div className="tool-list">{items.map((item) => {
         const selected = pathname === item.href || pathname.startsWith(`${item.href}/`);

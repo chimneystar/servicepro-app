@@ -23,14 +23,14 @@ export default function JobTagsEditor({ jobId, tags }: { jobId: string; tags: st
 
   return (
     <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, marginTop: 12 }}>
-      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#334155", marginBottom: 8 }}>{he ? "תגיות" : "Tags"}</div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: "#334155", marginBottom: 8 }}>{he ? "תגיות" : "Tags"}</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
         {list.map((t) => (
           <span key={t} className="pill" style={{ background: "#e0ebff", color: "#1d4ed8", gap: 6 }}>{t}
             <button onClick={() => remove(t)} disabled={pending} style={{ border: "none", background: "transparent", color: "#1d4ed8", cursor: "pointer", fontWeight: 800 }}>×</button>
           </span>
         ))}
-        {list.length === 0 && <span style={{ fontSize: 13, color: "#94a3b8" }}>{he ? "עוד אין תגיות." : "No tags yet."}</span>}
+        {list.length === 0 && <span style={{ fontSize: 14, color: "#94a3b8" }}>{he ? "עוד אין תגיות." : "No tags yet."}</span>}
       </div>
       <div style={{ display: "flex", gap: 8 }}>
         <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add(text)} placeholder={he ? "הוספת תגית…" : "Add a tag…"} style={{ flex: 1, border: "1px solid #e2e8f0", borderRadius: 10, padding: "9px 12px", fontSize: 16, outline: "none" }} />
@@ -38,7 +38,7 @@ export default function JobTagsEditor({ jobId, tags }: { jobId: string; tags: st
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
         {(he ? SUGGESTED.he : SUGGESTED.en).filter((s) => !list.includes(s)).map((s) => (
-          <button key={s} onClick={() => add(s)} disabled={pending} style={{ background: "#f1f5fb", color: "#5c6675", border: "none", borderRadius: 20, padding: "4px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>+ {s}</button>
+          <button key={s} onClick={() => add(s)} disabled={pending} style={{ background: "#f1f5fb", color: "#5c6675", border: "none", borderRadius: 20, padding: "4px 10px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>+ {s}</button>
         ))}
       </div>
     </div>

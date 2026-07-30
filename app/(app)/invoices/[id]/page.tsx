@@ -48,13 +48,13 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
       </div>
       <div className="no-print" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 14, marginBottom: 14 }}>
         <DocDetailActions kind="invoice" id={inv.id} token={inv.public_token} status={inv.status} number={inv.number}
-          customerName={c?.name ?? "—"} customerEmail={c?.email ?? null} customerPhone={c?.phone ?? null} orgName={org?.name ?? ""} />
+          customerName={c?.name ?? "—"} customerEmail={c?.email ?? null} customerPhone={c?.phone ?? null} orgName={org?.name ?? ""} locale={locale} />
       </div>
 
       {(pays ?? []).length > 0 && (
         <div className="no-print" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
-          <div style={{ background: "#e6f6ec", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: 12, color: "#15803d", fontWeight: 700 }}>Paid</div><div style={{ fontSize: 20, fontWeight: 800, color: "#15803d" }}>{money(paid, cur)}</div></div>
-          <div style={{ background: balance > 0 ? "#fdf1dc" : "#eef2f8", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: 12, color: "#b45309", fontWeight: 700 }}>Balance</div><div style={{ fontSize: 20, fontWeight: 800, color: balance > 0 ? "#b45309" : "#15803d" }}>{money(balance, cur)}</div></div>
+          <div style={{ background: "#e6f6ec", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: 14, color: "#15803d", fontWeight: 700 }}>Paid</div><div style={{ fontSize: 20, fontWeight: 800, color: "#15803d" }}>{money(paid, cur)}</div></div>
+          <div style={{ background: balance > 0 ? "#fdf1dc" : "#eef2f8", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: 14, color: "#b45309", fontWeight: 700 }}>Balance</div><div style={{ fontSize: 20, fontWeight: 800, color: balance > 0 ? "#b45309" : "#15803d" }}>{money(balance, cur)}</div></div>
         </div>
       )}
 

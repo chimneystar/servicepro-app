@@ -21,7 +21,7 @@ export default async function RecurringPage() {
   return (
     <div style={{ maxWidth: 720 }}>
       <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>{he ? "עבודות חוזרות" : "Recurring work"}</h1>
-      <p style={{ color: "#5c6675", fontSize: 13, marginBottom: 14 }}>{he ? "עבודות תחזוקה שחוזרות אוטומטית במועד שבוחרים." : "Maintenance visits that repeat automatically on your schedule."}</p>
+      <p style={{ color: "#5c6675", fontSize: 14, marginBottom: 14 }}>{he ? "עבודות תחזוקה שחוזרות אוטומטית במועד שבוחרים." : "Maintenance visits that repeat automatically on your schedule."}</p>
       <RecurringClient
         plans={(plans ?? []).map((p: any) => ({ id: p.id, customer_id: p.customer_id, customer_name: p.customers?.name ?? "—", service: p.service, interval_months: p.interval_months, price_minor: p.price_minor, next_due: p.next_due, assigned_to: p.assigned_to })) as Plan[]}
         customers={(customers ?? []).map((c) => ({ id: c.id, label: c.name }))}

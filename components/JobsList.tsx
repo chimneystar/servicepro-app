@@ -56,7 +56,7 @@ export default function JobsList({ jobs, stages, currency, nowMs }: { jobs: JobR
           </select>
         )}
       </div>
-      <div style={{ fontSize: 12.5, color: "#5c6675", margin: "0 2px 8px" }}>{shown.length} job{shown.length === 1 ? "" : "s"}</div>
+      <div style={{ fontSize: 14, color: "#5c6675", margin: "0 2px 8px" }}>{shown.length} job{shown.length === 1 ? "" : "s"}</div>
 
       {/* Rows */}
       <div className="rlist">
@@ -71,14 +71,14 @@ export default function JobsList({ jobs, stages, currency, nowMs }: { jobs: JobR
                 <div className="rsub">{fmt(j.scheduled_date, j.start_time)}{j.tech ? ` · ${j.tech}` : ""}{j.address ? ` · ${j.address}` : ""}</div>
                 {(j.tags ?? []).length > 0 && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 5 }}>
-                    {j.tags.map((t) => <span key={t} className="pill" style={{ background: "#eef2f8", color: "#5c6675", fontSize: 10.5 }}>{t}</span>)}
+                    {j.tags.map((t) => <span key={t} className="pill" style={{ background: "#eef2f8", color: "#5c6675", fontSize: 14 }}>{t}</span>)}
                   </div>
                 )}
               </div>
               <div className="rend">
                 <span className="pill" style={{ background: colorOf(j.stage) + "22", color: colorOf(j.stage) }}>{j.stage}</span>
                 <b style={{ fontSize: 14 }}>{cur}{(j.price_minor / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>
-                <span style={{ fontSize: 10.5, fontWeight: 700, color: stale ? "#dc2626" : "#94a3b8", background: stale ? "#fdeaea" : "transparent", padding: stale ? "2px 6px" : 0, borderRadius: 6 }}>{d}d in status</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: stale ? "#dc2626" : "#94a3b8", background: stale ? "#fdeaea" : "transparent", padding: stale ? "2px 6px" : 0, borderRadius: 6 }}>{d}d in status</span>
               </div>
             </Link>
           );
@@ -91,8 +91,8 @@ export default function JobsList({ jobs, stages, currency, nowMs }: { jobs: JobR
 
 function TabBtn({ label, n, on, onClick, color }: { label: string; n: number; on: boolean; onClick: () => void; color: string }) {
   return (
-    <button onClick={onClick} style={{ border: "none", background: "transparent", padding: "8px 12px 10px", cursor: "pointer", whiteSpace: "nowrap", fontSize: 13.5, fontWeight: 700, color: on ? color : "#5c6675", borderBottom: on ? `3px solid ${color}` : "3px solid transparent", marginBottom: -3 }}>
-      {label} <span style={{ background: on ? color : "#eef2f8", color: on ? "#fff" : "#8892a2", borderRadius: 20, padding: "1px 7px", fontSize: 11, marginInlineStart: 3 }}>{n}</span>
+    <button onClick={onClick} style={{ border: "none", background: "transparent", padding: "8px 12px 10px", cursor: "pointer", whiteSpace: "nowrap", fontSize: 14, fontWeight: 700, color: on ? color : "#5c6675", borderBottom: on ? `3px solid ${color}` : "3px solid transparent", marginBottom: -3 }}>
+      {label} <span style={{ background: on ? color : "#eef2f8", color: on ? "#fff" : "#8892a2", borderRadius: 20, padding: "1px 7px", fontSize: 14, marginInlineStart: 3 }}>{n}</span>
     </button>
   );
 }

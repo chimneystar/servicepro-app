@@ -11,7 +11,10 @@ export default async function MorePage() {
   const profile = await requireProfile();
   const locale = (await getLocale());
   const [capabilitySet, platformAdmin] = await Promise.all([loadCapabilities(profile), profile.role === "owner" ? isPlatformAdmin(profile.id) : Promise.resolve(false)]);
-  const items = NAV_ITEMS.filter((i) => i.roles.includes(profile.role) && !i.bottom && (!i.capability || capabilitySet.has(i.capability)) && (!i.platformOnly || platformAdmin));
+  // The mobile More hub is the complete route directory. Keeping even the
+  // bottom-tab destinations here prevents a navigation redesign from making
+  // an existing feature unreachable for a role.
+  const items = NAV_ITEMS.filter((i) => i.roles.includes(profile.role) && (!i.capability || capabilitySet.has(i.capability)) && (!i.platformOnly || platformAdmin));
 
   return (
     <div>

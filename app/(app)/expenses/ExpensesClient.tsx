@@ -45,7 +45,7 @@ export default function ExpensesClient({ locale, expenses, currency, monthTotal,
             </div>
             <div className="rend">
               <b style={{ fontSize: 15 }}>{m(e.amount_minor)}</b>
-              <button onClick={() => del(e.id)} style={{ background: "#fdeaea", border: "none", borderRadius: 8, padding: "4px 8px", cursor: "pointer", fontSize: 12 }}>🗑️</button>
+              <button onClick={() => del(e.id)} style={{ background: "#fdeaea", border: "none", borderRadius: 8, padding: "4px 8px", cursor: "pointer", fontSize: 14 }}>🗑️</button>
             </div>
           </div>
         ))}
@@ -76,7 +76,7 @@ export default function ExpensesClient({ locale, expenses, currency, monthTotal,
 }
 
 function Kpi({ label, value, tone }: { label: string; value: string; tone: string }) {
-  return <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 15, boxShadow: "0 6px 18px rgba(15,42,94,.06)" }}><div style={{ fontSize: 22, fontWeight: 800, color: tone }}>{value}</div><div style={{ fontSize: 12.5, color: "#5c6675", fontWeight: 600 }}>{label}</div></div>;
+  return <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 15, boxShadow: "0 6px 18px rgba(15,42,94,.06)" }}><div style={{ fontSize: 22, fontWeight: 800, color: tone }}>{value}</div><div style={{ fontSize: 14, color: "#5c6675", fontWeight: 600 }}>{label}</div></div>;
 }
 function Save({ locale }: { locale: Locale }) { const { pending } = useFormStatus(); return <button type="submit" disabled={pending} style={btn}>{pending ? t(locale, "common.saving") : `💾 ${t(locale, "common.save")}`}</button>; }
 function L({ children }: { children: React.ReactNode }) { return <label style={lbl}>{children}</label>; }
@@ -85,6 +85,6 @@ const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border:
 const overlay: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,30,61,.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 24, zIndex: 100, overflowY: "auto" };
 const modal: React.CSSProperties = { background: "#fff", borderRadius: 18, width: "100%", maxWidth: 440, padding: 22 };
 const two: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 };
-const lbl: React.CSSProperties = { fontSize: 12.5, fontWeight: 700, color: "#334155", display: "block", margin: "10px 0 6px" };
+const lbl: React.CSSProperties = { fontSize: 14, fontWeight: 700, color: "#334155", display: "block", margin: "10px 0 6px" };
 const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 14, outline: "none" };
-const err: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "9px 12px", borderRadius: 10, fontSize: 13, marginTop: 10 };
+const err: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "9px 12px", borderRadius: 10, fontSize: 14, marginTop: 10 };

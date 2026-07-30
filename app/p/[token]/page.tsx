@@ -28,14 +28,14 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
     supabase.rpc("public_payment_options", { p_token: token }),
   ]);
   const doc: any = data;
-  if (!doc) return <Center accent="#0f2a5e"><p style={{ color: "#5c6675" }}>This link is invalid or has expired.</p></Center>;
+  if (!doc) return <Center accent="#0f2a5e"><p style={{ color: "#55647a", fontSize: 15 }}>{t(locale, "public.invalid")}</p></Center>;
 
   const accent = doc.org?.accent_color || "#2563eb";
   const accentDark = shade(accent, 0.35);
   const cur = doc.currency ?? "USD";
   const items: any[] = doc.items ?? [];
   const totals = computeDocument({ items: items.map((i) => ({ qtyMilli: i.qty_milli, unitPriceMinor: i.unit_price_minor, taxable: i.taxable })), discountMinor: doc.discount_minor, taxRateBps: doc.tax_rate_bps });
-  const title = doc.kind === "invoice" ? "Invoice" : "Estimate";
+  const title = doc.kind === "invoice" ? t(locale, "public.invoice") : t(locale, "public.estimate");
   const signed = !!doc.signed_at;
   const paymentOptions = paymentData as PublicPaymentOptions | null;
   const hasNewPayments = !!paymentOptions?.methods;
@@ -45,12 +45,12 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
   const isPaid = doc.status === "paid";
   const hasNonTaxable = items.some((i) => i.taxable === false);
   const imgUrl = (path: string) => supabase.storage.from("item-photos").getPublicUrl(path).data.publicUrl;
-  const fmtD = (iso: string) => iso ? new Date(iso + "T00:00:00").toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "";
+  const fmtD = (iso: string) => iso ? new Date(iso + "T00:00:00").toLocaleDateString(locale === "he" ? "he-IL" : "en-US", { year: "numeric", month: "short", day: "numeric" }) : "";
 
   return (
     <Center accent={accent}>
       <div className="no-print" style={{ width: "100%", maxWidth: 680, marginBottom: 10, display: "flex", justifyContent: "flex-end" }}>
-        <PrintButton label="Save as PDF" />
+        <PrintButton label={t(locale, "public.save_pdf")} />
       </div>
       <div className="print-card" style={{ background: "#fff", borderRadius: 20, boxShadow: "0 24px 70px rgba(15,42,94,.18)", overflow: "hidden", maxWidth: 680, width: "100%" }}>
         {/* Header */}
@@ -62,16 +62,16 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
               </div>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 20, fontWeight: 800 }}>{doc.org?.name}</div>
-                {doc.org?.tagline && <div style={{ fontSize: 13, opacity: .85 }}>{doc.org.tagline}</div>}
-                <div style={{ fontSize: 12, opacity: .8, marginTop: 4 }}>
+                {doc.org?.tagline && <div style={{ fontSize: 14, opacity: .85 }}>{doc.org.tagline}</div>}
+                <div style={{ fontSize: 14, opacity: .8, marginTop: 4 }}>
                   {[doc.org?.phone, doc.org?.email].filter(Boolean).join(" · ")}
                 </div>
               </div>
             </div>
             <div style={{ textAlign: "end", flexShrink: 0 }}>
-              <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: .5 }}>{title.toUpperCase()}</div>
-              <div style={{ fontSize: 13, opacity: .9 }}>#{doc.number}</div>
-              {doc.issue_date && <div style={{ fontSize: 12, opacity: .8, marginTop: 2 }}>{fmtD(doc.issue_date)}</div>}
+              <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: locale === "en" ? .5 : 0, textTransform: locale === "en" ? "uppercase" : "none" }}>{title}</div>
+              <div style={{ fontSize: 14, opacity: .9 }}>#{doc.number}</div>
+              {doc.issue_date && <div style={{ fontSize: 14, opacity: .8, marginTop: 2 }}>{fmtD(doc.issue_date)}</div>}
             </div>
           </div>
         </div>
@@ -80,14 +80,14 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
           {/* Bill to / addresses */}
           <div style={{ display: "flex", justifyContent: "space-between", gap: 20, flexWrap: "wrap", marginBottom: 20 }}>
             <div style={{ minWidth: 160 }}>
-              <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 800, letterSpacing: .6, textTransform: "uppercase" }}>Prepared for</div>
+              <div style={{ fontSize: 14, color: "#55647a", fontWeight: 800, letterSpacing: locale === "en" ? .6 : 0, textTransform: locale === "en" ? "uppercase" : "none" }}>{t(locale, "public.prepared_for")}</div>
               <div style={{ fontSize: 17, fontWeight: 800, marginTop: 3 }}>{doc.customer?.name}</div>
-              {(doc.customer?.address || doc.customer?.city) && <div style={{ fontSize: 13, color: "#5c6675" }}>{[doc.customer.address, doc.customer.city].filter(Boolean).join(", ")}</div>}
-              {doc.customer?.phone && <div style={{ fontSize: 13, color: "#5c6675" }}>{doc.customer.phone}</div>}
-              {doc.customer?.email && <div style={{ fontSize: 13, color: "#5c6675" }}>{doc.customer.email}</div>}
+              {(doc.customer?.address || doc.customer?.city) && <div style={{ fontSize: 14, color: "#5c6675" }}>{[doc.customer.address, doc.customer.city].filter(Boolean).join(", ")}</div>}
+              {doc.customer?.phone && <div style={{ fontSize: 14, color: "#55647a" }}><bdi dir="ltr">{doc.customer.phone}</bdi></div>}
+              {doc.customer?.email && <div style={{ fontSize: 14, color: "#55647a" }}><bdi dir="ltr">{doc.customer.email}</bdi></div>}
             </div>
             <div style={{ textAlign: "end" }}>
-              <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 800, letterSpacing: .6, textTransform: "uppercase" }}>Amount {doc.kind === "invoice" ? "due" : ""}</div>
+              <div style={{ fontSize: 14, color: "#55647a", fontWeight: 800, letterSpacing: locale === "en" ? .6 : 0, textTransform: locale === "en" ? "uppercase" : "none" }}>{doc.kind === "invoice" ? t(locale, "public.amount_due") : t(locale, "public.amount")}</div>
               <div style={{ fontSize: 28, fontWeight: 800, color: accent }}>{money(totals.totalMinor, cur)}</div>
             </div>
           </div>
@@ -99,9 +99,9 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
                 {it.image_path && <img src={imgUrl(it.image_path)} alt="" style={{ width: 52, height: 52, borderRadius: 10, objectFit: "cover", flexShrink: 0, border: "1px solid #e2e8f0" }} />}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 14.5 }}>{it.title || it.description}</div>
-                  {it.description && it.description !== it.title && <div style={{ fontSize: 12.5, color: "#5c6675", marginTop: 2 }}>{it.description}</div>}
-                  <div style={{ fontSize: 12, color: "#9aa3b2", marginTop: 2 }}>
-                    {(it.qty_milli / 1000).toLocaleString()} × {money(it.unit_price_minor, cur)}{hasNonTaxable && it.taxable === false ? " · no tax" : ""}
+                  {it.description && it.description !== it.title && <div style={{ fontSize: 14, color: "#5c6675", marginTop: 2 }}>{it.description}</div>}
+                  <div style={{ fontSize: 14, color: "#9aa3b2", marginTop: 2 }}>
+                    {(it.qty_milli / 1000).toLocaleString(locale === "he" ? "he-IL" : "en-US")} × {money(it.unit_price_minor, cur)}{hasNonTaxable && it.taxable === false ? ` · ${t(locale, "public.no_tax")}` : ""}
                   </div>
                 </div>
                 <b style={{ whiteSpace: "nowrap", fontSize: 14.5 }}>{money(lineSubtotalMinor(it.qty_milli, it.unit_price_minor), cur)}</b>
@@ -111,42 +111,42 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
 
           {/* Totals */}
           <div style={{ marginTop: 14, marginInlineStart: "auto", maxWidth: 280 }}>
-            <Line label="Subtotal" value={money(totals.subtotalMinor, cur)} />
-            {totals.discountMinor > 0 && <Line label="Discount" value={"-" + money(totals.discountMinor, cur)} red />}
-            <Line label={`${doc.tax_label || "Tax"} (${doc.tax_rate_bps / 100}%)`} value={money(totals.taxMinor, cur)} />
+            <Line label={t(locale, "doc.subtotal")} value={money(totals.subtotalMinor, cur)} />
+            {totals.discountMinor > 0 && <Line label={t(locale, "doc.discount")} value={"-" + money(totals.discountMinor, cur)} red />}
+            <Line label={`${doc.tax_label || t(locale, "doc.tax")} (${doc.tax_rate_bps / 100}%)`} value={money(totals.taxMinor, cur)} />
             <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 12, marginTop: 8, borderTop: `2px solid ${accent}`, fontSize: 20, fontWeight: 800, color: accent }}>
-              <span>Total</span><span>{money(totals.totalMinor, cur)}</span>
+              <span>{t(locale, "doc.grand")}</span><span>{money(totals.totalMinor, cur)}</span>
             </div>
           </div>
 
           {depositMinor > 0 && doc.kind === "estimate" && (
             <div style={{ marginTop: 16, background: "#f8fafc", border: `1px solid ${accent}33`, borderRadius: 12, padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontWeight: 700, fontSize: 14 }}>Deposit to schedule</span>
+              <span style={{ fontWeight: 700, fontSize: 14 }}>{t(locale, "public.deposit_schedule")}</span>
               <b style={{ fontSize: 16, color: accent }}>{money(depositMinor, cur)}</b>
             </div>
           )}
           {canPayDeposit && (
             <a href={`/api/pay/${token}?deposit=1`} style={{ display: "block", marginTop: 12, background: accent, color: "#fff", padding: "15px 16px", borderRadius: 12, fontWeight: 800, fontSize: 16, textAlign: "center", textDecoration: "none" }}>
-              💳 Pay {money(depositMinor, cur)} deposit
+              💳 {t(locale, "public.pay_deposit", { amount: money(depositMinor, cur) })}
             </a>
           )}
           {isPaid && doc.kind === "invoice" && (
-            <div style={{ marginTop: 18, background: "#e6f6ec", color: "#15803d", padding: "14px 16px", borderRadius: 12, fontWeight: 800, textAlign: "center" }}>✓ Paid — thank you!</div>
+            <div style={{ marginTop: 18, background: "#e6f6ec", color: "#126b35", padding: "14px 16px", borderRadius: 12, fontWeight: 800, textAlign: "center" }}>✓ {t(locale, "public.paid_thanks")}</div>
           )}
           {canPayOnline && (
             <a href={`/api/pay/${token}`} style={{ display: "block", marginTop: 18, background: accent, color: "#fff", padding: "15px 16px", borderRadius: 12, fontWeight: 800, fontSize: 16, textAlign: "center", textDecoration: "none" }}>
-              💳 Pay {money(totals.totalMinor, cur)} now
+              💳 {t(locale, "public.pay_now", { amount: money(totals.totalMinor, cur) })}
             </a>
           )}
 
-          {doc.notes && <div style={{ marginTop: 18, background: "#f8fafc", borderRadius: 12, padding: 14, fontSize: 13, color: "#475569" }}><b>Notes</b><br />{doc.notes}</div>}
-          {doc.org?.terms && <div style={{ marginTop: 12, padding: 14, border: "1px solid #eef1f6", borderRadius: 12 }}><div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 800, letterSpacing: .5, textTransform: "uppercase", marginBottom: 4 }}>Terms &amp; conditions</div><div style={{ fontSize: 12, color: "#64748b", whiteSpace: "pre-wrap" }}>{doc.org.terms}</div></div>}
+          {doc.notes && <div style={{ marginTop: 18, background: "#f8fafc", borderRadius: 12, padding: 14, fontSize: 14, color: "#475569" }}><b>{t(locale, "public.notes")}</b><br />{doc.notes}</div>}
+          {doc.org?.terms && <div style={{ marginTop: 12, padding: 14, border: "1px solid #d7e0ec", borderRadius: 12 }}><div style={{ fontSize: 14, color: "#55647a", fontWeight: 800, letterSpacing: locale === "en" ? .5 : 0, textTransform: locale === "en" ? "uppercase" : "none", marginBottom: 4 }}>{t(locale, "public.terms")}</div><div style={{ fontSize: 14, color: "#55647a", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{doc.org.terms}</div></div>}
 
           {/* Sign / approve */}
           <div style={{ marginTop: 22 }}>
             {signed ? (
               <div style={{ background: "#e6f6ec", color: "#15803d", padding: "14px 16px", borderRadius: 12, fontWeight: 700 }}>
-                ✓ {t(locale, "doc.approved")} — {doc.signer_name} · {new Date(doc.signed_at).toLocaleDateString()}
+                ✓ {t(locale, "doc.approved")} — {doc.signer_name} · {new Date(doc.signed_at).toLocaleDateString(locale === "he" ? "he-IL" : "en-US")}
               </div>
             ) : (
               <div className="no-print"><SignApprove token={token} locale={locale} /></div>
@@ -156,8 +156,8 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
         </div>
 
         {/* Footer */}
-        <div style={{ background: "#f8fafc", borderTop: "1px solid #eef1f6", padding: "14px 30px", textAlign: "center", fontSize: 12, color: "#94a3b8" }}>
-          {doc.org?.footer || `${doc.org?.name} · Thank you for your business!`}
+        <div style={{ background: "#f8fafc", borderTop: "1px solid #eef1f6", padding: "14px 30px", textAlign: "center", fontSize: 14, color: "#94a3b8" }}>
+          {doc.org?.footer || `${doc.org?.name} · ${t(locale, "public.footer")}`}
         </div>
       </div>
     </Center>
@@ -165,7 +165,7 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
 }
 
 function Center({ children, accent }: { children: React.ReactNode; accent: string }) {
-  return <div style={{ minHeight: "100vh", background: "#eef3fb", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "20px 14px", borderTop: `5px solid ${accent}` }}>{children}</div>;
+  return <div className="public-document-page" style={{ borderTopColor: accent }}>{children}</div>;
 }
 function Line({ label, value, red }: { label: string; value: string; red?: boolean }) {
   return <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 14, color: red ? "#dc2626" : "#334155" }}><span>{label}</span><b>{value}</b></div>;

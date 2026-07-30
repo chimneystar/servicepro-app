@@ -123,14 +123,14 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         <Item2 label={he ? "כתובת לחיוב" : "Billing address"} value={billingAddr || "—"} />
       </div>
       {canEdit && <JobAddressForm jobId={job.id} jobAddress={job.job_address} jobCity={job.job_city} />}
-      {job.notes && <div style={{ background: "#f4f7fb", borderRadius: 12, padding: "12px 14px", margin: "12px 0", fontSize: 14 }}><b style={{ fontSize: 12, color: "#5c6675" }}>{he ? "הערות" : "Notes"}</b><br />{job.notes}</div>}
+      {job.notes && <div style={{ background: "#f4f7fb", borderRadius: 12, padding: "12px 14px", margin: "12px 0", fontSize: 14 }}><b style={{ fontSize: 14, color: "#5c6675" }}>{he ? "הערות" : "Notes"}</b><br />{job.notes}</div>}
       <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16, marginTop: 12 }}>
         <JobActions jobId={job.id} stage={(job as any).stage ?? "Scheduled"} stages={stages} canInvoice={canEdit} />
       </div>
       {canEdit && <JobTagsEditor jobId={job.id} tags={(job as any).tags ?? []} />}
       {canEdit && <JobExpensesField jobId={job.id} value={(job as any).job_expenses_minor ?? 0} />}
       {job.completed_at && canEdit && <ReviewButton jobId={job.id} />}
-      <a href={`/jobs/${job.id}/report`} style={{ display: "block", textAlign: "center", marginTop: 12, color: "#2563eb", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>{he ? "פתיחת דוח סיום עבודה" : "Open job completion report"}</a>
+      <a href={`/jobs/${job.id}/report`} style={{ display: "block", textAlign: "center", marginTop: 12, color: "#2563eb", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>{he ? "פתיחת דוח סיום עבודה" : "Open job completion report"}</a>
     </div>
   );
 
@@ -209,7 +209,7 @@ function DocRow({ kind, d, cur, he }: { kind: string; d: any; cur: string; he: b
   );
 }
 function Item2({ label, value }: { label: string; value: string }) {
-  return <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "11px 14px" }}><div style={{ fontSize: 11.5, color: "#5c6675", fontWeight: 700 }}>{label}</div><div style={{ fontSize: 15, fontWeight: 700, marginTop: 2 }}>{value}</div></div>;
+  return <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "11px 14px" }}><div style={{ fontSize: 14, color: "#5c6675", fontWeight: 700 }}>{label}</div><div style={{ fontSize: 15, fontWeight: 700, marginTop: 2 }}>{value}</div></div>;
 }
 const back: React.CSSProperties = { color: "#2563eb", fontWeight: 700, fontSize: 14, textDecoration: "none" };
-const clink: React.CSSProperties = { color: "#2563eb", textDecoration: "none", fontWeight: 700, fontSize: 13.5 };
+const clink: React.CSSProperties = { color: "#2563eb", textDecoration: "none", fontWeight: 700, fontSize: 14 };

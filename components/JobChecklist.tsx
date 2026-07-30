@@ -25,7 +25,7 @@ export default function JobChecklist({ jobId, items }: { jobId: string; items: C
     <div>
       {items.length > 0 && (
         <div style={{ marginBottom: 12 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#5c6675", marginBottom: 4 }}><span>{he ? "התקדמות" : "Progress"}</span><span>{pct}%</span></div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, color: "#5c6675", marginBottom: 4 }}><span>{he ? "התקדמות" : "Progress"}</span><span>{pct}%</span></div>
           <div style={{ height: 8, background: "#eef2f8", borderRadius: 99 }}><div style={{ width: `${pct}%`, height: "100%", background: "#15803d", borderRadius: 99 }} /></div>
         </div>
       )}

@@ -14,6 +14,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/calls", key: "nav.calls", icon: "☎", roles: ["owner", "office"] },
   { href: "/estimates", key: "nav.estimates", icon: "📝", roles: ["owner", "office"], capability: "estimates.manage" },
   { href: "/invoices", key: "nav.invoices", icon: "🧾", roles: ["owner", "office"], capability: "invoices.manage", bottom: true },
+  { href: "/expenses", key: "nav.expenses", icon: "💸", roles: ["owner", "office"] },
   { href: "/finance", key: "nav.finance", icon: "💰", roles: ["owner", "office"], capability: "payments.manage" },
   { href: "/settings/payments", key: "nav.payments", icon: "💳", roles: ["owner", "office"], capability: "payments.manage" },
   { href: "/reports", key: "nav.reports", icon: "📈", roles: ["owner", "office"], capability: "reports.view" },

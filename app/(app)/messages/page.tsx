@@ -31,9 +31,9 @@ export default async function MessagesPage() {
   return (
     <div style={{ maxWidth: 720 }}>
       <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>{he ? "הודעות" : "Messages"}</h1>
-      <p style={{ color: "#5c6675", fontSize: 13, marginBottom: 8 }}>{he ? "כל ההתכתבויות עם הלקוחות במקום אחד." : "All customer text conversations in one place."}</p>
+      <p style={{ color: "#5c6675", fontSize: 14, marginBottom: 8 }}>{he ? "כל ההתכתבויות עם הלקוחות במקום אחד." : "All customer text conversations in one place."}</p>
       {!providers.sms() && (
-        <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", color: "#9a3412", borderRadius: 12, padding: "10px 14px", fontSize: 12.5, marginBottom: 14 }}>
+        <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", color: "#9a3412", borderRadius: 12, padding: "10px 14px", fontSize: 14, marginBottom: 14 }}>
           {he ? "כדי לשלוח ולקבל הודעות מתוך המערכת, מחברים מספר Twilio. עד אז אפשר לפתוח שיחה ולשלוח הודעה מהטלפון." : "Connect a Twilio number to send and receive messages here. Until then, open a conversation to text from your phone."}
         </div>
       )}
@@ -43,7 +43,7 @@ export default async function MessagesPage() {
             <div style={{ width: 42, height: 42, borderRadius: "50%", background: "#e0ebff", color: "#2563eb", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800 }}>{(th.name[0] ?? "?").toUpperCase()}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 700 }}>{th.name}</div>
-              <div style={{ fontSize: 13, color: "#5c6675", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{th.last}</div>
+              <div style={{ fontSize: 14, color: "#5c6675", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{th.last}</div>
             </div>
             <span style={{ color: "#b6bfcc" }}>›</span>
           </Link>

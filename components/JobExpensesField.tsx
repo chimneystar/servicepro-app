@@ -17,7 +17,7 @@ export default function JobExpensesField({ jobId, value }: { jobId: string; valu
   }
   return (
     <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, marginTop: 12 }}>
-      <div style={{ fontSize: 12.5, fontWeight: 700, color: "#334155", marginBottom: 6 }}>{he ? "עלויות העבודה, כמו חומרים ועמלות. הסכום משמש לחישוב עמלה." : "Job costs, such as materials and fees. Used to calculate commission."}</div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: "#334155", marginBottom: 6 }}>{he ? "עלויות העבודה, כמו חומרים ועמלות. הסכום משמש לחישוב עמלה." : "Job costs, such as materials and fees. Used to calculate commission."}</div>
       <div style={{ display: "flex", gap: 8 }}>
         <input value={amt} onChange={(e) => setAmt(e.target.value)} type="number" step="0.01" style={{ flex: 1, border: "1px solid #e2e8f0", borderRadius: 10, padding: "9px 12px", fontSize: 16, outline: "none" }} placeholder="0.00" />
         <button onClick={save} disabled={pending} style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: 10, padding: "9px 14px", fontWeight: 700, cursor: "pointer" }}>{saved ? "✓" : (he ? "שמירה" : "Save")}</button>

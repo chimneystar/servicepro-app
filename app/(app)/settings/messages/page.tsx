@@ -20,7 +20,7 @@ export default async function MessagesSettingsPage() {
     <div style={{ maxWidth: 640 }}>
       <Link href="/settings" style={{ color: "#2b66f6", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>{he ? "חזרה להגדרות" : "Back to settings"}</Link>
       <h1 style={{ fontSize: 24, fontWeight: 800, margin: "8px 0 4px" }}>{he ? "הודעות ללקוחות" : "Customer messages"}</h1>
-      <p style={{ color: "#66728a", fontSize: 13, marginBottom: 16 }}>{he ? "הודעות אוטומטיות שנשלחות ללקוחות לפני העבודה ואחריה." : "Automatic messages customers receive before and after an appointment."}</p>
+      <p style={{ color: "#66728a", fontSize: 14, marginBottom: 16 }}>{he ? "הודעות אוטומטיות שנשלחות ללקוחות לפני העבודה ואחריה." : "Automatic messages customers receive before and after an appointment."}</p>
       <MessageTemplatesEditor locale={locale} templates={templates} />
     </div>
   );

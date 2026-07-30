@@ -21,11 +21,11 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, gap: 10 }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 800 }}>{t(locale, "cust.title")}</h1>
-          <p style={{ color: "#5c6675", fontSize: 13 }}>{t(locale, "cust.count", { n: customers?.length ?? 0 })}</p>
+          <p style={{ color: "#5c6675", fontSize: 14 }}>{t(locale, "cust.count", { n: customers?.length ?? 0 })}</p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <Link href="/archive" style={{ background: "#fff7ed", color: "#9a3412", borderRadius: 10, padding: "10px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>🗄️ Archive</Link>
-          <Link href="/customers/import" style={{ background: "#e2e9f4", color: "#2563eb", borderRadius: 10, padding: "10px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>⬆ Import</Link>
+          <Link href="/archive" style={{ background: "#fff7ed", color: "#9a3412", borderRadius: 10, padding: "10px 14px", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>🗄️ Archive</Link>
+          <Link href="/customers/import" style={{ background: "#e2e9f4", color: "#2563eb", borderRadius: 10, padding: "10px 14px", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>⬆ Import</Link>
           <CustomerForm locale={locale} initialOpen={search.new === "1"} />
         </div>
       </div>

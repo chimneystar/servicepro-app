@@ -54,10 +54,19 @@ export default function TechnicianWorkspace({ locale, jobs, vapidPublicKey }: { 
     locationWatch.current = navigator.geolocation.watchPosition(async (position) => { const now=Date.now(); if (now-lastLocationSent.current<60000) return; lastLocationSent.current=now; const response=await fetch("/api/devices/location",{ method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({ latitude:position.coords.latitude,longitude:position.coords.longitude,accuracy:position.coords.accuracy }) }); if (response.ok) { setSharingLocation(true); setNotice(he ? "המיקום משותף כל עוד יום העבודה פתוח." : "Location is shared while My workday stays open."); } },() => setNotice(he ? "לא התקבלה הרשאה לשיתוף מיקום." : "Location permission was not granted."),{ enableHighAccuracy:true,maximumAge:30000,timeout:15000 });
   }
 
+  const statusLabel = (status: string) => ({ scheduled: he ? "מתוכננת" : "Scheduled", in_progress: he ? "בעבודה" : "In progress", done: he ? "הושלמה" : "Complete", cancelled: he ? "בוטלה" : "Cancelled" }[status] ?? status.replaceAll("_", " "));
   const list = (rows: TechJob[]) => <div className="tech-job-list">{rows.map((job, index) => {
     const customer = job.customers;
     const address = [job.job_address || customer?.address, job.job_city || customer?.city].filter(Boolean).join(", ");
-    return <article className="tech-job-card" key={job.id}><Link href={`/jobs/${job.id}`}><span className="tech-stop">{index + 1}</span><div><small>{(job.start_time ?? "").slice(0, 5)}{job.end_time ? `–${job.end_time.slice(0, 5)}` : ""}</small><strong>{job.service}</strong><p>{customer?.name || (he ? "לקוח" : "Customer")}{address ? ` · ${address}` : ""}</p></div><span className="tech-open">›</span></Link><footer><button type="button" onClick={() => changeStatus(job.id,"start")}>{he ? "התחלת עבודה" : "Start job"}</button><button type="button" onClick={() => changeStatus(job.id,"complete")}>{he ? "סיום עבודה" : "Complete"}</button></footer></article>;
+    return <article className="tech-job-card" key={job.id}>
+      <Link href={`/jobs/${job.id}`}><span className="tech-stop">{index + 1}</span><div><small>{(job.start_time ?? "").slice(0, 5)}{job.end_time ? `–${job.end_time.slice(0, 5)}` : ""}<b>{statusLabel(job.status)}</b></small><strong>{job.service}</strong><p>{customer?.name || (he ? "לקוח" : "Customer")}{address ? ` · ${address}` : ""}</p></div><span className="tech-open">›</span></Link>
+      <footer>
+        {customer?.phone && <a href={`tel:${customer.phone}`}>{he ? "שיחה" : "Call"}</a>}
+        {address && <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`} target="_blank" rel="noreferrer">{he ? "ניווט" : "Directions"}</a>}
+        {job.status === "scheduled" && <button type="button" onClick={() => changeStatus(job.id,"start")}>{he ? "התחלת עבודה" : "Start job"}</button>}
+        {job.status === "in_progress" && <button type="button" onClick={() => changeStatus(job.id,"complete")}>{he ? "סיום עבודה" : "Complete"}</button>}
+      </footer>
+    </article>;
   })}</div>;
 
   return <div className="tech-workspace">

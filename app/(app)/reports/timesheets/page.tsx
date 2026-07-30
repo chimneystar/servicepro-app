@@ -55,5 +55,5 @@ export default async function TimesheetsPage({ searchParams }: { searchParams: P
     </div>
   );
 }
-const lbl: React.CSSProperties = { fontSize: 12.5, fontWeight: 700, color: "#334155", display: "block", marginBottom: 5 };
+const lbl: React.CSSProperties = { fontSize: 14, fontWeight: 700, color: "#334155", display: "block", marginBottom: 5 };
 const inp: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 16, outline: "none" };

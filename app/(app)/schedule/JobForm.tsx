@@ -99,7 +99,7 @@ export default function JobForm({ locale, customers, techs, jobTypes, initialOpe
               <div><Label>{t(locale, "job.start")}</Label><input name="start" type="time" value={start} onChange={(e) => onStart(e.target.value)} style={inp} /></div>
               <div><Label>{t(locale, "job.end")}</Label><input name="end" type="time" value={end} onChange={(e) => setEnd(e.target.value)} style={inp} /></div>
             </Row>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#5c6675", margin: "12px 0 6px" }}>Job address (leave blank to use client address)</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#5c6675", margin: "12px 0 6px" }}>Job address (leave blank to use client address)</div>
             <AddressAutocomplete value={jobAddr} city={jobCity} onChange={setJobAddr} onCity={setJobCity} addressName="job_address" cityName="job_city" />
             <Label>{t(locale, "form.notes")}</Label>
             <textarea name="notes" rows={2} style={inp} />
@@ -125,6 +125,6 @@ function Row({ children }: { children: React.ReactNode }) { return <div style={{
 const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", padding: "10px 16px", borderRadius: 10, fontWeight: 700, cursor: "pointer" };
 const overlay: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,30,61,.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 24, zIndex: 100, overflowY: "auto" };
 const modal: React.CSSProperties = { background: "#fff", borderRadius: 18, width: "100%", maxWidth: 500, padding: 22 };
-const lbl: React.CSSProperties = { fontSize: 12.5, fontWeight: 700, color: "#334155", display: "block", margin: "10px 0 6px" };
+const lbl: React.CSSProperties = { fontSize: 14, fontWeight: 700, color: "#334155", display: "block", margin: "10px 0 6px" };
 const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 14, outline: "none" };
-const err: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "9px 12px", borderRadius: 10, fontSize: 13, marginTop: 12 };
+const err: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "9px 12px", borderRadius: 10, fontSize: 14, marginTop: 12 };

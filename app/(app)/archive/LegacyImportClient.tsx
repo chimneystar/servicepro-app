@@ -38,14 +38,14 @@ export default function LegacyImportClient() {
     <div style={{ maxWidth: 720 }}>
       <Link href="/archive" style={{ color: "#2563eb", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>‹ Archive</Link>
       <h1 style={{ fontSize: 24, fontWeight: 800, margin: "8px 0 6px" }}>Import old records</h1>
-      <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", color: "#9a3412", borderRadius: 12, padding: "11px 14px", fontSize: 13, marginBottom: 14 }}>
+      <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", color: "#9a3412", borderRadius: 12, padding: "11px 14px", fontSize: 14, marginBottom: 14 }}>
         🗄️ These records go into a <b>separate archive</b> — kept for history and lookup only. They will <b>not</b> appear in your active customers, jobs, or reports, so your live data stays clean.
       </div>
-      <p style={{ color: "#5c6675", fontSize: 13.5, marginBottom: 12 }}>
+      <p style={{ color: "#5c6675", fontSize: 14, marginBottom: 12 }}>
         Paste rows from your old system or spreadsheet. First line can be a header. Columns: <b>name, phone, email, address, city, history</b> (only name is required). Put past invoices/estimates/notes in the <b>history</b> column.
       </p>
 
-      <div style={{ background: "#f4f7fb", borderRadius: 10, padding: 12, fontSize: 12.5, color: "#475569", marginBottom: 12, fontFamily: "monospace", whiteSpace: "pre-wrap" }}>
+      <div style={{ background: "#f4f7fb", borderRadius: 10, padding: 12, fontSize: 14, color: "#475569", marginBottom: 12, fontFamily: "monospace", whiteSpace: "pre-wrap" }}>
         name,phone,email,address,city,history{"\n"}Jane Cohen,555-1234,jane@mail.com,12 Oak St,Austin,&quot;3 past jobs; last invoice $450 paid 2024&quot;
       </div>
 

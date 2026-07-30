@@ -97,7 +97,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         <div key={r.id} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, marginBottom: 8 }}>
           <div style={{ color: "#eab308" }}>{stars(r.rating)}</div>
           {r.body && <div style={{ fontSize: 14, marginTop: 3 }}>{r.body}</div>}
-          <div style={{ fontSize: 12, color: "#5c6675", marginTop: 3 }}>{fmtDate(r.review_date)}</div>
+          <div style={{ fontSize: 14, color: "#5c6675", marginTop: 3 }}>{fmtDate(r.review_date)}</div>
         </div>
       ))}
       <ActivityTimeline entries={activity} locale={locale} />
@@ -106,10 +106,10 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
 }
 
 function Action({ href, icon, label }: { href: string; icon: string; label: string }) {
-  return <a href={href} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, color: "#2563eb", textDecoration: "none", fontSize: 12, fontWeight: 600 }}><span style={{ width: 48, height: 48, borderRadius: "50%", background: "#e0ebff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{icon}</span>{label}</a>;
+  return <a href={href} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, color: "#2563eb", textDecoration: "none", fontSize: 14, fontWeight: 600 }}><span style={{ width: 48, height: 48, borderRadius: "50%", background: "#e0ebff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{icon}</span>{label}</a>;
 }
 function Kpi({ value, label, tone }: { value: string; label: string; tone?: string }) {
-  return <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px 8px", textAlign: "center" }}><div style={{ fontSize: 20, fontWeight: 800, color: tone ?? "#0b1524" }}>{value}</div><div style={{ fontSize: 12, color: "#5c6675", fontWeight: 600 }}>{label}</div></div>;
+  return <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px 8px", textAlign: "center" }}><div style={{ fontSize: 20, fontWeight: 800, color: tone ?? "#0b1524" }}>{value}</div><div style={{ fontSize: 14, color: "#5c6675", fontWeight: 600 }}>{label}</div></div>;
 }
 const back: React.CSSProperties = { color: "#2563eb", fontWeight: 700, fontSize: 14, textDecoration: "none" };
 const h3: React.CSSProperties = { fontSize: 16, fontWeight: 800, margin: "18px 0 8px" };

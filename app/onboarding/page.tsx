@@ -120,7 +120,7 @@ export default async function OnboardingPage() {
   }
 
   const card: React.CSSProperties = { width: "100%", maxWidth: 880, background: "#fff", borderRadius: 24, padding: 28, boxShadow: "0 20px 50px rgba(15,42,94,.12)" };
-  const label: React.CSSProperties = { fontSize: 12.5, fontWeight: 700, color: "#334155", display: "block", marginBottom: 6 };
+  const label: React.CSSProperties = { fontSize: 14, fontWeight: 700, color: "#334155", display: "block", marginBottom: 6 };
   const field: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 12, padding: "11px 13px", fontSize: 15, marginBottom: 14 };
 
   return (
@@ -166,7 +166,7 @@ export default async function OnboardingPage() {
 
         <div style={{ margin: "8px 0 18px", paddingTop: 18, borderTop: "1px solid #e2e8f0" }}>
           <h2 style={{ fontSize: 17, fontWeight: 850, marginBottom: 5 }}>{locale === "he" ? "אילו שירותים אתם מציעים?" : "What services do you provide?"}</h2>
-          <p style={{ color: "#64748b", fontSize: 13, marginBottom: 12 }}>{locale === "he" ? "נוסיף לספר המחירים שירותים שימושיים עם מחיר ריק. אפשר לערוך הכול אחר כך." : "We’ll add a ready-to-use catalog with blank prices. You can edit everything later."}</p>
+          <p style={{ color: "#64748b", fontSize: 14, marginBottom: 12 }}>{locale === "he" ? "נוסיף לספר המחירים שירותים שימושיים עם מחיר ריק. אפשר לערוך הכול אחר כך." : "We’ll add a ready-to-use catalog with blank prices. You can edit everything later."}</p>
           <div className="onboarding-trade-grid">
             {INDUSTRY_PACKS.map((pack) => <label key={pack.key} className="onboarding-trade-choice"><input type="checkbox" name="trades" value={pack.key} /><span>{locale === "he" ? pack.he : pack.en}</span><small>{pack.items.filter((item) => item.kind === "service").length} {locale === "he" ? "שירותים" : "services"}</small></label>)}
           </div>

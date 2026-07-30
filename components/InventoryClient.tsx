@@ -22,12 +22,12 @@ export default function InventoryClient({ items, currency }: { items: Item[]; cu
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <div style={{ fontSize: 13, color: "#5c6675" }}>{items.length} items{low.length ? ` · ${low.length} low` : ""}</div>
+        <div style={{ fontSize: 14, color: "#5c6675" }}>{items.length} items{low.length ? ` · ${low.length} low` : ""}</div>
         <button onClick={() => setEditing(null)} style={btn}>➕ Add item</button>
       </div>
 
       {low.length > 0 && (
-        <div style={{ background: "#fdeaea", border: "1px solid #f5b5b5", color: "#b91c1c", borderRadius: 12, padding: "10px 14px", fontSize: 13, marginBottom: 12 }}>
+        <div style={{ background: "#fdeaea", border: "1px solid #f5b5b5", color: "#b91c1c", borderRadius: 12, padding: "10px 14px", fontSize: 14, marginBottom: 12 }}>
           ⚠️ Low stock: {low.map((i) => i.name).join(", ")}
         </div>
       )}
@@ -38,8 +38,8 @@ export default function InventoryClient({ items, currency }: { items: Item[]; cu
           return (
             <div key={it.id} style={{ background: "#fff", border: `1px solid ${isLow ? "#f5b5b5" : "#e2e8f0"}`, borderRadius: 12, padding: 12, display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700 }}>{it.name} {isLow && <span style={{ color: "#b91c1c", fontSize: 12 }}>· low</span>}</div>
-                <div style={{ fontSize: 12.5, color: "#5c6675" }}>{[it.sku && `SKU ${it.sku}`, `${cur}${(it.cost_minor / 100).toFixed(2)}/${it.unit}`].filter(Boolean).join(" · ")}</div>
+                <div style={{ fontWeight: 700 }}>{it.name} {isLow && <span style={{ color: "#b91c1c", fontSize: 14 }}>· low</span>}</div>
+                <div style={{ fontSize: 14, color: "#5c6675" }}>{[it.sku && `SKU ${it.sku}`, `${cur}${(it.cost_minor / 100).toFixed(2)}/${it.unit}`].filter(Boolean).join(" · ")}</div>
               </div>
               <button onClick={() => adj(it.id, -1)} style={qBtn}>−</button>
               <b style={{ minWidth: 40, textAlign: "center", color: isLow ? "#b91c1c" : "#0b1524" }}>{it.quantity}</b>
@@ -80,10 +80,10 @@ function Save() { const { pending } = useFormStatus(); return <button type="subm
 function L({ children }: { children: React.ReactNode }) { return <label style={lbl}>{children}</label>; }
 const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", padding: "9px 15px", borderRadius: 10, fontWeight: 700, cursor: "pointer" };
 const qBtn: React.CSSProperties = { background: "#eef2f8", color: "#2563eb", border: "none", borderRadius: 8, width: 32, height: 32, fontSize: 18, fontWeight: 800, cursor: "pointer", flexShrink: 0 };
-const mini: React.CSSProperties = { background: "#eef2f8", border: "none", borderRadius: 8, padding: "5px 8px", cursor: "pointer", fontSize: 13, flexShrink: 0 };
+const mini: React.CSSProperties = { background: "#eef2f8", border: "none", borderRadius: 8, padding: "5px 8px", cursor: "pointer", fontSize: 14, flexShrink: 0 };
 const overlay: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,30,61,.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 24, zIndex: 100, overflowY: "auto" };
 const modal: React.CSSProperties = { background: "#fff", borderRadius: 18, width: "100%", maxWidth: 440, padding: 22 };
 const two: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 };
-const lbl: React.CSSProperties = { fontSize: 12.5, fontWeight: 700, color: "#334155", display: "block", margin: "10px 0 6px" };
+const lbl: React.CSSProperties = { fontSize: 14, fontWeight: 700, color: "#334155", display: "block", margin: "10px 0 6px" };
 const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 16, outline: "none" };
-const err: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "9px 12px", borderRadius: 10, fontSize: 13, marginTop: 10 };
+const err: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "9px 12px", borderRadius: 10, fontSize: 14, marginTop: 10 };

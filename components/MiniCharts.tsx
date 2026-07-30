@@ -24,7 +24,7 @@ export function Donut({ segments, size = 128, thickness = 18, centerTop, centerS
       {(centerTop || centerSub) && (
         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
           {centerTop && <div style={{ fontSize: 17, fontWeight: 800 }}>{centerTop}</div>}
-          {centerSub && <div style={{ fontSize: 11, color: "#5c6675", fontWeight: 600 }}>{centerSub}</div>}
+          {centerSub && <div style={{ fontSize: 14, color: "#5c6675", fontWeight: 600 }}>{centerSub}</div>}
         </div>
       )}
     </div>
@@ -40,7 +40,7 @@ export function Bars({ data, color = "#2563eb", height = 120 }: { data: { label:
           <div style={{ width: "100%", display: "flex", alignItems: "flex-end", height: "100%" }}>
             <div title={String(d.value)} style={{ width: "100%", height: `${Math.max(3, (d.value / max) * 100)}%`, background: `linear-gradient(180deg, ${color}, ${color}bb)`, borderRadius: "7px 7px 3px 3px", transition: "height .3s ease" }} />
           </div>
-          <div style={{ fontSize: 10.5, color: "#5c6675", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>{d.label}</div>
+          <div style={{ fontSize: 14, color: "#5c6675", fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>{d.label}</div>
         </div>
       ))}
     </div>
@@ -49,7 +49,7 @@ export function Bars({ data, color = "#2563eb", height = 120 }: { data: { label:
 
 export function Legend({ items }: { items: { label: string; color: string; value?: string }[] }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12.5 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 14 }}>
       {items.map((it, i) => (
         <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ width: 11, height: 11, borderRadius: 3, background: it.color, flexShrink: 0 }} />

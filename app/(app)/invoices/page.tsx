@@ -51,14 +51,14 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
       {/* Due vs paid summary */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
         <div style={{ background: "#fdf1dc", border: "1px solid #f5d99b", borderRadius: 14, padding: "14px 16px" }}>
-          <div style={{ fontSize: 12.5, color: "#b45309", fontWeight: 700 }}>● Due (unpaid)</div>
+          <div style={{ fontSize: 14, color: "#b45309", fontWeight: 700 }}>● Due (unpaid)</div>
           <div style={{ fontSize: 22, fontWeight: 800, color: "#b45309" }}>{money(outstanding, cur)}</div>
-          <div style={{ fontSize: 12, color: "#b45309" }}>{dueCount} invoice{dueCount === 1 ? "" : "s"}</div>
+          <div style={{ fontSize: 14, color: "#b45309" }}>{dueCount} invoice{dueCount === 1 ? "" : "s"}</div>
         </div>
         <div style={{ background: "#e6f6ec", border: "1px solid #b7e3c6", borderRadius: 14, padding: "14px 16px" }}>
-          <div style={{ fontSize: 12.5, color: "#15803d", fontWeight: 700 }}>✓ Paid</div>
+          <div style={{ fontSize: 14, color: "#15803d", fontWeight: 700 }}>✓ Paid</div>
           <div style={{ fontSize: 22, fontWeight: 800, color: "#15803d" }}>{money(collected, cur)}</div>
-          <div style={{ fontSize: 12, color: "#15803d" }}>{paidCount} invoice{paidCount === 1 ? "" : "s"}</div>
+          <div style={{ fontSize: 14, color: "#15803d" }}>{paidCount} invoice{paidCount === 1 ? "" : "s"}</div>
         </div>
       </div>
 
@@ -73,5 +73,5 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
   );
 }
 
-const seg: React.CSSProperties = { padding: "6px 14px", borderRadius: 8, fontWeight: 700, fontSize: 13, color: "#5c6675", textDecoration: "none" };
+const seg: React.CSSProperties = { padding: "6px 14px", borderRadius: 8, fontWeight: 700, fontSize: 14, color: "#5c6675", textDecoration: "none" };
 const segOn: React.CSSProperties = { background: "#fff", color: "#0b1524", boxShadow: "0 1px 3px rgba(0,0,0,.12)" };
