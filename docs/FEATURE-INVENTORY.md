@@ -136,7 +136,8 @@ as fixes land. See `docs/REMEDIATION-PLAN.md` for what is still open._
 | Accounting CSV export — invoices / payments / expenses | `/reports/export` | owner/office | PARTIAL — the payments export filters in JS after an unbounded fetch, so it silently truncates |
 | Commission report with editable % and CSV | `/reports/commission` | owner edit, office view | PARTIAL — pays on quoted `price_minor`, not money actually collected |
 | Timesheet report and export | `/reports/timesheets` | owner/office | REAL |
-| Tax jurisdictions and rules | `/finance` | owner + permission | **STUB** — display only; never feeds the tax calculation |
+| Tax jurisdictions and rules | `/finance` | owner + permission | PARTIAL — rules now feed `computeDocument` (opt-in `organizations.tax_mode`), effective-dated and combined additively; rules scoped to labour/materials are listed as NOT charged, because no line item is classified as either |
+| Customer tax exemption certificates | `/customers/[id]` | owner + permission | REAL — recorded, expiry-checked, zeroes tax on that customer's documents |
 | Tax filings ledger | `/finance` | owner + permission | PARTIAL — every figure hand-entered, nothing derived |
 | Settlement batches (gross / fees / refunds / chargebacks / net) | `/finance` | owner + permission | PARTIAL — manual entry only; nothing auto-matches provider payouts |
 | Settlement status workflow | `/finance` | owner + permission | REAL |
@@ -155,7 +156,8 @@ as fixes land. See `docs/REMEDIATION-PLAN.md` for what is still open._
 | Automation rules | `/operations` | owner/office | **STUB** — stored; no executor exists |
 | Campaigns / referral programmes / estimate follow-ups | `/growth` | owner/office | **STUB** — stored; nothing ever sends them |
 | Ad spend and lead attribution | `/growth` | owner/office | PARTIAL — spend recorded, never joined to lead revenue |
-| Custom field definitions and values | DB tables | — | **STUB** — tables exist, zero application references |
+| Custom field definitions | `/settings/custom-fields` | owner | REAL — text / number / date / choice / checkbox, required, sort, hide or delete |
+| Custom field values | `/customers/[id]`, `/jobs/[id]` | owner/office edit, tech read | REAL — typed, validated, and the polymorphic `entity_id` is guarded (F21) |
 
 ## 7. Recurring work and warranties
 
@@ -259,10 +261,11 @@ it never did.
 
 **Complete stubs (19):** refunds · tips · saved payment methods · ACH hold-until-settled · payment
 schedules and milestones · organisation default deposit · booking deposit charging · automation rules
-· campaigns · referral programmes · custom fields (definitions and values) · inventory movement ledger
-· feature flags · push notification delivery · photo "customer visible" flag · scheduling
-transition-rule engine (written and tested, never called) · tax-jurisdiction calculation · support-session
-access granting · invitation email delivery.
+· campaigns · referral programmes · ~~custom fields (definitions and values)~~ *(built — ledger 5.10)*
+· inventory movement ledger · feature flags · push notification delivery · photo "customer visible"
+flag · scheduling transition-rule engine (written and tested, never called) · ~~tax-jurisdiction
+calculation~~ *(now feeds pricing; labour/materials scoping still unsupported — ledger 5.16)* ·
+support-session access granting · invitation email delivery.
 
 **Highest-impact PARTIALs:** estimate deposits not credited to the converted invoice (overbilling) ·
 invoice screen counting unsettled payments as collected · revenue and margin reporting · commission on

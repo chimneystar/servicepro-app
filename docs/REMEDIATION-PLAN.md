@@ -199,16 +199,72 @@ that exist with nothing behind them.
 | 5.7 | Booking deposit — actually charge it | TODO |
 | 5.8 | Automation rules — build the executor | TODO |
 | 5.9 | Campaigns + referral programmes — build the sender | TODO |
-| 5.10 | Custom fields — definitions and values have no UI at all | TODO |
+| 5.10 | Custom fields — definitions and values have no UI at all | DONE — defined on `/settings/custom-fields`, filled in and shown on customers and jobs, F21 closed at the database and mirrored in the action. See note. |
 | 5.11 | Inventory movement ledger + parts consumption from jobs | TODO |
 | 5.12 | Feature flags — nothing reads them | TODO |
 | 5.13 | Push notification delivery — subscriptions stored, no sender | TODO |
 | 5.14 | Photo "customer visible" flag — selected, never used | DONE |
 | 5.15 | Call `lib/core/scheduling.mjs` transition rules from app code (written + tested, never invoked) | DONE |
-| 5.16 | Tax jurisdictions — feed `computeDocument` instead of display-only | TODO |
+| 5.16 | Tax jurisdictions — feed `computeDocument` instead of display-only | **PARTIAL** — effective-dated single-rate resolution + customer exemptions now price every document; `applies_to` of labour/materials/custom is NOT charged and says so. See note. |
 | 5.17 | Support sessions — grant actual access | TODO |
 | 5.18 | Invitation email delivery — token generated, never sent | TODO |
 | 5.19 | Purchase orders — multi-line, status advance, receive step, inventory link | TODO |
+
+**Note on 5.10 — custom fields.** `custom_field_definitions` and `custom_field_values` were created by
+migration 019 and had **zero** references in `app/`, `components/` or `lib/`. Now: definitions are
+managed on `/settings/custom-fields` (owner) — text / number / date / choice / checkbox, required,
+sort order, hide (keeps recorded values) or delete (cascades them, with a warning that says so);
+values are captured and displayed on `/customers/[id]` and `/jobs/[id]`, editable by owner/office and
+read-only for a technician, which is exactly what 019's `_manage` policy allows, so the screen and
+the database agree.
+
+The typing and the guard are pure and tested in `lib/core/custom-fields.mjs` — `value_json` is jsonb
+and will store the string "banana" in a number field, so every value is coerced or rejected before it
+is written. **Audit F21 is closed**: `custom_field_values.entity_id` is polymorphic with no foreign
+key and no organisation guard, and 019's own trigger only ever checked the *definition*. Migration
+035 adds `custom_field_values_entity_guard`, which refuses a value whose entity does not exist,
+belongs to another tenant, or is the wrong kind of thing for its definition (a "customer" field
+hanging off a job). `assertEntityReference` applies the identical rule in the server action so the
+user gets a sentence rather than a 500, and the definition list is re-read from the database scoped
+to the organisation, so a forged definition id in the form body is discarded, not written.
+
+**Note on 5.16 — why it is PARTIAL and not DONE.**
+
+*What now works.* `resolveTaxJurisdictions` in `lib/core/money.mjs` selects the rules in force on the
+document's date — inactive, not-yet-effective and expired rules are excluded and each one says which
+— and combines the rest **additively** into one effective rate, which is how US sales tax works
+(state 6.25 + county 1 + city 1 is charged as 8.25% of the base, not three multiplications). The rates
+are summed *before* the multiply, so there is a single half-up rounding for the whole document; a
+20,000-case assertion proves the resolved path is cent-for-cent identical to the flat path at the same
+effective rate. `customer_tax_exemptions` is now capturable on the customer record and zeroes the tax
+while the certificate is valid, reporting the base as `exemptMinor` so exempt sales are not lost to a
+filing. `computeDocument` was extended **additively**: every pre-existing test passes unmodified, and
+a caller that passes only `taxRateBps` gets byte-identical results.
+
+*Two things are deliberately not claimed.*
+
+1. **`applies_to` of `labor` / `materials` / `custom` is not charged.** Line items in this product
+   carry a `taxable` boolean and nothing else — no column anywhere classifies a line as labour or as
+   materials — so the base such a rule applies to cannot be identified. Applying it to everything
+   would overcharge; applying it to nothing quietly would undercharge. It is therefore excluded and
+   **named on the Finance screen** as not charged, with the reason. Closing this needs a tax-class
+   column on `estimate_items` / `invoice_items` / `price_book` and a control in the line-item editor.
+2. **No address → jurisdiction matching.** Which rules apply is a per-organisation set, not a
+   per-customer lookup. Customers store address *text*; nothing is geocoded and there is no
+   state/county/city on the record, so a business trading across a tax boundary must still pick one
+   set of rules. This is the same missing infrastructure that keeps 4.8's polygons open.
+
+*Safety.* Jurisdictional tax is **opt-in** (`organizations.tax_mode`, default `'flat'`). An existing
+business's documents are priced exactly as before until its owner turns it on from `/finance`, which
+states what will change. Rates are read through the `document_tax_context` security-definer function
+rather than a direct select, because migration 022 gated both tax tables behind `payments.manage`: an
+office user with `estimates.manage` and no finance access would otherwise have read an **empty** rule
+list and priced the document at 0% tax with no error at all. The function returns rates, effective
+dates and exemption validity only — never a certificate number, document URL or reason.
+
+`app/(app)/finance/actions.ts` also stopped writing `rate_bps` with `Math.round(rate * 100)`; a rate
+is not money but it multiplies money, and that is the same float trap (`8.365%` was stored as
+`8.36%`) with the same NaN-becomes-null failure. It uses `parsePercentToBps`.
 
 ### Phase 6 — new capabilities (from the gap analysis)
 | # | Capability | Status |

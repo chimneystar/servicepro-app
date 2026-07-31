@@ -1,4 +1,4 @@
-import { requireProfile } from "@/lib/auth";
+import { loadCapabilities, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getLocale } from "@/lib/locale-server";
 import { money, fmtDate } from "@/lib/format";
@@ -11,6 +11,9 @@ import { createEstimate } from "@/app/(app)/estimates/actions";
 import { createInvoice } from "@/app/(app)/invoices/actions";
 import ActivityTimeline from "@/components/ActivityTimeline";
 import { loadActivity } from "@/lib/activity";
+import CustomFieldValues from "@/app/(app)/settings/custom-fields/CustomFieldValues";
+import { loadCustomFields } from "@/app/(app)/settings/custom-fields/load";
+import TaxExemptionPanel, { type Exemption } from "./TaxExemptionPanel";
 
 export const dynamic = "force-dynamic";
 const tel = (p?: string | null) => "tel:" + (p ?? "").replace(/[^0-9+]/g, "");
@@ -35,6 +38,23 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
     supabase.from("price_book").select("id, name, description, price_minor, cost_minor, taxable, image_path").order("name"),
   ]);
   const custOpt = [{ id: c.id, label: c.name }];
+
+  // Custom fields (5.10) and tax exemption certificates (5.16). The exemption
+  // panel is only shown to someone who can actually read the table — migration
+  // 022 gated `customer_tax_exemptions` behind `payments.manage`, so for anyone
+  // else the query returns empty and a form would silently fail.
+  const capabilities = await loadCapabilities(profile);
+  const canManageFinance = capabilities.has("payments.manage");
+  const canEditRecord = profile.role !== "tech";
+  const [customFields, { data: exemptions }] = await Promise.all([
+    loadCustomFields("customer", id),
+    canManageFinance
+      ? supabase.from("customer_tax_exemptions")
+          .select("id, certificate_number, reason, document_url, expires_on, active")
+          .eq("customer_id", id).order("created_at", { ascending: false })
+      : Promise.resolve({ data: [] as Exemption[] }),
+  ]);
+  const today = new Date().toISOString().slice(0, 10);
 
   const revenue = (invoices ?? []).filter((i) => i.status === "paid").reduce((s, i) => s + i.total_minor, 0);
   const revs = reviews ?? [];
@@ -78,6 +98,16 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
             : (c.address || c.city) && <div style={{ color: "#5c6675" }}>🧾 <b style={{ fontWeight: 700 }}>Billing:</b> same as service</div>}
           {c.notes && <div style={{ color: "#5c6675", marginTop: 6 }}>{c.notes}</div>}
         </div>
+      )}
+
+      <CustomFieldValues
+        locale={locale} entityType="customer" entityId={id}
+        definitions={customFields.definitions} values={customFields.values}
+        canEdit={canEditRecord}
+      />
+
+      {canManageFinance && (
+        <TaxExemptionPanel locale={locale} customerId={id} exemptions={(exemptions ?? []) as Exemption[]} today={today} />
       )}
 
       <h3 style={h3}>Job history ({(jobs ?? []).length})</h3>

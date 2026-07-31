@@ -41,6 +41,7 @@
     { "path": "/settings/booking", "file": "app/(app)/settings/booking/page.tsx", "roles": ["owner"] },
     { "path": "/settings/messages", "file": "app/(app)/settings/messages/page.tsx", "roles": ["owner"] },
     { "path": "/settings/payments", "file": "app/(app)/settings/payments/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/settings/custom-fields", "file": "app/(app)/settings/custom-fields/page.tsx", "roles": ["owner"] },
     { "path": "/operations", "file": "app/(app)/operations/page.tsx", "roles": ["owner", "office"] },
     { "path": "/warranties", "file": "app/(app)/warranties/page.tsx", "roles": ["owner", "office"] },
     { "path": "/fleet", "file": "app/(app)/fleet/page.tsx", "roles": ["owner", "office"] },

@@ -2,9 +2,51 @@ import { createClient } from "@/lib/supabase/server";
 import { t, type Locale } from "@/lib/i18n";
 import type { Profile } from "@/lib/auth";
 // @ts-ignore -- integer-safe money engine (JS module, unit-tested)
-import { computeDocument, parseQtyToMilli, parseAmountToMinor } from "@/lib/core/money.mjs";
+import { computeDocument, parseQtyToMilli, parseAmountToMinor, resolveTaxJurisdictions, isCustomerTaxExempt } from "@/lib/core/money.mjs";
 
 export type ActionResult = { ok: boolean; error?: string };
+
+/** What tax to charge on one document, and where the number came from. */
+export type DocumentTax = { taxRateBps: number; taxExempt: boolean; mode: "flat" | "jurisdictions" };
+
+/**
+ * Resolve the tax for a document (ledger 5.16).
+ *
+ * `tax_jurisdictions` and `customer_tax_exemptions` existed but fed nothing —
+ * every document used the single flat `organizations.tax_rate_bps`. They now
+ * feed this, but only for an organisation that has opted in (`tax_mode`), so an
+ * existing business's totals are unchanged until its owner turns it on.
+ *
+ * The rates come back through the `document_tax_context` security-definer
+ * function rather than a direct select, because migration 022 gated those two
+ * tables behind `payments.manage`: an office user with `estimates.manage` and no
+ * finance access would otherwise read an empty rule list and price the document
+ * at 0% tax with no error at all.
+ *
+ * If migration 035 has not been applied the function does not exist; we fall
+ * back to the flat rate, which is exactly the behaviour before this feature.
+ */
+export async function resolveDocumentTax(
+  supabase: any, orgId: string, customerId: string, onDate: string
+): Promise<DocumentTax> {
+  const { data, error } = await supabase.rpc("document_tax_context", { p_customer: customerId });
+  if (error || !data) {
+    const { data: org } = await supabase.from("organizations").select("tax_rate_bps").eq("id", orgId).single();
+    return { taxRateBps: org?.tax_rate_bps ?? 0, taxExempt: false, mode: "flat" };
+  }
+  const context = data as {
+    tax_mode?: string; tax_rate_bps?: number;
+    jurisdictions?: Record<string, unknown>[]; exemptions?: Record<string, unknown>[];
+  };
+  const mode: "flat" | "jurisdictions" = context.tax_mode === "jurisdictions" ? "jurisdictions" : "flat";
+  const flatBps = Number.isInteger(context.tax_rate_bps) ? (context.tax_rate_bps as number) : 0;
+  const taxRateBps = mode === "jurisdictions"
+    ? resolveTaxJurisdictions(context.jurisdictions ?? [], { onDate }).effectiveBps
+    : flatBps;
+  return { taxRateBps, taxExempt: isCustomerTaxExempt(context.exemptions ?? [], { onDate }), mode };
+}
+
+const today = () => new Date().toISOString().slice(0, 10);
 
 type LineItem = {
   title: string; description: string; qtyMilli: number; unitPriceMinor: number;
@@ -61,13 +103,11 @@ export async function createDocument(
   catch { return { ok: false, error: t(locale, "err.invalid") }; }
 
   const supabase = await createClient();
-  const { data: org } = await supabase
-    .from("organizations").select("tax_rate_bps").eq("id", profile.organization_id!).single();
-  const taxRateBps = org?.tax_rate_bps ?? 0;
+  const tax = await resolveDocumentTax(supabase, profile.organization_id!, customer_id, today());
 
   const totals = computeDocument({
     items: items.map((i) => ({ qtyMilli: i.qtyMilli, unitPriceMinor: i.unitPriceMinor, taxable: i.taxable })),
-    discountMinor, taxRateBps,
+    discountMinor, taxRateBps: tax.taxRateBps, taxExempt: tax.taxExempt,
   });
 
   const { data: number, error: numErr } = await supabase.rpc("next_document_number", {
@@ -83,7 +123,9 @@ export async function createDocument(
     customer_id,
     status: kind === "invoice" ? "unpaid" : "draft",
     discount_minor: totals.discountMinor,
-    tax_rate_bps: taxRateBps,
+    // The rate ACTUALLY applied — 0 for an exempt customer — so the stored
+    // document is internally consistent with its own total.
+    tax_rate_bps: totals.taxRateBps,
     total_minor: totals.totalMinor,
     notes: String(formData.get("notes") ?? "").trim() || null,
   }).select("id").single();
@@ -159,20 +201,24 @@ export async function updateDocument(
   } catch { return { ok: false, error: t(locale, "err.invalid") }; }
   if (items.length === 0) return { ok: false, error: t(locale, "err.invalid") };
 
-  const { data: org } = await supabase.from("organizations").select("tax_rate_bps").eq("id", profile.organization_id!).single();
-  const taxRateBps = org?.tax_rate_bps ?? 0;
+  const issue = String(formData.get("issue_date") ?? "").trim();
+  // Re-price on the document's own issue date: a rate that changed last month
+  // must not be applied retroactively to a document issued before it started.
+  const tax = await resolveDocumentTax(
+    supabase, profile.organization_id!, customer_id,
+    /^\d{4}-\d{2}-\d{2}$/.test(issue) ? issue : today(),
+  );
   const totals = computeDocument({
     items: items.map((i) => ({ qtyMilli: i.qtyMilli, unitPriceMinor: i.unitPriceMinor, taxable: i.taxable })),
-    discountMinor, taxRateBps,
+    discountMinor, taxRateBps: tax.taxRateBps, taxExempt: tax.taxExempt,
   });
 
-  const issue = String(formData.get("issue_date") ?? "").trim();
   let depositMinor = 0;
   if (kind === "estimate") { try { depositMinor = parseAmountToMinor(String(formData.get("deposit") ?? "0")); } catch { depositMinor = 0; } }
   const { error: upErr } = await supabase.from(table).update({
     customer_id,
     discount_minor: totals.discountMinor,
-    tax_rate_bps: taxRateBps,
+    tax_rate_bps: totals.taxRateBps,
     total_minor: totals.totalMinor,
     notes: String(formData.get("notes") ?? "").trim() || null,
     ...(issue ? { issue_date: issue } : {}),
