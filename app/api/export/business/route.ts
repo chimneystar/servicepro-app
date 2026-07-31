@@ -2,7 +2,13 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { pageThrough } from "@/lib/export";
 // @ts-ignore — pure, unit-tested manifest and redaction (tests/business-export.test.mjs)
-import { EXPORT_TABLES, EXCLUDED_TABLES, NOT_INCLUDED, SECRET_COLUMNS, redactDeep } from "@/lib/core/export-manifest.mjs";
+import {
+  EXPORT_TABLES,
+  EXCLUDED_TABLES,
+  NOT_INCLUDED,
+  SECRET_COLUMNS,
+  redactDeep,
+} from "@/lib/core/export-manifest.mjs";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -41,11 +47,16 @@ export const maxDuration = 300;
  */
 export async function GET(_request: NextRequest) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const { data: profile } = await supabase
-    .from("profiles").select("organization_id, role").eq("id", user.id).single();
+    .from("profiles")
+    .select("organization_id, role")
+    .eq("id", user.id)
+    .single();
 
   // Owner only. This is the whole business — every customer, every message,
   // every wage-adjacent commission percentage — in one file. Deleting a single
@@ -64,13 +75,21 @@ export async function GET(_request: NextRequest) {
 
       try {
         write("{\n");
-        write(`"readme": ${JSON.stringify({
-          product: "ServicePro",
-          what: "A complete copy of every database table your business owns.",
-          howToRead: "Each key under \"tables\" is a database table; the value is the array of your rows.",
-          important: "Check \"meta\" at the END of this file. meta.status must be \"complete\". If this file does not parse as JSON the download was interrupted and the export is not usable.",
-          notIncluded: NOT_INCLUDED,
-        }, null, 1)},\n`);
+        write(
+          `"readme": ${JSON.stringify(
+            {
+              product: "ServicePro",
+              what: "A complete copy of every database table your business owns.",
+              howToRead:
+                'Each key under "tables" is a database table; the value is the array of your rows.',
+              important:
+                'Check "meta" at the END of this file. meta.status must be "complete". If this file does not parse as JSON the download was interrupted and the export is not usable.',
+              notIncluded: NOT_INCLUDED,
+            },
+            null,
+            1,
+          )},\n`,
+        );
         write(`"generatedAt": ${JSON.stringify(new Date().toISOString())},\n`);
         write(`"organizationId": ${JSON.stringify(orgId)},\n`);
         write('"tables": {\n');
@@ -84,10 +103,13 @@ export async function GET(_request: NextRequest) {
           let count = 0;
           try {
             const pages = pageThrough<Record<string, unknown>>((from, to) =>
-              supabase.from(entry.table).select("*")
+              supabase
+                .from(entry.table)
+                .select("*")
                 .eq(entry.orgKey, orgId)
                 .order(entry.order)
-                .range(from, to));
+                .range(from, to),
+            );
             for await (const batch of pages) {
               for (const row of batch) {
                 write(`${count ? "," : ""}\n${JSON.stringify(redactDeep(row))}`);
@@ -98,27 +120,37 @@ export async function GET(_request: NextRequest) {
             // One missing or unreadable table must not silently shrink the
             // backup. Record it, keep going, and mark the whole export
             // incomplete in the trailer.
-            problems.push({ table: entry.table, error: error instanceof Error ? error.message : String(error) });
+            problems.push({
+              table: entry.table,
+              error: error instanceof Error ? error.message : String(error),
+            });
           }
           write(count ? "\n]" : "]");
           rowCounts[entry.table] = count;
         }
 
         write("\n},\n");
-        write(`"meta": ${JSON.stringify({
-          status: problems.length ? "incomplete" : "complete",
-          statusExplanation: problems.length
-            ? "One or more tables could not be read. The rows listed above are real, but this file is NOT a complete backup — see problems."
-            : "Every table in the manifest was read to exhaustion.",
-          problems,
-          tableCount: (EXPORT_TABLES as unknown[]).length,
-          rowCounts,
-          totalRows: Object.values(rowCounts).reduce((sum, n) => sum + n, 0),
-          redactedColumns: [...(SECRET_COLUMNS as Set<string>)].sort(),
-          redactedBecause: "These columns are bearer credentials. Anyone holding the value can act as that customer or accept that invitation, so they are withheld from every export including this one. Your existing links keep working.",
-          excludedTables: EXCLUDED_TABLES,
-          notIncluded: NOT_INCLUDED,
-        }, null, 1)}\n}\n`);
+        write(
+          `"meta": ${JSON.stringify(
+            {
+              status: problems.length ? "incomplete" : "complete",
+              statusExplanation: problems.length
+                ? "One or more tables could not be read. The rows listed above are real, but this file is NOT a complete backup — see problems."
+                : "Every table in the manifest was read to exhaustion.",
+              problems,
+              tableCount: (EXPORT_TABLES as unknown[]).length,
+              rowCounts,
+              totalRows: Object.values(rowCounts).reduce((sum, n) => sum + n, 0),
+              redactedColumns: [...(SECRET_COLUMNS as Set<string>)].sort(),
+              redactedBecause:
+                "These columns are bearer credentials. Anyone holding the value can act as that customer or accept that invitation, so they are withheld from every export including this one. Your existing links keep working.",
+              excludedTables: EXCLUDED_TABLES,
+              notIncluded: NOT_INCLUDED,
+            },
+            null,
+            1,
+          )}\n}\n`,
+        );
         controller.close();
       } catch (error: unknown) {
         // Abort rather than close: a truncated body must not be mistaken for a

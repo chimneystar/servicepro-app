@@ -1,6 +1,11 @@
 export type MerchantConnectionStatus =
-  | "not_started" | "application_started" | "under_review" | "action_required"
-  | "approved" | "rejected" | "suspended";
+  | "not_started"
+  | "application_started"
+  | "under_review"
+  | "action_required"
+  | "approved"
+  | "rejected"
+  | "suspended";
 
 export type PaymentSettings = {
   organization_id: string;
@@ -48,11 +53,18 @@ export type PublicPaymentOptions = {
   fee_saver?: boolean;
   methods?: { helcim: boolean; card: boolean; ach: boolean; zelle: boolean; check: boolean };
   zelle?: null | {
-    recipient_name?: string | null; email?: string | null; phone?: string | null;
-    qr_url?: string | null; instructions?: string | null; memo?: string;
+    recipient_name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    qr_url?: string | null;
+    instructions?: string | null;
+    memo?: string;
   };
   check?: null | {
-    payee?: string | null; address?: string | null; city_state_zip?: string | null;
-    memo_instructions?: string | null; memo?: string;
+    payee?: string | null;
+    address?: string | null;
+    city_state_zip?: string | null;
+    memo_instructions?: string | null;
+    memo?: string;
   };
 };

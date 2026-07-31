@@ -7,7 +7,8 @@ import AppIcon, { iconForHref } from "@/components/AppIcon";
 
 export default function NavLink({ href, label }: { href: string; label: string }) {
   const pathname = usePathname();
-  const active = href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+  const active =
+    href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
   const ref = useRef<HTMLAnchorElement | null>(null);
 
   // The sidebar scrolls on a laptop (audit A3). If the page you are on is one of
@@ -19,8 +20,14 @@ export default function NavLink({ href, label }: { href: string; label: string }
   }, [active]);
 
   return (
-    <Link ref={ref} href={href} className={`side-link${active ? " active" : ""}`} aria-current={active ? "page" : undefined}>
-      <AppIcon className="nav-icon" name={iconForHref(href)} /><span>{label}</span>
+    <Link
+      ref={ref}
+      href={href}
+      className={`side-link${active ? " active" : ""}`}
+      aria-current={active ? "page" : undefined}
+    >
+      <AppIcon className="nav-icon" name={iconForHref(href)} />
+      <span>{label}</span>
     </Link>
   );
 }

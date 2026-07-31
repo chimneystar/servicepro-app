@@ -3,7 +3,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { evaluateSupportSession, selectGrantingSession, supportAccessMessage } from "../lib/core/support-access.mjs";
+import {
+  evaluateSupportSession,
+  selectGrantingSession,
+  supportAccessMessage,
+} from "../lib/core/support-access.mjs";
 import { stripSqlComments } from "./helpers/sql.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -35,7 +39,8 @@ const session = (overrides = {}) => ({
   ...overrides,
 });
 
-const ask = (row, extra = {}) => evaluateSupportSession(row, { now: NOW, adminUserId: ADMIN, organizationId: ORG, ...extra });
+const ask = (row, extra = {}) =>
+  evaluateSupportSession(row, { now: NOW, adminUserId: ADMIN, organizationId: ORG, ...extra });
 
 test("an active, unexpired, unrevoked session GRANTS access", () => {
   const verdict = ask(session());
@@ -48,7 +53,11 @@ test("an active, unexpired, unrevoked session GRANTS access", () => {
 test("a REVOKED session stops granting immediately, even though it has not expired", () => {
   // This is the property the Revoke button always claimed and never had.
   const revoked = session({ revoked_at: "2026-07-31T11:59:59Z" });
-  assert.equal(Date.parse(revoked.expires_at) > NOW, true, "the session is still within its window");
+  assert.equal(
+    Date.parse(revoked.expires_at) > NOW,
+    true,
+    "the session is still within its window",
+  );
   const verdict = ask(revoked);
   assert.equal(verdict.granted, false);
   assert.equal(verdict.reason, "revoked");
@@ -60,30 +69,54 @@ test("revocation takes effect on the very next check — nothing is cached", () 
   const row = session();
   assert.equal(ask(row).granted, true);
   row.revoked_at = new Date(NOW - 1000).toISOString();
-  assert.equal(ask(row).granted, false, "the same session must stop granting the moment it is revoked");
+  assert.equal(
+    ask(row).granted,
+    false,
+    "the same session must stop granting the moment it is revoked",
+  );
   assert.equal(ask(row).reason, "revoked");
 });
 
 test("an EXPIRED session does not grant, and one expiring in a minute still does", () => {
   assert.equal(ask(session({ expires_at: "2026-07-31T11:59:00Z" })).reason, "expired");
-  assert.equal(ask(session({ expires_at: "2026-07-31T12:00:00Z" })).reason, "expired", "expiry is exclusive at the boundary");
+  assert.equal(
+    ask(session({ expires_at: "2026-07-31T12:00:00Z" })).reason,
+    "expired",
+    "expiry is exclusive at the boundary",
+  );
   assert.equal(ask(session({ expires_at: "2026-07-31T12:01:00Z" })).granted, true);
 });
 
 test("a session that has not started yet does not grant", () => {
   assert.equal(ask(session({ starts_at: "2026-07-31T12:00:01Z" })).reason, "not_started");
-  assert.equal(ask(session({ starts_at: "2026-07-31T12:00:00Z" })).granted, true, "a session starting now is usable");
+  assert.equal(
+    ask(session({ starts_at: "2026-07-31T12:00:00Z" })).granted,
+    true,
+    "a session starting now is usable",
+  );
 });
 
 test("a session belonging to another staff member or another business does not grant", () => {
-  assert.equal(ask(session({ admin_user_id: "99999999-9999-9999-9999-999999999999" })).reason, "wrong_admin");
-  assert.equal(ask(session({ organization_id: "99999999-9999-9999-9999-999999999999" })).reason, "wrong_organization");
+  assert.equal(
+    ask(session({ admin_user_id: "99999999-9999-9999-9999-999999999999" })).reason,
+    "wrong_admin",
+  );
+  assert.equal(
+    ask(session({ organization_id: "99999999-9999-9999-9999-999999999999" })).reason,
+    "wrong_organization",
+  );
 });
 
 test("read_only does not confer guided_write, but guided_write confers both", () => {
   assert.equal(ask(session(), { requiredLevel: "guided_write" }).reason, "insufficient_level");
-  assert.equal(ask(session({ access_level: "guided_write" }), { requiredLevel: "guided_write" }).granted, true);
-  assert.equal(ask(session({ access_level: "guided_write" }), { requiredLevel: "read_only" }).granted, true);
+  assert.equal(
+    ask(session({ access_level: "guided_write" }), { requiredLevel: "guided_write" }).granted,
+    true,
+  );
+  assert.equal(
+    ask(session({ access_level: "guided_write" }), { requiredLevel: "read_only" }).granted,
+    true,
+  );
 });
 
 test("no session at all, or a malformed one, refuses", () => {
@@ -101,11 +134,23 @@ test("selecting from many sessions grants only if one of them actually grants", 
   const live = session({ id: "live", expires_at: "2026-07-31T14:00:00Z" });
   const longer = session({ id: "longer", expires_at: "2026-07-31T15:30:00Z" });
 
-  const refusal = selectGrantingSession([stale, killed], { now: NOW, adminUserId: ADMIN, organizationId: ORG });
+  const refusal = selectGrantingSession([stale, killed], {
+    now: NOW,
+    adminUserId: ADMIN,
+    organizationId: ORG,
+  });
   assert.equal(refusal.granted, false);
-  assert.notEqual(refusal.reason, "no_session", "an expired or revoked session must be explained, not reported as absent");
+  assert.notEqual(
+    refusal.reason,
+    "no_session",
+    "an expired or revoked session must be explained, not reported as absent",
+  );
 
-  const granted = selectGrantingSession([stale, killed, live, longer], { now: NOW, adminUserId: ADMIN, organizationId: ORG });
+  const granted = selectGrantingSession([stale, killed, live, longer], {
+    now: NOW,
+    adminUserId: ADMIN,
+    organizationId: ORG,
+  });
   assert.equal(granted.granted, true);
   assert.equal(granted.sessionId, "longer", "the grant that lasts longest is used");
 
@@ -114,9 +159,21 @@ test("selecting from many sessions grants only if one of them actually grants", 
 });
 
 test("each refusal has a distinct sentence in both languages", () => {
-  const reasons = ["no_session", "revoked", "expired", "not_started", "wrong_admin", "wrong_organization", "insufficient_level"];
+  const reasons = [
+    "no_session",
+    "revoked",
+    "expired",
+    "not_started",
+    "wrong_admin",
+    "wrong_organization",
+    "insufficient_level",
+  ];
   const english = reasons.map((reason) => supportAccessMessage(reason, "en"));
-  assert.equal(new Set(english).size, reasons.length, "a uniform 'forbidden' hides misconfiguration");
+  assert.equal(
+    new Set(english).size,
+    reasons.length,
+    "a uniform 'forbidden' hides misconfiguration",
+  );
   for (const reason of reasons) {
     assert.notEqual(supportAccessMessage(reason, "he"), supportAccessMessage(reason, "en"));
   }
@@ -127,14 +184,19 @@ test("each refusal has a distinct sentence in both languages", () => {
 // rules read. Comments are stripped so commented-out code cannot pass a check.
 // ---------------------------------------------------------------------------
 
-const stripJsComments = (source) => source.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^\s*\/\/[^\n]*$/gm, " ");
+const stripJsComments = (source) =>
+  source.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/^\s*\/\/[^\n]*$/gm, " ");
 const source = (file) => stripJsComments(readFileSync(join(root, file), "utf8"));
 
 test("platform-admin gating now consults support_sessions, not just platform_admins", () => {
   const platform = source("lib/platform-admin.ts");
   assert.match(platform, /from\("support_sessions"\)/);
   assert.match(platform, /selectGrantingSession/);
-  assert.match(platform, /revoked_at/, "the revocation column has to be selected or it cannot be checked");
+  assert.match(
+    platform,
+    /revoked_at/,
+    "the revocation column has to be selected or it cannot be checked",
+  );
   assert.match(platform, /support_session_events/, "every attempt is recorded");
 });
 
@@ -145,9 +207,18 @@ test("a tenant-data call in the admin console is gated on the session", () => {
 });
 
 test("migration 034 creates the support access audit table with the columns the code writes", () => {
-  const sql = stripSqlComments(readFileSync(join(root, "db", "034_notifications_support.sql"), "utf8"));
+  const sql = stripSqlComments(
+    readFileSync(join(root, "db", "034_notifications_support.sql"), "utf8"),
+  );
   assert.match(sql, /create table if not exists public\.support_session_events/);
-  for (const column of ["session_id", "organization_id", "admin_user_id", "action", "granted", "refusal_reason"]) {
+  for (const column of [
+    "session_id",
+    "organization_id",
+    "admin_user_id",
+    "action",
+    "granted",
+    "refusal_reason",
+  ]) {
     assert.match(sql, new RegExp(`\\b${column}\\b`), `support_session_events.${column}`);
   }
   // Platform tables are service-role only (022 §4). This one must be too.

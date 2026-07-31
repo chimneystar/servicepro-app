@@ -6,12 +6,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint .",
+    "lint": "eslint . && npm run format:check",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "test": "node --test tests/",
     "test:features": "node --test tests/feature-preservation.test.mjs tests/booking.test.mjs tests/calls.test.mjs",
     "test:e2e": "playwright test",
-    "verify": "npm run typecheck && npm run lint && npm test"
+    "verify": "npm run typecheck && npm run lint && npm test",
+    "prove:probes": "node scripts/prove-probes-red.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
@@ -29,8 +32,10 @@
     "autoprefixer": "^10.4.20",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.2.12",
+    "eslint-config-prettier": "^9.1.2",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "postcss": "^8.5.18",
+    "prettier": "^3.9.6",
     "tailwindcss": "^3.4.13",
     "typescript": "^5.5.4"
   }

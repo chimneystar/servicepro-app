@@ -35,14 +35,16 @@ export function onRequestError(
   // Structured, single-line JSON so a log aggregator can parse it. Deliberately
   // does not include request bodies, headers or query strings — those carry
   // customer data and payment tokens.
-  console.error(JSON.stringify({
-    level: "error",
-    event: "server_error",
-    method: request?.method,
-    path: request?.path,
-    routeType: context?.routeType,
-    message,
-    stack,
-    at: new Date().toISOString(),
-  }));
+  console.error(
+    JSON.stringify({
+      level: "error",
+      event: "server_error",
+      method: request?.method,
+      path: request?.path,
+      routeType: context?.routeType,
+      message,
+      stack,
+      at: new Date().toISOString(),
+    }),
+  );
 }

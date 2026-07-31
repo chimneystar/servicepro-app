@@ -2,8 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
-  CAMPAIGN_SEGMENTS, INACTIVE_AFTER_DAYS, OUTREACH_CHANNELS, PAST_DUE_AFTER_DAYS,
-  campaignChannels, contactEligibility, isKnownSegment, isoDaysBefore, truncateForSms,
+  CAMPAIGN_SEGMENTS,
+  INACTIVE_AFTER_DAYS,
+  OUTREACH_CHANNELS,
+  PAST_DUE_AFTER_DAYS,
+  campaignChannels,
+  contactEligibility,
+  isKnownSegment,
+  isoDaysBefore,
+  truncateForSms,
 } from "../lib/core/outreach.mjs";
 
 // ---------------------------------------------------------------------------
@@ -13,7 +20,13 @@ import {
 // silently sending nothing at all.
 // ---------------------------------------------------------------------------
 
-const optedIn = { name: "Dana Levi", phone: "+15125550100", email: "dana@example.com", sms_opt_in: true, email_opt_in: true };
+const optedIn = {
+  name: "Dana Levi",
+  phone: "+15125550100",
+  email: "dana@example.com",
+  sms_opt_in: true,
+  email_opt_in: true,
+};
 
 test("a customer who replied STOP is refused on SMS, with the reason", () => {
   const result = contactEligibility({ ...optedIn, sms_opt_in: false }, "sms");
@@ -30,8 +43,14 @@ test("an email unsubscribe is refused on email, with the reason", () => {
 test("opting out of one channel does NOT block the other", () => {
   // The over-correction is its own bug: replying STOP to texts must not also
   // stop the invoices a customer asked to receive by email.
-  assert.deepEqual(contactEligibility({ ...optedIn, sms_opt_in: false }, "email"), { ok: true, to: "dana@example.com" });
-  assert.deepEqual(contactEligibility({ ...optedIn, email_opt_in: false }, "sms"), { ok: true, to: "+15125550100" });
+  assert.deepEqual(contactEligibility({ ...optedIn, sms_opt_in: false }, "email"), {
+    ok: true,
+    to: "dana@example.com",
+  });
+  assert.deepEqual(contactEligibility({ ...optedIn, email_opt_in: false }, "sms"), {
+    ok: true,
+    to: "+15125550100",
+  });
 });
 
 test("an opted-in customer IS contactable on both channels", () => {
@@ -45,14 +64,20 @@ test("a missing opt-in flag is refused rather than assumed to be consent", () =>
   const { sms_opt_in, email_opt_in, ...noFlags } = optedIn;
   assert.equal(contactEligibility(noFlags, "sms").reason, "sms_opt_in_unknown");
   assert.equal(contactEligibility(noFlags, "email").reason, "email_opt_in_unknown");
-  assert.equal(contactEligibility({ ...optedIn, sms_opt_in: null }, "sms").reason, "sms_opt_in_unknown");
+  assert.equal(
+    contactEligibility({ ...optedIn, sms_opt_in: null }, "sms").reason,
+    "sms_opt_in_unknown",
+  );
 });
 
 test("missing or placeholder contact details are refused, not sent to", () => {
   assert.equal(contactEligibility({ ...optedIn, phone: "—" }, "sms").reason, "no_phone");
   assert.equal(contactEligibility({ ...optedIn, phone: "  " }, "sms").reason, "no_phone");
   assert.equal(contactEligibility({ ...optedIn, email: null }, "email").reason, "no_email");
-  assert.equal(contactEligibility({ ...optedIn, email: "not-an-address" }, "email").reason, "no_email");
+  assert.equal(
+    contactEligibility({ ...optedIn, email: "not-an-address" }, "email").reason,
+    "no_email",
+  );
 });
 
 test("a deleted customer is never contacted, however they are opted in", () => {
@@ -83,7 +108,8 @@ test("campaign channels expand exactly, and an unknown channel expands to nothin
 
 test("only the three implemented segments are accepted", () => {
   for (const segment of CAMPAIGN_SEGMENTS) assert.equal(isKnownSegment(segment), true);
-  for (const segment of ["", "everyone", "vip", null, undefined]) assert.equal(isKnownSegment(segment), false);
+  for (const segment of ["", "everyone", "vip", null, undefined])
+    assert.equal(isKnownSegment(segment), false);
 });
 
 // ---------------------------------------------------------------------------
@@ -95,7 +121,11 @@ test("isoDaysBefore counts calendar days, across month and year boundaries", () 
   assert.equal(isoDaysBefore("2026-03-01", 1), "2026-02-28");
   assert.equal(isoDaysBefore("2024-03-01", 1), "2024-02-29", "leap year");
   assert.equal(isoDaysBefore("2026-01-05", 10), "2025-12-26");
-  assert.equal(isoDaysBefore("2026-07-31T23:30:00.000Z", 0), "2026-07-31", "a timestamp is accepted");
+  assert.equal(
+    isoDaysBefore("2026-07-31T23:30:00.000Z", 0),
+    "2026-07-31",
+    "a timestamp is accepted",
+  );
   assert.throws(() => isoDaysBefore("not-a-date", 1));
 });
 
@@ -118,9 +148,10 @@ test("SMS bodies are truncated so one blast cannot silently cost six segments", 
 // and reports a compliance that is not there.
 // ---------------------------------------------------------------------------
 
-const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8")
-  .replace(/\/\*[\s\S]*?\*\//g, "")
-  .replace(/(^|[^:])\/\/.*$/gm, "$1");
+const read = (p) =>
+  readFileSync(new URL(`../${p}`, import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
 
 test("comment stripping works before anything is asserted on it", () => {
   const stripped = read("lib/cron-tasks.ts");
@@ -132,25 +163,36 @@ test("every new sending path checks consent through the tested rule", () => {
   const cron = read("lib/cron-tasks.ts");
   assert.ok(/contactEligibility\(/.test(cron), "the cron sender must consult the consent rule");
   // Two senders (campaigns, estimate follow-ups) plus the automation actions.
-  assert.ok((cron.match(/contactEligibility\(/g) ?? []).length >= 3,
-    "each of the campaign, follow-up and automation paths must check consent");
+  assert.ok(
+    (cron.match(/contactEligibility\(/g) ?? []).length >= 3,
+    "each of the campaign, follow-up and automation paths must check consent",
+  );
   const growth = read("app/(app)/growth/actions.ts");
   assert.ok(/contactEligibility\(/.test(growth), "issuing a referral code must check consent too");
 });
 
 test("the campaign sender records a refusal instead of skipping in silence", () => {
   const cron = read("lib/cron-tasks.ts");
-  assert.ok(/status: "skipped", reason: eligibility\.reason/.test(cron),
-    "a customer deliberately not contacted must be as visible as one who was");
+  assert.ok(
+    // `\s*`: ledger 6.4 split this object literal across lines. Both fields and
+    // both values are still named, so recording a different status, or omitting
+    // the reason, still fails.
+    /status:\s*"skipped",\s*reason:\s*eligibility\.reason/.test(cron),
+    "a customer deliberately not contacted must be as visible as one who was",
+  );
 });
 
 test("a failed send releases its claim so it can be retried", () => {
   const cron = read("lib/cron-tasks.ts");
   assert.ok(/status: "failed"/.test(cron), "failures must be recorded, not swallowed");
-  assert.ok(/retryable \? "scheduled" : "sent"/.test(cron),
-    "a campaign with retryable failures must go back to scheduled, not be declared sent");
-  assert.ok(/exhausted \? "failed" : "scheduled"/.test(cron),
-    "a follow-up must retry within a budget and then fail visibly");
+  assert.ok(
+    /retryable \? "scheduled" : "sent"/.test(cron),
+    "a campaign with retryable failures must go back to scheduled, not be declared sent",
+  );
+  assert.ok(
+    /exhausted \? "failed" : "scheduled"/.test(cron),
+    "a follow-up must retry within a budget and then fail visibly",
+  );
 });
 
 test("the daily cron actually invokes both new senders", () => {

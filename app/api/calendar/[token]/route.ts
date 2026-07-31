@@ -2,7 +2,11 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 // @ts-ignore -- shared JS module, proven both ways in tests/calendar-feed.test.mjs
 import {
-  CALENDAR_MAX_EVENTS, buildCalendar, calendarFeedAccess, calendarWindow, redactEvent,
+  CALENDAR_MAX_EVENTS,
+  buildCalendar,
+  calendarFeedAccess,
+  calendarWindow,
+  redactEvent,
 } from "@/lib/core/calendar.mjs";
 // @ts-ignore -- shared JS module
 import { clientKey, consume } from "@/lib/core/rate-limit.mjs";
@@ -34,7 +38,8 @@ import { clientKey, consume } from "@/lib/core/rate-limit.mjs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const DENY = () => new NextResponse(null, { status: 404, headers: { "Cache-Control": "no-store" } });
+const DENY = () =>
+  new NextResponse(null, { status: 404, headers: { "Cache-Control": "no-store" } });
 
 export async function GET(request: NextRequest, context: { params: Promise<{ token: string }> }) {
   const { token } = await context.params;
@@ -42,7 +47,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
   // A feed URL is guessable only by brute force; make brute force expensive.
   // Generous, because a legitimate subscriber polls hourly from one address
   // while several teammates may share an office IP.
-  const limit = consume(`calendar:${clientKey(request.headers)}`, 60, 60_000) as { allowed: boolean; retryAfterSeconds: number };
+  const limit = consume(`calendar:${clientKey(request.headers)}`, 60, 60_000) as {
+    allowed: boolean;
+    retryAfterSeconds: number;
+  };
   if (!limit.allowed) {
     return new NextResponse(null, {
       status: 429,
@@ -50,7 +58,8 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
     });
   }
 
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(token ?? ""))) return DENY();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(token ?? "")))
+    return DENY();
 
   let admin: ReturnType<typeof createAdminClient>;
   try {
@@ -60,9 +69,11 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
     return new NextResponse(null, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
 
-  const { data: feed } = await admin.from("calendar_feed_tokens")
+  const { data: feed } = await admin
+    .from("calendar_feed_tokens")
     .select("id, organization_id, profile_id, scope, expires_at, revoked_at, label")
-    .eq("token", token).maybeSingle();
+    .eq("token", token)
+    .maybeSingle();
 
   const access = calendarFeedAccess(feed, new Date().toISOString()) as
     | { ok: true; scope: string; organizationId: string; profileId: string | null }
@@ -73,13 +84,19 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
     return DENY();
   }
 
-  const window = calendarWindow(new Date().toISOString().slice(0, 10)) as { start: string; end: string };
+  const window = calendarWindow(new Date().toISOString().slice(0, 10)) as {
+    start: string;
+    end: string;
+  };
 
   // ONLY these columns. Adding `price_minor`, `notes` or `public_token` here
   // would put them in a passwordless URL; tests/calendar-feed.test.mjs asserts
   // this select does not.
-  let query = admin.from("jobs")
-    .select("id, service, status, scheduled_date, end_date, start_time, end_time, job_address, job_city, updated_at, customers(name)")
+  let query = admin
+    .from("jobs")
+    .select(
+      "id, service, status, scheduled_date, end_date, start_time, end_time, job_address, job_city, updated_at, customers(name)",
+    )
     .eq("organization_id", access.organizationId)
     .is("deleted_at", null)
     .gte("scheduled_date", window.start)
@@ -95,19 +112,31 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
     return new NextResponse(null, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
 
-  const { data: org } = await admin.from("organizations").select("name").eq("id", access.organizationId).maybeSingle();
-  const origin = (process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/$/, "");
+  const { data: org } = await admin
+    .from("organizations")
+    .select("name")
+    .eq("id", access.organizationId)
+    .maybeSingle();
+  const origin = (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    ""
+  ).replace(/\/$/, "");
 
   const body = buildCalendar({
     events: (jobs ?? []).map((job) => redactEvent(job)),
-    name: access.scope === "mine" ? `${org?.name ?? "ServicePro"} — my schedule` : `${org?.name ?? "ServicePro"} — schedule`,
+    name:
+      access.scope === "mine"
+        ? `${org?.name ?? "ServicePro"} — my schedule`
+        : `${org?.name ?? "ServicePro"} — schedule`,
     origin,
     stampISO: new Date().toISOString(),
   }) as string;
 
   // Best-effort access trail. A feed nobody has fetched for months is a feed an
   // owner can revoke with confidence, and a spike is visible.
-  const { error: touchError } = await admin.from("calendar_feed_tokens")
+  const { error: touchError } = await admin
+    .from("calendar_feed_tokens")
     .update({ last_accessed_at: new Date().toISOString() })
     .eq("id", (feed as { id: string }).id);
   if (touchError) console.warn(`[calendar] could not record feed access: ${touchError.message}`);

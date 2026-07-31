@@ -9,9 +9,12 @@ import { cookies } from "next/headers";
 
 export type ActionResult = { ok: boolean; error?: string };
 
-export async function updateSettings(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+export async function updateSettings(
+  _prev: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
   const profile = await requireProfile();
-  const locale = (await getLocale());
+  const locale = await getLocale();
   try {
     assertRole(profile, ["owner"]);
   } catch {
@@ -28,7 +31,9 @@ export async function updateSettings(_prev: ActionResult, formData: FormData): P
   const lang = String(formData.get("locale") ?? "en");
   const taxLabel = String(formData.get("tax_label") ?? "Sales Tax").trim() || "Sales Tax";
   const taxPct = Number(formData.get("tax_rate") ?? 0);
-  const tax_rate_bps = Number.isFinite(taxPct) ? Math.max(0, Math.min(100000, Math.round(taxPct * 100))) : 0;
+  const tax_rate_bps = Number.isFinite(taxPct)
+    ? Math.max(0, Math.min(100000, Math.round(taxPct * 100)))
+    : 0;
 
   const invNext = parseInt(String(formData.get("invoice_next") ?? ""), 10);
   const estNext = parseInt(String(formData.get("estimate_next") ?? ""), 10);
@@ -55,10 +60,14 @@ export async function updateSettings(_prev: ActionResult, formData: FormData): P
   if (Number.isFinite(estNext) && estNext > 0) update.estimate_counter = estNext - 1;
 
   const supabase = await createClient();
-  const { error } = await supabase.from("organizations").update(update).eq("id", profile.organization_id!);
+  const { error } = await supabase
+    .from("organizations")
+    .update(update)
+    .eq("id", profile.organization_id!);
 
   if (error) return { ok: false, error: error.message };
-  if (lang === "en" || lang === "he") (await cookies()).set("locale", lang, { path: "/", maxAge: 31536000, sameSite: "lax" });
+  if (lang === "en" || lang === "he")
+    (await cookies()).set("locale", lang, { path: "/", maxAge: 31536000, sameSite: "lax" });
   revalidatePath("/settings");
   return { ok: true };
 }

@@ -82,7 +82,11 @@ test("milestones that claim more than the document are clamped, and the overflow
     { calculation_type: "fixed", amount_minor: 50000 },
   ];
   const result = allocateMilestones(100000, milestones);
-  assert.equal(result.allocatedMinor, 100000, "the customer is never billed more than the document");
+  assert.equal(
+    result.allocatedMinor,
+    100000,
+    "the customer is never billed more than the document",
+  );
   assert.equal(result.overAllocatedMinor, 30000, "and the discrepancy is reported, not swallowed");
   // The deposit the customer already agreed to is the last thing reduced.
   assert.deepEqual(result.amounts, [80000, 20000]);
@@ -91,11 +95,20 @@ test("milestones that claim more than the document are clamped, and the overflow
 test("a schedule that bills LESS than the document says so", () => {
   const result = allocateMilestones(100000, [{ calculation_type: "fixed", amount_minor: 25000 }]);
   assert.equal(result.allocatedMinor, 25000);
-  assert.equal(result.unallocatedMinor, 75000, "a shortfall is a real condition, not something to hide");
+  assert.equal(
+    result.unallocatedMinor,
+    75000,
+    "a shortfall is a real condition, not something to hide",
+  );
 });
 
 test("a milestone with no milestones allocates nothing rather than throwing", () => {
-  assert.deepEqual(allocateMilestones(100000, []), { amounts: [], allocatedMinor: 0, unallocatedMinor: 100000, overAllocatedMinor: 0 });
+  assert.deepEqual(allocateMilestones(100000, []), {
+    amounts: [],
+    allocatedMinor: 0,
+    unallocatedMinor: 100000,
+    overAllocatedMinor: 0,
+  });
   assert.deepEqual(allocateMilestones(100000, null).amounts, []);
 });
 
@@ -104,12 +117,27 @@ test("a milestone with no milestones allocates nothing rather than throwing", ()
 // ---------------------------------------------------------------------------
 
 test("money sent but not cleared makes a milestone 'processing', not 'paid'", () => {
-  assert.equal(milestoneStatusForPayments({ requiredMinor: 25000, settledMinor: 0, pendingMinor: 25000 }), "processing");
-  assert.equal(milestoneStatusForPayments({ requiredMinor: 25000, settledMinor: 25000, pendingMinor: 0 }), "paid");
-  assert.equal(milestoneStatusForPayments({ requiredMinor: 25000, settledMinor: 0, pendingMinor: 0 }), "due");
-  assert.equal(milestoneStatusForPayments({ requiredMinor: 25000, settledMinor: 10000, pendingMinor: 5000 }), "due",
-    "part-paid is still due — not 'nearly paid'");
-  assert.equal(milestoneStatusForPayments({ requiredMinor: 0, settledMinor: 0, pendingMinor: 0 }), "waived");
+  assert.equal(
+    milestoneStatusForPayments({ requiredMinor: 25000, settledMinor: 0, pendingMinor: 25000 }),
+    "processing",
+  );
+  assert.equal(
+    milestoneStatusForPayments({ requiredMinor: 25000, settledMinor: 25000, pendingMinor: 0 }),
+    "paid",
+  );
+  assert.equal(
+    milestoneStatusForPayments({ requiredMinor: 25000, settledMinor: 0, pendingMinor: 0 }),
+    "due",
+  );
+  assert.equal(
+    milestoneStatusForPayments({ requiredMinor: 25000, settledMinor: 10000, pendingMinor: 5000 }),
+    "due",
+    "part-paid is still due — not 'nearly paid'",
+  );
+  assert.equal(
+    milestoneStatusForPayments({ requiredMinor: 0, settledMinor: 0, pendingMinor: 0 }),
+    "waived",
+  );
   for (const status of ["processing", "paid", "due", "waived"]) {
     assert.ok(MILESTONE_STATUSES.includes(status), `${status} must be a status the column accepts`);
   }
@@ -120,12 +148,14 @@ test("money sent but not cleared makes a milestone 'processing', not 'paid'", ()
 // Structural. Comments stripped first.
 // ---------------------------------------------------------------------------
 
-const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8")
-  .replace(/\/\*[\s\S]*?\*\//g, "")
-  .replace(/(^|[^:])\/\/.*$/gm, "$1");
-const readSql = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8")
-  .replace(/\/\*[\s\S]*?\*\//g, " ")
-  .replace(/--[^\n]*/g, " ");
+const read = (p) =>
+  readFileSync(new URL(`../${p}`, import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
+const readSql = (p) =>
+  readFileSync(new URL(`../${p}`, import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/--[^\n]*/g, " ");
 
 test("the comment stripping these guards rely on actually works", () => {
   const stripped = read("lib/core/schedules.mjs");
@@ -135,9 +165,18 @@ test("the comment stripping these guards rely on actually works", () => {
 
 test("the two dead tables are finally written and read", () => {
   const src = read("lib/payments/deposits.ts");
-  assert.ok(/from\("payment_schedules"\)\.insert/.test(src), "a schedule must actually be created");
-  assert.ok(/from\("payment_milestones"\)\.insert/.test(src), "with its milestones");
-  assert.ok(/from\("payment_milestones"\)[\s\S]{0,200}\.update/.test(src), "and advanced as money arrives");
+  // `\s*` before `.insert`: ledger 6.4 broke the builder chains onto separate
+  // lines. Both the table and the method are still named on each, so writing to
+  // a different table, or not writing at all, still fails.
+  assert.ok(
+    /from\("payment_schedules"\)\s*\.insert/.test(src),
+    "a schedule must actually be created",
+  );
+  assert.ok(/from\("payment_milestones"\)\s*\.insert/.test(src), "with its milestones");
+  assert.ok(
+    /from\("payment_milestones"\)[\s\S]{0,200}\.update/.test(src),
+    "and advanced as money arrives",
+  );
 });
 
 test("one schedule per document, enforced by the database", () => {
@@ -152,6 +191,8 @@ test("one schedule per document, enforced by the database", () => {
 
 test("the deposit is applied to the deposit milestone before the balance", () => {
   const src = read("lib/payments/deposits.ts");
-  assert.ok(/remainingSettled/.test(src) && /remainingPending/.test(src),
-    "applying money out of order would show a paid deposit as unpaid");
+  assert.ok(
+    /remainingSettled/.test(src) && /remainingPending/.test(src),
+    "applying money out of order would show a paid deposit as unpaid",
+  );
 });

@@ -25,11 +25,19 @@ async function guard() {
   return profile;
 }
 
-const failed = (he: boolean) => he ? "לא הצלחנו לשמור. בדקו את הפרטים ונסו שוב." : "We couldn't save this. Check the details and try again.";
-const forbidden = (he: boolean) => he ? "אין לך הרשאה לנהל כספים." : "You don't have access to manage finance.";
+const failed = (he: boolean) =>
+  he
+    ? "לא הצלחנו לשמור. בדקו את הפרטים ונסו שוב."
+    : "We couldn't save this. Check the details and try again.";
+const forbidden = (he: boolean) =>
+  he ? "אין לך הרשאה לנהל כספים." : "You don't have access to manage finance.";
 
-export async function addTaxExemption(_previous: TaxExemptionResult, formData: FormData): Promise<TaxExemptionResult> {
-  const locale = await getLocale(), he = locale === "he";
+export async function addTaxExemption(
+  _previous: TaxExemptionResult,
+  formData: FormData,
+): Promise<TaxExemptionResult> {
+  const locale = await getLocale(),
+    he = locale === "he";
   const customerId = String(formData.get("customerId") ?? "");
   const reason = String(formData.get("reason") ?? "").trim();
   const expires = String(formData.get("expiresOn") ?? "").trim();
@@ -52,19 +60,31 @@ export async function addTaxExemption(_previous: TaxExemptionResult, formData: F
     if (error) return { ok: false, error: failed(he) };
     revalidatePath(`/customers/${customerId}`);
     return { ok: true };
-  } catch { return { ok: false, error: forbidden(he) }; }
+  } catch {
+    return { ok: false, error: forbidden(he) };
+  }
 }
 
 /** Revoke (or restore) a certificate. Revoking makes the next document taxable again. */
-export async function setTaxExemptionActive(id: string, customerId: string, active: boolean): Promise<TaxExemptionResult> {
-  const locale = await getLocale(), he = locale === "he";
+export async function setTaxExemptionActive(
+  id: string,
+  customerId: string,
+  active: boolean,
+): Promise<TaxExemptionResult> {
+  const locale = await getLocale(),
+    he = locale === "he";
   try {
     const profile = await guard();
     const supabase = await createClient();
-    const { error } = await supabase.from("customer_tax_exemptions")
-      .update({ active }).eq("id", id).eq("organization_id", profile.organization_id!);
+    const { error } = await supabase
+      .from("customer_tax_exemptions")
+      .update({ active })
+      .eq("id", id)
+      .eq("organization_id", profile.organization_id!);
     if (error) return { ok: false, error: failed(he) };
     revalidatePath(`/customers/${customerId}`);
     return { ok: true };
-  } catch { return { ok: false, error: forbidden(he) }; }
+  } catch {
+    return { ok: false, error: forbidden(he) };
+  }
 }

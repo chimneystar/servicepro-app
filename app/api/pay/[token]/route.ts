@@ -9,7 +9,10 @@ export const dynamic = "force-dynamic";
  * creates a Stripe Checkout session, and sends the customer to Stripe.
  * If Stripe isn't configured, it just returns them to the document page.
  */
-export async function GET(request: NextRequest, { params }: { params: Promise<{ token: string }> }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ token: string }> },
+) {
   const { token } = await params;
   const origin = new URL(request.url).origin;
   const back = `${origin}/p/${token}`;

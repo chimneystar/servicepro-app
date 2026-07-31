@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { addMonthsISO, nextDueAfter, recurringJobKey, RECURRING_JOB_SOURCE } from "../lib/core/recurring.mjs";
+import {
+  addMonthsISO,
+  nextDueAfter,
+  recurringJobKey,
+  RECURRING_JOB_SOURCE,
+} from "../lib/core/recurring.mjs";
 
 // ---------------------------------------------------------------------------
 // Ledger 4.2 — recurring plan catch-up.
@@ -15,7 +20,10 @@ import { addMonthsISO, nextDueAfter, recurringJobKey, RECURRING_JOB_SOURCE } fro
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 // Strip comments before scanning: a comment describing the bug must not be able
 // to satisfy a check about the code that fixes it.
-const readCode = (p) => read(p).replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+const readCode = (p) =>
+  read(p)
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
 
 /** The old behaviour, kept here so the regression can be demonstrated. */
 const oneIntervalOnly = (nextDue, interval) => addMonthsISO(nextDue, interval);
@@ -53,7 +61,10 @@ test("addMonthsISO refuses input that is not a date", () => {
 test("THE BUG: one interval leaves a two-year-overdue plan still due", () => {
   const today = "2026-07-31";
   const rolled = oneIntervalOnly("2024-06-01", 12);
-  assert.ok(rolled <= today, "the old roll-forward lands in the past — the plan generates again immediately");
+  assert.ok(
+    rolled <= today,
+    "the old roll-forward lands in the past — the plan generates again immediately",
+  );
 });
 
 test("nextDueAfter catches a plan up past today in one go", () => {
@@ -121,14 +132,18 @@ test("a second generation of the same occurrence collides at the database", () =
   // external_id), so identical keys are the mechanism that makes a double click
   // a no-op rather than a duplicate job.
   const sql = read("db/019_operations_growth.sql");
-  assert.match(sql, /create unique index if not exists uq_jobs_external_source on public\.jobs\(organization_id, external_source, external_id\)/);
+  assert.match(
+    sql,
+    /create unique index if not exists uq_jobs_external_source on public\.jobs\(organization_id, external_source, external_id\)/,
+  );
   const seen = new Set();
   const plan = { id: "plan-1", next_due: "2024-06-01" };
   let inserted = 0;
   for (let attempt = 0; attempt < 5; attempt++) {
     const key = `${RECURRING_JOB_SOURCE}:${recurringJobKey(plan.id, plan.next_due)}`;
     if (seen.has(key)) continue; // the 23505 the action now swallows
-    seen.add(key); inserted++;
+    seen.add(key);
+    inserted++;
   }
   assert.equal(inserted, 1, "five runs of the same occurrence must yield exactly one job");
 });
@@ -138,15 +153,39 @@ test("a second generation of the same occurrence collides at the database", () =
 for (const file of ["app/(app)/recurring/actions.ts", "lib/cron-tasks.ts"]) {
   test(`${file} catches plans up instead of stepping one interval`, () => {
     const code = readCode(file);
-    assert.match(code, /nextDueAfter\(\s*dueDate,\s*p\.interval_months,\s*today\s*\)/, "must roll forward past today");
-    assert.doesNotMatch(code, /function addMonths\b/, "the one-interval helper must be gone, not shadowed");
-    assert.doesNotMatch(code, /setMonth/, "no local month maths — it drifts and it does not catch up");
+    assert.match(
+      code,
+      /nextDueAfter\(\s*dueDate,\s*p\.interval_months,\s*today\s*\)/,
+      "must roll forward past today",
+    );
+    assert.doesNotMatch(
+      code,
+      /function addMonths\b/,
+      "the one-interval helper must be gone, not shadowed",
+    );
+    assert.doesNotMatch(
+      code,
+      /setMonth/,
+      "no local month maths — it drifts and it does not catch up",
+    );
   });
 
   test(`${file} gives every generated occurrence a unique database identity`, () => {
     const code = readCode(file);
-    assert.match(code, /external_source:\s*RECURRING_JOB_SOURCE/, "the job must be tagged so duplicates collide");
-    assert.match(code, /external_id:\s*recurringJobKey\(p\.id,\s*dueDate\)/, "plan + occurrence is the identity");
-    assert.match(code, /isUniqueViolation\(error\)/, "a 23505 means 'already generated', not a failure");
+    assert.match(
+      code,
+      /external_source:\s*RECURRING_JOB_SOURCE/,
+      "the job must be tagged so duplicates collide",
+    );
+    assert.match(
+      code,
+      /external_id:\s*recurringJobKey\(p\.id,\s*dueDate\)/,
+      "plan + occurrence is the identity",
+    );
+    assert.match(
+      code,
+      /isUniqueViolation\(error\)/,
+      "a 23505 means 'already generated', not a failure",
+    );
   });
 }

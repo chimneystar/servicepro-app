@@ -1,4 +1,9 @@
-export type OfflineJobAction = { clientEventId: string; jobId: string; action: "start" | "complete"; createdAt: string };
+export type OfflineJobAction = {
+  clientEventId: string;
+  jobId: string;
+  action: "start" | "complete";
+  createdAt: string;
+};
 const KEY = "servicepro:tech-outbox";
 
 /** Queued events older than this are abandoned — see flushJobOutbox. */
@@ -16,7 +21,12 @@ export function readOutbox(): OfflineJobAction[] {
 export function queueJobAction(jobId: string, action: OfflineJobAction["action"]) {
   const rows = readOutbox();
   if (!rows.some((row) => row.jobId === jobId && row.action === action)) {
-    rows.push({ clientEventId: crypto.randomUUID(), jobId, action, createdAt: new Date().toISOString() });
+    rows.push({
+      clientEventId: crypto.randomUUID(),
+      jobId,
+      action,
+      createdAt: new Date().toISOString(),
+    });
   }
   localStorage.setItem(KEY, JSON.stringify(rows));
   return rows.length;
@@ -40,9 +50,15 @@ export function queueJobAction(jobId: string, action: OfflineJobAction["action"]
  * Anything older than MAX_AGE_MS is abandoned regardless, so a device offline for
  * a fortnight cannot accumulate an unbounded backlog.
  */
-export async function flushJobOutbox(): Promise<{ sent: number; pending: number; rejected: number; expired: number }> {
+export async function flushJobOutbox(): Promise<{
+  sent: number;
+  pending: number;
+  rejected: number;
+  expired: number;
+}> {
   const rows = readOutbox();
-  if (!rows.length || !navigator.onLine) return { sent: 0, pending: rows.length, rejected: 0, expired: 0 };
+  if (!rows.length || !navigator.onLine)
+    return { sent: 0, pending: rows.length, rejected: 0, expired: 0 };
 
   const cutoff = Date.now() - MAX_AGE_MS;
   const fresh = rows.filter((row) => {
@@ -74,11 +90,13 @@ export async function flushJobOutbox(): Promise<{ sent: number; pending: number;
     return { sent: 0, pending: fresh.length, rejected: 0, expired };
   }
 
-  const result = await response.json() as { processed?: string[]; rejected?: string[] };
+  const result = (await response.json()) as { processed?: string[]; rejected?: string[] };
   const done = new Set(result.processed ?? []);
   const refused = new Set(result.rejected ?? []);
 
-  const pending = fresh.filter((row) => !done.has(row.clientEventId) && !refused.has(row.clientEventId));
+  const pending = fresh.filter(
+    (row) => !done.has(row.clientEventId) && !refused.has(row.clientEventId),
+  );
   localStorage.setItem(KEY, JSON.stringify(pending));
 
   return {

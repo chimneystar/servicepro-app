@@ -3,8 +3,14 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { stripSqlComments } from "./helpers/sql.mjs";
 import {
-  normalizeSkillCode, normalizeSkillList, certificationStatus, heldSkillCodes,
-  checkSkillMatch, matchTechnicians, describeSkillGap, COMMON_SKILLS,
+  normalizeSkillCode,
+  normalizeSkillList,
+  certificationStatus,
+  heldSkillCodes,
+  checkSkillMatch,
+  matchTechnicians,
+  describeSkillGap,
+  COMMON_SKILLS,
 } from "../lib/core/skills.mjs";
 
 // ---------------------------------------------------------------------------
@@ -22,8 +28,8 @@ test("skill codes are folded so one certification cannot become three", () => {
 test("junk is refused rather than stored as an unmatchable code", () => {
   assert.equal(normalizeSkillCode("!"), null);
   assert.equal(normalizeSkillCode(""), null);
-  assert.equal(normalizeSkillCode("x"), null);              // one character
-  assert.equal(normalizeSkillCode("a".repeat(41)), null);   // over the DB check
+  assert.equal(normalizeSkillCode("x"), null); // one character
+  assert.equal(normalizeSkillCode("a".repeat(41)), null); // over the DB check
 });
 
 test("a list is deduplicated and ordered, whatever it arrives as", () => {
@@ -55,19 +61,31 @@ test("an expired ticket is treated as NOT HELD", () => {
 
 test("no requirement means anybody may take the job", () => {
   // The column default is '{}', so nothing that works today starts failing.
-  assert.deepEqual(checkSkillMatch({ required: [], skills: [], onDate: "2026-07-01" }), { ok: true, missing: [], expired: [] });
+  assert.deepEqual(checkSkillMatch({ required: [], skills: [], onDate: "2026-07-01" }), {
+    ok: true,
+    missing: [],
+    expired: [],
+  });
   assert.equal(checkSkillMatch({ required: null, skills: [], onDate: "2026-07-01" }).ok, true);
 });
 
 test("a gas job is refused to somebody with no gas ticket", () => {
-  const result = checkSkillMatch({ required: ["gas"], skills: [{ skill_code: "hvac" }], onDate: "2026-07-01" });
+  const result = checkSkillMatch({
+    required: ["gas"],
+    skills: [{ skill_code: "hvac" }],
+    onDate: "2026-07-01",
+  });
   assert.equal(result.ok, false);
   assert.deepEqual(result.missing, ["gas"]);
   assert.deepEqual(result.expired, []);
 });
 
 test("a LAPSED ticket is reported as expired and still refuses", () => {
-  const result = checkSkillMatch({ required: ["gas"], skills: [{ skill_code: "gas", expires_on: "2026-01-01" }], onDate: "2026-07-01" });
+  const result = checkSkillMatch({
+    required: ["gas"],
+    skills: [{ skill_code: "gas", expires_on: "2026-01-01" }],
+    onDate: "2026-07-01",
+  });
   assert.equal(result.ok, false, "an expired licence is as illegal as none");
   assert.deepEqual(result.expired, ["gas"]);
   assert.deepEqual(result.missing, []);
@@ -92,16 +110,32 @@ test("matching splits a team into qualified and unqualified with reasons", () =>
     ],
     onDate: "2026-07-01",
   });
-  assert.deepEqual(qualified.map((row) => row.id), ["a"]);
-  assert.deepEqual(unqualified.map((row) => row.id), ["b", "c"]);
+  assert.deepEqual(
+    qualified.map((row) => row.id),
+    ["a"],
+  );
+  assert.deepEqual(
+    unqualified.map((row) => row.id),
+    ["b", "c"],
+  );
   assert.deepEqual(unqualified[1].expired, ["gas"]);
 });
 
 test("the refusal names the certification and what to do", () => {
-  const missing = describeSkillGap(checkSkillMatch({ required: ["gas"], skills: [], onDate: "2026-07-01" }), { name: "Ben" });
+  const missing = describeSkillGap(
+    checkSkillMatch({ required: ["gas"], skills: [], onDate: "2026-07-01" }),
+    { name: "Ben" },
+  );
   assert.match(missing, /Ben/);
   assert.match(missing, /gas/);
-  const lapsed = describeSkillGap(checkSkillMatch({ required: ["gas"], skills: [{ skill_code: "gas", expires_on: "2020-01-01" }], onDate: "2026-07-01" }), { name: "Cal" });
+  const lapsed = describeSkillGap(
+    checkSkillMatch({
+      required: ["gas"],
+      skills: [{ skill_code: "gas", expires_on: "2020-01-01" }],
+      onDate: "2026-07-01",
+    }),
+    { name: "Cal" },
+  );
   assert.match(lapsed, /EXPIRED/);
   assert.equal(describeSkillGap({ ok: true }), null);
 });
@@ -113,14 +147,25 @@ test("every suggested skill code survives its own normaliser", () => {
 // ---------------------------------------------------------------------------
 // Structural. Comments stripped first.
 // ---------------------------------------------------------------------------
-const migration = stripSqlComments(readFileSync(new URL("../db/039_scheduling_sales.sql", import.meta.url), "utf8"));
-const guard = stripSqlComments(readFileSync(new URL("../app/(app)/dispatch/assignment-guard.ts", import.meta.url), "utf8"));
-const dispatchActions = stripSqlComments(readFileSync(new URL("../app/(app)/dispatch/actions.ts", import.meta.url), "utf8"));
-const scheduleActions = stripSqlComments(readFileSync(new URL("../app/(app)/schedule/actions.ts", import.meta.url), "utf8"));
+const migration = stripSqlComments(
+  readFileSync(new URL("../db/039_scheduling_sales.sql", import.meta.url), "utf8"),
+);
+const guard = stripSqlComments(
+  readFileSync(new URL("../app/(app)/dispatch/assignment-guard.ts", import.meta.url), "utf8"),
+);
+const dispatchActions = stripSqlComments(
+  readFileSync(new URL("../app/(app)/dispatch/actions.ts", import.meta.url), "utf8"),
+);
+const scheduleActions = stripSqlComments(
+  readFileSync(new URL("../app/(app)/schedule/actions.ts", import.meta.url), "utf8"),
+);
 
 test("skills are a table with a machine key the database also constrains", () => {
   assert.match(migration, /create table if not exists public\.technician_skills/);
-  assert.match(migration, /skill_code\s+text not null check \(skill_code ~ '\^\[a-z0-9_\]\{2,40\}\$'\)/);
+  assert.match(
+    migration,
+    /skill_code\s+text not null check \(skill_code ~ '\^\[a-z0-9_\]\{2,40\}\$'\)/,
+  );
   assert.match(migration, /unique \(organization_id, profile_id, skill_code\)/);
   assert.match(migration, /revoke all on public\.technician_skills from anon/);
 });
@@ -128,11 +173,17 @@ test("skills are a table with a machine key the database also constrains", () =>
 test("a licence number is management information, not org-wide reading", () => {
   const policy = /create policy technician_skills_select[\s\S]*?;/.exec(migration);
   assert.ok(policy);
-  assert.match(policy[0], /current_user_role\(\) in \('owner','office'\) or profile_id = auth\.uid\(\)/);
+  assert.match(
+    policy[0],
+    /current_user_role\(\) in \('owner','office'\) or profile_id = auth\.uid\(\)/,
+  );
 });
 
 test("jobs carry their requirement, defaulting to no restriction", () => {
-  assert.match(migration, /alter table public\.jobs add column if not exists required_skills text\[\] not null default '\{\}'/);
+  assert.match(
+    migration,
+    /alter table public\.jobs add column if not exists required_skills text\[\] not null default '\{\}'/,
+  );
 });
 
 test("BOTH assignment paths run the certification check", () => {

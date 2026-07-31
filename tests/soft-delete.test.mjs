@@ -21,8 +21,14 @@ test("deleting a customer is recoverable, not destructive", () => {
   const src = readCode("app/(app)/customers/actions.ts");
   const fn = src.slice(src.indexOf("export async function deleteCustomer"));
   const body = fn.slice(0, fn.indexOf("\n}") + 2);
-  assert.ok(!/\.delete\(\)/.test(body), "a hard delete destroys the row and bypasses /trash entirely");
-  assert.ok(/deleted_at: new Date\(\)/.test(body), "it must set deleted_at so the record can be restored");
+  assert.ok(
+    !/\.delete\(\)/.test(body),
+    "a hard delete destroys the row and bypasses /trash entirely",
+  );
+  assert.ok(
+    /deleted_at: new Date\(\)/.test(body),
+    "it must set deleted_at so the record can be restored",
+  );
 });
 
 test("the detector fires on the original code", () => {
@@ -35,8 +41,10 @@ test("the detector fires on the original code", () => {
 
 test("customer lists still hide deleted rows, so nothing visibly changes", () => {
   const src = readCode("app/(app)/customers/page.tsx");
-  assert.ok(/is\("deleted_at", null\)/.test(src),
-    "a soft delete only works if every list filters it out — otherwise deleting appears to do nothing");
+  assert.ok(
+    /is\("deleted_at", null\)/.test(src),
+    "a soft delete only works if every list filters it out — otherwise deleting appears to do nothing",
+  );
 });
 
 test("no user-facing action hard-deletes a record that trash is meant to hold", () => {
@@ -46,9 +54,14 @@ test("no user-facing action hard-deletes a record that trash is meant to hold", 
   const RECOVERABLE = ["customers", "jobs", "estimates", "invoices"];
   const offenders = [];
   const walk = (dir) => {
-    for (const entry of readdirSync(new URL(`../${dir}/`, import.meta.url), { withFileTypes: true })) {
+    for (const entry of readdirSync(new URL(`../${dir}/`, import.meta.url), {
+      withFileTypes: true,
+    })) {
       const path = `${dir}/${entry.name}`;
-      if (entry.isDirectory()) { walk(path); continue; }
+      if (entry.isDirectory()) {
+        walk(path);
+        continue;
+      }
       if (!entry.name.endsWith("actions.ts")) continue;
       const src = readCode(path);
       for (const table of RECOVERABLE) {

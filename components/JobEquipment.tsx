@@ -18,7 +18,11 @@ export default function JobEquipment({ jobId, equipment }: { jobId: string; equi
     setErr(null);
     start(async () => {
       const r = await addEquipment(jobId, formData);
-      if (!r.ok) setErr(r.error ?? (he ? "לא הצלחנו לשמור" : "Could not save")); else { setAdding(false); router.refresh(); }
+      if (!r.ok) setErr(r.error ?? (he ? "לא הצלחנו לשמור" : "Could not save"));
+      else {
+        setAdding(false);
+        router.refresh();
+      }
     });
   }
 
@@ -27,29 +31,93 @@ export default function JobEquipment({ jobId, equipment }: { jobId: string; equi
       <div className="rlist">
         {equipment.map((e) => (
           <div className="ritem" key={e.id}>
-            <span style={{ fontSize: "1.25rem" }} aria-hidden="true">🔧</span>
+            <span style={{ fontSize: "1.25rem" }} aria-hidden="true">
+              🔧
+            </span>
             <div className="rmain">
               <div className="rtitle">{e.name}</div>
-              <div className="rsub">{[e.serial ? `S/N ${e.serial}` : null, e.notes].filter(Boolean).join(" · ") || "—"}</div>
+              <div className="rsub">
+                {[e.serial ? `S/N ${e.serial}` : null, e.notes].filter(Boolean).join(" · ") || "—"}
+              </div>
             </div>
-            <button type="button" onClick={() => { setErr(null); start(async () => { const r = await deleteEquipment(e.id, jobId); if (!r.ok) setErr(r.error ?? (he ? "לא הצלחנו למחוק" : "Could not delete")); else router.refresh(); }); }} disabled={pending} style={xBtn} aria-label={he ? `מחיקת "${e.name}"` : `Delete "${e.name}"`}>🗑️</button>
+            <button
+              type="button"
+              onClick={() => {
+                setErr(null);
+                start(async () => {
+                  const r = await deleteEquipment(e.id, jobId);
+                  if (!r.ok) setErr(r.error ?? (he ? "לא הצלחנו למחוק" : "Could not delete"));
+                  else router.refresh();
+                });
+              }}
+              disabled={pending}
+              style={xBtn}
+              aria-label={he ? `מחיקת "${e.name}"` : `Delete "${e.name}"`}
+            >
+              🗑️
+            </button>
           </div>
         ))}
-        {equipment.length === 0 && <div className="rempty">{he ? "עוד לא נשמר ציוד אצל הלקוח." : "No equipment recorded."}</div>}
+        {equipment.length === 0 && (
+          <div className="rempty">
+            {he ? "עוד לא נשמר ציוד אצל הלקוח." : "No equipment recorded."}
+          </div>
+        )}
       </div>
       {/* A failed delete used to leave the row on screen with no explanation. */}
-      {err && !adding && <div role="alert" style={errBox}>{err}</div>}
+      {err && !adding && (
+        <div role="alert" style={errBox}>
+          {err}
+        </div>
+      )}
 
-      {!adding && <button type="button" onClick={() => setAdding(true)} style={btn}>{he ? "הוספת ציוד" : "Add equipment"}</button>}
+      {!adding && (
+        <button type="button" onClick={() => setAdding(true)} style={btn}>
+          {he ? "הוספת ציוד" : "Add equipment"}
+        </button>
+      )}
       {adding && (
-        <form action={submit} style={{ background: "#f8fbff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, marginTop: 10 }}>
-          <input name="name" placeholder={he ? "שם הציוד או הדגם" : "Equipment name or model"} aria-label={he ? "שם הציוד או הדגם" : "Equipment name or model"} style={inp} autoFocus />
-          <input name="serial" placeholder={he ? "מספר סידורי, אם יש" : "Serial number, if available"} aria-label={he ? "מספר סידורי, אם יש" : "Serial number, if available"} style={{ ...inp, marginTop: 8 }} />
-          <input name="notes" placeholder={he ? "הערות" : "Notes"} aria-label={he ? "הערות" : "Notes"} style={{ ...inp, marginTop: 8 }} />
+        <form
+          action={submit}
+          style={{
+            background: "#f8fbff",
+            border: "1px solid #e2e8f0",
+            borderRadius: 12,
+            padding: 14,
+            marginTop: 10,
+          }}
+        >
+          <input
+            name="name"
+            placeholder={he ? "שם הציוד או הדגם" : "Equipment name or model"}
+            aria-label={he ? "שם הציוד או הדגם" : "Equipment name or model"}
+            style={inp}
+            autoFocus
+          />
+          <input
+            name="serial"
+            placeholder={he ? "מספר סידורי, אם יש" : "Serial number, if available"}
+            aria-label={he ? "מספר סידורי, אם יש" : "Serial number, if available"}
+            style={{ ...inp, marginTop: 8 }}
+          />
+          <input
+            name="notes"
+            placeholder={he ? "הערות" : "Notes"}
+            aria-label={he ? "הערות" : "Notes"}
+            style={{ ...inp, marginTop: 8 }}
+          />
           {err && <div style={errBox}>{err}</div>}
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-            <button type="submit" disabled={pending} style={btn}>{pending ? (he ? "שומרים…" : "Saving…") : (he ? "שמירה" : "Save")}</button>
-            <button type="button" onClick={() => setAdding(false)} style={{ ...btn, background: "#e2e9f4", color: "#2563eb" }}>{he ? "ביטול" : "Cancel"}</button>
+            <button type="submit" disabled={pending} style={btn}>
+              {pending ? (he ? "שומרים…" : "Saving…") : he ? "שמירה" : "Save"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setAdding(false)}
+              style={{ ...btn, background: "#e2e9f4", color: "#2563eb" }}
+            >
+              {he ? "ביטול" : "Cancel"}
+            </button>
           </div>
         </form>
       )}
@@ -57,7 +125,36 @@ export default function JobEquipment({ jobId, equipment }: { jobId: string; equi
   );
 }
 
-const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", padding: "9px 15px", borderRadius: 10, fontWeight: 700, cursor: "pointer" };
-const xBtn: React.CSSProperties = { background: "#fdeaea", border: "none", borderRadius: 8, padding: "5px 8px", cursor: "pointer", marginInlineStart: 8 };
-const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: "1rem", outline: "none" };
-const errBox: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "8px 12px", borderRadius: 10, fontSize: "0.8125rem", marginTop: 8 };
+const btn: React.CSSProperties = {
+  background: "#2563eb",
+  color: "#fff",
+  border: "none",
+  padding: "9px 15px",
+  borderRadius: 10,
+  fontWeight: 700,
+  cursor: "pointer",
+};
+const xBtn: React.CSSProperties = {
+  background: "#fdeaea",
+  border: "none",
+  borderRadius: 8,
+  padding: "5px 8px",
+  cursor: "pointer",
+  marginInlineStart: 8,
+};
+const inp: React.CSSProperties = {
+  width: "100%",
+  border: "1px solid #e2e8f0",
+  borderRadius: 10,
+  padding: "10px 12px",
+  fontSize: "1rem",
+  outline: "none",
+};
+const errBox: React.CSSProperties = {
+  background: "#fdeaea",
+  color: "#dc2626",
+  padding: "8px 12px",
+  borderRadius: 10,
+  fontSize: "0.8125rem",
+  marginTop: 8,
+};

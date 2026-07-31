@@ -11,7 +11,10 @@ import { readFileSync } from "node:fs";
 // ---------------------------------------------------------------------------
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
-const readCode = (p) => read(p).replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+const readCode = (p) =>
+  read(p)
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
 
 /** Reproduce the dispatch board's predicate exactly. */
 const showsOnDay = (job, day) =>
@@ -45,18 +48,25 @@ test("every job-creating path sets end_date", () => {
     ["app/(app)/schedule/actions.ts", /end_date/],
     // Both generators now bind the occurrence date to a local `dueDate` first,
     // because the catch-up fix (ledger 4.2) needs it in three places.
-    ["app/(app)/recurring/actions.ts", /scheduled_date: dueDate, end_date: dueDate/],
-    ["lib/cron-tasks.ts", /scheduled_date: dueDate, end_date: dueDate/],
+    ["app/(app)/recurring/actions.ts", /scheduled_date:\s*dueDate,\s*end_date:\s*dueDate/],
+    ["lib/cron-tasks.ts", /scheduled_date:\s*dueDate,\s*end_date:\s*dueDate/],
     ["app/api/booking/[org]/submit/route.ts", /end_date:\s*date/],
   ];
   for (const [file, pattern] of paths) {
-    assert.match(readCode(file), pattern, `${file} inserts a job without end_date — it will pollute the dispatch board`);
+    assert.match(
+      readCode(file),
+      pattern,
+      `${file} inserts a job without end_date — it will pollute the dispatch board`,
+    );
   }
 });
 
 test("the database makes the null case impossible", () => {
   const sql = read("db/025_job_end_date_default.sql").toLowerCase();
-  assert.ok(/update public\.jobs\s+set end_date = scheduled_date/.test(sql), "existing phantom rows must be repaired");
+  assert.ok(
+    /update public\.jobs\s+set end_date = scheduled_date/.test(sql),
+    "existing phantom rows must be repaired",
+  );
   assert.ok(/default_job_end_date/.test(sql), "a row-level default must backstop application code");
   assert.ok(/set not null/.test(sql), "the column must ultimately reject nulls");
   assert.ok(/end_date >= scheduled_date/.test(sql), "an end before the start is also invalid");

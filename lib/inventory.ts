@@ -64,7 +64,8 @@ export async function recordInventoryMovement(
     .select("id, quantity_milli, cost_minor, organization_id")
     .eq("id", input.itemId)
     .maybeSingle();
-  if (!item || item.organization_id !== organizationId) return { ok: false, error: "Item not found." };
+  if (!item || item.organization_id !== organizationId)
+    return { ok: false, error: "Item not found." };
 
   const check = validateMovement({
     kind: input.kind,
@@ -74,7 +75,12 @@ export async function recordInventoryMovement(
     reason: input.reason,
   });
   if (!check.ok) {
-    return { ok: false, error: check.error, code: check.code, availableMilli: check.availableMilli };
+    return {
+      ok: false,
+      error: check.error,
+      code: check.code,
+      availableMilli: check.availableMilli,
+    };
   }
 
   const { data, error } = await supabase
@@ -99,7 +105,10 @@ export async function recordInventoryMovement(
     // moved between the read above and the insert. Re-read and report the truth.
     if (/insufficient_stock/i.test(error.message)) {
       const { data: fresh } = await supabase
-        .from("inventory_items").select("quantity_milli").eq("id", input.itemId).maybeSingle();
+        .from("inventory_items")
+        .select("quantity_milli")
+        .eq("id", input.itemId)
+        .maybeSingle();
       const available = fresh?.quantity_milli ?? 0;
       return {
         ok: false,

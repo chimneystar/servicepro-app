@@ -2,9 +2,16 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { stripSqlComments } from "./helpers/sql.mjs";
+import { codeShape } from "./helpers/source-shape.mjs";
 import {
-  STAFF_NOTIFICATION_TYPES, deliveryPlan, isStaffNotificationType, notificationKey,
-  notificationOutcome, paymentNotificationRecipients, staffEmailEligibility, staffNotification,
+  STAFF_NOTIFICATION_TYPES,
+  deliveryPlan,
+  isStaffNotificationType,
+  notificationKey,
+  notificationOutcome,
+  paymentNotificationRecipients,
+  staffEmailEligibility,
+  staffNotification,
 } from "../lib/core/staff-notify.mjs";
 
 // ---------------------------------------------------------------------------
@@ -13,21 +20,45 @@ import {
 // ---------------------------------------------------------------------------
 
 test("the notification key is deterministic and includes every part", () => {
-  const key = notificationKey({ type: "job_assigned", relatedType: "job", relatedId: "j1", profileId: "p1" });
+  const key = notificationKey({
+    type: "job_assigned",
+    relatedType: "job",
+    relatedId: "j1",
+    profileId: "p1",
+  });
   assert.equal(key, "job_assigned:job:j1:p1");
-  assert.equal(key, notificationKey({ type: "job_assigned", relatedType: "job", relatedId: "j1", profileId: "p1" }));
+  assert.equal(
+    key,
+    notificationKey({ type: "job_assigned", relatedType: "job", relatedId: "j1", profileId: "p1" }),
+  );
 });
 
 test("two different technicians on the same job get DIFFERENT keys", () => {
-  const a = notificationKey({ type: "job_assigned", relatedType: "job", relatedId: "j1", profileId: "p1" });
-  const b = notificationKey({ type: "job_assigned", relatedType: "job", relatedId: "j1", profileId: "p2" });
+  const a = notificationKey({
+    type: "job_assigned",
+    relatedType: "job",
+    relatedId: "j1",
+    profileId: "p1",
+  });
+  const b = notificationKey({
+    type: "job_assigned",
+    relatedType: "job",
+    relatedId: "j1",
+    profileId: "p2",
+  });
   assert.notEqual(a, b);
 });
 
 test("a missing part throws instead of producing a colliding key", () => {
-  assert.throws(() => notificationKey({ type: "job_assigned", relatedType: "job", relatedId: "", profileId: "p1" }));
-  assert.throws(() => notificationKey({ type: "job_assigned", relatedType: "job", relatedId: "j1", profileId: "" }));
-  assert.throws(() => notificationKey({ type: "nonsense", relatedType: "job", relatedId: "j1", profileId: "p1" }));
+  assert.throws(() =>
+    notificationKey({ type: "job_assigned", relatedType: "job", relatedId: "", profileId: "p1" }),
+  );
+  assert.throws(() =>
+    notificationKey({ type: "job_assigned", relatedType: "job", relatedId: "j1", profileId: "" }),
+  );
+  assert.throws(() =>
+    notificationKey({ type: "nonsense", relatedType: "job", relatedId: "j1", profileId: "p1" }),
+  );
 });
 
 test("only the declared notification types are accepted", () => {
@@ -42,8 +73,13 @@ test("only the declared notification types are accepted", () => {
 
 test("an assignment notification names the service, the customer and the time", () => {
   const n = staffNotification({
-    type: "job_assigned", locale: "en", service: "Boiler service", customerName: "Dana Levi",
-    scheduledDate: "2026-08-04", startTime: "09:30:00", jobId: "job-7",
+    type: "job_assigned",
+    locale: "en",
+    service: "Boiler service",
+    customerName: "Dana Levi",
+    scheduledDate: "2026-08-04",
+    startTime: "09:30:00",
+    jobId: "job-7",
   });
   assert.match(n.title, /assigned/i);
   assert.match(n.body, /Boiler service/);
@@ -66,8 +102,11 @@ test("Hebrew is a real translation, not the English string", () => {
 
 test("a payment notification carries the amount the caller formatted", () => {
   const n = staffNotification({
-    type: "payment_received", amountLabel: "$412.50", customerName: "Dana Levi",
-    invoiceNumber: "5012", invoiceId: "inv-1",
+    type: "payment_received",
+    amountLabel: "$412.50",
+    customerName: "Dana Levi",
+    invoiceNumber: "5012",
+    invoiceId: "inv-1",
   });
   assert.match(n.title, /\$412\.50/);
   assert.match(n.body, /5012/);
@@ -113,31 +152,55 @@ test("a technician is never told about money", () => {
 // ---------------------------------------------------------------------------
 
 test("a teammate who turned notification email off is refused", () => {
-  const result = staffEmailEligibility({ email: "sam@example.com", notify_email_opt_in: false, active: true });
+  const result = staffEmailEligibility({
+    email: "sam@example.com",
+    notify_email_opt_in: false,
+    active: true,
+  });
   assert.equal(result.ok, false);
   assert.equal(result.reason, "email_opt_out");
 });
 
 test("a teammate who left it on IS emailable — the gate is proven in both directions", () => {
-  const result = staffEmailEligibility({ email: "sam@example.com", notify_email_opt_in: true, active: true });
+  const result = staffEmailEligibility({
+    email: "sam@example.com",
+    notify_email_opt_in: true,
+    active: true,
+  });
   assert.deepEqual(result, { ok: true, to: "sam@example.com" });
 });
 
 test("a profile selected WITHOUT the opt-in column is refused, not assumed to consent", () => {
-  assert.equal(staffEmailEligibility({ email: "sam@example.com", active: true }).reason, "email_opt_in_unknown");
-  assert.equal(staffEmailEligibility({ email: "sam@example.com", notify_email_opt_in: null, active: true }).reason, "email_opt_in_unknown");
-  assert.equal(staffEmailEligibility({ email: "sam@example.com", notify_email_opt_in: "true", active: true }).reason, "email_opt_in_unknown");
+  assert.equal(
+    staffEmailEligibility({ email: "sam@example.com", active: true }).reason,
+    "email_opt_in_unknown",
+  );
+  assert.equal(
+    staffEmailEligibility({ email: "sam@example.com", notify_email_opt_in: null, active: true })
+      .reason,
+    "email_opt_in_unknown",
+  );
+  assert.equal(
+    staffEmailEligibility({ email: "sam@example.com", notify_email_opt_in: "true", active: true })
+      .reason,
+    "email_opt_in_unknown",
+  );
 });
 
 test("an inactive teammate is treated exactly as a deleted contact", () => {
-  const result = staffEmailEligibility({ email: "sam@example.com", notify_email_opt_in: true, active: false });
+  const result = staffEmailEligibility({
+    email: "sam@example.com",
+    notify_email_opt_in: true,
+    active: false,
+  });
   assert.equal(result.ok, false);
   assert.equal(result.reason, "customer_deleted");
 });
 
 test("staff eligibility DELEGATES to the shared rule rather than re-implementing it", () => {
   const source = readFileSync(new URL("../lib/core/staff-notify.mjs", import.meta.url), "utf8")
-    .replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/\/\/[^\n]*/g, " ");
   assert.match(source, /import\s*\{\s*contactEligibility\s*\}\s*from\s*"\.\/outreach\.mjs"/);
   // The tell-tale of a second copy: the module must not test the flag itself.
   assert.doesNotMatch(source, /email_opt_in\s*===\s*false/);
@@ -149,14 +212,24 @@ test("staff eligibility DELEGATES to the shared rule rather than re-implementing
 // ---------------------------------------------------------------------------
 
 test("email is NOT sent when the push actually landed on a device", () => {
-  const plan = deliveryPlan({ pushAvailable: true, pushDelivered: 2, emailAvailable: true, emailEligible: true });
+  const plan = deliveryPlan({
+    pushAvailable: true,
+    pushDelivered: 2,
+    emailAvailable: true,
+    emailEligible: true,
+  });
   assert.deepEqual(plan.channels, ["inapp", "push"]);
   assert.equal(plan.emailFallback, false);
   assert.equal(plan.emailSkipReason, "push_delivered");
 });
 
 test("email IS sent when push delivered to nobody — the silence this item removes", () => {
-  const plan = deliveryPlan({ pushAvailable: true, pushDelivered: 0, emailAvailable: true, emailEligible: true });
+  const plan = deliveryPlan({
+    pushAvailable: true,
+    pushDelivered: 0,
+    emailAvailable: true,
+    emailEligible: true,
+  });
   assert.deepEqual(plan.channels, ["inapp", "push", "email"]);
   assert.equal(plan.emailFallback, true);
 });
@@ -167,13 +240,26 @@ test("email IS sent when push is not configured at all", () => {
 });
 
 test("an urgent notification emails even when the push landed", () => {
-  const plan = deliveryPlan({ pushAvailable: true, pushDelivered: 1, emailAvailable: true, emailEligible: true, urgent: true });
+  const plan = deliveryPlan({
+    pushAvailable: true,
+    pushDelivered: 1,
+    emailAvailable: true,
+    emailEligible: true,
+    urgent: true,
+  });
   assert.equal(plan.emailFallback, true);
 });
 
 test("a refused email is skipped WITH its reason, never silently", () => {
-  assert.equal(deliveryPlan({ pushAvailable: false, emailAvailable: false }).emailSkipReason, "no_email_provider");
-  assert.equal(deliveryPlan({ pushAvailable: false, emailAvailable: true, emailEligible: false }).emailSkipReason, "not_eligible");
+  assert.equal(
+    deliveryPlan({ pushAvailable: false, emailAvailable: false }).emailSkipReason,
+    "no_email_provider",
+  );
+  assert.equal(
+    deliveryPlan({ pushAvailable: false, emailAvailable: true, emailEligible: false })
+      .emailSkipReason,
+    "not_eligible",
+  );
 });
 
 test("the in-app inbox row is always attempted, whatever else is available", () => {
@@ -187,20 +273,32 @@ test("the in-app inbox row is always attempted, whatever else is available", () 
 // ---------------------------------------------------------------------------
 
 test("inbox-only is reported as inbox_only, not as success and not as failure", () => {
-  const out = notificationOutcome({ inapp: { recorded: true }, push: { delivered: 0 }, email: { sent: false } });
+  const out = notificationOutcome({
+    inapp: { recorded: true },
+    push: { delivered: 0 },
+    email: { sent: false },
+  });
   assert.equal(out.status, "inbox_only");
   assert.equal(out.ok, true);
   assert.deepEqual(out.reached, []);
 });
 
 test("a reached channel is named", () => {
-  const out = notificationOutcome({ inapp: { recorded: true }, push: { delivered: 3 }, email: { sent: true } });
+  const out = notificationOutcome({
+    inapp: { recorded: true },
+    push: { delivered: 3 },
+    email: { sent: true },
+  });
   assert.equal(out.status, "sent");
   assert.deepEqual(out.reached, ["push", "email"]);
 });
 
 test("losing even the inbox row is a failure, not a quiet success", () => {
-  const out = notificationOutcome({ inapp: { recorded: false }, push: { delivered: 0 }, email: { sent: false } });
+  const out = notificationOutcome({
+    inapp: { recorded: false },
+    push: { delivered: 0 },
+    email: { sent: false },
+  });
   assert.equal(out.status, "failed");
   assert.equal(out.ok, false);
 });
@@ -210,8 +308,13 @@ test("losing even the inbox row is a failure, not a quiet success", () => {
 // before it sends. Comments are stripped so a promise in prose cannot pass.
 // ---------------------------------------------------------------------------
 
-const code = (path) => readFileSync(new URL(path, import.meta.url), "utf8")
-  .replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
+// Comments stripped (a comment about a defect must not satisfy a check for its
+// absence) and the token stream canonicalised, so the ORDER assertions below
+// keep comparing the position of the real INSERT against the real send after
+// ledger 6.4 broke the builder chains across lines. `codeShape` preserves token
+// order exactly, so `indexOf` still measures what it measured before. Proven
+// both ways in tests/source-shape.test.mjs.
+const code = (path) => codeShape(readFileSync(new URL(path, import.meta.url), "utf8"), path);
 
 test("lib/notify.ts sends staff notifications through the EXISTING push sender", () => {
   const notify = code("../lib/notify.ts");
@@ -232,7 +335,11 @@ test("the staff notification claims its inbox row BEFORE sending, and releases o
   assert.ok(claimAt < sendAt, "the inbox row must be claimed before the push is attempted");
   // ...and released, so a transient failure cannot suppress the notification
   // permanently the way an un-released reminder_log row would.
-  assert.match(notify, /from\("staff_notifications"\)\.delete\(\)/, "a failed claim must be released");
+  assert.match(
+    notify,
+    /from\("staff_notifications"\)\.delete\(\)/,
+    "a failed claim must be released",
+  );
   const releaseAt = notify.indexOf('from("staff_notifications").delete()');
   assert.ok(releaseAt > sendAt, "the release must be in the failure path, after the attempt");
 });
@@ -249,7 +356,10 @@ test("the email address is RESOLVED — `profiles` has no email column", () => {
   const contact = notify.slice(notify.indexOf("export async function staffContact"));
   const gateAt = contact.indexOf("staffEmailEligibility");
   const lookupAt = contact.indexOf("resolveStaffEmail");
-  assert.ok(gateAt > -1 && lookupAt > -1 && gateAt < lookupAt, "consent must be checked before the address is looked up");
+  assert.ok(
+    gateAt > -1 && lookupAt > -1 && gateAt < lookupAt,
+    "consent must be checked before the address is looked up",
+  );
 });
 
 test("the cron uses the SAME resolution, not a second copy", () => {
@@ -266,7 +376,9 @@ test("job assignment now raises a staff notification, not only a push", () => {
 });
 
 test("migration 040 creates the inbox with a UNIQUE claim, and drops nothing", () => {
-  const sql = stripSqlComments(readFileSync(new URL("../db/040_communications.sql", import.meta.url), "utf8"));
+  const sql = stripSqlComments(
+    readFileSync(new URL("../db/040_communications.sql", import.meta.url), "utf8"),
+  );
   assert.match(sql, /create\s+table\s+if\s+not\s+exists\s+public\.staff_notifications/i);
   assert.match(sql, /unique\s*\(\s*organization_id\s*,\s*dedupe_key\s*\)/i);
   assert.doesNotMatch(sql, /drop\s+table/i);

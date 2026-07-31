@@ -11,14 +11,23 @@ export default async function LeadsPage() {
   const he = (await getLocale()) === "he";
   if (profile.role === "tech") redirect("/");
   const supabase = await createClient();
-  const { data } = await supabase.from("leads")
-    .select("id, name, phone, email, address, city, service, notes, status, source, preferred_date, created_at")
+  const { data } = await supabase
+    .from("leads")
+    .select(
+      "id, name, phone, email, address, city, service, notes, status, source, preferred_date, created_at",
+    )
     .order("created_at", { ascending: false });
 
   return (
     <div style={{ maxWidth: 780 }}>
-      <h1 style={{ fontSize: "1.5rem", fontWeight: 800, marginBottom: 4 }}>{he ? "לידים" : "Leads"}</h1>
-      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 14 }}>{he ? "פניות חדשות והתקדמות המכירה, עד שהלקוח קובע עבודה." : "New requests and sales progress until a job is booked."}</p>
+      <h1 style={{ fontSize: "1.5rem", fontWeight: 800, marginBottom: 4 }}>
+        {he ? "לידים" : "Leads"}
+      </h1>
+      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 14 }}>
+        {he
+          ? "פניות חדשות והתקדמות המכירה, עד שהלקוח קובע עבודה."
+          : "New requests and sales progress until a job is booked."}
+      </p>
       <LeadsBoard leads={(data ?? []) as Lead[]} orgId={profile.organization_id!} />
     </div>
   );

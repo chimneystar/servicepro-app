@@ -30,14 +30,24 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
  */
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
 
-  const { data: profile } = await supabase.from("profiles").select("organization_id,role").eq("id", user.id).maybeSingle();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("organization_id,role")
+    .eq("id", user.id)
+    .maybeSingle();
   if (!profile?.organization_id) return NextResponse.json({ ok: false }, { status: 403 });
 
   let body: { events?: Event[] };
-  try { body = await request.json(); } catch { return NextResponse.json({ ok: false }, { status: 400 }); }
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ ok: false }, { status: 400 });
+  }
 
   const events = Array.isArray(body.events) ? body.events.slice(0, 100) : [];
 
@@ -49,11 +59,15 @@ export async function POST(request: NextRequest) {
 
   // Stage names are per-organisation; fall back to defaults only if uncustomised.
   const { data: statuses } = await supabase
-    .from("job_statuses").select("name,is_done,sort").eq("organization_id", profile.organization_id).order("sort");
+    .from("job_statuses")
+    .select("name,is_done,sort")
+    .eq("organization_id", profile.organization_id)
+    .order("sort");
   const doneStage = statuses?.find((s) => s.is_done)?.name ?? "Completed";
-  const progressStage = statuses?.find((s) => !s.is_done && /progress/i.test(s.name))?.name
-    ?? statuses?.find((s) => !s.is_done)?.name
-    ?? "In Progress";
+  const progressStage =
+    statuses?.find((s) => !s.is_done && /progress/i.test(s.name))?.name ??
+    statuses?.find((s) => !s.is_done)?.name ??
+    "In Progress";
 
   for (const event of events) {
     const clientEventId = typeof event.clientEventId === "string" ? event.clientEventId : "";
@@ -63,29 +77,52 @@ export async function POST(request: NextRequest) {
     // No usable id at all — nothing to acknowledge or reject against.
     if (!uuid.test(clientEventId)) continue;
     // Malformed beyond repair: tell the client to drop it.
-    if (!uuid.test(jobId) || !action) { rejected.push(clientEventId); continue; }
+    if (!uuid.test(jobId) || !action) {
+      rejected.push(clientEventId);
+      continue;
+    }
 
-    const { data: prior } = await supabase.from("sync_outbox_receipts")
-      .select("id").eq("profile_id", user.id).eq("client_event_id", clientEventId).maybeSingle();
-    if (prior) { processed.push(clientEventId); continue; }
+    const { data: prior } = await supabase
+      .from("sync_outbox_receipts")
+      .select("id")
+      .eq("profile_id", user.id)
+      .eq("client_event_id", clientEventId)
+      .maybeSingle();
+    if (prior) {
+      processed.push(clientEventId);
+      continue;
+    }
 
-    const { data: job } = await supabase.from("jobs")
-      .select("id,assigned_to").eq("id", jobId).eq("organization_id", profile.organization_id).maybeSingle();
+    const { data: job } = await supabase
+      .from("jobs")
+      .select("id,assigned_to")
+      .eq("id", jobId)
+      .eq("organization_id", profile.organization_id)
+      .maybeSingle();
 
     // Not this org's job, or not assigned to this technician: a permanent
     // refusal, not a transient one.
-    if (!job || (profile.role === "tech" && job.assigned_to !== user.id)) { rejected.push(clientEventId); continue; }
+    if (!job || (profile.role === "tech" && job.assigned_to !== user.id)) {
+      rejected.push(clientEventId);
+      continue;
+    }
 
     const now = new Date().toISOString();
-    const values = action === "start"
-      ? { status: "in_progress", stage: progressStage, started_at: now }
-      : { status: "done", stage: doneStage, completed_at: now };
+    const values =
+      action === "start"
+        ? { status: "in_progress", stage: progressStage, started_at: now }
+        : { status: "done", stage: doneStage, completed_at: now };
 
     // The transition rules apply to the offline path too. A queued "start" for a
     // job that was completed while the device was offline must not reopen it.
-    const allowedFrom = action === "start" ? ["scheduled", "in_progress"] : ["scheduled", "in_progress"];
-    const { data: updated, error } = await supabase.from("jobs")
-      .update(values).eq("id", jobId).in("status", allowedFrom).select("id");
+    const allowedFrom =
+      action === "start" ? ["scheduled", "in_progress"] : ["scheduled", "in_progress"];
+    const { data: updated, error } = await supabase
+      .from("jobs")
+      .update(values)
+      .eq("id", jobId)
+      .in("status", allowedFrom)
+      .select("id");
     if (error) continue; // transient — allow a retry
     if (!updated || updated.length === 0) {
       // The job is already done or cancelled: this event can never apply, so the
@@ -96,14 +133,22 @@ export async function POST(request: NextRequest) {
 
     // Close any clock this technician left running, matching completeJob.
     if (action === "complete") {
-      const { error: clockError } = await supabase.from("job_time_entries")
-        .update({ ended_at: now }).eq("job_id", jobId).eq("user_id", user.id).is("ended_at", null);
-      if (clockError) console.error(`[sync] failed to close time entries for job ${jobId}:`, clockError.message);
+      const { error: clockError } = await supabase
+        .from("job_time_entries")
+        .update({ ended_at: now })
+        .eq("job_id", jobId)
+        .eq("user_id", user.id)
+        .is("ended_at", null);
+      if (clockError)
+        console.error(`[sync] failed to close time entries for job ${jobId}:`, clockError.message);
     }
 
     const { error: receiptError } = await supabase.from("sync_outbox_receipts").insert({
-      organization_id: profile.organization_id, profile_id: user.id,
-      client_event_id: clientEventId, job_id: jobId, action_type: action,
+      organization_id: profile.organization_id,
+      profile_id: user.id,
+      client_event_id: clientEventId,
+      job_id: jobId,
+      action_type: action,
     });
     if (!receiptError || receiptError.code === "23505") processed.push(clientEventId);
   }

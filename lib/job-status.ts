@@ -39,7 +39,11 @@ export async function changeJobStatus(jobId: string, target: string): Promise<St
   // RLS scopes this to the caller's organisation; a job from another tenant
   // simply resolves to nothing.
   const { data: job } = await supabase
-    .from("jobs").select("id, status, assigned_to").eq("id", jobId).is("deleted_at", null).maybeSingle();
+    .from("jobs")
+    .select("id, status, assigned_to")
+    .eq("id", jobId)
+    .is("deleted_at", null)
+    .maybeSingle();
   if (!job) return { ok: false, error: "Job not found." };
 
   // Technicians may only move a job they are actually assigned to.

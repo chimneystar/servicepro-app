@@ -2,8 +2,17 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
-  ACCOUNTING_SYNC_STATUS, ACCOUNTING_TARGETS, columnsFor, csvCell, decimalFromMilli,
-  decimalFromMinor, externalRef, isAccountingTarget, mapRow, reconcile, toCsv,
+  ACCOUNTING_SYNC_STATUS,
+  ACCOUNTING_TARGETS,
+  columnsFor,
+  csvCell,
+  decimalFromMilli,
+  decimalFromMinor,
+  externalRef,
+  isAccountingTarget,
+  mapRow,
+  reconcile,
+  toCsv,
 } from "../lib/core/accounting.mjs";
 
 // ---------------------------------------------------------------------------
@@ -68,7 +77,12 @@ test("milli-quantities are exact too", () => {
 });
 
 test("a payment is exported NET of its refund", () => {
-  const row = mapRow("quickbooks", "payments", { id: "p1", base_amount_minor: 50000, refunded_minor: 12500, paid_at: "2026-06-01T10:00:00Z" });
+  const row = mapRow("quickbooks", "payments", {
+    id: "p1",
+    base_amount_minor: 50000,
+    refunded_minor: 12500,
+    paid_at: "2026-06-01T10:00:00Z",
+  });
   assert.equal(row.Amount, "375.00");
   assert.equal(row.PaymentDate, "2026-06-01");
 });
@@ -102,8 +116,17 @@ test("quotes, commas and newlines survive a round trip", () => {
 
 test("the CSV has the header row and one line per row, CRLF-separated", () => {
   const rows = [
-    mapRow("quickbooks", "payments", { id: "p1", base_amount_minor: 1000, paid_at: "2026-01-01T00:00:00Z", customer_name: "Dana, Levi" }),
-    mapRow("quickbooks", "payments", { id: "p2", base_amount_minor: 2000, paid_at: "2026-01-02T00:00:00Z" }),
+    mapRow("quickbooks", "payments", {
+      id: "p1",
+      base_amount_minor: 1000,
+      paid_at: "2026-01-01T00:00:00Z",
+      customer_name: "Dana, Levi",
+    }),
+    mapRow("quickbooks", "payments", {
+      id: "p2",
+      base_amount_minor: 2000,
+      paid_at: "2026-01-02T00:00:00Z",
+    }),
   ];
   const csv = toCsv("quickbooks", "payments", rows);
   const lines = csv.split("\r\n");
@@ -132,13 +155,19 @@ test("two identical sides reconcile, and say so", () => {
 test("a row we billed that never reached the ledger is named", () => {
   const result = reconcile(local, local.slice(0, 2));
   assert.equal(result.balanced, false);
-  assert.deepEqual(result.missingRemote.map((r) => r.ref), ["SP-INVOICE-c"]);
+  assert.deepEqual(
+    result.missingRemote.map((r) => r.ref),
+    ["SP-INVOICE-c"],
+  );
   assert.equal(result.missingLocal.length, 0);
 });
 
 test("money in the ledger that this product does not have is a DIFFERENT answer", () => {
   const result = reconcile(local.slice(0, 2), local);
-  assert.deepEqual(result.missingLocal.map((r) => r.ref), ["SP-INVOICE-c"]);
+  assert.deepEqual(
+    result.missingLocal.map((r) => r.ref),
+    ["SP-INVOICE-c"],
+  );
   assert.equal(result.missingRemote.length, 0);
 });
 
@@ -146,14 +175,19 @@ test("the same row with DIFFERENT money is the finding that matters", () => {
   const remote = [local[0], { ...local[1], amountMinor: 12500 }, local[2]];
   const result = reconcile(local, remote);
   assert.equal(result.balanced, false);
-  assert.deepEqual(result.amountMismatch, [{ ref: "SP-INVOICE-b", localMinor: 12000, remoteMinor: 12500, differenceMinor: -500 }]);
+  assert.deepEqual(result.amountMismatch, [
+    { ref: "SP-INVOICE-b", localMinor: 12000, remoteMinor: 12500, differenceMinor: -500 },
+  ]);
   assert.equal(result.matched.length, 2, "a mismatch must not also count as matched");
 });
 
 test("'balanced' is false whenever ANY problem list is non-empty", () => {
   assert.equal(reconcile(local, []).balanced, false);
   assert.equal(reconcile([], local).balanced, false);
-  assert.equal(reconcile(local, [{ ...local[0], amountMinor: 1 }, local[1], local[2]]).balanced, false);
+  assert.equal(
+    reconcile(local, [{ ...local[0], amountMinor: 1 }, local[1], local[2]]).balanced,
+    false,
+  );
   assert.equal(reconcile([], []).balanced, true);
 });
 
@@ -176,19 +210,38 @@ test("the module states it is PARTIAL and lists exactly what remains", () => {
 
 test("NO fake integration ships: there is no OAuth flow, token store or API client", () => {
   const source = readFileSync(new URL("../lib/core/accounting.mjs", import.meta.url), "utf8")
-    .replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/\/\/[^\n]*/g, " ");
   // "OAuth" appears once, in ACCOUNTING_SYNC_STATUS.remaining, as the honest
   // statement of what is missing — so the smells here are the CODE of an
   // integration, not the word.
-  for (const smell of ["fetch(", "access_token", "refresh_token", "client_secret", "Authorization:", "api.xero.com", "intuit.com"]) {
-    assert.equal(source.toLowerCase().includes(smell.toLowerCase()), false, `an unproven ${smell} must not ship`);
+  for (const smell of [
+    "fetch(",
+    "access_token",
+    "refresh_token",
+    "client_secret",
+    "Authorization:",
+    "api.xero.com",
+    "intuit.com",
+  ]) {
+    assert.equal(
+      source.toLowerCase().includes(smell.toLowerCase()),
+      false,
+      `an unproven ${smell} must not ship`,
+    );
   }
   assert.match(source, /remaining:/, "what is missing must be stated in the module itself");
 });
 
 test("the export screen tells the owner it is PARTIAL rather than implying a sync", () => {
-  const page = readFileSync(new URL("../app/(app)/reports/export/page.tsx", import.meta.url), "utf8");
-  const client = readFileSync(new URL("../app/(app)/reports/export/ExportClient.tsx", import.meta.url), "utf8");
+  const page = readFileSync(
+    new URL("../app/(app)/reports/export/page.tsx", import.meta.url),
+    "utf8",
+  );
+  const client = readFileSync(
+    new URL("../app/(app)/reports/export/ExportClient.tsx", import.meta.url),
+    "utf8",
+  );
   const both = `${page}\n${client}`;
   assert.match(both, /ACCOUNTING_SYNC_STATUS|not connected|PARTIAL|partial/i);
 });

@@ -19,27 +19,31 @@ export default function CustomerBulkBar({ rows }: { rows: BulkRow[] }) {
         {
           key: "statement-email",
           label: "🧾 Email statement",
-          confirm: "Email an account statement to every selected customer? Anyone who has unsubscribed will be skipped, and you will be told which.",
+          confirm:
+            "Email an account statement to every selected customer? Anyone who has unsubscribed will be skipped, and you will be told which.",
           run: (ids) => bulkSendStatements(ids, "email"),
         },
         {
           key: "statement-sms",
           label: "💬 Text statement",
-          confirm: "Text an account statement summary to every selected customer? Anyone who replied STOP will be skipped, and you will be told which.",
+          confirm:
+            "Text an account statement summary to every selected customer? Anyone who replied STOP will be skipped, and you will be told which.",
           run: (ids) => bulkSendStatements(ids, "sms"),
         },
         {
           key: "optout-sms",
           label: "🚫 Record SMS opt-out",
           tone: "danger",
-          confirm: "Record an SMS opt-out for every selected customer? This cannot be undone in bulk — re-consent has to be given one customer at a time.",
+          confirm:
+            "Record an SMS opt-out for every selected customer? This cannot be undone in bulk — re-consent has to be given one customer at a time.",
           run: (ids) => bulkOptOut(ids, "sms"),
         },
         {
           key: "optout-email",
           label: "🚫 Record email opt-out",
           tone: "danger",
-          confirm: "Record an email unsubscribe for every selected customer? This cannot be undone in bulk.",
+          confirm:
+            "Record an email unsubscribe for every selected customer? This cannot be undone in bulk.",
           run: (ids) => bulkOptOut(ids, "email"),
         },
       ]}

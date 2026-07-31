@@ -2,8 +2,12 @@ import { NextResponse, type NextRequest } from "next/server";
 // @ts-ignore - shared pure JavaScript, proven both ways in tests/security.test.mjs
 import { isAuthorizedBearer } from "@/lib/core/security.mjs";
 import {
-  runAutomationRules, runDunning, runGrowthOutreach, runRecurringGeneration,
-  runReminders, runScheduledReports,
+  runAutomationRules,
+  runDunning,
+  runGrowthOutreach,
+  runRecurringGeneration,
+  runReminders,
+  runScheduledReports,
 } from "@/lib/cron-tasks";
 import { reconcilePendingHelcimPayments } from "@/lib/payments/server";
 import { retryFailedPaymentReceipts } from "@/lib/payments/receipts";

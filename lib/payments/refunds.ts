@@ -37,8 +37,12 @@ async function assertMayRefund(profileId: string, role: string) {
   if (role === "owner") return;
   const supabase = await createClient();
   const { data } = await supabase
-    .from("profile_payment_permissions").select("can_refund_payments").eq("profile_id", profileId).maybeSingle();
-  if (!data?.can_refund_payments) throw new PaymentError("You don't have permission to issue refunds", "forbidden", 403);
+    .from("profile_payment_permissions")
+    .select("can_refund_payments")
+    .eq("profile_id", profileId)
+    .maybeSingle();
+  if (!data?.can_refund_payments)
+    throw new PaymentError("You don't have permission to issue refunds", "forbidden", 403);
 }
 
 export async function refundPayment(input: {
@@ -52,15 +56,23 @@ export async function refundPayment(input: {
   try {
     await assertMayRefund(profile.id, profile.role);
 
-    const reason = String(input.reason ?? "").trim().slice(0, 500);
-    if (!reason) return { ok: false, error: "A reason is required — it is the only record of why money went back." };
+    const reason = String(input.reason ?? "")
+      .trim()
+      .slice(0, 500);
+    if (!reason)
+      return {
+        ok: false,
+        error: "A reason is required — it is the only record of why money went back.",
+      };
 
     const admin = createAdminClient();
 
     // Org-scoped read: a payment id from another tenant resolves to nothing.
     const { data: payment } = await admin
       .from("payments")
-      .select("id, organization_id, invoice_id, estimate_id, base_amount_minor, amount_minor, refunded_minor, normalized_status, provider, provider_transaction_id, method")
+      .select(
+        "id, organization_id, invoice_id, estimate_id, base_amount_minor, amount_minor, refunded_minor, normalized_status, provider, provider_transaction_id, method",
+      )
       .eq("id", input.paymentId)
       .eq("organization_id", profile.organization_id!)
       .maybeSingle();
@@ -69,7 +81,10 @@ export async function refundPayment(input: {
     // Only settled money can be given back. Refunding an in-flight ACH would
     // return money that never arrived.
     if (!["settled", "partially_refunded"].includes(String(payment.normalized_status ?? ""))) {
-      return { ok: false, error: "This payment has not settled yet, so there is nothing to refund." };
+      return {
+        ok: false,
+        error: "This payment has not settled yet, so there is nothing to refund.",
+      };
     }
 
     const check = validateRefundAmount(payment, input.amountMinor) as
@@ -77,21 +92,26 @@ export async function refundPayment(input: {
     if (!check.ok) return { ok: false, error: check.error };
     const refundMinor: number = check.amountMinor;
 
-    const isProvider = (input.method ?? (payment.provider === "helcim" ? "provider" : "manual")) === "provider";
+    const isProvider =
+      (input.method ?? (payment.provider === "helcim" ? "provider" : "manual")) === "provider";
 
     // Record BEFORE attempting the provider call, as pending. If the call fails
     // the row is marked failed and contributes nothing to refunded_minor — the
     // opposite order would credit a refund that never happened.
-    const { data: refund, error: insertError } = await admin.from("payment_refunds").insert({
-      organization_id: payment.organization_id,
-      payment_id: payment.id,
-      amount_minor: refundMinor,
-      reason,
-      method: isProvider ? "provider" : "manual",
-      status: isProvider ? "pending" : "completed",
-      provider: isProvider ? payment.provider : null,
-      created_by: profile.id,
-    }).select("id").single();
+    const { data: refund, error: insertError } = await admin
+      .from("payment_refunds")
+      .insert({
+        organization_id: payment.organization_id,
+        payment_id: payment.id,
+        amount_minor: refundMinor,
+        reason,
+        method: isProvider ? "provider" : "manual",
+        status: isProvider ? "pending" : "completed",
+        provider: isProvider ? payment.provider : null,
+        created_by: profile.id,
+      })
+      .select("id")
+      .single();
 
     if (insertError) {
       if (insertError.message?.includes("refund_exceeds_payment")) {
@@ -104,16 +124,30 @@ export async function refundPayment(input: {
     if (isProvider) {
       try {
         const providerRefundId = await sendProviderRefund(payment, refundMinor);
-        await admin.from("payment_refunds")
-          .update({ status: "completed", provider_refund_id: providerRefundId, updated_at: new Date().toISOString() })
+        await admin
+          .from("payment_refunds")
+          .update({
+            status: "completed",
+            provider_refund_id: providerRefundId,
+            updated_at: new Date().toISOString(),
+          })
           .eq("id", refund.id);
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
-        await admin.from("payment_refunds")
-          .update({ status: "failed", failure_reason: message.slice(0, 500), updated_at: new Date().toISOString() })
+        await admin
+          .from("payment_refunds")
+          .update({
+            status: "failed",
+            failure_reason: message.slice(0, 500),
+            updated_at: new Date().toISOString(),
+          })
           .eq("id", refund.id);
         console.error(`[refund] provider refund failed for payment ${payment.id}:`, message);
-        return { ok: false, error: "The card processor refused the refund. Nothing was returned; the attempt is recorded." };
+        return {
+          ok: false,
+          error:
+            "The card processor refused the refund. Nothing was returned; the attempt is recorded.",
+        };
       }
     }
 
@@ -136,9 +170,14 @@ export async function refundPayment(input: {
  * Helcim's test mode. It throws on any non-success, which is what keeps the
  * ledger honest: a failure marks the refund `failed` rather than completed.
  */
-async function sendProviderRefund(payment: { provider: string | null; provider_transaction_id: string | null }, amountMinor: number): Promise<string> {
-  if (payment.provider !== "helcim") throw new Error(`Refunds are not automated for provider "${payment.provider ?? "unknown"}"`);
-  if (!payment.provider_transaction_id) throw new Error("This payment has no processor transaction to refund against");
+async function sendProviderRefund(
+  payment: { provider: string | null; provider_transaction_id: string | null },
+  amountMinor: number,
+): Promise<string> {
+  if (payment.provider !== "helcim")
+    throw new Error(`Refunds are not automated for provider "${payment.provider ?? "unknown"}"`);
+  if (!payment.provider_transaction_id)
+    throw new Error("This payment has no processor transaction to refund against");
 
   const token = process.env.HELCIM_PARTNER_TOKEN;
   if (!token) throw new Error("Helcim is not configured");
@@ -153,18 +192,29 @@ async function sendProviderRefund(payment: { provider: string | null; provider_t
   });
 
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(String(payload?.errors ?? payload?.message ?? `Helcim returned ${response.status}`));
+  if (!response.ok)
+    throw new Error(
+      String(payload?.errors ?? payload?.message ?? `Helcim returned ${response.status}`),
+    );
   const id = payload?.transactionId ?? payload?.id;
   if (!id) throw new Error("Helcim accepted the refund but returned no transaction id");
   return String(id);
 }
 
 /** An invoice covered only by refunded money is not paid. */
-async function reopenInvoiceIfUnderpaid(admin: ReturnType<typeof createAdminClient>, invoiceId: string) {
-  const { data: invoice } = await admin.from("invoices").select("id, total_minor, estimate_id, status").eq("id", invoiceId).maybeSingle();
+async function reopenInvoiceIfUnderpaid(
+  admin: ReturnType<typeof createAdminClient>,
+  invoiceId: string,
+) {
+  const { data: invoice } = await admin
+    .from("invoices")
+    .select("id, total_minor, estimate_id, status")
+    .eq("id", invoiceId)
+    .maybeSingle();
   if (!invoice) return;
 
-  let query = admin.from("payments")
+  let query = admin
+    .from("payments")
     .select("base_amount_minor, amount_minor, refunded_minor, normalized_status")
     .in("normalized_status", ["settled", "partially_refunded"]);
   query = invoice.estimate_id
@@ -175,6 +225,9 @@ async function reopenInvoiceIfUnderpaid(admin: ReturnType<typeof createAdminClie
   const stillCovered = refundableMinor(payments ?? []) >= Number(invoice.total_minor ?? 0);
 
   if (!stillCovered && invoice.status === "paid") {
-    await admin.from("invoices").update({ status: "unpaid", paid_at: null, paid_online: false }).eq("id", invoiceId);
+    await admin
+      .from("invoices")
+      .update({ status: "unpaid", paid_at: null, paid_online: false })
+      .eq("id", invoiceId);
   }
 }

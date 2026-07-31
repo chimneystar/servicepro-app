@@ -2,12 +2,24 @@ import { createClient } from "@/lib/supabase/server";
 import { t, type Locale } from "@/lib/i18n";
 import type { Profile } from "@/lib/auth";
 // @ts-ignore -- integer-safe money engine (JS module, unit-tested)
-import { computeDocument, parseQtyToMilli, parseAmountToMinor, resolveTaxJurisdictions, isCustomerTaxExempt } from "@/lib/core/money.mjs";
+import {
+  computeDocument,
+  parseQtyToMilli,
+  parseAmountToMinor,
+  resolveTaxJurisdictions,
+  isCustomerTaxExempt,
+} from "@/lib/core/money.mjs";
 // @ts-ignore -- document integrity rules (JS module, unit-tested)
 import {
-  assertDocumentEditable as editableRule, assertVersionMatch, isUniqueViolation,
-  NUMBER_COLLISION_RETRIES, shouldReleaseDocumentNumber,
-  validateVoid, validateCreditNote, validateCreditNoteCancel, validateReopen,
+  assertDocumentEditable as editableRule,
+  assertVersionMatch,
+  isUniqueViolation,
+  NUMBER_COLLISION_RETRIES,
+  shouldReleaseDocumentNumber,
+  validateVoid,
+  validateCreditNote,
+  validateCreditNoteCancel,
+  validateReopen,
   documentLock,
 } from "@/lib/core/documents.mjs";
 
@@ -26,30 +38,41 @@ const SETTLED = ["settled", "partially_refunded"];
  * lib/payments/server.ts, which is why a part-paid estimate is locked too.
  */
 async function collectedMinor(
-  supabase: any, kind: "estimate" | "invoice", id: string, estimateId?: string | null,
+  supabase: any,
+  kind: "estimate" | "invoice",
+  id: string,
+  estimateId?: string | null,
 ): Promise<number> {
   if (!UUID.test(id)) return 0;
-  let query = supabase.from("payments")
+  let query = supabase
+    .from("payments")
     .select("amount_minor, base_amount_minor, refunded_minor")
     .in("normalized_status", SETTLED);
   if (kind === "invoice") {
-    query = estimateId && UUID.test(estimateId)
-      ? query.or(`invoice_id.eq.${id},estimate_id.eq.${estimateId}`)
-      : query.eq("invoice_id", id);
+    query =
+      estimateId && UUID.test(estimateId)
+        ? query.or(`invoice_id.eq.${id},estimate_id.eq.${estimateId}`)
+        : query.eq("invoice_id", id);
   } else {
     query = query.eq("estimate_id", id);
   }
   const { data } = await query;
   return (data ?? []).reduce(
     (sum: number, p: any) =>
-      sum + Math.max(0, Number(p.base_amount_minor ?? p.amount_minor ?? 0) - Number(p.refunded_minor ?? 0)),
+      sum +
+      Math.max(
+        0,
+        Number(p.base_amount_minor ?? p.amount_minor ?? 0) - Number(p.refunded_minor ?? 0),
+      ),
     0,
   );
 }
 
 /** Public wrapper over {@link collectedMinor} for screens that need the figure. */
 export async function collectedOnDocument(
-  kind: "estimate" | "invoice", id: string, estimateId?: string | null,
+  kind: "estimate" | "invoice",
+  id: string,
+  estimateId?: string | null,
 ): Promise<number> {
   const supabase = await createClient();
   return collectedMinor(supabase, kind, id, estimateId ?? null);
@@ -62,9 +85,14 @@ export async function collectedOnDocument(
  * from migration 036 and the release-on-failure behaviour below.
  */
 async function allocateNumber(
-  supabase: any, orgId: string, kind: "estimate" | "invoice" | "credit_note",
+  supabase: any,
+  orgId: string,
+  kind: "estimate" | "invoice" | "credit_note",
 ): Promise<{ number?: number; error?: string }> {
-  const { data, error } = await supabase.rpc("next_document_number", { p_org: orgId, p_kind: kind });
+  const { data, error } = await supabase.rpc("next_document_number", {
+    p_org: orgId,
+    p_kind: kind,
+  });
   if (error) return { error: error.message };
   return { number: data as number };
 }
@@ -81,11 +109,20 @@ async function allocateNumber(
  * error about bookkeeping would bury the first.
  */
 async function releaseNumber(
-  supabase: any, orgId: string, kind: "estimate" | "invoice" | "credit_note", numberValue: number,
+  supabase: any,
+  orgId: string,
+  kind: "estimate" | "invoice" | "credit_note",
+  numberValue: number,
 ): Promise<void> {
   try {
-    await supabase.rpc("release_document_number", { p_org: orgId, p_kind: kind, p_number: numberValue });
-  } catch { /* the gap stays; see NUMBERING_POLICY in lib/core/documents.mjs */ }
+    await supabase.rpc("release_document_number", {
+      p_org: orgId,
+      p_kind: kind,
+      p_number: numberValue,
+    });
+  } catch {
+    /* the gap stays; see NUMBERING_POLICY in lib/core/documents.mjs */
+  }
 }
 
 /**
@@ -96,16 +133,23 @@ async function releaseNumber(
  * migration 036 the caller saw a raw `23505` it could do nothing with.
  */
 async function insertNumbered(
-  supabase: any, table: "estimates" | "invoices", orgId: string,
-  kind: "estimate" | "invoice", row: Record<string, unknown>,
+  supabase: any,
+  table: "estimates" | "invoices",
+  orgId: string,
+  kind: "estimate" | "invoice",
+  row: Record<string, unknown>,
 ): Promise<{ id?: string; number?: number; error?: string }> {
   let lastError = "";
   for (let attempt = 0; attempt <= NUMBER_COLLISION_RETRIES; attempt++) {
     const allocated = await allocateNumber(supabase, orgId, kind);
-    if (allocated.error || !allocated.number) return { error: allocated.error ?? "numbering failed" };
+    if (allocated.error || !allocated.number)
+      return { error: allocated.error ?? "numbering failed" };
 
-    const { data, error } = await supabase.from(table)
-      .insert({ ...row, number: allocated.number }).select("id").single();
+    const { data, error } = await supabase
+      .from(table)
+      .insert({ ...row, number: allocated.number })
+      .select("id")
+      .single();
     if (!error) return { id: data.id, number: allocated.number };
 
     lastError = error.message;
@@ -120,7 +164,11 @@ async function insertNumbered(
 }
 
 /** What tax to charge on one document, and where the number came from. */
-export type DocumentTax = { taxRateBps: number; taxExempt: boolean; mode: "flat" | "jurisdictions" };
+export type DocumentTax = {
+  taxRateBps: number;
+  taxExempt: boolean;
+  mode: "flat" | "jurisdictions";
+};
 
 /**
  * Resolve the tax for a document (ledger 5.16).
@@ -140,30 +188,46 @@ export type DocumentTax = { taxRateBps: number; taxExempt: boolean; mode: "flat"
  * back to the flat rate, which is exactly the behaviour before this feature.
  */
 export async function resolveDocumentTax(
-  supabase: any, orgId: string, customerId: string, onDate: string
+  supabase: any,
+  orgId: string,
+  customerId: string,
+  onDate: string,
 ): Promise<DocumentTax> {
   const { data, error } = await supabase.rpc("document_tax_context", { p_customer: customerId });
   if (error || !data) {
-    const { data: org } = await supabase.from("organizations").select("tax_rate_bps").eq("id", orgId).single();
+    const { data: org } = await supabase
+      .from("organizations")
+      .select("tax_rate_bps")
+      .eq("id", orgId)
+      .single();
     return { taxRateBps: org?.tax_rate_bps ?? 0, taxExempt: false, mode: "flat" };
   }
   const context = data as {
-    tax_mode?: string; tax_rate_bps?: number;
-    jurisdictions?: Record<string, unknown>[]; exemptions?: Record<string, unknown>[];
+    tax_mode?: string;
+    tax_rate_bps?: number;
+    jurisdictions?: Record<string, unknown>[];
+    exemptions?: Record<string, unknown>[];
   };
-  const mode: "flat" | "jurisdictions" = context.tax_mode === "jurisdictions" ? "jurisdictions" : "flat";
+  const mode: "flat" | "jurisdictions" =
+    context.tax_mode === "jurisdictions" ? "jurisdictions" : "flat";
   const flatBps = Number.isInteger(context.tax_rate_bps) ? (context.tax_rate_bps as number) : 0;
-  const taxRateBps = mode === "jurisdictions"
-    ? resolveTaxJurisdictions(context.jurisdictions ?? [], { onDate }).effectiveBps
-    : flatBps;
+  const taxRateBps =
+    mode === "jurisdictions"
+      ? resolveTaxJurisdictions(context.jurisdictions ?? [], { onDate }).effectiveBps
+      : flatBps;
   return { taxRateBps, taxExempt: isCustomerTaxExempt(context.exemptions ?? [], { onDate }), mode };
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
 
 type LineItem = {
-  title: string; description: string; qtyMilli: number; unitPriceMinor: number;
-  costMinor: number; taxable: boolean; imagePath: string | null;
+  title: string;
+  description: string;
+  qtyMilli: number;
+  unitPriceMinor: number;
+  costMinor: number;
+  taxable: boolean;
+  imagePath: string | null;
 };
 
 /**
@@ -176,7 +240,7 @@ export async function createDocument(
   kind: "estimate" | "invoice",
   formData: FormData,
   profile: Profile,
-  locale: Locale
+  locale: Locale,
 ): Promise<ActionResult> {
   const customer_id = String(formData.get("customer_id") ?? "");
   if (!customer_id) return { ok: false, error: t(locale, "err.invalid") };
@@ -212,15 +276,24 @@ export async function createDocument(
   if (items.length === 0) return { ok: false, error: t(locale, "err.invalid") };
 
   let discountMinor = 0;
-  try { discountMinor = parseAmountToMinor(String(formData.get("discount") ?? "0")); }
-  catch { return { ok: false, error: t(locale, "err.invalid") }; }
+  try {
+    discountMinor = parseAmountToMinor(String(formData.get("discount") ?? "0"));
+  } catch {
+    return { ok: false, error: t(locale, "err.invalid") };
+  }
 
   const supabase = await createClient();
   const tax = await resolveDocumentTax(supabase, profile.organization_id!, customer_id, today());
 
   const totals = computeDocument({
-    items: items.map((i) => ({ qtyMilli: i.qtyMilli, unitPriceMinor: i.unitPriceMinor, taxable: i.taxable })),
-    discountMinor, taxRateBps: tax.taxRateBps, taxExempt: tax.taxExempt,
+    items: items.map((i) => ({
+      qtyMilli: i.qtyMilli,
+      unitPriceMinor: i.unitPriceMinor,
+      taxable: i.taxable,
+    })),
+    discountMinor,
+    taxRateBps: tax.taxRateBps,
+    taxExempt: tax.taxExempt,
   });
 
   const table = kind === "invoice" ? "invoices" : "estimates";
@@ -252,7 +325,7 @@ export async function createDocument(
       taxable: it.taxable,
       image_path: it.imagePath,
       sort: idx,
-    }))
+    })),
   );
   if (itErr) return { ok: false, error: itErr.message };
 
@@ -277,7 +350,8 @@ function parseDocItems(formData: FormData): LineItem[] {
     const description = (descs[i] ?? "").trim();
     if (!title && !description) continue;
     items.push({
-      title: title || description, description,
+      title: title || description,
+      description,
       qtyMilli: parseQtyToMilli(qtys[i] ?? "0"),
       unitPriceMinor: parseAmountToMinor(prices[i] ?? "0"),
       costMinor: parseAmountToMinor(costs[i] ?? "0"),
@@ -294,9 +368,13 @@ const INTEGRITY_COLUMNS =
 
 /** Read the lock/version state of one document. */
 async function loadIntegrityRow(
-  supabase: any, kind: "estimate" | "invoice", table: "estimates" | "invoices", id: string,
+  supabase: any,
+  kind: "estimate" | "invoice",
+  table: "estimates" | "invoices",
+  id: string,
 ): Promise<any | null> {
-  const cols = kind === "invoice" ? `${INTEGRITY_COLUMNS}, paid_at, estimate_id` : INTEGRITY_COLUMNS;
+  const cols =
+    kind === "invoice" ? `${INTEGRITY_COLUMNS}, paid_at, estimate_id` : INTEGRITY_COLUMNS;
   const { data } = await supabase.from(table).select(cols).eq("id", id).maybeSingle();
   return data ?? null;
 }
@@ -316,7 +394,11 @@ async function loadIntegrityRow(
  *     Two office users on the same estimate used to last-write-wins in silence.
  */
 export async function updateDocument(
-  kind: "estimate" | "invoice", id: string, formData: FormData, profile: Profile, locale: Locale
+  kind: "estimate" | "invoice",
+  id: string,
+  formData: FormData,
+  profile: Profile,
+  locale: Locale,
 ): Promise<ActionResult> {
   const table = kind === "invoice" ? "invoices" : "estimates";
   const itemsTable = kind === "invoice" ? "invoice_items" : "estimate_items";
@@ -342,51 +424,85 @@ export async function updateDocument(
   try {
     items = parseDocItems(formData);
     discountMinor = parseAmountToMinor(String(formData.get("discount") ?? "0"));
-  } catch { return { ok: false, error: t(locale, "err.invalid") }; }
+  } catch {
+    return { ok: false, error: t(locale, "err.invalid") };
+  }
   if (items.length === 0) return { ok: false, error: t(locale, "err.invalid") };
 
   const issue = String(formData.get("issue_date") ?? "").trim();
   // Re-price on the document's own issue date: a rate that changed last month
   // must not be applied retroactively to a document issued before it started.
   const tax = await resolveDocumentTax(
-    supabase, profile.organization_id!, customer_id,
+    supabase,
+    profile.organization_id!,
+    customer_id,
     /^\d{4}-\d{2}-\d{2}$/.test(issue) ? issue : today(),
   );
   const totals = computeDocument({
-    items: items.map((i) => ({ qtyMilli: i.qtyMilli, unitPriceMinor: i.unitPriceMinor, taxable: i.taxable })),
-    discountMinor, taxRateBps: tax.taxRateBps, taxExempt: tax.taxExempt,
+    items: items.map((i) => ({
+      qtyMilli: i.qtyMilli,
+      unitPriceMinor: i.unitPriceMinor,
+      taxable: i.taxable,
+    })),
+    discountMinor,
+    taxRateBps: tax.taxRateBps,
+    taxExempt: tax.taxExempt,
   });
 
   let depositMinor = 0;
-  if (kind === "estimate") { try { depositMinor = parseAmountToMinor(String(formData.get("deposit") ?? "0")); } catch { depositMinor = 0; } }
+  if (kind === "estimate") {
+    try {
+      depositMinor = parseAmountToMinor(String(formData.get("deposit") ?? "0"));
+    } catch {
+      depositMinor = 0;
+    }
+  }
   // `.eq("version", …)` is the concurrency check: migration 036 bumps the
   // version on every update, so a second writer matches ZERO rows rather than
   // overwriting the first. `.select()` is what makes that visible — without it
   // an update matching nothing is indistinguishable from one that worked.
-  const { data: saved, error: upErr } = await supabase.from(table).update({
-    customer_id,
-    discount_minor: totals.discountMinor,
-    tax_rate_bps: totals.taxRateBps,
-    total_minor: totals.totalMinor,
-    notes: String(formData.get("notes") ?? "").trim() || null,
-    ...(issue ? { issue_date: issue } : {}),
-    ...(kind === "estimate" ? { deposit_minor: Math.min(depositMinor, totals.totalMinor) } : {}),
-    updated_at: new Date().toISOString(),
-  }).eq("id", id).eq("version", version.version).select("id, version");
+  const { data: saved, error: upErr } = await supabase
+    .from(table)
+    .update({
+      customer_id,
+      discount_minor: totals.discountMinor,
+      tax_rate_bps: totals.taxRateBps,
+      total_minor: totals.totalMinor,
+      notes: String(formData.get("notes") ?? "").trim() || null,
+      ...(issue ? { issue_date: issue } : {}),
+      ...(kind === "estimate" ? { deposit_minor: Math.min(depositMinor, totals.totalMinor) } : {}),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("version", version.version)
+    .select("id, version");
   if (upErr) return { ok: false, error: upErr.message };
   if (!saved || saved.length === 0) {
     const { data: now } = await supabase.from(table).select("version").eq("id", id).maybeSingle();
-    return { ok: false, error: assertVersionMatch(kind, version.version, now?.version ?? null, { he }).error
-      ?? t(locale, "err.invalid") };
+    return {
+      ok: false,
+      error:
+        assertVersionMatch(kind, version.version, now?.version ?? null, { he }).error ??
+        t(locale, "err.invalid"),
+    };
   }
 
   // Replace items.
   await supabase.from(itemsTable).delete().eq(parentKey, id);
-  const { error: itErr } = await supabase.from(itemsTable).insert(items.map((it, idx) => ({
-    organization_id: profile.organization_id, [parentKey]: id,
-    title: it.title, description: it.description || it.title, qty_milli: it.qtyMilli,
-    unit_price_minor: it.unitPriceMinor, cost_minor: it.costMinor, taxable: it.taxable, image_path: it.imagePath, sort: idx,
-  })));
+  const { error: itErr } = await supabase.from(itemsTable).insert(
+    items.map((it, idx) => ({
+      organization_id: profile.organization_id,
+      [parentKey]: id,
+      title: it.title,
+      description: it.description || it.title,
+      qty_milli: it.qtyMilli,
+      unit_price_minor: it.unitPriceMinor,
+      cost_minor: it.costMinor,
+      taxable: it.taxable,
+      image_path: it.imagePath,
+      sort: idx,
+    })),
+  );
   if (itErr) return { ok: false, error: itErr.message };
   await saveItemsToLibrary(supabase, profile.organization_id!, items);
   return { ok: true };
@@ -394,7 +510,9 @@ export async function updateDocument(
 
 /** Duplicate an estimate/invoice into a fresh draft with a new number. */
 export async function duplicateDocument(
-  kind: "estimate" | "invoice", id: string, profile: Profile
+  kind: "estimate" | "invoice",
+  id: string,
+  profile: Profile,
 ): Promise<{ ok: boolean; error?: string; newId?: string; number?: number }> {
   const table = kind === "invoice" ? "invoices" : "estimates";
   const itemsTable = kind === "invoice" ? "invoice_items" : "estimate_items";
@@ -403,12 +521,21 @@ export async function duplicateDocument(
 
   const { data: src } = await supabase.from(table).select("*").eq("id", id).single();
   if (!src) return { ok: false, error: "not found" };
-  const { data: items } = await supabase.from(itemsTable).select("*").eq(parentKey, id).order("sort");
+  const { data: items } = await supabase
+    .from(itemsTable)
+    .select("*")
+    .eq(parentKey, id)
+    .order("sort");
 
   const doc = await insertNumbered(supabase, table, profile.organization_id!, kind, {
-    organization_id: profile.organization_id, created_by: profile.id,
-    customer_id: src.customer_id, status: kind === "invoice" ? "unpaid" : "draft",
-    discount_minor: src.discount_minor, tax_rate_bps: src.tax_rate_bps, total_minor: src.total_minor, notes: src.notes,
+    organization_id: profile.organization_id,
+    created_by: profile.id,
+    customer_id: src.customer_id,
+    status: kind === "invoice" ? "unpaid" : "draft",
+    discount_minor: src.discount_minor,
+    tax_rate_bps: src.tax_rate_bps,
+    total_minor: src.total_minor,
+    notes: src.notes,
     // Carried over deliberately: duplicating an estimate used to silently drop
     // its deposit request, so the copy asked for nothing up front. Reported as a
     // known gap in docs/REMEDIATION-PLAN.md §5.7 and fixed here because this
@@ -419,11 +546,20 @@ export async function duplicateDocument(
   const number = doc.number;
 
   if (items && items.length) {
-    await supabase.from(itemsTable).insert(items.map((it: any, idx: number) => ({
-      organization_id: profile.organization_id, [parentKey]: doc.id,
-      title: it.title, description: it.description, qty_milli: it.qty_milli, unit_price_minor: it.unit_price_minor,
-      cost_minor: it.cost_minor ?? 0, taxable: it.taxable ?? true, image_path: it.image_path ?? null, sort: idx,
-    })));
+    await supabase.from(itemsTable).insert(
+      items.map((it: any, idx: number) => ({
+        organization_id: profile.organization_id,
+        [parentKey]: doc.id,
+        title: it.title,
+        description: it.description,
+        qty_milli: it.qty_milli,
+        unit_price_minor: it.unit_price_minor,
+        cost_minor: it.cost_minor ?? 0,
+        taxable: it.taxable ?? true,
+        image_path: it.image_path ?? null,
+        sort: idx,
+      })),
+    );
   }
   return { ok: true, newId: doc.id, number: number as number };
 }
@@ -441,7 +577,9 @@ export async function duplicateDocument(
  * migration 036 covers deleted rows on purpose.
  */
 export async function softDeleteDocument(
-  kind: "estimate" | "invoice", id: string, locale: Locale = "en" as Locale,
+  kind: "estimate" | "invoice",
+  id: string,
+  locale: Locale = "en" as Locale,
 ): Promise<ActionResult> {
   const table = kind === "invoice" ? "invoices" : "estimates";
   const he = locale === "he";
@@ -461,7 +599,10 @@ export async function softDeleteDocument(
     };
   }
 
-  const { error } = await supabase.from(table).update({ deleted_at: new Date().toISOString() }).eq("id", id);
+  const { error } = await supabase
+    .from(table)
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
@@ -475,10 +616,17 @@ export async function softDeleteDocument(
  * re-checks again in the database, because the threat model is PostgREST.
  */
 export async function assertDocumentEditable(
-  kind: "estimate" | "invoice", doc: Record<string, any>, locale: Locale = "en" as Locale,
+  kind: "estimate" | "invoice",
+  doc: Record<string, any>,
+  locale: Locale = "en" as Locale,
 ): Promise<{ ok: boolean; code?: string; error?: string }> {
   const supabase = await createClient();
-  const collected = await collectedMinor(supabase, kind, String(doc.id ?? ""), doc.estimate_id ?? null);
+  const collected = await collectedMinor(
+    supabase,
+    kind,
+    String(doc.id ?? ""),
+    doc.estimate_id ?? null,
+  );
   return editableRule(kind, { ...doc, collected_minor: collected }, { he: locale === "he" });
 }
 
@@ -498,12 +646,18 @@ export async function assertDocumentEditable(
  * null, and migration 036 refuses to let it be cleared except by the audited
  * estimate reopen.
  */
-export async function markDocumentSent(kind: "estimate" | "invoice", id: string): Promise<ActionResult> {
+export async function markDocumentSent(
+  kind: "estimate" | "invoice",
+  id: string,
+): Promise<ActionResult> {
   const table = kind === "invoice" ? "invoices" : "estimates";
   const supabase = await createClient();
-  const { error } = await supabase.from(table)
+  const { error } = await supabase
+    .from(table)
     .update({ sent_at: new Date().toISOString() })
-    .eq("id", id).is("sent_at", null).is("deleted_at", null);
+    .eq("id", id)
+    .is("sent_at", null)
+    .is("deleted_at", null);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
@@ -518,7 +672,11 @@ export async function markDocumentSent(kind: "estimate" | "invoice", id: string)
  * shows up as a void rather than as a gap nobody can explain.
  */
 export async function voidDocument(
-  kind: "estimate" | "invoice", id: string, reason: string, profile: Profile, locale: Locale,
+  kind: "estimate" | "invoice",
+  id: string,
+  reason: string,
+  profile: Profile,
+  locale: Locale,
 ): Promise<ActionResult> {
   const table = kind === "invoice" ? "invoices" : "estimates";
   const he = locale === "he";
@@ -531,13 +689,18 @@ export async function voidDocument(
   const check = validateVoid(kind, current, { reason, collectedMinor: collected, he });
   if (!check.ok) return { ok: false, error: check.error };
 
-  const { data: saved, error } = await supabase.from(table).update({
-    voided_at: new Date().toISOString(),
-    void_reason: check.reason,
-    voided_by: profile.id,
-    ...(kind === "invoice" ? { status: "void" } : {}),
-    updated_at: new Date().toISOString(),
-  }).eq("id", id).is("voided_at", null).select("id");
+  const { data: saved, error } = await supabase
+    .from(table)
+    .update({
+      voided_at: new Date().toISOString(),
+      void_reason: check.reason,
+      voided_by: profile.id,
+      ...(kind === "invoice" ? { status: "void" } : {}),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .is("voided_at", null)
+    .select("id");
   if (error) return { ok: false, error: error.message };
   if (!saved || saved.length === 0) {
     return { ok: false, error: he ? "המסמך כבר בוטל." : "This document is already voided." };
@@ -555,43 +718,62 @@ export async function voidDocument(
  * part-paid or voided estimate cannot be reopened, and an invoice never can.
  */
 export async function reopenEstimate(
-  id: string, reason: string, profile: Profile, locale: Locale,
+  id: string,
+  reason: string,
+  profile: Profile,
+  locale: Locale,
 ): Promise<ActionResult> {
   const he = locale === "he";
   const supabase = await createClient();
 
   const { data: current } = await (supabase.from("estimates") as any)
-    .select(`${INTEGRITY_COLUMNS}, reopen_count`).eq("id", id).maybeSingle();
+    .select(`${INTEGRITY_COLUMNS}, reopen_count`)
+    .eq("id", id)
+    .maybeSingle();
   if (!current || current.deleted_at) return { ok: false, error: t(locale, "err.invalid") };
 
   const collected = await collectedMinor(supabase, "estimate", id);
   const check = validateReopen("estimate", current, { reason, collectedMinor: collected, he });
   if (!check.ok) return { ok: false, error: check.error };
 
-  const { error } = await supabase.from("estimates").update({
-    sent_at: null,
-    status: "draft",
-    reopened_at: new Date().toISOString(),
-    reopened_by: profile.id,
-    reopen_reason: check.reason,
-    reopen_count: Number(current.reopen_count ?? 0) + 1,
-    updated_at: new Date().toISOString(),
-  }).eq("id", id).eq("version", current.version);
+  const { error } = await supabase
+    .from("estimates")
+    .update({
+      sent_at: null,
+      status: "draft",
+      reopened_at: new Date().toISOString(),
+      reopened_by: profile.id,
+      reopen_reason: check.reason,
+      reopen_count: Number(current.reopen_count ?? 0) + 1,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("version", current.version);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
 
 export type CreditNote = {
-  id: string; number: number; amount_minor: number; reason: string;
-  status: string; issue_date: string; created_at: string;
-  cancelled_at: string | null; cancel_reason: string | null;
+  id: string;
+  number: number;
+  amount_minor: number;
+  reason: string;
+  status: string;
+  issue_date: string;
+  created_at: string;
+  cancelled_at: string | null;
+  cancel_reason: string | null;
 };
 
 /** Every credit note against an invoice, newest first. */
 export async function loadCreditNotes(supabase: any, invoiceId: string): Promise<CreditNote[]> {
-  const { data } = await supabase.from("credit_notes")
-    .select("id, number, amount_minor, reason, status, issue_date, created_at, cancelled_at, cancel_reason")
-    .eq("invoice_id", invoiceId).order("number", { ascending: false });
+  const { data } = await supabase
+    .from("credit_notes")
+    .select(
+      "id, number, amount_minor, reason, status, issue_date, created_at, cancelled_at, cancel_reason",
+    )
+    .eq("invoice_id", invoiceId)
+    .order("number", { ascending: false });
   return (data ?? []) as CreditNote[];
 }
 
@@ -609,19 +791,28 @@ export async function loadCreditNotes(supabase: any, invoiceId: string): Promise
  * separately because they are separate events.
  */
 export async function issueCreditNote(
-  invoiceId: string, amountInput: string, reason: string, profile: Profile, locale: Locale,
+  invoiceId: string,
+  amountInput: string,
+  reason: string,
+  profile: Profile,
+  locale: Locale,
 ): Promise<{ ok: boolean; error?: string; number?: number }> {
   const he = locale === "he";
   const supabase = await createClient();
 
-  const { data: invoice } = await supabase.from("invoices")
+  const { data: invoice } = await supabase
+    .from("invoices")
     .select("id, number, status, total_minor, voided_at, deleted_at")
-    .eq("id", invoiceId).maybeSingle();
+    .eq("id", invoiceId)
+    .maybeSingle();
   if (!invoice) return { ok: false, error: t(locale, "err.invalid") };
 
   let amountMinor: number;
-  try { amountMinor = parseAmountToMinor(amountInput); }
-  catch { return { ok: false, error: he ? "צריך להזין סכום זיכוי." : "Enter a credit amount." }; }
+  try {
+    amountMinor = parseAmountToMinor(amountInput);
+  } catch {
+    return { ok: false, error: he ? "צריך להזין סכום זיכוי." : "Enter a credit amount." };
+  }
 
   const notes = await loadCreditNotes(supabase, invoiceId);
   const check = validateCreditNote(invoice, notes, { amountMinor, reason, he });
@@ -653,42 +844,69 @@ export async function issueCreditNote(
  * as db/030_refunds.sql — corrections are recorded, not erased.
  */
 export async function cancelCreditNote(
-  noteId: string, reason: string, profile: Profile, locale: Locale,
+  noteId: string,
+  reason: string,
+  profile: Profile,
+  locale: Locale,
 ): Promise<ActionResult> {
   const he = locale === "he";
   const supabase = await createClient();
 
-  const { data: note } = await supabase.from("credit_notes")
-    .select("id, status").eq("id", noteId).maybeSingle();
+  const { data: note } = await supabase
+    .from("credit_notes")
+    .select("id, status")
+    .eq("id", noteId)
+    .maybeSingle();
   const check = validateCreditNoteCancel(note ?? {}, { reason, he });
   if (!check.ok) return { ok: false, error: check.error };
 
-  const { error } = await supabase.from("credit_notes").update({
-    status: "cancelled",
-    cancelled_at: new Date().toISOString(),
-    cancelled_by: profile.id,
-    cancel_reason: check.reason,
-    updated_at: new Date().toISOString(),
-  }).eq("id", noteId).eq("status", "issued");
+  const { error } = await supabase
+    .from("credit_notes")
+    .update({
+      status: "cancelled",
+      cancelled_at: new Date().toISOString(),
+      cancelled_by: profile.id,
+      cancel_reason: check.reason,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", noteId)
+    .eq("status", "issued");
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
 
 async function saveItemsToLibrary(supabase: any, orgId: string, items: LineItem[]) {
   try {
-    const { data: existing } = await supabase.from("price_book").select("name").eq("organization_id", orgId);
-    const have = new Set((existing ?? []).map((r: any) => String(r.name ?? "").trim().toLowerCase()));
+    const { data: existing } = await supabase
+      .from("price_book")
+      .select("name")
+      .eq("organization_id", orgId);
+    const have = new Set(
+      (existing ?? []).map((r: any) =>
+        String(r.name ?? "")
+          .trim()
+          .toLowerCase(),
+      ),
+    );
     const seen = new Set<string>();
     const toAdd = items
       .filter((it) => {
         const k = it.title.trim().toLowerCase();
         if (!k || have.has(k) || seen.has(k)) return false;
-        seen.add(k); return true;
+        seen.add(k);
+        return true;
       })
       .map((it) => ({
-        organization_id: orgId, name: it.title, description: it.description || null,
-        price_minor: it.unitPriceMinor, cost_minor: it.costMinor, taxable: it.taxable, image_path: it.imagePath,
+        organization_id: orgId,
+        name: it.title,
+        description: it.description || null,
+        price_minor: it.unitPriceMinor,
+        cost_minor: it.costMinor,
+        taxable: it.taxable,
+        image_path: it.imagePath,
       }));
     if (toAdd.length) await supabase.from("price_book").insert(toAdd);
-  } catch { /* library save is best-effort; never blocks the document */ }
+  } catch {
+    /* library save is best-effort; never blocks the document */
+  }
 }

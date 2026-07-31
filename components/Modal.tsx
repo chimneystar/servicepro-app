@@ -48,14 +48,17 @@ export default function Modal({
   const focusables = useCallback(() => {
     const root = surfaceRef.current;
     if (!root) return [] as HTMLElement[];
-    return [...root.querySelectorAll<HTMLElement>(
-      'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-    )].filter((el) => el.offsetParent !== null || el === document.activeElement);
+    return [
+      ...root.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    ].filter((el) => el.offsetParent !== null || el === document.activeElement);
   }, []);
 
   // Remember who opened us, move focus in, put it back on the way out.
   useEffect(() => {
-    restoreTo.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    restoreTo.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const first = focusables()[0] ?? surfaceRef.current;
     first?.focus({ preventScroll: true });
     return () => {
@@ -71,16 +74,26 @@ export default function Modal({
   useEffect(() => {
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = previous; };
+    return () => {
+      document.body.style.overflow = previous;
+    };
   }, []);
 
   // Escape closes; Tab cycles inside.
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") { event.stopPropagation(); onClose(); return; }
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        onClose();
+        return;
+      }
       if (event.key !== "Tab") return;
       const items = focusables();
-      if (items.length === 0) { event.preventDefault(); surfaceRef.current?.focus(); return; }
+      if (items.length === 0) {
+        event.preventDefault();
+        surfaceRef.current?.focus();
+        return;
+      }
       const first = items[0];
       const last = items[items.length - 1];
       const active = document.activeElement as HTMLElement | null;
@@ -104,7 +117,9 @@ export default function Modal({
       // no meaning and is not a control. It is not the only way out any more —
       // Escape closes from the keyboard — so it does not need to be one.
       role="presentation"
-      onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
     >
       <div
         ref={surfaceRef}

@@ -17,7 +17,12 @@ export function encryptPaymentSecret(value: string): string {
   const cipher = crypto.createCipheriv("aes-256-gcm", paymentKey(), iv);
   const encrypted = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
   const tag = cipher.getAuthTag();
-  return [VERSION, iv.toString("base64url"), tag.toString("base64url"), encrypted.toString("base64url")].join(":");
+  return [
+    VERSION,
+    iv.toString("base64url"),
+    tag.toString("base64url"),
+    encrypted.toString("base64url"),
+  ].join(":");
 }
 
 export function decryptPaymentSecret(payload: string): string {
@@ -25,7 +30,11 @@ export function decryptPaymentSecret(payload: string): string {
   if (version !== VERSION || !ivValue || !tagValue || !encryptedValue) {
     throw new Error("Unsupported encrypted payment secret");
   }
-  const decipher = crypto.createDecipheriv("aes-256-gcm", paymentKey(), Buffer.from(ivValue, "base64url"));
+  const decipher = crypto.createDecipheriv(
+    "aes-256-gcm",
+    paymentKey(),
+    Buffer.from(ivValue, "base64url"),
+  );
   decipher.setAuthTag(Buffer.from(tagValue, "base64url"));
   return Buffer.concat([
     decipher.update(Buffer.from(encryptedValue, "base64url")),

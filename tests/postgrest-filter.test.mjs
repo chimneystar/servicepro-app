@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { quoteFilterValue, escapeLikePattern, orIlike, containsFilterMetacharacters } from "../lib/core/postgrest-filter.mjs";
+import {
+  quoteFilterValue,
+  escapeLikePattern,
+  orIlike,
+  containsFilterMetacharacters,
+} from "../lib/core/postgrest-filter.mjs";
 
 // ---------------------------------------------------------------------------
 // /search interpolated raw user input into a PostgREST `or=` expression, which
@@ -16,8 +21,10 @@ test("the injection was real — reproduce it against the old construction", () 
   const vulnerable = `name.ilike.%${q}%,phone.ilike.%${q}%`;
   // The injected condition appears as its own top-level clause, defeating the
   // page's own archived/deleted filters.
-  assert.ok(vulnerable.split(",").includes("archived.eq.true"),
-    "the old expression really did admit an attacker-controlled condition");
+  assert.ok(
+    vulnerable.split(",").includes("archived.eq.true"),
+    "the old expression really did admit an attacker-controlled condition",
+  );
 });
 
 test("the escaped construction contains no injected clause", () => {
@@ -32,7 +39,7 @@ test("the escaped construction contains no injected clause", () => {
 test("the whole user value is quoted as a single literal", () => {
   const expr = orIlike(["name"], "Smith, John");
   assert.ok(expr.includes('"'), "the value must be quoted");
-  assert.equal(expr.split('name.ilike.').length, 2, "exactly one name clause");
+  assert.equal(expr.split("name.ilike.").length, 2, "exactly one name clause");
 });
 
 test("ordinary punctuation no longer breaks the query", () => {
@@ -83,7 +90,11 @@ test("empty and nullish terms are handled without throwing", () => {
 
 test("the search page no longer interpolates the raw term into a filter", () => {
   const src = readFileSync(new URL("../app/(app)/search/page.tsx", import.meta.url), "utf8")
-    .replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
-  assert.ok(!/\.or\(`[^`]*\$\{like\}/.test(src), "the raw term must not reach the filter expression");
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
+  assert.ok(
+    !/\.or\(`[^`]*\$\{like\}/.test(src),
+    "the raw term must not reach the filter expression",
+  );
   assert.ok(/orIlike\(/.test(src), "it must use the escaped builder");
 });

@@ -3,7 +3,12 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { stripSqlComments } from "./helpers/sql.mjs";
 import {
-  DIGEST_FREQUENCIES, digestPeriod, digestTotals, isDigestDue, isDigestFrequency, renderDigest,
+  DIGEST_FREQUENCIES,
+  digestPeriod,
+  digestTotals,
+  isDigestDue,
+  isDigestFrequency,
+  renderDigest,
 } from "../lib/core/digest.mjs";
 import { periodTotals } from "../lib/core/reporting.mjs";
 
@@ -37,10 +42,10 @@ test("the monthly digest covers the last COMPLETE month, whatever day it runs", 
 });
 
 test("month boundaries and leap years are handled", () => {
-  assert.deepEqual(
-    (({ start, end }) => ({ start, end }))(digestPeriod("2024-03-05", "monthly")),
-    { start: "2024-02-01", end: "2024-02-29" },
-  );
+  assert.deepEqual((({ start, end }) => ({ start, end }))(digestPeriod("2024-03-05", "monthly")), {
+    start: "2024-02-01",
+    end: "2024-02-29",
+  });
   assert.equal(digestPeriod("2026-01-01", "monthly").end, "2025-12-31");
   assert.equal(digestPeriod("2026-01-01", "daily").end, "2025-12-31");
 });
@@ -70,7 +75,10 @@ test("a second run on the same night sends NOTHING", () => {
 });
 
 test("the next night IS due again — the claim is per period, not permanent", () => {
-  assert.equal(isDigestDue({ ...schedule, last_period_key: "daily:2026-07-30" }, "2026-08-01").due, true);
+  assert.equal(
+    isDigestDue({ ...schedule, last_period_key: "daily:2026-07-30" }, "2026-08-01").due,
+    true,
+  );
 });
 
 test("a cron outage produces ONE catch-up digest, not one per missed day", () => {
@@ -82,7 +90,10 @@ test("a cron outage produces ONE catch-up digest, not one per missed day", () =>
 });
 
 test("a disabled schedule never fires", () => {
-  assert.deepEqual(isDigestDue({ ...schedule, enabled: false }, "2026-07-31"), { due: false, reason: "disabled" });
+  assert.deepEqual(isDigestDue({ ...schedule, enabled: false }, "2026-07-31"), {
+    due: false,
+    reason: "disabled",
+  });
 });
 
 test("a schedule that has not started yet does not back-fill", () => {
@@ -92,7 +103,10 @@ test("a schedule that has not started yet does not back-fill", () => {
 });
 
 test("a malformed schedule is reported, not guessed at", () => {
-  assert.equal(isDigestDue({ enabled: true, frequency: "fortnightly" }, "2026-07-31").reason, "unknown_frequency");
+  assert.equal(
+    isDigestDue({ enabled: true, frequency: "fortnightly" }, "2026-07-31").reason,
+    "unknown_frequency",
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -106,7 +120,9 @@ const input = {
     { normalized_status: "failed", base_amount_minor: 999900, refunded_minor: 0 },
   ],
   invoices: [{ id: "i1", discount_minor: 5000, tax_rate_bps: 825 }],
-  itemsByInvoice: { i1: [{ qty_milli: 2000, unit_price_minor: 30000, cost_minor: 9000, taxable: true }] },
+  itemsByInvoice: {
+    i1: [{ qty_milli: 2000, unit_price_minor: 30000, cost_minor: 9000, taxable: true }],
+  },
   expensesMinor: 22000,
 };
 
@@ -121,20 +137,36 @@ test("a failed payment is not collected revenue in the digest either", () => {
 test("digest.mjs contains no revenue arithmetic of its own", () => {
   // Comments stripped first: a promise in prose must not satisfy this.
   const source = readFileSync(new URL("../lib/core/digest.mjs", import.meta.url), "utf8")
-    .replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/\/\/[^\n]*/g, " ");
   assert.match(source, /import\s*\{\s*periodTotals\s*\}\s*from\s*"\.\/reporting\.mjs"/);
-  for (const smell of ["tax_rate_bps", "qty_milli", "cost_minor", "discount_minor", "unit_price_minor", "/ 100", "* 100"]) {
+  for (const smell of [
+    "tax_rate_bps",
+    "qty_milli",
+    "cost_minor",
+    "discount_minor",
+    "unit_price_minor",
+    "/ 100",
+    "* 100",
+  ]) {
     assert.equal(source.includes(smell), false, `digest.mjs must not compute ${smell} itself`);
   }
 });
 
 test("renderDigest refuses to format money itself — the caller owns the currency", () => {
-  assert.throws(() => renderDigest({ totals: digestTotals(input), period: digestPeriod("2026-07-31", "daily") }));
+  assert.throws(() =>
+    renderDigest({ totals: digestTotals(input), period: digestPeriod("2026-07-31", "daily") }),
+  );
 });
 
 test("every headline figure reaches the email, unchanged", () => {
   const totals = digestTotals(input);
-  const out = renderDigest({ totals, period: digestPeriod("2026-07-31", "daily"), orgName: "Acme", format: fmt });
+  const out = renderDigest({
+    totals,
+    period: digestPeriod("2026-07-31", "daily"),
+    orgName: "Acme",
+    format: fmt,
+  });
   assert.match(out.body, new RegExp(fmt(totals.collectedMinor).replace("$", "\\$")));
   assert.match(out.body, new RegExp(fmt(totals.netProfitMinor).replace("$", "\\$")));
   assert.match(out.subject, /Acme/);
@@ -144,7 +176,12 @@ test("every headline figure reaches the email, unchanged", () => {
 test("optional counts appear when supplied and are absent when not", () => {
   const totals = digestTotals(input);
   const period = digestPeriod("2026-07-31", "weekly");
-  const with_ = renderDigest({ totals, period, format: fmt, counts: { openInvoices: 7, outstandingMinor: 88000, jobsCompleted: 12 } });
+  const with_ = renderDigest({
+    totals,
+    period,
+    format: fmt,
+    counts: { openInvoices: 7, outstandingMinor: 88000, jobsCompleted: 12 },
+  });
   assert.match(with_.body, /Open invoices: 7/);
   assert.match(with_.body, /Jobs completed: 12/);
   const without = renderDigest({ totals, period, format: fmt });
@@ -152,13 +189,23 @@ test("optional counts appear when supplied and are absent when not", () => {
 });
 
 test("the digest exists in Hebrew", () => {
-  const out = renderDigest({ totals: digestTotals(input), period: digestPeriod("2026-07-31", "daily"), locale: "he", format: fmt });
+  const out = renderDigest({
+    totals: digestTotals(input),
+    period: digestPeriod("2026-07-31", "daily"),
+    locale: "he",
+    format: fmt,
+  });
   assert.match(out.body, /[֐-׿]/);
 });
 
 test("a zero period still produces a real digest rather than an empty message", () => {
   const totals = digestTotals({ payments: [], invoices: [], itemsByInvoice: {}, expensesMinor: 0 });
-  const out = renderDigest({ totals, period: digestPeriod("2026-07-31", "daily"), orgName: "Acme", format: fmt });
+  const out = renderDigest({
+    totals,
+    period: digestPeriod("2026-07-31", "daily"),
+    orgName: "Acme",
+    format: fmt,
+  });
   assert.match(out.body, /\$0\.00/);
   assert.equal(out.rows.length >= 5, true);
 });
@@ -167,8 +214,10 @@ test("a zero period still produces a real digest rather than an empty message", 
 // Structural: it runs on the EXISTING cron, honours consent, claims and releases.
 // ---------------------------------------------------------------------------
 
-const code = (path) => readFileSync(new URL(path, import.meta.url), "utf8")
-  .replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
+const code = (path) =>
+  readFileSync(new URL(path, import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/\/\/[^\n]*/g, " ");
 
 test("the digest runs on the existing daily cron, not a new endpoint", () => {
   const route = code("../app/api/cron/daily/route.ts");
@@ -194,7 +243,9 @@ test("the digest claims its period before sending and marks failure visibly", ()
 });
 
 test("migration 040 creates the schedule and its per-period claim", () => {
-  const sql = stripSqlComments(readFileSync(new URL("../db/040_communications.sql", import.meta.url), "utf8"));
+  const sql = stripSqlComments(
+    readFileSync(new URL("../db/040_communications.sql", import.meta.url), "utf8"),
+  );
   assert.match(sql, /create\s+table\s+if\s+not\s+exists\s+public\.report_schedules/i);
   assert.match(sql, /create\s+table\s+if\s+not\s+exists\s+public\.report_deliveries/i);
   assert.match(sql, /unique\s*\(\s*schedule_id\s*,\s*period_key\s*\)/i);

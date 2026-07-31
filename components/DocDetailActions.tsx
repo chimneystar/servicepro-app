@@ -4,14 +4,45 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ShareDoc, { type ShareTarget } from "@/components/ShareDoc";
-import { duplicateEstimate, deleteEstimate, setEstimateStatus, convertEstimateToInvoice, markEstimateSent } from "@/app/(app)/estimates/actions";
-import { duplicateInvoice, deleteInvoice, setInvoicePaid, markInvoiceSent } from "@/app/(app)/invoices/actions";
+import {
+  duplicateEstimate,
+  deleteEstimate,
+  setEstimateStatus,
+  convertEstimateToInvoice,
+  markEstimateSent,
+} from "@/app/(app)/estimates/actions";
+import {
+  duplicateInvoice,
+  deleteInvoice,
+  setInvoicePaid,
+  markInvoiceSent,
+} from "@/app/(app)/invoices/actions";
 import { ActionError, useActionStatus } from "@/components/ActionStatus";
 
-export default function DocDetailActions({ kind, id, token, status, number, locked = false, voided = false, customerName, customerEmail, customerPhone, orgName }: {
-  kind: "estimate" | "invoice"; id: string; token: string; status: string; number: number;
-  locked?: boolean; voided?: boolean;
-  customerName: string; customerEmail: string | null; customerPhone: string | null; orgName: string;
+export default function DocDetailActions({
+  kind,
+  id,
+  token,
+  status,
+  number,
+  locked = false,
+  voided = false,
+  customerName,
+  customerEmail,
+  customerPhone,
+  orgName,
+}: {
+  kind: "estimate" | "invoice";
+  id: string;
+  token: string;
+  status: string;
+  number: number;
+  locked?: boolean;
+  voided?: boolean;
+  customerName: string;
+  customerEmail: string | null;
+  customerPhone: string | null;
+  orgName: string;
 }) {
   const router = useRouter();
   // Every one of these buttons used to fail silently: the transition ended and
@@ -34,11 +65,14 @@ export default function DocDetailActions({ kind, id, token, status, number, lock
    */
   function recordSent() {
     if (locked || voided) return;
-    (kind === "estimate" ? markEstimateSent(id) : markInvoiceSent(id)).then(() => router.refresh()).catch(() => {});
+    (kind === "estimate" ? markEstimateSent(id) : markInvoiceSent(id))
+      .then(() => router.refresh())
+      .catch(() => {});
   }
   function copyLink() {
     navigator.clipboard?.writeText(`${window.location.origin}/p/${token}`).catch(() => {});
-    setCopied(true); setTimeout(() => setCopied(false), 1600);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1600);
     recordSent();
   }
   function openShare() {
@@ -47,13 +81,43 @@ export default function DocDetailActions({ kind, id, token, status, number, lock
   }
   function dup() {
     let newId: string | undefined;
-    run(async () => { const r = kind === "estimate" ? await duplicateEstimate(id) : await duplicateInvoice(id); newId = r.newId; return r; },
-      () => { if (newId) router.push(`${base}/${newId}`); else router.refresh(); });
+    run(
+      async () => {
+        const r = kind === "estimate" ? await duplicateEstimate(id) : await duplicateInvoice(id);
+        newId = r.newId;
+        return r;
+      },
+      () => {
+        if (newId) router.push(`${base}/${newId}`);
+        else router.refresh();
+      },
+    );
   }
-  function del() { if (!confirm(`Delete this ${kind}? This cannot be undone.`)) return; run(() => (kind === "estimate" ? deleteEstimate(id) : deleteInvoice(id)), () => router.push(base)); }
-  function estStatus(s: string) { run(() => setEstimateStatus(id, s), () => router.refresh()); }
-  function convert() { run(() => convertEstimateToInvoice(id), () => router.push("/invoices")); }
-  function togglePaid(paid: boolean) { run(() => setInvoicePaid(id, paid), () => router.refresh()); }
+  function del() {
+    if (!confirm(`Delete this ${kind}? This cannot be undone.`)) return;
+    run(
+      () => (kind === "estimate" ? deleteEstimate(id) : deleteInvoice(id)),
+      () => router.push(base),
+    );
+  }
+  function estStatus(s: string) {
+    run(
+      () => setEstimateStatus(id, s),
+      () => router.refresh(),
+    );
+  }
+  function convert() {
+    run(
+      () => convertEstimateToInvoice(id),
+      () => router.push("/invoices"),
+    );
+  }
+  function togglePaid(paid: boolean) {
+    run(
+      () => setInvoicePaid(id, paid),
+      () => router.refresh(),
+    );
+  }
 
   return (
     <div>
@@ -61,22 +125,101 @@ export default function DocDetailActions({ kind, id, token, status, number, lock
         {/* Editing a locked document is refused by the action AND by a database
             trigger. Showing the button anyway would just walk the user into a
             refusal, so it is replaced by the reason. */}
-        {!locked && <Link href={`${base}/${id}/edit`} style={{ ...btn, background: "#2563eb", color: "#fff", textDecoration: "none" }}><span aria-hidden="true">✏️</span> Edit</Link>}
-        {locked && !voided && <span style={{ ...btn, background: "#fdf1dc", color: "#7c4a03", cursor: "default" }}><span aria-hidden="true">🔒</span> Amounts locked</span>}
-        {!voided && <button type="button" onClick={openShare} style={{ ...btn, background: "#e0ebff", color: "#2563eb" }}><span aria-hidden="true">📤</span> Send</button>}
-        {!voided && <button type="button" onClick={copyLink} style={btn}>{copied ? <><span aria-hidden="true">✓</span> Copied</> : <><span aria-hidden="true">🔗</span> Link</>}</button>}
-        <button type="button" onClick={dup} disabled={pending} style={btn}><span aria-hidden="true">⧉</span> Duplicate</button>
-        {kind === "estimate" && status !== "approved" && !voided && <button type="button" onClick={convert} disabled={pending} style={{ ...btn, background: "#e6f6ec", color: "#15803d" }}><span aria-hidden="true">🧾</span> Convert to invoice</button>}
-        {kind === "invoice" && status !== "paid" && !voided && <button type="button" onClick={() => togglePaid(true)} disabled={pending} style={{ ...btn, background: "#e6f6ec", color: "#15803d" }}><span aria-hidden="true">✓</span> Mark paid</button>}
-        {kind === "invoice" && status === "paid" && <button type="button" onClick={() => togglePaid(false)} disabled={pending} style={btn}><span aria-hidden="true">↩</span> Mark due</button>}
-        {!locked && <button type="button" onClick={del} disabled={pending} style={{ ...btn, background: "#fdeaea", color: "#dc2626" }}><span aria-hidden="true">🗑️</span> Delete</button>}
+        {!locked && (
+          <Link
+            href={`${base}/${id}/edit`}
+            style={{ ...btn, background: "#2563eb", color: "#fff", textDecoration: "none" }}
+          >
+            <span aria-hidden="true">✏️</span> Edit
+          </Link>
+        )}
+        {locked && !voided && (
+          <span style={{ ...btn, background: "#fdf1dc", color: "#7c4a03", cursor: "default" }}>
+            <span aria-hidden="true">🔒</span> Amounts locked
+          </span>
+        )}
+        {!voided && (
+          <button
+            type="button"
+            onClick={openShare}
+            style={{ ...btn, background: "#e0ebff", color: "#2563eb" }}
+          >
+            <span aria-hidden="true">📤</span> Send
+          </button>
+        )}
+        {!voided && (
+          <button type="button" onClick={copyLink} style={btn}>
+            {copied ? (
+              <>
+                <span aria-hidden="true">✓</span> Copied
+              </>
+            ) : (
+              <>
+                <span aria-hidden="true">🔗</span> Link
+              </>
+            )}
+          </button>
+        )}
+        <button type="button" onClick={dup} disabled={pending} style={btn}>
+          <span aria-hidden="true">⧉</span> Duplicate
+        </button>
+        {kind === "estimate" && status !== "approved" && !voided && (
+          <button
+            type="button"
+            onClick={convert}
+            disabled={pending}
+            style={{ ...btn, background: "#e6f6ec", color: "#15803d" }}
+          >
+            <span aria-hidden="true">🧾</span> Convert to invoice
+          </button>
+        )}
+        {kind === "invoice" && status !== "paid" && !voided && (
+          <button
+            type="button"
+            onClick={() => togglePaid(true)}
+            disabled={pending}
+            style={{ ...btn, background: "#e6f6ec", color: "#15803d" }}
+          >
+            <span aria-hidden="true">✓</span> Mark paid
+          </button>
+        )}
+        {kind === "invoice" && status === "paid" && (
+          <button type="button" onClick={() => togglePaid(false)} disabled={pending} style={btn}>
+            <span aria-hidden="true">↩</span> Mark due
+          </button>
+        )}
+        {!locked && (
+          <button
+            type="button"
+            onClick={del}
+            disabled={pending}
+            style={{ ...btn, background: "#fdeaea", color: "#dc2626" }}
+          >
+            <span aria-hidden="true">🗑️</span> Delete
+          </button>
+        )}
       </div>
 
       {kind === "estimate" && !voided && (
         <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
           <span style={{ fontSize: "0.8125rem", color: "#5c6675", fontWeight: 700 }}>Status:</span>
-          <select value={status} onChange={(e) => estStatus(e.target.value)} disabled={pending} style={{ border: "1px solid #e2e8f0", borderRadius: 9, padding: "7px 10px", fontSize: "0.8125rem", fontWeight: 600, background: "#fff" }}>
-            <option value="draft">Draft</option><option value="sent">Sent</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
+          <select
+            value={status}
+            onChange={(e) => estStatus(e.target.value)}
+            disabled={pending}
+            style={{
+              border: "1px solid #e2e8f0",
+              borderRadius: 9,
+              padding: "7px 10px",
+              fontSize: "0.8125rem",
+              fontWeight: 600,
+              background: "#fff",
+            }}
+          >
+            <option value="draft">Draft</option>
+            <option value="sent">Sent</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
           </select>
         </label>
       )}
@@ -88,4 +231,13 @@ export default function DocDetailActions({ kind, id, token, status, number, lock
   );
 }
 
-const btn: React.CSSProperties = { background: "#eef2f8", color: "#2563eb", border: "none", borderRadius: 9, padding: "9px 13px", fontWeight: 700, fontSize: "0.8125rem", cursor: "pointer" };
+const btn: React.CSSProperties = {
+  background: "#eef2f8",
+  color: "#2563eb",
+  border: "none",
+  borderRadius: 9,
+  padding: "9px 13px",
+  fontWeight: 700,
+  fontSize: "0.8125rem",
+  cursor: "pointer",
+};

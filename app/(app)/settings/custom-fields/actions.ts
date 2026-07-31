@@ -6,14 +6,19 @@ import { requireProfile, assertRole } from "@/lib/auth";
 import { getLocale } from "@/lib/locale-server";
 // @ts-ignore — pure, unit-tested in tests/custom-fields.test.mjs
 import {
-  ENTITY_TYPES, CustomFieldError, normalizeDefinitionInput,
-  collectFieldValues, assertEntityReference,
+  ENTITY_TYPES,
+  CustomFieldError,
+  normalizeDefinitionInput,
+  collectFieldValues,
+  assertEntityReference,
 } from "@/lib/core/custom-fields.mjs";
 
 export type CustomFieldResult = { ok: boolean; error?: string };
 
-const forbidden = (he: boolean) => he ? "אין לך הרשאה לשנות שדות מותאמים." : "You don't have access to change custom fields.";
-const failed = (he: boolean) => he ? "לא הצלחנו לשמור. נסו שוב." : "We couldn't save that. Try again.";
+const forbidden = (he: boolean) =>
+  he ? "אין לך הרשאה לשנות שדות מותאמים." : "You don't have access to change custom fields.";
+const failed = (he: boolean) =>
+  he ? "לא הצלחנו לשמור. נסו שוב." : "We couldn't save that. Try again.";
 
 async function guard() {
   const profile = await requireProfile();
@@ -25,10 +30,17 @@ async function guard() {
 // Definitions — what fields exist (settings)
 // ---------------------------------------------------------------------
 
-export async function saveCustomFieldDefinition(_previous: CustomFieldResult, formData: FormData): Promise<CustomFieldResult> {
+export async function saveCustomFieldDefinition(
+  _previous: CustomFieldResult,
+  formData: FormData,
+): Promise<CustomFieldResult> {
   const he = (await getLocale()) === "he";
   let profile;
-  try { profile = await guard(); } catch { return { ok: false, error: forbidden(he) }; }
+  try {
+    profile = await guard();
+  } catch {
+    return { ok: false, error: forbidden(he) };
+  }
 
   let row;
   try {
@@ -49,10 +61,19 @@ export async function saveCustomFieldDefinition(_previous: CustomFieldResult, fo
   // entity_type is NOT editable after creation: values already recorded against
   // the definition would become values of the wrong kind of thing.
   const { error } = id
-    ? await supabase.from("custom_field_definitions")
-        .update({ label: row.label, field_type: row.field_type, options_json: row.options_json, required: row.required, sort: row.sort })
-        .eq("id", id).eq("organization_id", profile.organization_id!)
-    : await supabase.from("custom_field_definitions")
+    ? await supabase
+        .from("custom_field_definitions")
+        .update({
+          label: row.label,
+          field_type: row.field_type,
+          options_json: row.options_json,
+          required: row.required,
+          sort: row.sort,
+        })
+        .eq("id", id)
+        .eq("organization_id", profile.organization_id!)
+    : await supabase
+        .from("custom_field_definitions")
         .insert({ ...row, organization_id: profile.organization_id });
   if (error) return { ok: false, error: error.message };
 
@@ -61,13 +82,23 @@ export async function saveCustomFieldDefinition(_previous: CustomFieldResult, fo
 }
 
 /** Archive rather than delete: the values recorded against the field survive. */
-export async function setCustomFieldActive(id: string, active: boolean): Promise<CustomFieldResult> {
+export async function setCustomFieldActive(
+  id: string,
+  active: boolean,
+): Promise<CustomFieldResult> {
   const he = (await getLocale()) === "he";
   let profile;
-  try { profile = await guard(); } catch { return { ok: false, error: forbidden(he) }; }
+  try {
+    profile = await guard();
+  } catch {
+    return { ok: false, error: forbidden(he) };
+  }
   const supabase = await createClient();
-  const { error } = await supabase.from("custom_field_definitions").update({ active })
-    .eq("id", id).eq("organization_id", profile.organization_id!);
+  const { error } = await supabase
+    .from("custom_field_definitions")
+    .update({ active })
+    .eq("id", id)
+    .eq("organization_id", profile.organization_id!);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/settings/custom-fields");
   return { ok: true };
@@ -77,10 +108,17 @@ export async function setCustomFieldActive(id: string, active: boolean): Promise
 export async function deleteCustomFieldDefinition(id: string): Promise<CustomFieldResult> {
   const he = (await getLocale()) === "he";
   let profile;
-  try { profile = await guard(); } catch { return { ok: false, error: forbidden(he) }; }
+  try {
+    profile = await guard();
+  } catch {
+    return { ok: false, error: forbidden(he) };
+  }
   const supabase = await createClient();
-  const { error } = await supabase.from("custom_field_definitions").delete()
-    .eq("id", id).eq("organization_id", profile.organization_id!);
+  const { error } = await supabase
+    .from("custom_field_definitions")
+    .delete()
+    .eq("id", id)
+    .eq("organization_id", profile.organization_id!);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/settings/custom-fields");
   return { ok: true };
@@ -100,10 +138,17 @@ export async function deleteCustomFieldDefinition(id: string): Promise<CustomFie
  * looked up and its organisation compared, and `assertEntityReference` applies
  * the same rule migration 035's trigger enforces at the database.
  */
-export async function saveCustomFieldValues(_previous: CustomFieldResult, formData: FormData): Promise<CustomFieldResult> {
+export async function saveCustomFieldValues(
+  _previous: CustomFieldResult,
+  formData: FormData,
+): Promise<CustomFieldResult> {
   const he = (await getLocale()) === "he";
   let profile;
-  try { profile = await guard(); } catch { return { ok: false, error: forbidden(he) }; }
+  try {
+    profile = await guard();
+  } catch {
+    return { ok: false, error: forbidden(he) };
+  }
 
   const entityType = String(formData.get("entityType") ?? "");
   const entityId = String(formData.get("entityId") ?? "");
@@ -113,15 +158,24 @@ export async function saveCustomFieldValues(_previous: CustomFieldResult, formDa
   const table = entityType === "customer" ? "customers" : "jobs";
   const [{ data: entity }, { data: definitions }] = await Promise.all([
     supabase.from(table).select("id, organization_id").eq("id", entityId).maybeSingle(),
-    supabase.from("custom_field_definitions")
+    supabase
+      .from("custom_field_definitions")
       .select("id, organization_id, entity_type, label, field_type, options_json, required, active")
-      .eq("entity_type", entityType).eq("active", true).order("sort").order("label"),
+      .eq("entity_type", entityType)
+      .eq("active", true)
+      .order("sort")
+      .order("label"),
   ]);
 
   const defs = definitions ?? [];
   try {
     for (const definition of defs) {
-      assertEntityReference({ definition, entityType, entity, organizationId: profile.organization_id });
+      assertEntityReference({
+        definition,
+        entityType,
+        entity,
+        organizationId: profile.organization_id,
+      });
     }
   } catch (error) {
     return { ok: false, error: error instanceof CustomFieldError ? error.message : failed(he) };
@@ -149,8 +203,12 @@ export async function saveCustomFieldValues(_previous: CustomFieldResult, formDa
     if (error) return { ok: false, error: error.message };
   }
   if (deletes.length) {
-    const { error } = await supabase.from("custom_field_values").delete()
-      .eq("entity_id", entityId).eq("organization_id", profile.organization_id!).in("definition_id", deletes);
+    const { error } = await supabase
+      .from("custom_field_values")
+      .delete()
+      .eq("entity_id", entityId)
+      .eq("organization_id", profile.organization_id!)
+      .in("definition_id", deletes);
     if (error) return { ok: false, error: error.message };
   }
 

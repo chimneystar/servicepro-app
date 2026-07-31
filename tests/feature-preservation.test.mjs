@@ -3,7 +3,12 @@ import assert from "node:assert/strict";
 import { readFile, access } from "node:fs/promises";
 import { readdirSync, statSync } from "node:fs";
 import { resolve, relative, sep } from "node:path";
-import { tablesCreated, tablesWithRls, tablesWithPolicy, tablesRevokedFromAnon } from "./helpers/sql.mjs";
+import {
+  tablesCreated,
+  tablesWithRls,
+  tablesWithPolicy,
+  tablesRevokedFromAnon,
+} from "./helpers/sql.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const manifest = JSON.parse(await readFile(resolve(root, "config/feature-manifest.json"), "utf8"));
@@ -79,12 +84,17 @@ function pagesOnDisk() {
 
 test("every route in the manifest still has a page on disk", async () => {
   for (const route of [...manifest.protectedRoutes, ...manifest.publicWorkflows]) {
-    await assert.doesNotReject(access(resolve(root, route.file)), `${route.path} is missing ${route.file}`);
+    await assert.doesNotReject(
+      access(resolve(root, route.file)),
+      `${route.path} is missing ${route.file}`,
+    );
   }
 });
 
 test("every page on disk is accounted for in the manifest", () => {
-  const claimed = new Set([...manifest.protectedRoutes, ...manifest.publicWorkflows].map((r) => r.file));
+  const claimed = new Set(
+    [...manifest.protectedRoutes, ...manifest.publicWorkflows].map((r) => r.file),
+  );
   const unlisted = pagesOnDisk().filter((f) => !claimed.has(f));
   assert.deepEqual(
     unlisted,
@@ -95,7 +105,27 @@ test("every page on disk is accounted for in the manifest", () => {
 
 test("the sellable CRM keeps its essential workflows", () => {
   const routes = new Set(manifest.protectedRoutes.map((route) => route.path));
-  for (const route of ["/schedule", "/jobs", "/customers", "/leads", "/messages", "/calls", "/warranties", "/estimates", "/invoices", "/inventory", "/pricebook", "/recurring", "/reports", "/team", "/appearance", "/finance", "/settings", "/settings/privacy", "/admin"]) {
+  for (const route of [
+    "/schedule",
+    "/jobs",
+    "/customers",
+    "/leads",
+    "/messages",
+    "/calls",
+    "/warranties",
+    "/estimates",
+    "/invoices",
+    "/inventory",
+    "/pricebook",
+    "/recurring",
+    "/reports",
+    "/team",
+    "/appearance",
+    "/finance",
+    "/settings",
+    "/settings/privacy",
+    "/admin",
+  ]) {
     assert.ok(routes.has(route), `protected feature was removed: ${route}`);
   }
 });
@@ -118,41 +148,85 @@ test("team, role homes and appearance remain discoverable", async () => {
 
 test("operations, privacy and platform tables are individually protected", async () => {
   const sql = await readSql("022_operations_privacy_team_admin.sql");
-  const created = tablesCreated(sql), rls = tablesWithRls(sql), policies = tablesWithPolicy(sql);
-  for (const table of ["tax_jurisdictions", "settlement_batches", "payment_disputes", "consent_events", "privacy_requests", "retention_holds", "platform_admins", "support_sessions", "feature_flags", "release_records"]) {
+  const created = tablesCreated(sql),
+    rls = tablesWithRls(sql),
+    policies = tablesWithPolicy(sql);
+  for (const table of [
+    "tax_jurisdictions",
+    "settlement_batches",
+    "payment_disputes",
+    "consent_events",
+    "privacy_requests",
+    "retention_holds",
+    "platform_admins",
+    "support_sessions",
+    "feature_flags",
+    "release_records",
+  ]) {
     assert.ok(created.has(table), `missing table ${table}`);
     assert.ok(rls.has(table), `RLS is NOT enabled for ${table}`);
-    assert.ok(policies.has(table), `${table} has RLS but no policy — it would be deny-all by accident`);
+    assert.ok(
+      policies.has(table),
+      `${table} has RLS but no policy — it would be deny-all by accident`,
+    );
   }
   assert.match(sql, /last_owner_required/);
 });
 
 test("every table created in 022 is protected, not just the ones we listed", async () => {
   const sql = await readSql("022_operations_privacy_team_admin.sql");
-  const rls = tablesWithRls(sql), policies = tablesWithPolicy(sql);
+  const rls = tablesWithRls(sql),
+    policies = tablesWithPolicy(sql);
   const unprotected = [...tablesCreated(sql)].filter((t) => !rls.has(t) || !policies.has(t));
-  assert.deepEqual(unprotected, [], `tables created without RLS + policy: ${unprotected.join(", ")}`);
+  assert.deepEqual(
+    unprotected,
+    [],
+    `tables created without RLS + policy: ${unprotected.join(", ")}`,
+  );
 });
 
 test("job history, warranties and calls keep their database protections", async () => {
   const sql = await readSql("021_job_history_warranty_calls.sql");
-  const created = tablesCreated(sql), rls = tablesWithRls(sql), policies = tablesWithPolicy(sql);
-  for (const table of ["job_actions", "job_warranties", "warranty_callbacks", "tracked_phone_numbers", "call_events"]) {
+  const created = tablesCreated(sql),
+    rls = tablesWithRls(sql),
+    policies = tablesWithPolicy(sql);
+  for (const table of [
+    "job_actions",
+    "job_warranties",
+    "warranty_callbacks",
+    "tracked_phone_numbers",
+    "call_events",
+  ]) {
     assert.ok(created.has(table), `missing table ${table}`);
     assert.ok(rls.has(table), `RLS is NOT enabled for ${table}`);
     assert.ok(policies.has(table), `${table} has RLS but no policy`);
   }
   const lower = sql.toLowerCase();
-  for (const guard of ["job_actions_job_org_guard", "warranty_callbacks_original_job_org_guard", "call_events_customer_org_guard", "call_events_job_org_guard"]) {
+  for (const guard of [
+    "job_actions_job_org_guard",
+    "warranty_callbacks_original_job_org_guard",
+    "call_events_customer_org_guard",
+    "call_events_job_org_guard",
+  ]) {
     assert.ok(lower.includes(guard), `missing tenant guard ${guard}`);
   }
-  assert.ok(tablesRevokedFromAnon(sql).has("job_actions"), "anonymous access to job_actions was not revoked");
-  assert.ok(lower.includes("security invoker"), "linked callback scheduling must respect the caller's RLS");
+  assert.ok(
+    tablesRevokedFromAnon(sql).has("job_actions"),
+    "anonymous access to job_actions was not revoked",
+  );
+  assert.ok(
+    lower.includes("security invoker"),
+    "linked callback scheduling must respect the caller's RLS",
+  );
 });
 
 test("the authorization hardening in 023 is still present", async () => {
   const sql = (await readSql("023_authorization_hardening.sql")).toLowerCase();
-  for (const guard of ["guard_profile_privilege_columns", "guard_job_field_authority", "rotate_customer_portal_token"]) {
+  for (const guard of [
+    "guard_profile_privilege_columns",
+    "guard_job_field_authority",
+    "rotate_customer_portal_token",
+  ]) {
     assert.ok(sql.includes(guard), `${guard} was removed — a privilege-escalation fix regressed`);
   }
   assert.ok(sql.includes("signed_at is null"), "approve_document must remain sign-once");
@@ -165,7 +239,11 @@ test("the authorization hardening in 023 is still present", async () => {
 test("owner, office and technician experiences remain explicit", () => {
   const roles = new Set(manifest.protectedRoutes.flatMap((route) => route.roles));
   assert.deepEqual([...roles].sort(), ["office", "owner", "tech"]);
-  assert.ok(manifest.protectedRoutes.some((route) => route.path === "/tech" && route.roles.length === 1 && route.roles[0] === "tech"));
+  assert.ok(
+    manifest.protectedRoutes.some(
+      (route) => route.path === "/tech" && route.roles.length === 1 && route.roles[0] === "tech",
+    ),
+  );
 });
 
 test("routes that exclude technicians actually keep them out", async () => {
@@ -174,15 +252,20 @@ test("routes that exclude technicians actually keep them out", async () => {
   // behind it — which is how /invoices ended up loading for a technician
   // (empty, because RLS held, but the page itself never checked).
   const RLS_CLOSED = new Set([
-    "/invoices", "/invoices/[id]", "/invoices/[id]/edit",
-    "/estimates", "/estimates/[id]", "/estimates/[id]/edit",
+    "/invoices",
+    "/invoices/[id]",
+    "/invoices/[id]/edit",
+    "/estimates",
+    "/estimates/[id]",
+    "/estimates/[id]/edit",
     "/expenses",
   ]);
   // A page enforces if it inspects the caller's role or delegates to a guard.
   // The first version of this check only recognised `role === "tech") redirect`
   // and flagged five pages that guard with `profile.role !== "owner"` — a false
   // RED, which burns the guard's credibility exactly as a false GREEN does.
-  const ENFORCES = /assertRole\(|assertCapability\(|getPlatformAdmin|isPlatformAdmin|profile\.role\s*(!==|===)/;
+  const ENFORCES =
+    /assertRole\(|assertCapability\(|getPlatformAdmin|isPlatformAdmin|profile\.role\s*(!==|===)/;
 
   const gaps = [];
   for (const route of manifest.protectedRoutes) {
@@ -191,22 +274,43 @@ test("routes that exclude technicians actually keep them out", async () => {
     const src = await readFile(resolve(root, route.file), "utf8");
     if (!ENFORCES.test(src)) gaps.push(`${route.path} (${route.file})`);
   }
-  assert.deepEqual(gaps, [], `manifest excludes technicians but the page never checks:\n  ${gaps.join("\n  ")}`);
+  assert.deepEqual(
+    gaps,
+    [],
+    `manifest excludes technicians but the page never checks:\n  ${gaps.join("\n  ")}`,
+  );
 });
 
 test("the role-enforcement detector can actually fail", () => {
   // Both-ways proof for the check above: it must reject a page with no guard.
-  const ENFORCES = /assertRole\(|assertCapability\(|getPlatformAdmin|isPlatformAdmin|profile\.role\s*(!==|===)/;
-  assert.ok(!ENFORCES.test(`export default async function Page() { const p = await requireProfile(); return <div/>; }`),
-    "a page that merely authenticates must NOT count as role enforcement");
+  const ENFORCES =
+    /assertRole\(|assertCapability\(|getPlatformAdmin|isPlatformAdmin|profile\.role\s*(!==|===)/;
+  assert.ok(
+    !ENFORCES.test(
+      `export default async function Page() { const p = await requireProfile(); return <div/>; }`,
+    ),
+    "a page that merely authenticates must NOT count as role enforcement",
+  );
   assert.ok(ENFORCES.test(`if (profile.role !== "owner") redirect("/");`));
   assert.ok(ENFORCES.test(`assertRole(profile, ["owner"]);`));
 });
 
 test("settings cannot silently lose major sections", () => {
   assert.ok(manifest.settingsCapabilities.length >= 23);
-  for (const capability of ["job types", "job statuses", "message templates", "team roles", "payment methods", "Helcim card and ACH", "Zelle", "mailed checks"]) {
-    assert.ok(manifest.settingsCapabilities.includes(capability), `settings capability was removed: ${capability}`);
+  for (const capability of [
+    "job types",
+    "job statuses",
+    "message templates",
+    "team roles",
+    "payment methods",
+    "Helcim card and ACH",
+    "Zelle",
+    "mailed checks",
+  ]) {
+    assert.ok(
+      manifest.settingsCapabilities.includes(capability),
+      `settings capability was removed: ${capability}`,
+    );
   }
 });
 
@@ -216,15 +320,27 @@ test("English and Hebrew dictionaries contain the same keys", async () => {
   // it matched NOTHING, both blocks fell back to "", and the test compared two
   // empty arrays and passed. The one check in this file the audit called
   // genuinely valuable was silently vacuous.
-  const english = source.match(/const en: Dict = \{([\s\S]*?)\r?\n\};\r?\n\r?\nconst he:/)?.[1] ?? "";
-  const hebrew = source.match(/const he: Dict = \{([\s\S]*?)\r?\n\};\r?\n\r?\nconst DICTS/)?.[1] ?? "";
-  const keys = (block) => [...block.matchAll(/"([a-zA-Z0-9_.]+)"\s*:/g)].map((match) => match[1]).sort();
+  const english =
+    source.match(/const en: Dict = \{([\s\S]*?)\r?\n\};\r?\n\r?\nconst he:/)?.[1] ?? "";
+  const hebrew =
+    source.match(/const he: Dict = \{([\s\S]*?)\r?\n\};\r?\n\r?\nconst DICTS/)?.[1] ?? "";
+  const keys = (block) =>
+    [...block.matchAll(/"([a-zA-Z0-9_.]+)"\s*:/g)].map((match) => match[1]).sort();
 
   // Guard the guard: if the extraction ever breaks again, fail loudly rather
   // than comparing two empty sets.
-  assert.ok(english.length > 0, "could not extract the English dictionary — this test would be vacuous");
-  assert.ok(hebrew.length > 0, "could not extract the Hebrew dictionary — this test would be vacuous");
-  assert.ok(keys(english).length > 200, `expected the full dictionary, found ${keys(english).length} keys`);
+  assert.ok(
+    english.length > 0,
+    "could not extract the English dictionary — this test would be vacuous",
+  );
+  assert.ok(
+    hebrew.length > 0,
+    "could not extract the Hebrew dictionary — this test would be vacuous",
+  );
+  assert.ok(
+    keys(english).length > 200,
+    `expected the full dictionary, found ${keys(english).length} keys`,
+  );
 
   assert.deepEqual(keys(hebrew), keys(english));
 });

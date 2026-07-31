@@ -54,7 +54,11 @@ test("zero, negative and fractional amounts are refused", () => {
   for (const bad of [0, -1, -500_00]) {
     assert.equal(validateRefundAmount(settled(500_00), bad).ok, false, `${bad} must be refused`);
   }
-  assert.equal(validateRefundAmount(settled(500_00), 10.5).ok, false, "money is integer minor units");
+  assert.equal(
+    validateRefundAmount(settled(500_00), 10.5).ok,
+    false,
+    "money is integer minor units",
+  );
 });
 
 test("malformed amounts are refused rather than becoming NaN", () => {
@@ -69,7 +73,12 @@ test("a surcharge is not refundable — only the base amount was the customer's"
   // base_amount_minor excludes the Fee Saver surcharge, which went to the
   // processor. Refunding against the gross would return money the business
   // never held.
-  const withSurcharge = { base_amount_minor: 500_00, amount_minor: 530_00, refunded_minor: 0, normalized_status: "settled" };
+  const withSurcharge = {
+    base_amount_minor: 500_00,
+    amount_minor: 530_00,
+    refunded_minor: 0,
+    normalized_status: "settled",
+  };
   assert.equal(collectedOnPayment(withSurcharge), 500_00);
   assert.equal(validateRefundAmount(withSurcharge, 530_00).ok, false);
   assert.equal(validateRefundAmount(withSurcharge, 500_00).ok, true);
@@ -103,7 +112,11 @@ test("a partial refund leaves the remainder credited", () => {
 });
 
 test("unsettled payments contribute nothing to coverage", () => {
-  const inFlight = { base_amount_minor: 500_00, refunded_minor: 0, normalized_status: "processing" };
+  const inFlight = {
+    base_amount_minor: 500_00,
+    refunded_minor: 0,
+    normalized_status: "processing",
+  };
   assert.equal(refundableMinor([inFlight]), 0);
   assert.deepEqual(REFUNDABLE_STATUSES, ["settled", "partially_refunded"]);
 });
@@ -118,24 +131,36 @@ const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 test("refunds are an append-only ledger, not a mutable counter", () => {
   const sql = read("db/030_refunds.sql").toLowerCase();
   assert.ok(/create table if not exists public\.payment_refunds/.test(sql));
-  assert.ok(/sync_payment_refunded_total/.test(sql),
-    "payments.refunded_minor must be derived from the ledger so it cannot drift");
-  assert.ok(/guard_refund_amount/.test(sql), "an over-refund must be refused by the database, not only the action");
-  assert.ok(!/create policy payment_refunds_delete/.test(sql),
-    "deleting a refund would rewrite financial history");
+  assert.ok(
+    /sync_payment_refunded_total/.test(sql),
+    "payments.refunded_minor must be derived from the ledger so it cannot drift",
+  );
+  assert.ok(
+    /guard_refund_amount/.test(sql),
+    "an over-refund must be refused by the database, not only the action",
+  );
+  assert.ok(
+    !/create policy payment_refunds_delete/.test(sql),
+    "deleting a refund would rewrite financial history",
+  );
 });
 
 test("the money table finally has an audit trail", () => {
   const sql = read("db/030_refunds.sql");
-  assert.ok(/trg_payments_audit/.test(sql),
-    "payments was the one major table with no before/after record — refunds make that gap worse");
+  assert.ok(
+    /trg_payments_audit/.test(sql),
+    "payments was the one major table with no before/after record — refunds make that gap worse",
+  );
 });
 
 test("refunding requires the permission that until now did nothing", () => {
   const sql = read("db/030_refunds.sql");
   assert.ok(/can_refund_payments\(\)/.test(sql));
   const src = read("lib/payments/refunds.ts");
-  assert.ok(/assertMayRefund/.test(src), "the action must check it too — RLS is the boundary, not the only gate");
+  assert.ok(
+    /assertMayRefund/.test(src),
+    "the action must check it too — RLS is the boundary, not the only gate",
+  );
 });
 
 test("a provider refund is recorded pending and only completed on confirmation", () => {
@@ -143,9 +168,14 @@ test("a provider refund is recorded pending and only completed on confirmation",
   const pendingAt = src.indexOf('status: isProvider ? "pending"');
   const callAt = src.indexOf("sendProviderRefund(payment");
   assert.ok(pendingAt > -1 && callAt > -1);
-  assert.ok(pendingAt < callAt,
-    "the row must exist BEFORE the provider call — the opposite order can credit a refund that never happened");
-  assert.ok(/status: "failed"/.test(src), "a refused provider refund must be recorded as failed, not silently dropped");
+  assert.ok(
+    pendingAt < callAt,
+    "the row must exist BEFORE the provider call — the opposite order can credit a refund that never happened",
+  );
+  assert.ok(
+    /status: "failed"/.test(src),
+    "a refused provider refund must be recorded as failed, not silently dropped",
+  );
 });
 
 test("the untested provider path says so, in the code", () => {
@@ -153,6 +183,8 @@ test("the untested provider path says so, in the code", () => {
   // credentials in this environment. The limitation must stay written down where
   // the next person will see it, not only in a commit message.
   const src = read("lib/payments/refunds.ts");
-  assert.ok(/NEVER BEEN EXERCISED|never been exercised/i.test(src),
-    "the unproven provider call must be labelled as unproven");
+  assert.ok(
+    /NEVER BEEN EXERCISED|never been exercised/i.test(src),
+    "the unproven provider call must be labelled as unproven",
+  );
 });

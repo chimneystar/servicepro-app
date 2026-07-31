@@ -10,8 +10,20 @@ import { creditedMinor, openBalanceMinor, SETTLED_STATUSES } from "../lib/paymen
 // payments.invoice_id, so the deposit was invisible.
 // ---------------------------------------------------------------------------
 
-const deposit = (minor) => ({ base_amount_minor: minor, refunded_minor: 0, normalized_status: "settled", estimate_id: "est-1", invoice_id: null });
-const onInvoice = (minor, status = "settled") => ({ base_amount_minor: minor, refunded_minor: 0, normalized_status: status, estimate_id: null, invoice_id: "inv-1" });
+const deposit = (minor) => ({
+  base_amount_minor: minor,
+  refunded_minor: 0,
+  normalized_status: "settled",
+  estimate_id: "est-1",
+  invoice_id: null,
+});
+const onInvoice = (minor, status = "settled") => ({
+  base_amount_minor: minor,
+  refunded_minor: 0,
+  normalized_status: status,
+  estimate_id: null,
+  invoice_id: "inv-1",
+});
 
 test("a paid deposit is credited against the converted invoice", () => {
   const jobTotal = 500_00;
@@ -22,8 +34,11 @@ test("a paid deposit is credited against the converted invoice", () => {
 
   // The regression itself: ignoring the estimate row bills the full amount.
   const invoiceRowsOnly = [];
-  assert.equal(openBalanceMinor(jobTotal, invoiceRowsOnly), 500_00,
-    "this is the overbilling the fix removes — it must remain the answer when the deposit is not included");
+  assert.equal(
+    openBalanceMinor(jobTotal, invoiceRowsOnly),
+    500_00,
+    "this is the overbilling the fix removes — it must remain the answer when the deposit is not included",
+  );
 });
 
 test("deposit plus final payment closes the invoice exactly", () => {
@@ -42,7 +57,11 @@ test("an invoice never created from an estimate is unaffected", () => {
 
 test("declined and in-flight payments are NOT counted as collected", () => {
   for (const status of ["failed", "processing", "pending", "cancelled", "requires_action", ""]) {
-    assert.equal(creditedMinor([onInvoice(500_00, status)]), 0, `status ${JSON.stringify(status)} must not count`);
+    assert.equal(
+      creditedMinor([onInvoice(500_00, status)]),
+      0,
+      `status ${JSON.stringify(status)} must not count`,
+    );
   }
   // A three-day ACH in flight leaves the full balance outstanding.
   assert.equal(openBalanceMinor(500_00, [onInvoice(500_00, "processing")]), 500_00);
@@ -57,9 +76,27 @@ test("settled and partially_refunded DO count (not a cry-wolf filter)", () => {
 });
 
 test("refunds are subtracted, and cannot push a payment negative", () => {
-  assert.equal(creditedMinor([{ base_amount_minor: 500_00, refunded_minor: 200_00, normalized_status: "partially_refunded" }]), 300_00);
-  assert.equal(creditedMinor([{ base_amount_minor: 500_00, refunded_minor: 900_00, normalized_status: "partially_refunded" }]), 0,
-    "an over-refund must not become negative credit and silently inflate another payment");
+  assert.equal(
+    creditedMinor([
+      {
+        base_amount_minor: 500_00,
+        refunded_minor: 200_00,
+        normalized_status: "partially_refunded",
+      },
+    ]),
+    300_00,
+  );
+  assert.equal(
+    creditedMinor([
+      {
+        base_amount_minor: 500_00,
+        refunded_minor: 900_00,
+        normalized_status: "partially_refunded",
+      },
+    ]),
+    0,
+    "an over-refund must not become negative credit and silently inflate another payment",
+  );
 });
 
 test("an overpaid invoice reports zero owed, never a negative balance", () => {
@@ -79,7 +116,9 @@ test("missing and malformed fields degrade to zero rather than NaN", () => {
   assert.equal(creditedMinor([]), 0);
   assert.equal(creditedMinor([{ normalized_status: "settled" }]), 0);
   assert.equal(openBalanceMinor(undefined, null), 0);
-  assert.ok(!Number.isNaN(creditedMinor([{ base_amount_minor: "oops", normalized_status: "settled" }])));
+  assert.ok(
+    !Number.isNaN(creditedMinor([{ base_amount_minor: "oops", normalized_status: "settled" }])),
+  );
 });
 
 test("legacy rows using amount_minor still credit", () => {
@@ -97,20 +136,32 @@ test("invoices carry the estimate they were converted from", () => {
   const sql = read("db/024_deposit_credit.sql");
   assert.ok(/alter table public\.invoices add column if not exists estimate_id/.test(sql));
   assert.ok(/invoices_estimate_org_fk/.test(sql), "the link must be tenant-safe by composite FK");
-  assert.ok(/c\.matches = 1/.test(sql), "the backfill must skip ambiguous matches rather than guess");
+  assert.ok(
+    /c\.matches = 1/.test(sql),
+    "the backfill must skip ambiguous matches rather than guess",
+  );
 });
 
 test("conversion records the link and refuses to run twice", () => {
   const src = read("app/(app)/estimates/actions.ts");
   assert.ok(/estimate_id: est\.id/.test(src), "without this the deposit can never be credited");
-  assert.ok(/eq\("estimate_id", estimateId\)/.test(src), "a repeat call must return the existing invoice");
+  assert.ok(
+    /eq\("estimate_id", estimateId\)/.test(src),
+    "a repeat call must return the existing invoice",
+  );
 });
 
 test("the balance readers agree with each other", () => {
   const server = read("lib/payments/server.ts");
   const page = read("app/(app)/invoices/[id]/page.tsx");
-  for (const [name, src] of [["server", server], ["invoice page", page]]) {
-    assert.ok(/estimate_id\.eq\.|estimate_id/.test(src), `${name} must credit the originating estimate`);
+  for (const [name, src] of [
+    ["server", server],
+    ["invoice page", page],
+  ]) {
+    assert.ok(
+      /estimate_id\.eq\.|estimate_id/.test(src),
+      `${name} must credit the originating estimate`,
+    );
     assert.ok(/partially_refunded/.test(src), `${name} must count only settled money`);
     assert.ok(/refunded_minor/.test(src), `${name} must subtract refunds`);
   }

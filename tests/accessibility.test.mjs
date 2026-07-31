@@ -35,7 +35,8 @@ function walk(dir) {
   return out;
 }
 
-const FILES = ["app", "components"].flatMap((d) => walk(join(root, d)))
+const FILES = ["app", "components"]
+  .flatMap((d) => walk(join(root, d)))
   .map((p) => relative(root, p).split(sep).join("/"))
   .sort();
 
@@ -114,12 +115,16 @@ const QUARANTINE = {
   "app/(app)/settings/booking/": { controls: 22, buttons: 1 },
   "app/onboarding/": { controls: 6, buttons: 0 },
 };
-const quarantineOf = (rel) => Object.keys(QUARANTINE).find((prefix) => rel.startsWith(prefix)) ?? null;
+const quarantineOf = (rel) =>
+  Object.keys(QUARANTINE).find((prefix) => rel.startsWith(prefix)) ?? null;
 
 function assertQuarantine(kind, offenders) {
   for (const [prefix, budget] of Object.entries(QUARANTINE)) {
     const still = offenders.filter((o) => o.rel.startsWith(prefix)).length;
-    assert.ok(still <= budget[kind], `${prefix} got WORSE: ${still} ${kind} now, budget ${budget[kind]}`);
+    assert.ok(
+      still <= budget[kind],
+      `${prefix} got WORSE: ${still} ${kind} now, budget ${budget[kind]}`,
+    );
     assert.ok(
       still === budget[kind],
       `${prefix} now has ${still} unfixed ${kind}, not ${budget[kind]} — lower the number in tests/accessibility.test.mjs and update the ledger`,
@@ -129,7 +134,8 @@ function assertQuarantine(kind, offenders) {
 
 test("every form control in the app is programmatically labelled", () => {
   const offenders = CONTROLS.filter((c) => !c.labelled);
-  const unlabelled = offenders.filter((c) => !quarantineOf(c.rel))
+  const unlabelled = offenders
+    .filter((c) => !quarantineOf(c.rel))
     .map((c) => `${c.rel}:${c.line}  ${c.tag.slice(0, 100).replace(/\s+/g, " ")}`);
   assert.deepEqual(
     unlabelled,
@@ -144,7 +150,11 @@ test("every <button> declares its type", () => {
   // line" saves the record, and "show more" reloads the page.
   const offenders = BUTTONS.filter((b) => !b.typed);
   const untyped = offenders.filter((b) => !quarantineOf(b.rel)).map((b) => `${b.rel}:${b.line}`);
-  assert.deepEqual(untyped, [], `${untyped.length} of ${BUTTONS.length} buttons have no type:\n${untyped.join("\n")}`);
+  assert.deepEqual(
+    untyped,
+    [],
+    `${untyped.length} of ${BUTTONS.length} buttons have no type:\n${untyped.join("\n")}`,
+  );
   assertQuarantine("buttons", offenders);
 });
 
@@ -176,14 +186,26 @@ test("no keyboard trap: the app's dialogs are dialogs", () => {
   const rolled = FILES.filter((rel) => rel !== "components/Modal.tsx")
     .filter((rel) => /position:\s*["']fixed["'][^}]*inset:\s*0/.test(code(read(rel))))
     .filter((rel) => !/role="dialog"/.test(read(rel)));
-  assert.deepEqual(rolled, [], `hand-rolled overlays with no dialog semantics:\n${rolled.join("\n")}`);
+  assert.deepEqual(
+    rolled,
+    [],
+    `hand-rolled overlays with no dialog semantics:\n${rolled.join("\n")}`,
+  );
 });
 
 test("every element that renders role=dialog has an accessible name and an Escape route", () => {
   for (const rel of FILES.filter((rel) => /role="dialog"/.test(code(read(rel))))) {
     const src = code(read(rel));
-    assert.match(src, /aria-modal/, `${rel}: a modal dialog without aria-modal leaves the page behind readable`);
-    assert.match(src, /aria-label(?:ledby)?=/, `${rel}: a dialog with no accessible name is announced as "dialog"`);
+    assert.match(
+      src,
+      /aria-modal/,
+      `${rel}: a modal dialog without aria-modal leaves the page behind readable`,
+    );
+    assert.match(
+      src,
+      /aria-label(?:ledby)?=/,
+      `${rel}: a dialog with no accessible name is announced as "dialog"`,
+    );
     assert.match(src, /"Escape"/, `${rel}: no way out of the dialog from the keyboard`);
   }
 });
@@ -196,15 +218,31 @@ test("keyboard focus is visible, and inline outline:none cannot silence it", () 
   // beats a stylesheet, so the ring has to be !important or it is decoration.
   const ring = focusVisible.find((rule) => /outline:/.test(rule));
   assert.ok(ring, "no :focus-visible rule draws an outline");
-  assert.match(ring, /!important/, "the focus ring is not !important and inline `outline: none` will win over it");
+  assert.match(
+    ring,
+    /!important/,
+    "the focus ring is not !important and inline `outline: none` will win over it",
+  );
   // A visible ring means an opaque colour: the previous one was 28% alpha.
   assert.match(css, /--focus-ring:\s*#[0-9a-fA-F]{6}/, "the focus ring colour is not opaque");
-  assert.match(css, /@media \(forced-colors: active\)/, "no forced-colours fallback: box-shadow and colours are dropped in high contrast mode");
+  assert.match(
+    css,
+    /@media \(forced-colors: active\)/,
+    "no forced-colours fallback: box-shadow and colours are dropped in high contrast mode",
+  );
 });
 
 test("the sidebar and mobile tabs say which page you are on", () => {
-  for (const rel of ["components/NavLink.tsx", "components/SidebarTools.tsx", "components/MobileTabs.tsx"]) {
-    assert.match(code(read(rel)), /aria-current=/, `${rel}: the active destination is styled but not announced`);
+  for (const rel of [
+    "components/NavLink.tsx",
+    "components/SidebarTools.tsx",
+    "components/MobileTabs.tsx",
+  ]) {
+    assert.match(
+      code(read(rel)),
+      /aria-current=/,
+      `${rel}: the active destination is styled but not announced`,
+    );
   }
 });
 
@@ -218,9 +256,22 @@ test("the a11y lint rules are on, and are not disabled anywhere", () => {
     "jsx-a11y/role-supports-aria-props",
   ]) {
     assert.match(config, new RegExp(rule.replace("/", "\\/")), `${rule} is not configured`);
-    assert.match(config, new RegExp(`${rule.replace("/", "\\/")}[^\\n]*error`), `${rule} is configured but not as an error`);
+    // Severity must be the FIRST thing the rule is set to, whether it is set
+    // bare (`"rule": "error"`) or with options (`"rule": ["error", {...}]`).
+    // This replaces an earlier `rule[^\n]*error` that only held while the whole
+    // entry sat on one line; it is strictly tighter, because "error" appearing
+    // later in the options object no longer satisfies it.
+    assert.match(
+      config,
+      new RegExp(`"${rule.replace("/", "\\/")}":\\s*\\[?\\s*"error"`),
+      `${rule} is configured but not as an error`,
+    );
   }
   // A rule turned off at the call site is the same as a rule that is off.
   const suppressed = FILES.filter((rel) => /eslint-disable[^\n]*jsx-a11y/.test(read(rel)));
-  assert.deepEqual(suppressed, [], `files that switch the a11y rules off:\n${suppressed.join("\n")}`);
+  assert.deepEqual(
+    suppressed,
+    [],
+    `files that switch the a11y rules off:\n${suppressed.join("\n")}`,
+  );
 });

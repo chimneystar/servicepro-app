@@ -63,7 +63,11 @@ test("malformed tips are refused rather than becoming NaN on the card", () => {
     assert.ok(result.error);
   }
   for (const bad of [101, -5, 12.5, "many"]) {
-    assert.equal(resolveTip({ enabled: true, balanceMinor: 500_00, percent: bad }).ok, false, `${String(bad)}% must be refused`);
+    assert.equal(
+      resolveTip({ enabled: true, balanceMinor: 500_00, percent: bad }).ok,
+      false,
+      `${String(bad)}% must be refused`,
+    );
   }
   assert.equal(MAX_TIP_PERCENT, 100);
 });
@@ -76,9 +80,21 @@ test("suggested percentages are cleaned before a customer sees them", () => {
   // The column is integer[] with no constraint, so a hand-edited row of junk
   // must not render as a row of broken buttons.
   assert.deepEqual(sanitizeTipPercents([25, 15, 20]), [15, 20, 25]);
-  assert.deepEqual(sanitizeTipPercents([0, -5, 101, 20, 20]), [20], "zero, negative, over-100 and duplicates go");
-  assert.deepEqual(sanitizeTipPercents("15, 18, 20, 22, 25"), [15, 18, 20, 22], "at most four choices");
-  assert.deepEqual(sanitizeTipPercents([]), [15, 20, 25], "an empty list falls back rather than showing nothing");
+  assert.deepEqual(
+    sanitizeTipPercents([0, -5, 101, 20, 20]),
+    [20],
+    "zero, negative, over-100 and duplicates go",
+  );
+  assert.deepEqual(
+    sanitizeTipPercents("15, 18, 20, 22, 25"),
+    [15, 18, 20, 22],
+    "at most four choices",
+  );
+  assert.deepEqual(
+    sanitizeTipPercents([]),
+    [15, 20, 25],
+    "an empty list falls back rather than showing nothing",
+  );
   assert.deepEqual(sanitizeTipPercents(null), [15, 20, 25]);
 });
 
@@ -97,14 +113,24 @@ test("a tipped payment leaves the invoice exactly paid, not overpaid", () => {
   // it, a $500 invoice paid with a $100 tip would read as $100 overpaid and the
   // next invoice would be silently credited.
   const { baseMinor, tipMinor } = paymentTipParts(600_00, 100_00);
-  const payment = { base_amount_minor: baseMinor, tip_minor: tipMinor, refunded_minor: 0, normalized_status: "settled" };
+  const payment = {
+    base_amount_minor: baseMinor,
+    tip_minor: tipMinor,
+    refunded_minor: 0,
+    normalized_status: "settled",
+  };
   assert.equal(creditedMinor([payment]), 500_00);
   assert.equal(openBalanceMinor(500_00, [payment]), 0);
 });
 
 test("a tip is not revenue and not commissionable", () => {
   const { baseMinor, tipMinor } = paymentTipParts(600_00, 100_00);
-  const payment = { base_amount_minor: baseMinor, tip_minor: tipMinor, refunded_minor: 0, normalized_status: "settled" };
+  const payment = {
+    base_amount_minor: baseMinor,
+    tip_minor: tipMinor,
+    refunded_minor: 0,
+    normalized_status: "settled",
+  };
   // collectedMinor drives revenue, margin and the commission report. Tipped
   // money belongs to the person who earned it; counting it as business revenue
   // would inflate margin and misstate the tax position.
@@ -113,9 +139,22 @@ test("a tip is not revenue and not commissionable", () => {
 
 test("a tip is not refundable as the business's money", () => {
   const { baseMinor, tipMinor } = paymentTipParts(600_00, 100_00);
-  const payment = { base_amount_minor: baseMinor, tip_minor: tipMinor, refunded_minor: 0, normalized_status: "settled" };
-  assert.equal(validateRefundAmount(payment, 600_00).ok, false, "the gross including the tip is not refundable");
-  assert.equal(validateRefundAmount(payment, 500_00).ok, true, "everything the business actually took is");
+  const payment = {
+    base_amount_minor: baseMinor,
+    tip_minor: tipMinor,
+    refunded_minor: 0,
+    normalized_status: "settled",
+  };
+  assert.equal(
+    validateRefundAmount(payment, 600_00).ok,
+    false,
+    "the gross including the tip is not refundable",
+  );
+  assert.equal(
+    validateRefundAmount(payment, 500_00).ok,
+    true,
+    "everything the business actually took is",
+  );
 });
 
 test("splitting a charge cannot produce a tip bigger than the charge", () => {
@@ -130,12 +169,14 @@ test("splitting a charge cannot produce a tip bigger than the charge", () => {
 // cannot satisfy a check.
 // ---------------------------------------------------------------------------
 
-const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8")
-  .replace(/\/\*[\s\S]*?\*\//g, "")
-  .replace(/(^|[^:])\/\/.*$/gm, "$1");
-const readSql = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8")
-  .replace(/\/\*[\s\S]*?\*\//g, " ")
-  .replace(/--[^\n]*/g, " ");
+const read = (p) =>
+  readFileSync(new URL(`../${p}`, import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
+const readSql = (p) =>
+  readFileSync(new URL(`../${p}`, import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/--[^\n]*/g, " ");
 
 test("the comment stripping these guards rely on actually works", () => {
   const stripped = read("lib/core/tips.mjs");
@@ -143,37 +184,50 @@ test("the comment stripping these guards rely on actually works", () => {
   assert.ok(/export function resolveTip/.test(stripped), "code must survive stripping");
   const sql = readSql("db/031_payment_features.sql");
   assert.ok(!/READ WHEN A RECEIPT/i.test(sql), "SQL comments must be removed");
-  assert.ok(/create or replace function public\.public_tip_options/.test(sql), "SQL must survive stripping");
+  assert.ok(
+    /create or replace function public\.public_tip_options/.test(sql),
+    "SQL must survive stripping",
+  );
 });
 
 test("the tip is carried on the checkout session, not recomputed from a client total", () => {
   const sql = readSql("db/031_payment_features.sql");
   assert.ok(/alter table public\.payment_requests add column if not exists tip_minor/.test(sql));
-  assert.ok(/tip_minor >= 0 and tip_minor <= amount_minor/.test(sql),
-    "the database must refuse a tip larger than the charge it belongs to");
+  assert.ok(
+    /tip_minor >= 0 and tip_minor <= amount_minor/.test(sql),
+    "the database must refuse a tip larger than the charge it belongs to",
+  );
 
   const server = read("lib/payments/server.ts");
   assert.ok(/resolveTip\(/.test(server), "the server must resolve the tip from the real balance");
   assert.ok(/tip_minor: tipMinor/.test(server), "the tip must be stored on the request");
   assert.ok(/paymentTipParts\(/.test(server), "and split back out when the payment is recorded");
-  assert.ok(/base_amount_minor: baseMinor/.test(server),
-    "base_amount_minor must be the BALANCE, not the gross — every revenue reader sums it");
+  assert.ok(
+    /base_amount_minor: baseMinor/.test(server),
+    "base_amount_minor must be the BALANCE, not the gross — every revenue reader sums it",
+  );
 });
 
 test("the customer sends a tip CHOICE, never a total", () => {
   const component = read("components/CustomerPaymentOptions.tsx");
   assert.ok(/tipPercent:/.test(component) && /tipAmount:/.test(component));
-  assert.ok(!/chargedMinor,\s*$/m.test(component.split("body: JSON.stringify")[1] ?? ""),
-    "the computed total must not be what the server trusts");
+  assert.ok(
+    !/chargedMinor,\s*$/m.test(component.split("body: JSON.stringify")[1] ?? ""),
+    "the computed total must not be what the server trusts",
+  );
   const route = read("app/api/pay/helcim/initialize/route.ts");
-  assert.ok(/parseAmountToMinor\(/.test(route),
-    "a typed tip must be parsed to integer minor units, never Math.round(Number(x) * 100)");
+  assert.ok(
+    /parseAmountToMinor\(/.test(route),
+    "a typed tip must be parsed to integer minor units, never Math.round(Number(x) * 100)",
+  );
   assert.ok(!/Math\.round\(Number\([^)]*\)\s*\*\s*100\)/.test(route));
 });
 
 test("the receipt says what part of the charge was the tip", () => {
   const receipts = read("lib/payments/receipts.ts");
   assert.ok(/tip_minor/.test(receipts));
-  assert.ok(/Includes a/.test(receipts) && /כולל טיפ/.test(receipts),
-    "a total larger than the invoice with no explanation reads as an overcharge");
+  assert.ok(
+    /Includes a/.test(receipts) && /כולל טיפ/.test(receipts),
+    "a total larger than the invoice with no explanation reads as an overcharge",
+  );
 });

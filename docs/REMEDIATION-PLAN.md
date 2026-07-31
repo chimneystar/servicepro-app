@@ -1190,10 +1190,114 @@ written.
 | 6.1 | Generate Supabase types; remove `any` at the DB boundary | TODO |
 | 6.2 | `lib/data/*` repository modules; mandatory pagination | TODO |
 | 6.3 | One action contract; error/loading boundaries per route group; toast primitive | TODO |
-| 6.4 | De-minify the 78 long-line files; Prettier + max-len lint | TODO |
+| 6.4 | De-minify the long-line files; Prettier + max-len lint | **DONE** — 383 files reformatted, proven semantics-preserving file by file. See note |
 | 6.5 | Design system: tokens + ~15 primitives; retire 871 inline style objects | TODO |
 | 6.6 | Accessibility: label association (`htmlFor` is currently used **zero** times), focus visibility, dialog semantics, button types | **PARTIAL** — both halves are now closed: the typographic half (owner findings A1 + A2) and the four named non-typographic defects, everywhere except two quarantined directories. Remaining: only 15 of the plugin rules are on, and nothing has been tested with a real screen reader or axe. See both notes |
 | 6.7 | Consolidate overlapping tables (line items, assignment models, permission systems) | TODO |
+
+**Note on 6.4 — the real numbers, and how a 383-file diff was proven to change nothing.**
+
+*The scope, measured rather than assumed.* The audit's "78 of 222 source files (35%) contain a line
+over 300 characters" was close but understated, because it counted a smaller file set. Measured across
+every `.ts/.tsx/.js/.jsx/.mjs/.cjs` file in the tree at `4d16aac` (405 files):
+
+| threshold | files before | files after |
+|---|---|---|
+| a line > 100 chars | 373 | 177 |
+| a line > 120 chars | 322 | 101 |
+| a line > 300 chars | **80** | **5** |
+| a line > 1,000 chars | 20 | **0** |
+| a line > 2,000 chars | 9 | **0** |
+| longest single line | **5,157** (`app/(app)/settings/privacy/PrivacyCenter.tsx`) | **530** |
+
+Total lines over 120 chars: **3,213 → 209**. Physical lines in the tree: **47,490 → 84,707** — the
+missing 37,000 lines are what "undiffable" meant. `app/globals.css` went from **424** lines over 120
+(23 over 300) to **zero**. The five files that still have a line over 300 contain **no long code**:
+all seven such lines are string or template literals — SVG path data in `AppIcon.tsx`, one PostgREST
+`select()` column list, and four bilingual message templates. No formatter may break those without
+changing the value, which is exactly why `max-len` exempts strings.
+
+*What is enforced now.* `.prettierrc.json` (printWidth 100, double quotes, `quoteProps: "preserve"`,
+`endOfLine: "auto"` because the working tree is CRLF and git stores LF) plus `max-len` at 120 in
+`eslint.config.mjs`, with `eslint-config-prettier` in front of it so the linter and the formatter
+never argue about the same line. `npm run lint` is now `eslint . && npm run format:check`, so
+`npm run verify` and the existing CI `Lint` step both fail on a reintroduced minified file. `max-len`
+is set to 120 rather than 100 deliberately: a lint error a developer cannot clear by running the
+formatter is noise. It fires only on what Prettier could not fix.
+
+`quoteProps: "preserve"` is the one non-obvious choice. Prettier's default (`as-needed`) rewrites
+`{ "foo": 1 }` to `{ foo: 1 }`, which is a different AST for the same object — semantically identical
+but noise in a proof whose entire value is that the AST did not move. Preserving is cheaper than
+explaining.
+
+*The proof.* `npm run verify` was green before (**1,011 tests**) and is green after (**1,089** — the
+78 new ones are the two both-ways suites below). `npm run build` succeeds. But a passing suite does
+not execute every branch of every component, so it cannot prove a formatter changed nothing in a file
+no test reaches. `scripts/format-equivalence.mjs` does, in two independent ways, for **every one of
+the 383 files**:
+
+1. **Semantic.** Parse the base text and the new text with the TypeScript compiler API and compare a
+   structural signature carrying node kinds, identifier names, literal *values*, unary operators,
+   `let`/`const`, type-only imports — and no positions, whitespace or quote style. Comment streams are
+   compared separately (a formatter that eats an `eslint-disable-next-line` must not pass silently).
+   Stylesheets go through postcss and compare selectors, at-rules and declarations *in order*, because
+   order is the cascade.
+2. **Mechanical.** Re-run Prettier over the base text to its fixed point and require the result to be
+   byte-identical to the committed file. This is what rules out a hand edit riding along inside a
+   formatting commit.
+
+Result: **367 of 383 files semantically identical AND byte-identical to `prettier(base)`; 0
+unexpected changes.** The 16 exceptions are listed by name in the script with a one-line reason each,
+and are the only files touched by hand.
+
+*What the proof caught.* Four things, none of which the test suite would have found:
+- `(any[])[]` → `any[][]` and `Partial<X> & {…} | null` → `(Partial<X> & {…}) | null`. Both identical
+  types (`&` already binds tighter than `|`), read by hand, then accepted by extending the comparator
+  to unwrap `ParenthesizedType` — with a planted `A & (B | null)` proving type *grouping* changes still
+  fail.
+- CSS number and whitespace spelling (`.07` → `0.07`, `rgba(0,0,0,.2)` → `rgba(0, 0, 0, 0.2)`,
+  `(max-width:980px)` → `(max-width: 980px)`).
+- `[style*="background: \"#fff\""]` → `[style*='background: "#fff"']` — the same matched substring,
+  requoted. (Separately: that selector matches an inline style containing a literal quoted `"#fff"`,
+  which React does not emit. Pre-existing, out of scope for a formatting pass, flagged here.)
+- **Prettier is not idempotent in one pass.** 17 files were formatted, and formatting them again
+  changed them back — the member-chain rule breaks `await x.from("t").insert({…})` onto four lines and
+  then pulls it onto one. The committed tree is the fixed point (reached on the third pass), and both
+  the mechanical check and `format:check` would have failed had it not been.
+
+*The 16 probes that broke, and why none was loosened.* Reformatting broke 16 assertions across 13
+test files, all of them structural probes that read source as text. Every one now guards the same
+property against the new formatting, and every one was re-proven RED — `scripts/prove-probes-red.mjs`
+(`npm run prove:probes`) plants a real violation in the real source file, runs the probe, requires it
+to fail, and restores the file from an in-memory copy in a `finally`. **16/16 fire.** Two supporting
+pieces got the same treatment: `tests/helpers/source-shape.mjs` reduces a file to its canonical token
+stream (comments removed, whitespace canonical, string literals verbatim) so a probe can keep asserting
+`.eq("status", "approved")` however it is wrapped — proven in `tests/source-shape.test.mjs` (25 cases,
+both directions, including the deliberate limit that parentheses are *not* stripped); and the
+equivalence checker itself is proven in `tests/format-equivalence.test.mjs` (53 cases: 28 planted
+semantic changes that must fire, 23 real Prettier rewrites that must not, plus 2 that pin the
+paren- and JSX-whitespace insensitivities from both sides).
+
+Two probes were not merely re-anchored but **rebuilt, because reformatting exposed that they were
+broken in a way that had nothing to do with formatting**:
+- `tests/nav-reachability.test.mjs` loaded `lib/nav.ts` by stripping its TypeScript with four
+  line-anchored regexes. That only ever worked because `export type NavItem = { … }` happened to be
+  written on ONE line — one of the minified lines this ledger row exists to remove. Expanded, the
+  stripper deleted the header and left the body, and the module would not parse. It now compiles the
+  file with `ts.transpileModule` and asserts all three exports survive.
+- `tests/accessibility.test.mjs` asserted each a11y rule was an error with `rule[^\n]*error`, which
+  held only while the whole entry sat on one line. It now requires `"rule": "error"` or
+  `"rule": ["error", …]` — strictly tighter, since "error" appearing later inside an options object no
+  longer satisfies it.
+
+*What was NOT verified.* Prettier's own correctness is taken on trust for the transformations the
+comparator is deliberately blind to (parentheses, quote style, number spelling, JSX whitespace) — each
+is argued in the script's header, and each has a planted counter-example proving the blindness is
+narrow. Nothing was rendered in a browser beyond the existing `nav-reachability` layout probes, so a
+purely visual regression in a route with no test would not have been caught; the CSS signature check
+(selectors, declarations and their order) is the substitute. `db/**`, `docs/**` and `*.md` are in
+`.prettierignore` on purpose — Prettier has no SQL parser, and reflowing this plan and the audit into
+a rewritten diff would destroy more review value than it creates.
 
 **Note on 6.6 — the typographic half (owner findings A1 and A2). The rest of 6.6 is untouched.**
 

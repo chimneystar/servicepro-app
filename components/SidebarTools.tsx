@@ -9,7 +9,9 @@ export type ToolItem = { href: string; label: string; icon: string };
 
 export default function SidebarTools({ items, label }: { items: ToolItem[]; label: string }) {
   const pathname = usePathname();
-  const active = items.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
+  const active = items.some(
+    (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
+  );
   const [open, setOpen] = useState(active);
   const panelId = useId();
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -35,7 +37,9 @@ export default function SidebarTools({ items, label }: { items: ToolItem[]; labe
         aria-expanded={open}
         aria-controls={panelId}
       >
-        <AppIcon className="nav-icon" name="tools" /><span>{label}</span><AppIcon className={`nav-icon tools-chevron${open ? " open" : ""}`} name="chevron" />
+        <AppIcon className="nav-icon" name="tools" />
+        <span>{label}</span>
+        <AppIcon className={`nav-icon tools-chevron${open ? " open" : ""}`} name="chevron" />
       </button>
       {open && (
         <div className="tool-list" id={panelId} ref={panelRef}>
@@ -48,7 +52,8 @@ export default function SidebarTools({ items, label }: { items: ToolItem[]; labe
                 className={`tool-link${selected ? " active" : ""}`}
                 aria-current={selected ? "page" : undefined}
               >
-                <AppIcon className="nav-icon" name={iconForHref(item.href)} />{item.label}
+                <AppIcon className="nav-icon" name={iconForHref(item.href)} />
+                {item.label}
               </Link>
             );
           })}

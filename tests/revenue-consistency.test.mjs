@@ -29,8 +29,10 @@ const MONEY_SCREENS = [
 test("every screen reporting money received uses the shared calculation", () => {
   for (const file of MONEY_SCREENS) {
     const src = readCode(file);
-    assert.ok(/from "@\/lib\/core\/reporting\.mjs"/.test(src),
-      `${file} must use lib/core/reporting.mjs — an inline copy is how the three screens drifted apart`);
+    assert.ok(
+      /from "@\/lib\/core\/reporting\.mjs"/.test(src),
+      `${file} must use lib/core/reporting.mjs — an inline copy is how the three screens drifted apart`,
+    );
   }
 });
 
@@ -40,13 +42,16 @@ test("every screen reporting money received uses the shared calculation", () => 
 //   "Revenue / collected" -> what arrived     -> payments. Only this one was wrong.
 // The first version of this check flagged `monthSales` — a false positive on a
 // card titled "Sales", where billing IS the right basis. Narrowed accordingly.
-const CLAIMS_RECEIVED = /\b(collected|revenue)[A-Za-z0-9_]*\s*=\s*[^;\n]*\.reduce\([^;]*total_minor/i;
+const CLAIMS_RECEIVED =
+  /\b(collected|revenue)[A-Za-z0-9_]*\s*=\s*[^;\n]*\.reduce\([^;]*total_minor/i;
 
 test("nothing that claims money RECEIVED is computed from invoice totals", () => {
   for (const file of MONEY_SCREENS) {
     const src = readCode(file);
-    assert.ok(!CLAIMS_RECEIVED.test(src),
-      `${file} derives a "collected"/"revenue" figure from invoice totals — that is what was BILLED, not what arrived`);
+    assert.ok(
+      !CLAIMS_RECEIVED.test(src),
+      `${file} derives a "collected"/"revenue" figure from invoice totals — that is what was BILLED, not what arrived`,
+    );
   }
 });
 
@@ -60,7 +65,10 @@ test("billed-basis figures are left alone", () => {
 
 test("the dashboard reads payments, not just invoices, for its money cards", () => {
   const src = readCode("app/(app)/page.tsx");
-  assert.ok(/from\("payments"\)/.test(src), "the dashboard must query payments to know what was collected");
+  assert.ok(
+    /from\("payments"\)/.test(src),
+    "the dashboard must query payments to know what was collected",
+  );
   assert.ok(/COLLECTED_STATUSES/.test(src), "it must exclude declined and in-flight payments");
   assert.ok(/collectedMinor\(/.test(src), "the arithmetic must be the shared, tested one");
 });
@@ -86,6 +94,8 @@ test("a rolling window is labelled as one", () => {
   // the one just fixed.
   const src = readFileSync(new URL("../app/(app)/page.tsx", import.meta.url), "utf8");
   assert.ok(/windowLabel/.test(src), "the window must be named in the UI");
-  assert.ok(/last 12 months/.test(src) && /12 החודשים האחרונים/.test(src),
-    "in both languages — a label that only exists in English lies to Hebrew users");
+  assert.ok(
+    /last 12 months/.test(src) && /12 החודשים האחרונים/.test(src),
+    "in both languages — a label that only exists in English lies to Hebrew users",
+  );
 });
