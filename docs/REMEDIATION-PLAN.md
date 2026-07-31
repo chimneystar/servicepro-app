@@ -39,8 +39,8 @@ Status: `TODO` / `WIP` / `DONE` / `BLOCKED`. Keep this honest — a status doc t
 ### Phase 0 — make the harness real
 | # | Task | Status |
 |---|---|---|
-| 0.1 | Fix `tests/booking.test.mjs` (imports `.ts` under `node --test`) — move pure booking logic to `lib/core/booking.mjs` | TODO |
-| 0.2 | Wire ALL test files into `npm test` (7 of 10 are currently orphaned, including the two best) | TODO |
+| 0.1 | Fix `tests/booking.test.mjs` (imports `.ts` under `node --test`) — move pure booking logic to `lib/core/booking.mjs` | DONE |
+| 0.2 | Wire ALL test files into `npm test` (7 of 10 are currently orphaned, including the two best) | DONE |
 | 0.3 | Replace tautological RLS greps in `feature-preservation.test.mjs` with real assertions | TODO |
 | 0.4 | Add `test:e2e` script + Playwright `webServer` + auth setup project | TODO |
 | 0.5 | Add CI workflow: typecheck + lint + test on every push | TODO |
@@ -48,22 +48,22 @@ Status: `TODO` / `WIP` / `DONE` / `BLOCKED`. Keep this honest — a status doc t
 ### Phase 1 — security blockers
 | # | Task | Status |
 |---|---|---|
-| 1.1 | **Migration 023:** constrain `role`, `commission_pct`, `active`, `organization_id` in `profiles_self_update` WITH CHECK | TODO |
-| 1.2 | **Migration 023:** restrict `invitations` writes to owner; reject `role='owner'` inside `accept_invitation()` | TODO |
-| 1.3 | **Migration 023:** mirror `jobs_update` USING predicate into WITH CHECK | TODO |
-| 1.4 | **Migration 023:** `job_time_entries` — constrain `user_id = auth.uid()` for non-owner/office | TODO |
-| 1.5 | **Migration 023:** add role predicate to the 24 blanket-select tables from migration 019 | TODO |
-| 1.6 | **Migration 023:** `TO authenticated` + explicit anon revokes on the 32 legacy tables | TODO |
-| 1.7 | **Migration 023:** `approve_document` — guard on `signed_at is null`, add rate limit | TODO |
-| 1.8 | **Migration 023:** portal token — expiry + rotation function; stop returning nested document tokens | TODO |
-| 1.9 | **Migration 023:** remove payout details (Zelle/check) from `public_payment_options` | TODO |
-| 1.10 | **Migration 023:** `item-photos` storage policies | TODO |
-| 1.11 | **Migration 023:** `subscriptions` — make billing state service-role only | TODO |
-| 1.12 | Cron route: fail **closed** when `CRON_SECRET` unset; timing-safe compare; stop leaking error strings | TODO |
-| 1.13 | SMS webhook: validate Twilio signature; resolve org from the `To` number, not a global scan | TODO |
-| 1.14 | `deletePhoto`: derive path from the row, add role check | TODO |
-| 1.15 | `autoSendDocument`: derive `origin` server-side, assert org match, escape HTML | TODO |
-| 1.16 | Security headers (CSP, HSTS, X-Frame-Options, Referrer-Policy) in `next.config.mjs` | TODO |
+| 1.1 | **Migration 023:** constrain `role`, `commission_pct`, `active`, `organization_id` in `profiles_self_update` WITH CHECK | DONE |
+| 1.2 | **Migration 023:** restrict `invitations` writes to owner; reject `role='owner'` inside `accept_invitation()` | DONE |
+| 1.3 | **Migration 023:** mirror `jobs_update` USING predicate into WITH CHECK | DONE |
+| 1.4 | **Migration 023:** `job_time_entries` — constrain `user_id = auth.uid()` for non-owner/office | DONE |
+| 1.5 | **Migration 023:** add role predicate to the 24 blanket-select tables from migration 019 | DONE |
+| 1.6 | **Migration 023:** `TO authenticated` + explicit anon revokes on the 32 legacy tables | DONE |
+| 1.7 | **Migration 023:** `approve_document` — guard on `signed_at is null`, add rate limit | DONE |
+| 1.8 | **Migration 023:** portal token — expiry + rotation function; stop returning nested document tokens | DONE |
+| 1.9 | **Migration 023:** remove payout details (Zelle/check) from `public_payment_options` | DONE |
+| 1.10 | **Migration 023:** `item-photos` storage policies | DONE |
+| 1.11 | **Migration 023:** `subscriptions` — make billing state service-role only | DONE |
+| 1.12 | Cron route: fail **closed** when `CRON_SECRET` unset; timing-safe compare; stop leaking error strings | DONE |
+| 1.13 | SMS webhook: validate Twilio signature; resolve org from the `To` number, not a global scan | DONE |
+| 1.14 | `deletePhoto`: derive path from the row, add role check | DONE |
+| 1.15 | `autoSendDocument`: derive `origin` server-side, assert org match, escape HTML | DONE |
+| 1.16 | Security headers (CSP, HSTS, X-Frame-Options, Referrer-Policy) in `next.config.mjs` | DONE |
 | 1.17 | Rate limiting on all unauthenticated endpoints | TODO |
 
 ### Phase 2 — money correctness
@@ -100,7 +100,7 @@ Status: `TODO` / `WIP` / `DONE` / `BLOCKED`. Keep this honest — a status doc t
 | 4.6 | Search: parameterise the PostgREST `.or()` filter injection | TODO |
 | 4.7 | Pagination on `/jobs`, `/schedule`, `/messages`, dashboard, reports | TODO |
 | 4.8 | Booking: timezone support; polygon service areas | TODO |
-| 4.9 | Reminders: mark sent AFTER send; allow retry | TODO |
+| 4.9 | Reminders: mark sent AFTER send; allow retry | DONE |
 | 4.10 | Surface swallowed errors (26 discarding call sites, 21 void actions) | TODO |
 | 4.11 | Crew assignment must respect the no-double-book constraint | TODO |
 

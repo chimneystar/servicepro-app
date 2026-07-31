@@ -161,6 +161,34 @@ test("migration 023 constrains the privilege columns on profiles", () => {
   assert.ok(/inviter_role/.test(sql), "accept_invitation must verify who issued an owner-level invite");
 });
 
+test("portal links expire and can be revoked", () => {
+  const sql = readRaw("db/023_authorization_hardening.sql");
+  assert.ok(/portal_token_expires_at/.test(sql), "a permanent customer link cannot be revoked after a leak");
+  assert.ok(/rotate_customer_portal_token/.test(sql), "the business must be able to invalidate a leaked link");
+  assert.ok(/portal_token_expires_at is null or portal_token_expires_at > now\(\)/.test(sql),
+    "expiry must actually be enforced on lookup, not merely recorded");
+});
+
+test("portal preference changes are rate limited like every other request", () => {
+  const sql = readRaw("db/023_authorization_hardening.sql");
+  const fn = sql.slice(sql.indexOf("function public.submit_customer_portal_request"));
+  const limitAt = fn.indexOf("recent_count >= 10");
+  const prefAt = fn.indexOf("if p_type = 'preferences'");
+  assert.ok(limitAt > -1 && prefAt > -1, "both the limit and the preferences branch must exist");
+  assert.ok(limitAt < prefAt,
+    "the preferences branch previously returned BEFORE the rate check, allowing unbounded consent flipping");
+});
+
+test("migration 023 only uses request types the CHECK constraint permits", () => {
+  const sql = readRaw("db/023_authorization_hardening.sql");
+  const allowed = /check \(request_type in \(([^)]*)\)\)/.exec(sql);
+  assert.ok(allowed, "the constraint must be declared in this migration");
+  const permitted = allowed[1].split(",").map((s) => s.trim().replace(/'/g, ""));
+  for (const used of [...sql.matchAll(/request_type\s*\)?\s*\n?\s*values[^;]*?'([a-z_]+)'/g)].map((m) => m[1])) {
+    assert.ok(permitted.includes(used), `inserts '${used}' but the CHECK allows only ${permitted.join(", ")}`);
+  }
+});
+
 test("security response headers are configured", () => {
   const src = readRaw("next.config.mjs");
   for (const header of ["Content-Security-Policy", "Strict-Transport-Security", "X-Frame-Options", "Referrer-Policy"]) {

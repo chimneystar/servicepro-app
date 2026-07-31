@@ -367,6 +367,137 @@ exception when insufficient_privilege then
   raise notice 'item-photos storage policies skipped: insufficient privilege. Apply them from the Storage dashboard.';
 end $$;
 
+-- ---------------------------------------------------------------------
+-- 10. Customer portal links: expiry + revocation.
+--
+--     The portal token was a defaulted gen_random_uuid() column with no expiry
+--     and no rotation path anywhere, and the portal returns the public_token of
+--     every estimate and invoice — which is how a customer opens and pays them.
+--
+--     JUDGEMENT: those nested tokens are NOT removed. The portal cannot do its
+--     job without them, and neither can the Zelle/check payout details in
+--     public_payment_options — a customer cannot mail a cheque without the payee
+--     address. The real defect is that the *outer* link was permanent and
+--     irrevocable, so one forwarded email granted access forever. That is what
+--     gets fixed here; the payload stays useful.
+-- ---------------------------------------------------------------------
+alter table public.customers add column if not exists portal_token_expires_at timestamptz;
+alter table public.customers add column if not exists portal_token_rotated_at timestamptz;
+
+-- Existing links keep working, but from now on they age out.
+update public.customers
+   set portal_token_expires_at = now() + interval '180 days'
+ where portal_token_expires_at is null and deleted_at is null;
+
+create index if not exists idx_customers_portal_token
+  on public.customers (portal_token) where deleted_at is null;
+
+-- Owner/office can revoke a leaked link by minting a new one.
+create or replace function public.rotate_customer_portal_token(p_customer uuid)
+returns uuid language plpgsql security definer set search_path = public as $$
+declare new_token uuid;
+begin
+  if auth.uid() is null then raise exception 'not authenticated'; end if;
+  if public.current_user_role() not in ('owner','office') then
+    raise exception 'forbidden' using errcode = 'insufficient_privilege';
+  end if;
+
+  update public.customers
+     set portal_token = gen_random_uuid(),
+         portal_token_expires_at = now() + interval '180 days',
+         portal_token_rotated_at = now()
+   where id = p_customer
+     and organization_id = public.current_org_id()
+     and deleted_at is null
+  returning portal_token into new_token;
+
+  if new_token is null then raise exception 'customer_not_found'; end if;
+  return new_token;
+end $$;
+revoke execute on function public.rotate_customer_portal_token(uuid) from public, anon;
+grant  execute on function public.rotate_customer_portal_token(uuid) to authenticated;
+
+-- Enforce the expiry, and narrow the history a single link exposes.
+create or replace function public.public_customer_portal(p_token uuid)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare cust record; org record; ests jsonb; invs jsonb; jbs jsonb; cutoff date;
+begin
+  select * into cust from public.customers
+   where portal_token = p_token
+     and deleted_at is null
+     and (portal_token_expires_at is null or portal_token_expires_at > now());   -- <<< expiry
+  if not found then return null; end if;
+
+  cutoff := (now() - interval '24 months')::date;
+
+  select name, tagline, logo_url, accent_color, phone, email, currency, locale into org from public.organizations where id = cust.organization_id;
+  select coalesce(jsonb_agg(jsonb_build_object('number', number, 'status', status, 'total_minor', total_minor, 'issue_date', issue_date, 'token', public_token) order by number desc), '[]'::jsonb) into ests
+    from public.estimates where customer_id = cust.id and deleted_at is null and coalesce(issue_date, cutoff) >= cutoff;
+  select coalesce(jsonb_agg(jsonb_build_object('number', number, 'status', status, 'total_minor', total_minor, 'issue_date', issue_date, 'token', public_token) order by number desc), '[]'::jsonb) into invs
+    from public.invoices where customer_id = cust.id and deleted_at is null and coalesce(issue_date, cutoff) >= cutoff;
+  select coalesce(jsonb_agg(jsonb_build_object('id', id, 'service', service, 'status', status, 'date', scheduled_date, 'end_date', end_date, 'start_time', start_time, 'address', job_address, 'city', job_city) order by scheduled_date desc), '[]'::jsonb) into jbs
+    from public.jobs where customer_id = cust.id and deleted_at is null and coalesce(scheduled_date, cutoff) >= cutoff;
+
+  return jsonb_build_object(
+    'customer', jsonb_build_object('name', cust.name, 'phone', cust.phone, 'email', cust.email, 'email_opt_in', cust.email_opt_in, 'sms_opt_in', cust.sms_opt_in),
+    'org', jsonb_build_object('name', org.name, 'tagline', org.tagline, 'logo_url', org.logo_url, 'accent_color', org.accent_color, 'phone', org.phone, 'email', org.email, 'currency', org.currency, 'locale', org.locale),
+    'estimates', ests, 'invoices', invs, 'jobs', jbs);
+end $$;
+revoke all on function public.public_customer_portal(uuid) from public;
+grant execute on function public.public_customer_portal(uuid) to anon, authenticated, service_role;
+
+-- The portal request RPC must respect expiry too, and the 'preferences' branch
+-- previously returned BEFORE the rate-limit check, so consent could be flipped
+-- without limit.
+-- 'preferences' must be a loggable request type, otherwise consent changes
+-- cannot be counted and therefore cannot be rate limited.
+alter table public.customer_portal_requests drop constraint if exists customer_portal_requests_request_type_check;
+alter table public.customer_portal_requests
+  add constraint customer_portal_requests_request_type_check
+  check (request_type in ('reschedule','question','preferences'));
+
+create or replace function public.submit_customer_portal_request(
+  p_token uuid, p_type text, p_job uuid default null, p_date date default null,
+  p_message text default null, p_email_opt_in boolean default null, p_sms_opt_in boolean default null)
+returns boolean language plpgsql security definer set search_path = public as $$
+declare cust public.customers; recent_count integer;
+begin
+  select * into cust from public.customers
+   where portal_token = p_token
+     and deleted_at is null
+     and (portal_token_expires_at is null or portal_token_expires_at > now());   -- <<< expiry
+  if not found then return false; end if;
+
+  if p_type not in ('reschedule','question','preferences') then return false; end if;
+
+  -- Rate limit FIRST, for EVERY request type. The 'preferences' branch used to
+  -- return before this check, so consent flags could be flipped without limit.
+  select count(*) into recent_count from public.customer_portal_requests
+   where customer_id = cust.id and created_at > now() - interval '1 hour';
+  if recent_count >= 10 then return false; end if;
+
+  if p_type = 'preferences' then
+    update public.customers
+       set email_opt_in = coalesce(p_email_opt_in, email_opt_in),
+           sms_opt_in   = coalesce(p_sms_opt_in, sms_opt_in)
+     where id = cust.id;
+    insert into public.customer_portal_requests (organization_id, customer_id, request_type)
+    values (cust.organization_id, cust.id, 'preferences');
+    return true;
+  end if;
+
+  -- Preserved from migration 019: a job must belong to this customer.
+  if p_job is not null and not exists (select 1 from public.jobs where id = p_job and customer_id = cust.id) then
+    return false;
+  end if;
+
+  insert into public.customer_portal_requests (organization_id, customer_id, job_id, request_type, requested_date, message)
+  values (cust.organization_id, cust.id, p_job, p_type, p_date, left(nullif(trim(p_message), ''), 2000));
+  return true;
+end $$;
+revoke execute on function public.submit_customer_portal_request(uuid,text,uuid,date,text,boolean,boolean) from public;
+grant  execute on function public.submit_customer_portal_request(uuid,text,uuid,date,text,boolean,boolean) to anon, authenticated;
+
 -- =====================================================================
 -- End migration 023.
 -- =====================================================================
