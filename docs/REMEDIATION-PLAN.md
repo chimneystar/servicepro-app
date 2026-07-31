@@ -83,10 +83,10 @@ Status: `TODO` / `WIP` / `DONE` / `BLOCKED`. Keep this honest — a status doc t
 | # | Task | Status |
 |---|---|---|
 | 3.1 | Migration ledger table + runner; rename baseline `001_`; regenerate `schema.sql` | TODO |
-| 3.2 | Rewrite `MIGRATIONS.md` DR runbook (currently omits 018-022); delete `GO-LIVE.sql` | TODO |
-| 3.3 | Env-var validation at boot (zod), fail loudly not at 3am | TODO |
+| 3.2 | Rewrite `MIGRATIONS.md` DR runbook (currently omits 018-022); delete `GO-LIVE.sql` | DONE |
+| 3.3 | Env-var validation at boot (zod), fail loudly not at 3am | DONE |
 | 3.4 | Error monitoring + structured logging; cron must report failure, not always `ok:true` | TODO |
-| 3.5 | Backup/restore + rollback runbook | TODO |
+| 3.5 | Backup/restore + rollback runbook | DONE |
 | 3.6 | Add the ~12 missing hot indexes | TODO |
 
 ### Phase 4 — correctness bugs
