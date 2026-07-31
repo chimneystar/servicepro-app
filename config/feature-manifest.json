@@ -40,6 +40,7 @@
     { "path": "/finance", "file": "app/(app)/finance/page.tsx", "roles": ["owner", "office"] },
     { "path": "/settings", "file": "app/(app)/settings/page.tsx", "roles": ["owner"] },
     { "path": "/settings/privacy", "file": "app/(app)/settings/privacy/page.tsx", "roles": ["owner"] },
+    { "path": "/settings/security", "file": "app/(app)/settings/security/page.tsx", "roles": ["owner", "office", "tech"] },
     { "path": "/settings/booking", "file": "app/(app)/settings/booking/page.tsx", "roles": ["owner"] },
     { "path": "/settings/messages", "file": "app/(app)/settings/messages/page.tsx", "roles": ["owner"] },
     { "path": "/settings/payments", "file": "app/(app)/settings/payments/page.tsx", "roles": ["owner", "office"] },

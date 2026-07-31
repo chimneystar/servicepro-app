@@ -51,6 +51,7 @@ Run these **in this exact order**. Every file, no gaps.
 | 31 | `033_inventory_movements.sql` | Append-only stock ledger, derived `inventory_items.quantity`, concurrency guard, multi-line purchase orders with a receive step |
 | 32 | `034_notifications_support.sql` | Push event tracing, the support-access audit table, and an `accept_invitation(token)` that actually requires the emailed token |
 | 33 | `035_custom_fields_tax.sql` | Guards `custom_field_values.entity_id` (audit F21 — polymorphic, no FK, no org check); adds opt-in `organizations.tax_mode` and `document_tax_context()` so tax jurisdictions and customer exemptions can price a document |
+| — | `038_account_security.sql` | Login-attempt ledger + throttle counting, permission-change triggers, e-signature evidence (`approve_document_with_evidence`), per-profile security state, and rotation bookkeeping for `merchant_secrets.key_version`. **Run it after every lower-numbered file present in `db/`** — the row number is left blank because 036 and 037 belong to other workstreams on this branch and their order relative to each other is theirs to state. 038 depends on 017, 018, 022 and 023 only. |
 
 There is **no file numbered 016**: `016_isolation_tests.sql` is a *test*, not a
 migration. Run it after step 15 (and again at the end) and confirm you see
