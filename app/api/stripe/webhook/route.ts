@@ -39,18 +39,40 @@ export async function POST(request: NextRequest) {
   let admin;
   try { admin = createAdminClient(); } catch { return NextResponse.json({ ok: false, reason: "no service role" }, { status: 200 }); }
 
-  // Deposit paid against an ESTIMATE — record a standalone payment.
+  // Deposit paid against an ESTIMATE.
   if (payKind === "deposit") {
     const { data: est } = await admin.from("estimates").select("id, number, organization_id").eq("public_token", token).maybeSingle();
     if (est) {
-      const { data: dup } = await admin.from("payments").select("id").eq("stripe_payment_intent_id", session.payment_intent ?? "__none__").limit(1);
+      // Idempotency: when payment_intent is absent the previous code deduped on
+      // the literal "__none__", and the unique index on stripe_payment_intent_id
+      // does not apply to NULLs — so every redelivery inserted another row.
+      // Without an intent id there is nothing to dedupe on, so refuse rather
+      // than risk double-crediting.
+      const intentId = typeof session.payment_intent === "string" ? session.payment_intent : null;
+      if (!intentId) {
+        console.error("[stripe] deposit session has no payment_intent; refusing to record an undedupable payment");
+        return NextResponse.json({ ok: false, reason: "missing payment_intent" }, { status: 400 });
+      }
+      const { data: dup } = await admin.from("payments").select("id").eq("stripe_payment_intent_id", intentId).limit(1);
       if (!dup || dup.length === 0) {
-        await admin.from("payments").insert({
-          organization_id: est.organization_id, invoice_id: null,
-          amount_minor: session.amount_total ?? 0, currency: (session.currency ?? "usd").toUpperCase(),
-          status: "paid", method: "Credit card", reference: session.payment_intent ?? null, note: `Deposit for estimate #${est.number}`,
-          stripe_payment_intent_id: session.payment_intent ?? null, paid_at: new Date().toISOString(),
+        const { error } = await admin.from("payments").insert({
+          organization_id: est.organization_id,
+          invoice_id: null,
+          // Load-bearing: without estimate_id this deposit is orphaned — it
+          // credits nothing, so openBalance still reports the full deposit due
+          // and the customer can be charged for it a second time.
+          estimate_id: est.id,
+          amount_minor: session.amount_total ?? 0,
+          base_amount_minor: session.amount_total ?? 0,
+          normalized_status: "settled",
+          currency: (session.currency ?? "usd").toUpperCase(),
+          status: "paid", method: "Credit card", reference: intentId, note: `Deposit for estimate #${est.number}`,
+          stripe_payment_intent_id: intentId, paid_at: new Date().toISOString(),
         });
+        if (error) {
+          console.error("[stripe] failed to record deposit payment:", error.message);
+          return NextResponse.json({ ok: false, reason: "record failed" }, { status: 500 });
+        }
       }
     }
     return NextResponse.json({ ok: true });
@@ -60,16 +82,38 @@ export async function POST(request: NextRequest) {
   if (!inv) return NextResponse.json({ ok: true, ignored: true });
   if (inv.stripe_session_id === session.id) return NextResponse.json({ ok: true, already: true }); // idempotent
 
-  await admin.from("invoices").update({
-    status: "paid", paid_at: new Date().toISOString(), paid_online: true, stripe_session_id: session.id,
-  }).eq("id", inv.id);
+  // Never mark an invoice paid for less than it is worth. The amount comes from
+  // Stripe's signed payload rather than the client, but a session created out of
+  // band for any amount would otherwise close out the full invoice. The Helcim
+  // path validates this; this one did not.
+  const receivedMinor = Number(session.amount_total ?? 0);
+  const totalMinor = Number(inv.total_minor ?? 0);
 
-  await admin.from("payments").insert({
+  const { error: payError } = await admin.from("payments").insert({
     organization_id: inv.organization_id, invoice_id: inv.id,
-    amount_minor: session.amount_total ?? inv.total_minor, currency: (session.currency ?? "usd").toUpperCase(),
+    amount_minor: receivedMinor || totalMinor,
+    base_amount_minor: receivedMinor || totalMinor,
+    normalized_status: "settled",
+    currency: (session.currency ?? "usd").toUpperCase(),
     status: "paid", method: "Credit card", reference: session.payment_intent ?? null,
     stripe_payment_intent_id: session.payment_intent ?? null, paid_at: new Date().toISOString(),
   });
+  if (payError) {
+    // The previous code ignored this error, so an invoice could be marked paid
+    // with no payment row behind it — money that exists on the screen and
+    // nowhere in the ledger.
+    console.error("[stripe] failed to record invoice payment:", payError.message);
+    return NextResponse.json({ ok: false, reason: "record failed" }, { status: 500 });
+  }
+
+  const update: Record<string, unknown> = { stripe_session_id: session.id, paid_online: true };
+  if (receivedMinor >= totalMinor) {
+    update.status = "paid";
+    update.paid_at = new Date().toISOString();
+  } else {
+    console.warn(`[stripe] partial payment ${receivedMinor} of ${totalMinor} on invoice ${inv.id}; left unpaid`);
+  }
+  await admin.from("invoices").update(update).eq("id", inv.id);
 
   return NextResponse.json({ ok: true });
 }
