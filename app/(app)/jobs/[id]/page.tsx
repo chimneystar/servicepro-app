@@ -7,6 +7,7 @@ import JobPhotos, { type Photo } from "@/components/JobPhotos";
 import JobActions from "@/components/JobActions";
 import Tabs from "@/components/Tabs";
 import JobItems, { type Item } from "@/components/JobItems";
+import JobParts, { type StockItem } from "./JobParts";
 import JobTasks, { type Task } from "@/components/JobTasks";
 import JobChecklist, { type Check } from "@/components/JobChecklist";
 import JobEquipment, { type Equip } from "@/components/JobEquipment";
@@ -52,7 +53,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const [
     { data: photoRows }, { data: invoices }, { data: estimates }, { data: items },
     { data: tasks }, { data: checklist }, { data: equipment }, { data: catalog }, { data: summaries },
-    { data: teamRows }, { data: warranty }, { data: callbacks },
+    { data: teamRows }, { data: warranty }, { data: callbacks }, { data: stock },
   ] = await Promise.all([
     supabase.from("job_photos").select("id, storage_path, label, media_type, parent_photo_id, customer_visible").eq("job_id", id).order("created_at"),
     supabase.from("invoices").select("id, number, total_minor, status, public_token").eq("job_id", id).is("deleted_at", null).order("number", { ascending: false }),
@@ -66,6 +67,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
     supabase.from("profiles").select("id,full_name").in("role", ["owner", "office", "tech"]).order("full_name"),
     supabase.from("job_warranties").select("id,coverage_type,starts_on,expires_on,terms,status").eq("job_id", id).maybeSingle(),
     supabase.from("warranty_callbacks").select("id,issue,priority,responsibility,status,scheduled_for,resolution,internal_cost_minor,callback_job_id,reported_at").eq("original_job_id", id).order("reported_at", { ascending: false }),
+    supabase.from("inventory_items").select("id,name,unit,quantity_milli,cost_minor").order("name").limit(500),
   ]);
 
   const invList = invoices ?? [];
@@ -134,7 +136,15 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
     </div>
   );
 
-  const ItemsTab = <JobItems jobId={job.id} items={(items ?? []) as Item[]} currency={cur} canEdit={canEdit} />;
+  // Parts come from stock and take stock with them: JobParts writes the line
+  // AND the inventory movement (remediation plan 5.11). Technicians get it too —
+  // they are the ones who actually fit the parts.
+  const ItemsTab = (
+    <div>
+      <JobItems jobId={job.id} items={(items ?? []) as Item[]} currency={cur} canEdit={canEdit} />
+      <JobParts jobId={job.id} stock={(stock ?? []) as StockItem[]} />
+    </div>
+  );
 
   const EstimatesTab = (
     <div>

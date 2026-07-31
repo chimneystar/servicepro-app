@@ -23,6 +23,8 @@
     { "path": "/invoices/[id]/edit", "file": "app/(app)/invoices/[id]/edit/page.tsx", "roles": ["owner", "office"] },
     { "path": "/expenses", "file": "app/(app)/expenses/page.tsx", "roles": ["owner", "office"] },
     { "path": "/inventory", "file": "app/(app)/inventory/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/inventory/movements", "file": "app/(app)/inventory/movements/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/inventory/receiving", "file": "app/(app)/inventory/receiving/page.tsx", "roles": ["owner", "office"] },
     { "path": "/pricebook", "file": "app/(app)/pricebook/page.tsx", "roles": ["owner", "office"] },
     { "path": "/recurring", "file": "app/(app)/recurring/page.tsx", "roles": ["owner", "office"] },
     { "path": "/route", "file": "app/(app)/route/page.tsx", "roles": ["owner", "office", "tech"] },

@@ -9,8 +9,15 @@ import { computeDocument, parseAmountToMinor, parseQtyToMilli } from "@/lib/core
 // @ts-ignore -- shared JS module
 import { isUniqueViolation } from "@/lib/core/db-errors.mjs";
 import { changeJobStatus } from "@/lib/job-status";
+import { recordInventoryMovement } from "@/lib/inventory";
 
-export type PhotoResult = { ok: boolean; error?: string };
+export type PhotoResult = {
+  ok: boolean;
+  error?: string;
+  /** "insufficient_stock" — the caller may offer the deliberate override. */
+  code?: string;
+  availableMilli?: number;
+};
 
 export async function generateJobSummary(jobId: string): Promise<PhotoResult> {
   const profile = await requireProfile(); const locale = await getLocale(); const he = locale === "he"; const supabase = await createClient();
@@ -113,12 +120,97 @@ export async function addJobItem(jobId: string, formData: FormData): Promise<Pho
   revalidatePath(`/jobs/${jobId}`);
   return { ok: true };
 }
-export async function deleteJobItem(id: string, jobId: string): Promise<PhotoResult> {
-  await requireProfile();
+/**
+ * Fit a part from stock onto this job.
+ *
+ * THE GAP THIS CLOSES (remediation plan 5.11). `grep -n inventory` over this
+ * file returned NOTHING: a technician could add "3 × thermocouple" to a job and
+ * the warehouse count did not move, so inventory drifted out of true within a
+ * week — and because the line carried no cost, the job's margin pretended the
+ * materials were free.
+ *
+ * Two writes, no transaction across PostgREST, so the order matters: the job
+ * line is written first and REMOVED again if the stock movement is refused.
+ * The other order — consume, then fail to write the line — would take stock
+ * off the shelf for a job that never records having used it, which is the
+ * failure that cannot be spotted afterwards.
+ */
+export async function addJobPart(jobId: string, formData: FormData): Promise<PhotoResult> {
+  const profile = await requireProfile();
   const supabase = await createClient();
+
+  const itemId = String(formData.get("inventoryItemId") ?? "").trim();
+  if (!itemId) return { ok: false, error: "Choose a part" };
+  const allowNegative = String(formData.get("allowNegative") ?? "") === "true";
+
+  let qtyMilli = 0;
+  try { qtyMilli = parseQtyToMilli(String(formData.get("qty") ?? "1")); }
+  catch { return { ok: false, error: "Invalid quantity" }; }
+  if (qtyMilli <= 0) return { ok: false, error: "Enter a quantity" };
+
+  const { data: part } = await supabase
+    .from("inventory_items").select("id, name, unit, cost_minor, quantity_milli").eq("id", itemId).maybeSingle();
+  if (!part) return { ok: false, error: "Part not found" };
+
+  let unitPriceMinor = 0;
+  const priceRaw = String(formData.get("price") ?? "").trim();
+  try { unitPriceMinor = priceRaw ? parseAmountToMinor(priceRaw) : part.cost_minor ?? 0; }
+  catch { return { ok: false, error: "Invalid price" }; }
+
+  const description = String(formData.get("description") ?? "").trim() || part.name;
+
+  const { data: line, error } = await supabase.from("job_items").insert({
+    organization_id: profile.organization_id, job_id: jobId, description,
+    qty_milli: qtyMilli, unit_price_minor: unitPriceMinor,
+    // The cost the business actually bore. This is what makes job costing
+    // include materials at all.
+    cost_minor: part.cost_minor ?? 0,
+  }).select("id").single();
+  if (error || !line) return { ok: false, error: error?.message ?? "Could not add the part" };
+
+  const moved = await recordInventoryMovement(profile.organization_id!, profile.id, {
+    itemId, kind: "consumption", qtyMilli: -qtyMilli,
+    reason: `Fitted on job`, unitCostMinor: part.cost_minor ?? 0,
+    jobId, jobItemId: line.id, allowNegative,
+  });
+  if (!moved.ok) {
+    // Compensate: the line must not survive a refused consumption, or the job
+    // would claim a part that stock never gave up.
+    await supabase.from("job_items").delete().eq("id", line.id);
+    return { ok: false, error: moved.error, code: moved.code, availableMilli: moved.availableMilli };
+  }
+
+  revalidatePath(`/jobs/${jobId}`);
+  revalidatePath("/inventory");
+  return { ok: true };
+}
+
+/**
+ * Remove a job line. If the line consumed stock, the stock goes back — as a new
+ * movement, never by deleting the old one: the ledger is append-only, so the
+ * history shows it was taken and returned rather than pretending it never left.
+ */
+export async function deleteJobItem(id: string, jobId: string): Promise<PhotoResult> {
+  const profile = await requireProfile();
+  const supabase = await createClient();
+
+  const { data: consumed } = await supabase
+    .from("inventory_movements").select("item_id, qty_milli, unit_cost_minor").eq("job_item_id", id);
+
   const { error } = await supabase.from("job_items").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
+
+  for (const m of consumed ?? []) {
+    if (m.qty_milli >= 0) continue;
+    await recordInventoryMovement(profile.organization_id!, profile.id, {
+      itemId: m.item_id, kind: "adjustment", qtyMilli: -m.qty_milli,
+      reason: "Returned to stock: job line removed",
+      unitCostMinor: m.unit_cost_minor, jobId,
+    });
+  }
+
   revalidatePath(`/jobs/${jobId}`);
+  if (consumed?.length) revalidatePath("/inventory");
   return { ok: true };
 }
 

@@ -146,10 +146,12 @@ as fixes land. See `docs/REMEDIATION-PLAN.md` for what is still open._
 
 | Capability | Entry point | Users | State |
 |---|---|---|---|
-| Inventory items CRUD, low-stock, quantity +/- | `/inventory` | owner/office | REAL |
-| Inventory movement ledger | — | — | **STUB** — no movement table exists; only a mutable quantity column with a lossy read-then-write |
+| Inventory items CRUD, low-stock, quantity +/- | `/inventory` | owner/office | REAL — quantity is now derived from the ledger; every +/- is a recorded movement |
+| Inventory movement ledger | `/inventory/movements` | owner/office (techs see their own) | REAL — append-only `inventory_movements`; `inventory_items.quantity` is a trigger-maintained cache and cannot drift |
+| Parts consumption from a job | `/jobs/[id]` Items tab | owner/office/tech | REAL — the job line and the stock movement are written together, and the line carries the item's cost |
+| Receiving stock against a purchase order | `/inventory/receiving` | owner/office | REAL — one atomic DB function: line received, inventory movement written, PO status advanced |
 | Vendors | `/operations` | owner/office | REAL |
-| Purchase orders | `/operations` | owner/office | PARTIAL — a single line item, status never advances, no receive step, no inventory link |
+| Purchase orders | `/operations` + `/inventory/receiving` | owner/office | REAL — multi-line, enforced lifecycle, receive step, inventory link. The `/operations` create form still posts one line; further lines are added on the receiving screen |
 | Subcontractors (trades, insurance expiry) | `/operations` | owner/office | REAL |
 | Crews and service areas | `/operations` | owner/office | REAL |
 | Automation rules | `/operations` | owner/office | **STUB** — stored; no executor exists |
@@ -259,7 +261,9 @@ it never did.
 
 **Complete stubs (19):** refunds · tips · saved payment methods · ACH hold-until-settled · payment
 schedules and milestones · organisation default deposit · booking deposit charging · automation rules
-· campaigns · referral programmes · custom fields (definitions and values) · inventory movement ledger
+· campaigns · referral programmes · custom fields (definitions and values) ·
+~~inventory movement ledger~~ (**closed** on `fix/production-hardening`: migration 033 — append-only
+ledger, derived quantity, job consumption, PO receiving)
 · feature flags · push notification delivery · photo "customer visible" flag · scheduling
 transition-rule engine (written and tested, never called) · tax-jurisdiction calculation · support-session
 access granting · invitation email delivery.

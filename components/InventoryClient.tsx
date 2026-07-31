@@ -2,28 +2,52 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useFormState, useFormStatus } from "react-dom";
 import { saveInventoryItem, adjustQuantity, deleteInventoryItem, type ActionResult } from "@/app/(app)/inventory/actions";
+// @ts-ignore — pure logic, unit-tested in tests/inventory.test.mjs
+import { formatQtyMilli, isOversold } from "@/lib/core/inventory.mjs";
 
-export type Item = { id: string; name: string; sku: string | null; unit: string; quantity: number; low_stock_threshold: number; cost_minor: number };
+export type Item = { id: string; name: string; sku: string | null; unit: string; quantity: number; quantity_milli: number; low_stock_threshold: number; cost_minor: number };
 const sym: Record<string, string> = { USD: "$", ILS: "₪", EUR: "€" };
 
 export default function InventoryClient({ items, currency }: { items: Item[]; currency: string }) {
   const router = useRouter();
   const [editing, setEditing] = useState<Item | null | undefined>(undefined);
   const [state, formAction] = useFormState(saveInventoryItem, { ok: false } as ActionResult);
+  const [adjustError, setAdjustError] = useState<string | null>(null);
   const cur = sym[currency] ?? "$";
   if (state.ok && editing !== undefined) setTimeout(() => { setEditing(undefined); router.refresh(); }, 0);
 
   const low = items.filter((i) => i.low_stock_threshold > 0 && i.quantity <= i.low_stock_threshold);
-  const adj = (id: string, d: number) => { adjustQuantity(id, d).then(() => router.refresh()); };
+  const oversold = items.filter((i) => isOversold(i));
+  // Every +/- press is now a ledger row, and the result is no longer discarded:
+  // a refusal (there is none left) used to vanish and leave the number unchanged
+  // with no explanation.
+  const adj = async (id: string, d: number) => {
+    setAdjustError(null);
+    const r = await adjustQuantity(id, d);
+    if (!r.ok && r.code === "insufficient_stock") {
+      if (confirm(`${r.error} Record it anyway and flag this item for a stock count?`)) {
+        const forced = await adjustQuantity(id, d, "Counted out below zero — needs a stock count", true);
+        if (!forced.ok) setAdjustError(forced.error ?? "Could not record that.");
+      }
+    } else if (!r.ok) {
+      setAdjustError(r.error ?? "Could not record that.");
+    }
+    router.refresh();
+  };
   const del = (id: string) => { if (confirm("Delete this item?")) deleteInventoryItem(id).then(() => router.refresh()); };
 
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <div style={{ fontSize: 13, color: "#5c6675" }}>{items.length} items{low.length ? ` · ${low.length} low` : ""}</div>
-        <button onClick={() => setEditing(null)} style={btn}>➕ Add item</button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Link href="/inventory/movements" style={{ ...btn, background: "#eef2f8", color: "#2563eb", textDecoration: "none" }}>📜 Stock history</Link>
+          <Link href="/inventory/receiving" style={{ ...btn, background: "#eef2f8", color: "#2563eb", textDecoration: "none" }}>📦 Receiving</Link>
+          <button onClick={() => setEditing(null)} style={btn}>➕ Add item</button>
+        </div>
       </div>
 
       {low.length > 0 && (
@@ -31,6 +55,14 @@ export default function InventoryClient({ items, currency }: { items: Item[]; cu
           ⚠️ Low stock: {low.map((i) => i.name).join(", ")}
         </div>
       )}
+
+      {oversold.length > 0 && (
+        <div role="alert" style={{ background: "#fff7ed", border: "1px solid #fdba74", color: "#9a3412", borderRadius: 12, padding: "10px 14px", fontSize: 13, marginBottom: 12 }}>
+          🧮 Needs a stock count — more was used than the system held: {oversold.map((i) => `${i.name} (${formatQtyMilli(i.quantity_milli)})`).join(", ")}
+        </div>
+      )}
+
+      {adjustError && <div role="alert" style={{ ...err, marginTop: 0, marginBottom: 12 }}>{adjustError}</div>}
 
       <div style={{ display: "grid", gap: 8 }}>
         {items.map((it) => {
@@ -42,7 +74,7 @@ export default function InventoryClient({ items, currency }: { items: Item[]; cu
                 <div style={{ fontSize: 12.5, color: "#5c6675" }}>{[it.sku && `SKU ${it.sku}`, `${cur}${(it.cost_minor / 100).toFixed(2)}/${it.unit}`].filter(Boolean).join(" · ")}</div>
               </div>
               <button onClick={() => adj(it.id, -1)} style={qBtn}>−</button>
-              <b style={{ minWidth: 40, textAlign: "center", color: isLow ? "#b91c1c" : "#0b1524" }}>{it.quantity}</b>
+              <b style={{ minWidth: 40, textAlign: "center", color: isOversold(it) ? "#9a3412" : isLow ? "#b91c1c" : "#0b1524" }}>{formatQtyMilli(it.quantity_milli)}</b>
               <button onClick={() => adj(it.id, 1)} style={qBtn}>+</button>
               <button onClick={() => setEditing(it)} style={mini}>✏️</button>
               <button onClick={() => del(it.id)} style={{ ...mini, background: "#fdeaea" }}>🗑️</button>
@@ -63,9 +95,10 @@ export default function InventoryClient({ items, currency }: { items: Item[]; cu
               <div><L>Unit</L><input name="unit" defaultValue={editing?.unit ?? "unit"} style={inp} /></div>
             </div>
             <div style={two}>
-              <div><L>Quantity</L><input name="quantity" type="number" defaultValue={editing?.quantity ?? 0} style={inp} /></div>
+              <div><L>Quantity</L><input name="quantity" type="number" step="0.001" defaultValue={editing ? formatQtyMilli(editing.quantity_milli) : 0} style={inp} /></div>
               <div><L>Low-stock alert at</L><input name="low" type="number" defaultValue={editing?.low_stock_threshold ?? 0} style={inp} /></div>
             </div>
+            {editing && <><L>Why is the count changing?</L><input name="reason" style={inp} placeholder="Stocktake, breakage, returned to vendor…" /></>}
             <L>Cost per unit</L><input name="cost" type="number" step="0.01" defaultValue={editing ? (editing.cost_minor / 100).toFixed(2) : ""} style={inp} placeholder="0.00" />
             {state.error && <div style={err}>{state.error}</div>}
             <div style={{ display: "flex", gap: 10, marginTop: 14 }}><Save /><button type="button" onClick={() => setEditing(undefined)} style={{ ...btn, background: "#e2e9f4", color: "#2563eb" }}>Cancel</button></div>

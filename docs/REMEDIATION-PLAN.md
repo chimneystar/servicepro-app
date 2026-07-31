@@ -200,7 +200,7 @@ that exist with nothing behind them.
 | 5.8 | Automation rules — build the executor | TODO |
 | 5.9 | Campaigns + referral programmes — build the sender | TODO |
 | 5.10 | Custom fields — definitions and values have no UI at all | TODO |
-| 5.11 | Inventory movement ledger + parts consumption from jobs | TODO |
+| 5.11 | Inventory movement ledger + parts consumption from jobs | DONE — ledger + derived quantity + job consumption (migration `033_inventory_movements.sql` must be RUN); see note |
 | 5.12 | Feature flags — nothing reads them | TODO |
 | 5.13 | Push notification delivery — subscriptions stored, no sender | TODO |
 | 5.14 | Photo "customer visible" flag — selected, never used | DONE |
@@ -208,7 +208,54 @@ that exist with nothing behind them.
 | 5.16 | Tax jurisdictions — feed `computeDocument` instead of display-only | TODO |
 | 5.17 | Support sessions — grant actual access | TODO |
 | 5.18 | Invitation email delivery — token generated, never sent | TODO |
-| 5.19 | Purchase orders — multi-line, status advance, receive step, inventory link | TODO |
+| 5.19 | Purchase orders — multi-line, status advance, receive step, inventory link | DONE — actions + `/inventory/receiving` workspace; the `/operations` create form still posts one line (that file is owned elsewhere), see note |
+
+**Note on 5.11 / 5.19 — what shipped, and the negative-stock decision.**
+
+`db/033_inventory_movements.sql` adds `inventory_movements`, an append-only
+ledger of every receipt, consumption and adjustment with its reason and actor.
+`inventory_items.quantity` keeps working for every existing reader but is now a
+DERIVED cache (alongside the exact `quantity_milli`) maintained by trigger from
+the ledger, and a hand-written quantity is refused — so it cannot drift from the
+ledger the way the old read-then-write did. `addJobPart` in
+`app/(app)/jobs/[id]/actions.ts` writes the job line **and** the consumption, and
+copies the item's `cost_minor` onto the line, so job cost includes materials for
+the first time (this is also most of 6c.1). Removing the line returns the stock
+as a NEW movement, never by deleting one.
+
+*The negative-stock decision: refused by default, allowed when acknowledged.*
+The guard runs inside a `BEFORE INSERT` trigger that first takes `select … for
+update` on the item row, so two technicians consuming the last unit are
+serialised and exactly one succeeds — the second is told there is none left.
+That is the concurrency requirement. But a technician who has physically fitted
+the part must still be able to record it: refusing outright would leave the count
+wrong AND the job uncosted, which is strictly worse. So the refusal comes back
+with `code: "insufficient_stock"`, and the UI offers to record it anyway; that
+path requires `allow_negative` plus a reason of real length, drives the balance
+negative, and the item is flagged on `/inventory` as needing a stock count until
+someone reconciles it. Silent drift is impossible; acknowledged, attributed,
+audited drift is possible, which is what the real world does.
+
+*Purchase orders (5.19).* Multi-line create and `addPurchaseOrderLine`, a
+lifecycle (`draft → ordered → partially_received → received`, plus `cancelled`)
+enforced BOTH in `lib/core/inventory.mjs` and by a database trigger, and
+`receive_purchase_order_line()` — one database function that locks the line,
+records what arrived, writes the inventory receipt and advances the PO status in
+a single transaction, so a double-click cannot receive twice. `total_minor` is
+now derived from the lines. `purchase_order_items.quantity` was the only raw
+float quantity left in the product; `qty_milli` / `received_qty_milli` are now
+the truth and the numeric column is kept in step as a mirror (nothing dropped).
+The new `/inventory/receiving` workspace is where POs are ordered, extended and
+received.
+
+*What is NOT done.* The `/operations` PO create form still posts a single line —
+`app/(app)/operations/page.tsx` is owned by another workstream this session, so
+only the action was changed (it accepts one or many identically). Nothing has
+been executed against a live Postgres: the triggers, the lock and the RPC are
+verified by inspection and by 25 probes in `tests/inventory.test.mjs`, each
+proven to fail on the broken case and pass on the fixed one, but the row-lock
+behaviour itself needs the 0.6 CI database to be proven rather than reasoned
+about.
 
 ### Phase 6 — new capabilities (from the gap analysis)
 | # | Capability | Status |
@@ -229,7 +276,7 @@ that exist with nothing behind them.
 | 6b.7 | Server-side password policy | TODO |
 | 6b.8 | SMS STOP handling — **DONE** in Phase 1 (opt-out now honoured by both reminder loops) | DONE |
 | 6b.9 | Encryption-key rotation for provider tokens | TODO |
-| 6c.1 | Parts consumption: job → inventory → job cost | TODO |
+| 6c.1 | Parts consumption: job → inventory → job cost | PARTIAL — job → stock → line `cost_minor` shipped with 5.11, and it reaches the margin report through `invoice_items.cost_minor`; the **commission** report still costs a job only from the hand-typed `jobs.job_expenses_minor`, so materials are invisible there until it also sums the line costs |
 | 6c.2 | True job costing including labour | TODO |
 | 6c.3 | Technician time off / non-working days | TODO |
 | 6c.4 | Good/better/best estimate options | TODO |
