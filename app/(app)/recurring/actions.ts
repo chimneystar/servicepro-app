@@ -59,7 +59,7 @@ export async function generateDuePlans(): Promise<ActionResult> {
     const { error } = await supabase.from("jobs").insert({
       organization_id: profile.organization_id, created_by: profile.id, customer_id: p.customer_id,
       assigned_to: p.assigned_to, service: p.service, price_minor: p.price_minor,
-      scheduled_date: p.next_due, source: "Maintenance plan",
+      scheduled_date: p.next_due, end_date: p.next_due, source: "Maintenance plan",
     });
     if (!error) { created++; await supabase.from("recurring_plans").update({ next_due: addMonths(p.next_due, p.interval_months), updated_at: new Date().toISOString() }).eq("id", p.id); }
   }

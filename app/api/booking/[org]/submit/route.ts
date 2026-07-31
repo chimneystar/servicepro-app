@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { addMinutes, buildBookingSlots, createBookingReference, matchesServiceArea, type BookingHours, type ServiceArea } from "@/lib/booking";
+// @ts-ignore — proven both ways in tests/rate-limit.test.mjs
+import { consume, clientKey } from "@/lib/core/rate-limit.mjs";
 
 export const dynamic = "force-dynamic";
 const clean = (value: unknown, max: number) => String(value ?? "").trim().slice(0,max);
@@ -12,6 +14,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ org
   const name=clean(body.name,120), phone=clean(body.phone,40), email=clean(body.email,160), serviceId=clean(body.serviceId,60), date=clean(body.date,10), start=clean(body.start,5);
   const address=clean(body.address,200), city=clean(body.city,80), postalCode=clean(body.postalCode,20), notes=clean(body.notes,2000), source=clean(body.source,80)||"Online booking", campaign=clean(body.campaign,120), contactPreference=clean(body.contactPreference,20)||"phone", urgency=clean(body.urgency,20)||"standard";
   if (!name || !phone || !serviceId || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(start)) return NextResponse.json({ok:false,error:"missing_fields"},{status:400});
+
+  // Per-caller throttle, in ADDITION to the existing per-organisation counter
+  // below. That counter is global to the business, so it is itself a denial of
+  // service: anyone with the org UUID could saturate it and block genuine
+  // customers from booking. This one stops the abuser without touching anyone
+  // else's allowance.
+  const perCaller = consume(`booking:submit:${clientKey(request.headers)}:${org}`, 5, 600_000);
+  if (!perCaller.allowed) {
+    return NextResponse.json({ ok: false, error: "try_later" }, {
+      status: 429,
+      headers: { "retry-after": String(perCaller.retryAfterSeconds) },
+    });
+  }
+
   try {
     const admin=createAdminClient();
     const [{data:settings},{data:service},{data:areas},{data:jobs},{count:capacity},{count:recent}] = await Promise.all([
@@ -38,7 +54,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ org
       if(email){const {data}=await admin.from("customers").select("id").eq("organization_id",org).ilike("email",email).is("deleted_at",null).limit(1).maybeSingle();customer=data;}
       if(!customer){const {data}=await admin.from("customers").select("id").eq("organization_id",org).eq("phone",phone).is("deleted_at",null).limit(1).maybeSingle();customer=data;}
       if(!customer){const {data,error}=await admin.from("customers").insert({organization_id:org,name,phone,email:email||null,address:address||null,city:city||null,source,notes:notes||null}).select("id").single();if(error)throw error;customer=data;}
-      const {error:jobError}=await admin.from("jobs").insert({organization_id:org,customer_id:customer.id,assigned_to:null,service:service.name_en,status:"scheduled",price_minor:service.price_minor,scheduled_date:date,start_time:start,end_time:addMinutes(start,service.duration_min),source,notes:notes||null});
+      // end_date must be set. It is nullable with no default, and the dispatch
+      // board matches `scheduled_date <= day AND (end_date >= day OR end_date IS
+      // NULL)` — so a job left with a null end_date reappears on EVERY future
+      // day, forever. Same defect as the recurring generators.
+      const {error:jobError}=await admin.from("jobs").insert({organization_id:org,customer_id:customer.id,assigned_to:null,service:service.name_en,status:"scheduled",price_minor:service.price_minor,scheduled_date:date,end_date:date,start_time:start,end_time:addMinutes(start,service.duration_min),source,notes:notes||null});
       if(jobError)throw jobError;
       await admin.from("leads").update({status:"won",converted_customer_id:customer.id,booking_status:"confirmed"}).eq("id",lead.id);
       status="confirmed";

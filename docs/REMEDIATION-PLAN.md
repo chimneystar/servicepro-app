@@ -42,7 +42,7 @@ Status: `TODO` / `WIP` / `DONE` / `BLOCKED`. Keep this honest — a status doc t
 | 0.1 | Fix `tests/booking.test.mjs` (imports `.ts` under `node --test`) — move pure booking logic to `lib/core/booking.mjs` | DONE |
 | 0.2 | Wire ALL test files into `npm test` (7 of 10 are currently orphaned, including the two best) | DONE |
 | 0.3 | Replace tautological RLS greps in `feature-preservation.test.mjs` with real assertions | DONE |
-| 0.4 | Add `test:e2e` script + Playwright `webServer` + auth setup project | TODO |
+| 0.4 | Add `test:e2e` script + Playwright `webServer` + auth setup project | DONE |
 | 0.5 | Add CI workflow: typecheck + lint + test on every push | DONE |
 
 ### Phase 1 — security blockers
@@ -64,7 +64,7 @@ Status: `TODO` / `WIP` / `DONE` / `BLOCKED`. Keep this honest — a status doc t
 | 1.14 | `deletePhoto`: derive path from the row, add role check | DONE |
 | 1.15 | `autoSendDocument`: derive `origin` server-side, assert org match, escape HTML | DONE |
 | 1.16 | Security headers (CSP, HSTS, X-Frame-Options, Referrer-Policy) in `next.config.mjs` | DONE |
-| 1.17 | Rate limiting on all unauthenticated endpoints | TODO |
+| 1.17 | Rate limiting on all unauthenticated endpoints | DONE |
 
 ### Phase 2 — money correctness
 | # | Task | Status |
@@ -92,7 +92,7 @@ Status: `TODO` / `WIP` / `DONE` / `BLOCKED`. Keep this honest — a status doc t
 ### Phase 4 — correctness bugs
 | # | Task | Status |
 |---|---|---|
-| 4.1 | `end_date` NOT NULL + default; fix both recurring generators (dispatch pollution) | TODO |
+| 4.1 | `end_date` NOT NULL + default; fix both recurring generators (dispatch pollution) | DONE |
 | 4.2 | Recurring `next_due` catch-up; prevent duplicate generation | TODO |
 | 4.3 | Offline sync: close time entries, drop rejected events | TODO |
 | 4.4 | `clockIn` race — DB uniqueness on open entries | TODO |

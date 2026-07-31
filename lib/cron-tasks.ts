@@ -15,7 +15,7 @@ export async function runRecurringGeneration(): Promise<number> {
     const { error } = await admin.from("jobs").insert({
       organization_id: p.organization_id, created_by: p.created_by, customer_id: p.customer_id,
       assigned_to: p.assigned_to, service: p.service, price_minor: p.price_minor,
-      scheduled_date: p.next_due, source: "Maintenance plan",
+      scheduled_date: p.next_due, end_date: p.next_due, source: "Maintenance plan",
     });
     if (!error) { created++; await admin.from("recurring_plans").update({ next_due: addMonths(p.next_due, p.interval_months) }).eq("id", p.id); }
   }

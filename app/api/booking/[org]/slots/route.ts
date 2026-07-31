@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildBookingSlots, type BookingHours } from "@/lib/booking";
+// @ts-ignore — proven both ways in tests/rate-limit.test.mjs
+import { consume, clientKey } from "@/lib/core/rate-limit.mjs";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +12,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ org:
   const date = url.searchParams.get("date") ?? "";
   const serviceId = url.searchParams.get("service") ?? "";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !serviceId) return NextResponse.json({ slots: [] }, { status: 400 });
+
+  // Unauthenticated, service-role, and four queries per call. Anyone with the
+  // organisation UUID (it is in the public /book/<org> URL) could enumerate the
+  // business's whole calendar day by day. Keyed per caller so a real customer
+  // clicking through dates is unaffected.
+  const limit = consume(`booking:slots:${clientKey(request.headers)}:${org}`, 60, 60_000);
+  if (!limit.allowed) {
+    return NextResponse.json({ slots: [], error: "rate_limited" }, {
+      status: 429,
+      headers: { "retry-after": String(limit.retryAfterSeconds) },
+    });
+  }
+
   try {
     const admin = createAdminClient();
     const [{ data: settings }, { data: service }, { data: jobs }, { count: capacity }] = await Promise.all([
