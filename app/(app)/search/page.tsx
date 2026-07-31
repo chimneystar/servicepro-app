@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { money } from "@/lib/format";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+// @ts-ignore — proven both ways in tests/postgrest-filter.test.mjs
+import { orIlike, escapeLikePattern, quoteFilterValue } from "@/lib/core/postgrest-filter.mjs";
 
 export const dynamic = "force-dynamic";
 
@@ -21,10 +23,24 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   let customers: any[] = [], jobs: any[] = [], invoices: any[] = [], estimates: any[] = [];
   const num = parseInt(q.replace(/[^0-9]/g, ""), 10);
   if (q) {
-    const like = `%${q}%`;
-    const cRes = await supabase.from("customers").select("id, name, phone, city").is("deleted_at", null).eq("archived", false).or(`name.ilike.${like},phone.ilike.${like},email.ilike.${like},city.ilike.${like}`).limit(20);
+    // The term is escaped before it reaches the filter expression. It used to be
+    // interpolated raw, so a comma terminated the condition and injected another
+    // — `a,archived.eq.true` defeated this page's own archived/deleted filters,
+    // and ordinary punctuation ("Smith, John") produced a 500.
+    const orExpr = orIlike(["name", "phone", "email", "city"], q);
+    const likePattern = `%${escapeLikePattern(q)}%`;
+
+    const cRes = await supabase.from("customers").select("id, name, phone, city").is("deleted_at", null).eq("archived", false).or(orExpr).limit(20);
     customers = cRes.data ?? [];
-    const jRes = await supabase.from("jobs").select("id, service, stage, scheduled_date, customers(name)").is("deleted_at", null).ilike("service", like).limit(20);
+
+    // Jobs match on the service text OR on the customer, which is how people
+    // actually search ("find the Henderson job"). Matching the service
+    // description alone missed that entirely. The customer ids come from the
+    // query above, so this costs no extra lookup.
+    const matchedCustomerIds = customers.map((c: any) => c.id);
+    const jobFilters = [`service.ilike.${quoteFilterValue(likePattern)}`];
+    if (matchedCustomerIds.length) jobFilters.push(`customer_id.in.(${matchedCustomerIds.join(",")})`);
+    const jRes = await supabase.from("jobs").select("id, service, stage, scheduled_date, customers(name)").is("deleted_at", null).or(jobFilters.join(",")).order("scheduled_date", { ascending: false }).limit(20);
     jobs = jRes.data ?? [];
     if (!Number.isNaN(num)) {
       const iRes = await supabase.from("invoices").select("id, number, total_minor, status, customers(name)").is("deleted_at", null).eq("number", num).limit(10);

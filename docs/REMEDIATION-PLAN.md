@@ -94,10 +94,10 @@ Status: `TODO` / `WIP` / `DONE` / `BLOCKED`. Keep this honest — a status doc t
 |---|---|---|
 | 4.1 | `end_date` NOT NULL + default; fix both recurring generators (dispatch pollution) | DONE |
 | 4.2 | Recurring `next_due` catch-up; prevent duplicate generation | TODO |
-| 4.3 | Offline sync: close time entries, drop rejected events | TODO |
+| 4.3 | Offline sync: close time entries, drop rejected events | DONE |
 | 4.4 | `clockIn` race — DB uniqueness on open entries | TODO |
 | 4.5 | Dispatch reassignment: remove stale lead assignment; surface double-book conflict | TODO |
-| 4.6 | Search: parameterise the PostgREST `.or()` filter injection | TODO |
+| 4.6 | Search: parameterise the PostgREST `.or()` filter injection | DONE |
 | 4.7 | Pagination on `/jobs`, `/schedule`, `/messages`, dashboard, reports | TODO |
 | 4.8 | Booking: timezone support; polygon service areas | TODO |
 | 4.9 | Reminders: mark sent AFTER send; allow retry | DONE |

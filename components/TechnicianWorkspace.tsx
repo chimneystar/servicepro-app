@@ -24,7 +24,27 @@ export default function TechnicianWorkspace({ locale, jobs, vapidPublicKey }: { 
   const todayJobs = useMemo(() => jobs.filter((job) => job.scheduled_date === today), [jobs, today]);
   const laterJobs = useMemo(() => jobs.filter((job) => job.scheduled_date !== today), [jobs, today]);
   useEffect(() => {
-    const refresh = async () => { setOnline(navigator.onLine); if (navigator.onLine) { const result = await flushJobOutbox(); setQueued(result.pending); if (result.sent) { setNotice(he ? `${result.sent} עדכונים סונכרנו.` : `${result.sent} updates synced.`); location.reload(); } } };
+    const refresh = async () => {
+      setOnline(navigator.onLine);
+      if (!navigator.onLine) return;
+      const result = await flushJobOutbox();
+      setQueued(result.pending);
+      // A rejected or expired update is the technician's work being discarded —
+      // usually because the job was reassigned while they were offline. Say so
+      // rather than letting it vanish silently, and say it BEFORE any reload so
+      // the message is not lost.
+      const lost = result.rejected + result.expired;
+      if (lost > 0) {
+        setNotice(he
+          ? `${lost} עדכונים לא נשמרו (ייתכן שהעבודה הועברה לטכנאי אחר). בדקו מול המשרד.`
+          : `${lost} update${lost === 1 ? "" : "s"} could not be saved — the job may have been reassigned. Check with the office.`);
+        return; // don't reload over the message
+      }
+      if (result.sent) {
+        setNotice(he ? `${result.sent} עדכונים סונכרנו.` : `${result.sent} updates synced.`);
+        location.reload();
+      }
+    };
     refresh(); window.addEventListener("online", refresh); window.addEventListener("offline", refresh);
     try { localStorage.setItem("servicepro:tech-snapshot", JSON.stringify({ savedAt: new Date().toISOString(), jobs })); } catch {}
     return () => { window.removeEventListener("online", refresh); window.removeEventListener("offline", refresh); if (locationWatch.current !== null) navigator.geolocation.clearWatch(locationWatch.current); };
