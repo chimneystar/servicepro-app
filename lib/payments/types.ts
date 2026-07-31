@@ -28,6 +28,15 @@ export type PaymentSettings = {
   receipt_email_enabled: boolean;
   receipt_sms_enabled: boolean;
 };
+/**
+ * Tip choices for an anonymous customer on /p/[token].
+ *
+ * Served by the `public_tip_options` RPC (migration 031) rather than read off
+ * `payment_settings`, which is owner/office-only because it also holds the
+ * Zelle and cheque payout details.
+ */
+export type PublicTipOptions = { enabled: boolean; percents: number[] };
+
 export type PublicPaymentOptions = {
   available: boolean;
   reason?: string;

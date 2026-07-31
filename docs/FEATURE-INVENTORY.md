@@ -96,7 +96,7 @@ as fixes land. See `docs/REMEDIATION-PLAN.md` for what is still open._
 | Estimate duplicate and soft-delete | `/estimates` | owner/office | REAL |
 | Convert estimate to invoice | `/estimates/[id]` | owner/office | **PARTIAL — a paid deposit is NOT credited; the customer is billed the full amount again.** No idempotency guard either |
 | Deposit request on an estimate | `/estimates/[id]` | owner/office → customer | PARTIAL — amount typed by hand; paid state never shown internally |
-| Organisation default deposit (percent / fixed) | `/settings/payments` | owner | **STUB** — saved to settings, never read by any document code |
+| Organisation default deposit (percent / fixed) | `/settings/payments` | owner | REAL — applied to every estimate at insert by `apply_default_estimate_deposit()` (migration 031), clamped to the document total; the settings screen shows a worked example |
 | Invoice list and create | `/invoices` | owner/office | REAL |
 | Invoice detail with paid / balance tiles | `/invoices/[id]` | owner/office | PARTIAL — **counts failed and in-flight payments as collected** |
 | Invoice edit / duplicate / soft-delete | `/invoices/[id]` | owner/office | REAL |
@@ -121,10 +121,10 @@ as fixes land. See `docs/REMEDIATION-PLAN.md` for what is still open._
 | ACH reconciliation of processing payments | daily cron | system | REAL |
 | Helcim transaction webhook → reconcile | `/api/payments/provider-events` | system | REAL |
 | **Refunds** | — | — | **STUB** — a `can_refund_payments` permission exists and `refunded_minor` is read everywhere, but nothing ever writes it. No action, no route, no UI |
-| **Tips** | settings toggle | — | **STUB** — `tip_minor` is read in receipts; never collected |
-| **Saved payment methods** | settings toggle | — | **STUB** |
-| **Hold job until ACH settles** | settings toggle | — | **STUB** — nothing reads it |
-| **Payment schedules / milestones** | DB tables | — | **STUB** — tables and foreign keys exist; zero application references |
+| **Tips** | `/p/[token]` | customer | REAL — percentage or typed amount, charged on top of the balance and recorded in `payments.tip_minor`. A tip is not revenue, not commissionable, and not refundable as the business's money |
+| **Saved payment methods** | settings toggle | — | **PARTIAL — deliberately not built.** No Helcim tokenisation credentials and no token store exist here, so no card can be saved. The switch is disabled and says so; the stored preference is preserved, not silently rewritten. Nothing fakes a saved card |
+| **Hold job until ACH settles** | `/settings/payments` | owner + `can_override_ach_holds` | REAL — an in-flight ACH deposit holds the work; settlement (or an authorised, recorded override) releases it. Switching the hold off releases on submission instead |
+| **Payment schedules / milestones** | DB tables + `/settings/payments` | owner/office | PARTIAL — a deposit creates a real schedule whose milestones advance from recorded payments. No milestone editor, no N-step builder, no per-milestone checkout |
 | Expenses CRUD, month total, net vs sales | `/expenses` | owner/office | REAL |
 
 ## 5. Reporting and finance operations
@@ -181,7 +181,7 @@ as fixes land. See `docs/REMEDIATION-PLAN.md` for what is still open._
 | Booking submission → lead (+ auto customer and job when auto-approve) | `/api/booking/[org]/submit` | anonymous | REAL — rate limit is per-org and racy |
 | Booking confirmation with reference number | `/book/[org]` | anonymous | REAL |
 | Booking UTM / source / campaign capture | `/book/[org]` | anonymous | REAL |
-| Booking deposit mode (none / fixed / percentage / full) | `/settings/booking` | owner | **STUB** — stored and shown as copy; no deposit is ever charged from booking |
+| Booking deposit mode (none / fixed / percentage / full) | `/settings/booking`, `/book/[org]` | owner + customer | REAL — the deposit is computed from the service price, raised as an estimate, and paid on the existing `/p/[token]` screen. The booking is held in Leads until the money is in. `deposit_value` units: whole percent for `percentage`, whole currency units for `fixed`, whole price for `full` |
 | Service-area enforcement (ZIP / city) | `/settings/booking` | owner | REAL — out-of-area addresses are refused |
 | Service-area enforcement (polygon) | `/settings/booking` | owner | PARTIAL — polygons need geocoding this product does not have, so they are never checked. No longer a silent accept: a polygon-only org holds every booking in Leads for manual approval, and the settings screen says enforcement is not active. See REMEDIATION-PLAN 4.8 |
 | Business timezone for booking | `/settings/booking` | owner | REAL — `booking_settings.timezone`; slot maths runs on the business's clock, not the server's |
@@ -257,12 +257,13 @@ If this product is rebuilt or repaired, these are the items that **look** finish
 nothing behind them. They are the most likely source of "but it used to do that" surprises — because
 it never did.
 
-**Complete stubs (19):** refunds · tips · saved payment methods · ACH hold-until-settled · payment
-schedules and milestones · organisation default deposit · booking deposit charging · automation rules
-· campaigns · referral programmes · custom fields (definitions and values) · inventory movement ledger
-· feature flags · push notification delivery · photo "customer visible" flag · scheduling
-transition-rule engine (written and tested, never called) · tax-jurisdiction calculation · support-session
-access granting · invitation email delivery.
+**Complete stubs (19 originally; 12 remain):** ~~refunds~~ · ~~tips~~ · ~~ACH hold-until-settled~~ ·
+~~organisation default deposit~~ · ~~booking deposit charging~~ · ~~photo "customer visible" flag~~ ·
+~~scheduling transition-rule engine~~ — all now real. **Saved payment methods** and **payment schedules
+and milestones** are PARTIAL with the remainder named in `docs/REMEDIATION-PLAN.md` (5.3, 5.5). Still
+complete stubs: automation rules · campaigns · referral programmes · custom fields (definitions and
+values) · inventory movement ledger · feature flags · push notification delivery · tax-jurisdiction
+calculation · support-session access granting · invitation email delivery.
 
 **Highest-impact PARTIALs:** estimate deposits not credited to the converted invoice (overbilling) ·
 invoice screen counting unsettled payments as collected · revenue and margin reporting · commission on

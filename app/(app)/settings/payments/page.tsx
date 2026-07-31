@@ -4,7 +4,8 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getLocale } from "@/lib/locale-server";
 import PaymentSettingsForm from "./PaymentSettingsForm";
-import { beginHelcimOnboarding, reviewManualPayment } from "./actions";
+import { beginHelcimOnboarding, releaseAchHold, reviewManualPayment } from "./actions";
+import { heldDeposits, mayOverrideAchHold } from "@/lib/payments/deposits";
 import type { PaymentSettings } from "@/lib/payments/types";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +38,13 @@ export default async function PaymentSettingsPage() {
     supabase.from("manual_payment_submissions").select("id, payment_request_id, method, amount_minor, reference, mailed_on, submitted_at, status").eq("status", "verification_pending").order("submitted_at", { ascending: false }).limit(20),
   ]);
 
+  // Deposits whose money has been SENT but not CLEARED. The
+  // `ach_hold_until_settled` switch is what puts them here, and
+  // `can_override_ach_holds` — a permission that granted nothing until now — is
+  // what lets someone let the work start anyway.
+  const canOverrideHolds = await mayOverrideAchHold(profile.id, profile.role);
+  const awaitingClearance = canOverrideHolds ? await heldDeposits(profile.organization_id!) : [];
+
   const status = connection?.status ?? "not_started";
   const statusCopy: Record<string, [string, string]> = {
     not_started: [he ? "החיבור ל־Helcim בהכנה" : "Helcim connection is being prepared", he ? "בקשת השותף נמצאת בתהליך. אפשר כבר להגדיר Zelle, צ׳קים ומקדמות." : "The partner application is in progress. You can already configure Zelle, checks and deposits."],
@@ -64,6 +72,10 @@ export default async function PaymentSettingsPage() {
       <section className="settings-section sticky-review"><div className="review-heading"><div><span className="payment-eyebrow">{he ? "דורש בדיקה" : "Needs review"}</span><h3>{he ? "Zelle וצ׳קים" : "Zelle & checks"}</h3></div><b>{submissions?.length ?? 0}</b></div>
         {!canReview ? <div className="payment-empty"><span>🔒</span><strong>{he ? "נדרשת הרשאה מבעלי העסק" : "Owner permission required"}</strong><small>{he ? "בעלי העסק יכולים לאפשר לך לאשר תשלומים דרך מסך הצוות." : "The owner can grant payment-review access from the team screen."}</small></div> : !submissions?.length ? <div className="payment-empty"><span>✓</span><strong>{he ? "הכול מסודר" : "All caught up"}</strong><small>{he ? "תשלומים חדשים שדורשים אישור יופיעו כאן." : "New payments that need verification will appear here."}</small></div> : <div className="manual-review-list">{submissions.map((submission) => <form action={reviewManualPayment} key={submission.id} className="manual-review-card"><input type="hidden" name="submission_id" value={submission.id} /><div><span className={`manual-method ${submission.method}`}>{submission.method === "zelle" ? "Zelle" : (he ? "צ׳ק" : "Check")}</span><strong>${(Number(submission.amount_minor) / 100).toFixed(2)}</strong></div><small>{submission.reference || (he ? "ללא מספר אסמכתא" : "No reference provided")}</small>{submission.mailed_on && <small>{he ? "נשלח בתאריך" : "Mailed"}: {submission.mailed_on}</small>}<input name="reason" placeholder={he ? "הערה פנימית, אם צריך" : "Internal note, if needed"} /><div className="manual-review-actions"><button name="decision" value="confirm">{he ? "אישור קבלה" : "Confirm received"}</button><button name="decision" value="reject" className="reject">{he ? "דחייה" : "Reject"}</button></div></form>)}</div>}
       </section>
+      {canOverrideHolds && <section className="settings-section"><div className="review-heading"><div><span className="payment-eyebrow">{he ? "ממתין לסליקת הבנק" : "Awaiting bank clearance"}</span><h3>{he ? "מקדמות ב־ACH" : "ACH deposits"}</h3></div><b>{awaitingClearance.length}</b></div>
+        {!awaitingClearance.length ? <div className="payment-empty"><span>✓</span><strong>{he ? "אין מקדמות בהמתנה" : "Nothing waiting on a bank"}</strong><small>{he ? "העברות ACH שנשלחו ועדיין לא נסגרו יופיעו כאן עד לאישור הבנק." : "ACH transfers that have been sent but not yet cleared appear here until the bank confirms them."}</small></div>
+          : <div className="manual-review-list">{awaitingClearance.map((deposit) => <form action={releaseAchHold} key={deposit.milestoneId} className="manual-review-card"><input type="hidden" name="milestone_id" value={deposit.milestoneId} /><div><span className="manual-method">{he ? "מקדמה" : "Deposit"}</span><strong>${(deposit.amountMinor / 100).toFixed(2)}</strong></div><small>{[deposit.customerName, deposit.estimateNumber ? `#${deposit.estimateNumber}` : null].filter(Boolean).join(" · ") || (he ? "הצעת מחיר" : "Estimate")}</small><small>{he ? "העבודה מוחזקת עד שהבנק מאשר. אפשר לשחרר על אחריות העסק." : "Work is held until the bank confirms. You can release it early at the business's risk."}</small><input name="reason" placeholder={he ? "סיבה לשחרור מוקדם" : "Why release early?"} /><div className="manual-review-actions"><button>{he ? "שחרור העבודה" : "Release the work"}</button></div></form>)}</div>}
+      </section>}
       <section className="payment-safety-note"><b>{he ? "מה לעולם לא נשמר" : "What ServicePro never stores"}</b><p>{he ? "מספרי כרטיס מלאים, פרטי חשבון בנק ומסמכי זיהוי נשארים אצל Helcim." : "Full card numbers, bank credentials and identity documents stay with Helcim."}</p></section>
     </aside></div>
   </div>;

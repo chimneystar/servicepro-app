@@ -12,6 +12,9 @@ import {
 } from "@/lib/payments/helcim";
 // @ts-ignore — shared pure ESM helpers are also exercised by Node's test runner.
 import { creditedMinor, paymentAmountParts } from "@/lib/payments/core.mjs";
+// @ts-ignore — pure logic, proven both ways in tests/tips.test.mjs
+import { resolveTip, chargeTotalMinor, paymentTipParts, sanitizeTipPercents } from "@/lib/core/tips.mjs";
+import { applyPaymentToDeposits } from "@/lib/payments/booking-deposit";
 
 type PublicDocument = {
   id: string;
@@ -149,7 +152,7 @@ async function merchantToken(admin: ReturnType<typeof createAdminClient>, organi
   return { connection, apiToken: decryptPaymentSecret(secret.encrypted_api_token) };
 }
 
-export async function startHelcimCheckout(publicDocumentToken: string) {
+export async function startHelcimCheckout(publicDocumentToken: string, tipChoice?: { percent?: number | null; customMinor?: number | null }) {
   const admin = createAdminClient();
   const document = await resolvePublicDocument(admin, publicDocumentToken);
   if (document.kind === "estimate_deposit" && !document.signed) {
@@ -157,16 +160,29 @@ export async function startHelcimCheckout(publicDocumentToken: string) {
   }
   if (document.currency !== "USD") throw new PaymentError("Helcim payments currently require USD", "currency_not_supported", 409);
 
-  const amountMinor = await openBalance(admin, document);
-  if (amountMinor <= 0) throw new PaymentError("This document has no remaining payment due", "nothing_due", 409);
+  const balanceMinor = await openBalance(admin, document);
+  if (balanceMinor <= 0) throw new PaymentError("This document has no remaining payment due", "nothing_due", 409);
 
   const [{ data: settings }, merchant] = await Promise.all([
-    admin.from("payment_settings").select("card_enabled, ach_enabled, fee_saver_enabled").eq("organization_id", document.organizationId).single(),
+    admin.from("payment_settings").select("card_enabled, ach_enabled, fee_saver_enabled, tips_enabled").eq("organization_id", document.organizationId).single(),
     merchantToken(admin, document.organizationId),
   ]);
   const card = !!settings?.card_enabled && !!merchant.connection.card_enabled;
   const ach = !!settings?.ach_enabled && !!merchant.connection.ach_enabled;
   if (!card && !ach) throw new PaymentError("Online payment methods are disabled", "methods_disabled", 409);
+
+  // A tip is charged ON TOP of the balance and recorded separately, so it never
+  // settles a penny of the invoice and never lands in revenue, margin or a
+  // technician's commission base. See lib/core/tips.mjs.
+  const tip = resolveTip({
+    enabled: !!settings?.tips_enabled,
+    balanceMinor,
+    percent: tipChoice?.percent ?? undefined,
+    customMinor: tipChoice?.customMinor ?? undefined,
+  }) as { ok: true; tipMinor: number } | { ok: false; error: string };
+  if (!tip.ok) throw new PaymentError(tip.error, "invalid_tip", 400);
+  const tipMinor: number = tip.tipMinor;
+  const amountMinor = chargeTotalMinor(balanceMinor, tipMinor);
 
   const method: HelcimPaymentMethod = card && ach ? "cc-ach" : card ? "cc" : "ach";
   const feeSaver = card && ach && !!settings?.fee_saver_enabled && !!merchant.connection.fee_saver_eligible;
@@ -176,15 +192,25 @@ export async function startHelcimCheckout(publicDocumentToken: string) {
     throw new PaymentError("A bank payment is still processing", "payment_pending", 409);
   }
   if (active && Number(active.amount_minor) === amountMinor && active.helcim_checkout_token && active.expires_at) {
-    return { checkoutToken: active.helcim_checkout_token as string, requestToken: active.public_token as string, expiresAt: active.expires_at as string, reused: true };
+    return { checkoutToken: active.helcim_checkout_token as string, requestToken: active.public_token as string, expiresAt: active.expires_at as string, reused: true, tipMinor, amountMinor };
   }
-  if (active) throw new PaymentError("A payment session is already being prepared. Try again in a moment.", "session_busy", 409);
+  if (active) {
+    // The open session is for a DIFFERENT amount — the customer changed their
+    // tip, or the business recorded a payment while this page was open. The old
+    // session can never be paid for the right amount, so it is cancelled rather
+    // than left to block checkout for the rest of its hour. Only a session that
+    // is still being prepared or presented is cancellable; 'processing' is
+    // handled above and never reaches here.
+    await admin.from("payment_requests").update({ status: "cancelled" }).eq("id", active.id).in("status", ["created", "action_required"]);
+    await admin.from("payment_checkout_secrets").delete().eq("payment_request_id", active.id);
+  }
 
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
   const { data: request, error: requestError } = await admin.from("payment_requests").insert({
     organization_id: document.organizationId,
     ...documentFields(document),
     amount_minor: amountMinor,
+    tip_minor: tipMinor,
     currency: "USD",
     allowed_methods: [card ? "card" : null, ach ? "ach" : null].filter(Boolean),
     status: "created",
@@ -194,7 +220,7 @@ export async function startHelcimCheckout(publicDocumentToken: string) {
   if (requestError || !request) {
     const concurrent = await activeOnlineRequest(admin, document);
     if (concurrent?.helcim_checkout_token && concurrent.expires_at) {
-      return { checkoutToken: concurrent.helcim_checkout_token as string, requestToken: concurrent.public_token as string, expiresAt: concurrent.expires_at as string, reused: true };
+      return { checkoutToken: concurrent.helcim_checkout_token as string, requestToken: concurrent.public_token as string, expiresAt: concurrent.expires_at as string, reused: true, tipMinor, amountMinor };
     }
     throw new PaymentError("Could not prepare this payment", "request_failed", 503);
   }
@@ -230,6 +256,9 @@ export async function startHelcimCheckout(publicDocumentToken: string) {
       checkoutToken: checkout.checkoutToken,
       requestToken: request.public_token as string,
       expiresAt,
+      reused: false,
+      tipMinor,
+      amountMinor,
     };
   } catch (error) {
     await admin.from("payment_requests").update({ status: "failed" }).eq("id", request.id);
@@ -260,7 +289,7 @@ export async function confirmHelcimCheckout(input: {
 }) {
   const admin = createAdminClient();
   const { data: request } = await admin.from("payment_requests")
-    .select("id, organization_id, estimate_id, invoice_id, amount_minor, currency, helcim_checkout_token, fee_saver_requested, expires_at, status")
+    .select("id, organization_id, estimate_id, invoice_id, amount_minor, tip_minor, currency, helcim_checkout_token, fee_saver_requested, expires_at, status")
     .eq("public_token", input.requestToken)
     .maybeSingle();
   if (!request || request.helcim_checkout_token !== input.checkoutToken) {
@@ -300,13 +329,20 @@ export async function confirmHelcimCheckout(input: {
 
   const now = new Date().toISOString();
   const settled = normalized.status === "settled";
+  // The tip is split back out of the charge here and ONLY here. base_amount_minor
+  // is what settles the document and is what every collected-money reader sums;
+  // tip_minor is the customer's money for the technician and is deliberately
+  // outside revenue, margin, commission and the refundable ceiling.
+  const { baseMinor, tipMinor } = paymentTipParts(Number(request.amount_minor), Number(request.tip_minor ?? 0)) as
+    { baseMinor: number; tipMinor: number };
   const { data: recordedPayment, error: paymentError } = await admin.from("payments").insert({
     organization_id: request.organization_id,
     estimate_id: request.estimate_id,
     invoice_id: request.invoice_id,
     payment_request_id: request.id,
     amount_minor: request.amount_minor,
-    base_amount_minor: request.amount_minor,
+    base_amount_minor: baseMinor,
+    tip_minor: tipMinor,
     surcharge_minor: surchargeMinor,
     currency: request.currency,
     provider: "helcim",
@@ -338,6 +374,10 @@ export async function confirmHelcimCheckout(input: {
   ]);
 
   if (settled && request.invoice_id) await refreshInvoicePaidState(admin, request.invoice_id);
+  // Runs for BOTH settled and processing: a submitted ACH must move the deposit
+  // milestone to 'processing' so the office can see the hold, and must release
+  // the work immediately if the business turned the hold off.
+  await applyPaymentToDeposits(admin, { organization_id: request.organization_id, estimate_id: request.estimate_id });
   if (settled) { try { await sendPaymentReceipt(recordedPayment.id); } catch { /* payment remains settled even if notifications fail */ } }
   return { status: normalized.status, alreadyProcessed: false };
 }
@@ -425,7 +465,7 @@ export async function submitManualPayment(input: {
 export async function reconcileHelcimTransaction(transactionId: string) {
   const admin = createAdminClient();
   const { data: payment } = await admin.from("payments")
-    .select("id, organization_id, invoice_id, payment_request_id, method, normalized_status")
+    .select("id, organization_id, invoice_id, estimate_id, payment_request_id, method, normalized_status")
     .eq("provider", "helcim")
     .eq("provider_transaction_id", transactionId)
     .maybeSingle();
@@ -449,6 +489,9 @@ export async function reconcileHelcimTransaction(transactionId: string) {
     await admin.from("payment_requests").update({ status: settled ? "paid" : normalized.status }).eq("id", payment.payment_request_id);
   }
   if (settled && payment.invoice_id) await refreshInvoicePaidState(admin, payment.invoice_id);
+  // The ACH hold is released HERE for the normal case: the daily reconciliation
+  // job (and the provider webhook) is what learns that a bank transfer cleared.
+  await applyPaymentToDeposits(admin, { organization_id: payment.organization_id, estimate_id: payment.estimate_id });
   if (settled) { try { await sendPaymentReceipt(payment.id); } catch { /* reconciliation must not fail on notification delivery */ } }
   return { organizationId: payment.organization_id as string, status: normalized.status, transaction: safe };
 }
