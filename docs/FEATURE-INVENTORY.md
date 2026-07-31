@@ -154,8 +154,8 @@ as fixes land. See `docs/REMEDIATION-PLAN.md` for what is still open._
 | Purchase orders | `/operations` + `/inventory/receiving` | owner/office | REAL — multi-line, enforced lifecycle, receive step, inventory link. The `/operations` create form still posts one line; further lines are added on the receiving screen |
 | Subcontractors (trades, insurance expiry) | `/operations` | owner/office | REAL |
 | Crews and service areas | `/operations` | owner/office | REAL |
-| Automation rules | `/operations` | owner/office | **STUB** — stored; no executor exists |
-| Campaigns / referral programmes / estimate follow-ups | `/growth` | owner/office | **STUB** — stored; nothing ever sends them |
+| Automation rules | `/operations` | owner/office | REAL — executed nightly by `runAutomationRules` (ledger 5.8). Supported: job completed / estimate sent / invoice overdue → send SMS, send email; plus create task on a completed job. Unsupported pairs are refused at creation with the reason. Every attempt, skip and failure is recorded in `automation_runs` |
+| Campaigns / referral programmes / estimate follow-ups | `/growth` | owner/office | PARTIAL — campaigns and estimate follow-ups are SENT nightly, once per recipient, opt-out honoured (ledger 5.9); referral codes are issued and sent from the screen. **Referral redemption/attribution is still unbuilt** — nothing marks a referral as converted or pays the reward |
 | Ad spend and lead attribution | `/growth` | owner/office | PARTIAL — spend recorded, never joined to lead revenue |
 | Custom field definitions and values | DB tables | — | **STUB** — tables exist, zero application references |
 
@@ -242,7 +242,7 @@ as fixes land. See `docs/REMEDIATION-PLAN.md` for what is still open._
 | Platform admin console | `/admin` | platform staff | REAL |
 | Support cases | `/admin` | platform staff | REAL |
 | Time-boxed support access sessions | `/admin` | platform staff | PARTIAL — recorded only; no code grants access from a session |
-| Feature flags with rollout % | `/admin` | platform staff | **STUB** — no application code ever reads them |
+| Feature flags with rollout % | `/admin` | platform staff | PARTIAL — `lib/feature-flags.ts` reads them and two keys (`automation_rules`, `growth_outreach`) now gate the nightly senders, allowlist/blocklist/rollout included. The three seeded keys from migration 022 (`finance_operations`, `privacy_center`, `support_access`) are still read by nothing — see ledger 5.12 |
 | Controlled releases with regression checklist gate | `/admin` | platform staff | REAL |
 | Business health overview | `/admin` | platform staff | REAL |
 | Migration import (Workiz / Housecall Pro / spreadsheet) | `/migration` | owner/office | PARTIAL — customers only; no jobs, invoices or history |
@@ -259,14 +259,19 @@ If this product is rebuilt or repaired, these are the items that **look** finish
 nothing behind them. They are the most likely source of "but it used to do that" surprises — because
 it never did.
 
-**Complete stubs (19):** refunds · tips · saved payment methods · ACH hold-until-settled · payment
-schedules and milestones · organisation default deposit · booking deposit charging · automation rules
-· campaigns · referral programmes · custom fields (definitions and values) ·
-~~inventory movement ledger~~ (**closed** on `fix/production-hardening`: migration 033 — append-only
-ledger, derived quantity, job consumption, PO receiving)
-· feature flags · push notification delivery · photo "customer visible" flag · scheduling
-transition-rule engine (written and tested, never called) · tax-jurisdiction calculation · support-session
-access granting · invitation email delivery.
+**Stubs — features that look real and do nothing.** This was the most dangerous
+category in the original audit: nineteen settings, toggles and tables with no executor behind them,
+each of which would have been mistaken for a working feature.
+
+The authoritative, current status of every one is the **Phase 5 table in
+`docs/REMEDIATION-PLAN.md`** — including which are DONE, which are deliberately PARTIAL and why.
+It is not duplicated here: this summary was being rewritten by every parallel workstream and had
+already begun to disagree with itself, which is exactly the drift the ledger exists to prevent.
+
+Closed so far on this branch: inventory movement ledger and job parts consumption · automation rule
+execution · campaign and estimate-follow-up sending · photo "customer visible" flag · scheduling
+transition rules (written and tested since early in the project, called by nothing until now) ·
+refunds and the payments audit trail (provider half unproven — see 5.1).
 
 **Highest-impact PARTIALs:** estimate deposits not credited to the converted invoice (overbilling) ·
 invoice screen counting unsettled payments as collected · revenue and margin reporting · commission on

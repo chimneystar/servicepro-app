@@ -197,11 +197,11 @@ that exist with nothing behind them.
 | 5.5 | Payment schedules / milestones — tables exist, zero app references | TODO |
 | 5.6 | Org default deposit — saved but never read by document code | TODO |
 | 5.7 | Booking deposit — actually charge it | TODO |
-| 5.8 | Automation rules — build the executor | TODO |
-| 5.9 | Campaigns + referral programmes — build the sender | TODO |
+| 5.8 | Automation rules — build the executor | DONE (see note) |
+| 5.9 | Campaigns + referral programmes — build the sender | PARTIAL — sending works; referral **redemption** unbuilt (see note) |
 | 5.10 | Custom fields — definitions and values have no UI at all | TODO |
 | 5.11 | Inventory movement ledger + parts consumption from jobs | DONE — ledger + derived quantity + job consumption (migration `033_inventory_movements.sql` must be RUN); see note |
-| 5.12 | Feature flags — nothing reads them | TODO |
+| 5.12 | Feature flags — nothing reads them | PARTIAL — two keys gate real code; the three seeded platform keys still have no consumer (see note) |
 | 5.13 | Push notification delivery — subscriptions stored, no sender | TODO |
 | 5.14 | Photo "customer visible" flag — selected, never used | DONE |
 | 5.15 | Call `lib/core/scheduling.mjs` transition rules from app code (written + tested, never invoked) | DONE |
@@ -256,6 +256,70 @@ verified by inspection and by 25 probes in `tests/inventory.test.mjs`, each
 proven to fail on the broken case and pass on the fixed one, but the row-lock
 behaviour itself needs the 0.6 CI database to be proven rather than reasoned
 about.
+
+**Notes on 5.8, 5.9 and 5.12 — migration `db/032_automation_execution.sql` must be RUN; the code
+assumes it.** All three land together because they share one execution path: the daily cron.
+
+*5.8 — what executes now.* `runAutomationRules()` (`lib/cron-tasks.ts`, called from
+`/api/cron/daily`) evaluates every enabled rule each night. Supported pairs, and only these:
+job completed → send SMS / send email / create task; estimate sent → send SMS / send email;
+invoice overdue (issue date + N days, N from `condition_json.overdue_days`, default 14) → send SMS /
+send email. **`create_task` is refused for the estimate and invoice triggers** — `job_tasks.job_id`
+is NOT NULL, `estimates` has no job at all and `invoices.job_id` is nullable, so those rules could
+only ever fire into a void. `createAutomation` now rejects them at creation with the reason instead
+of storing a rule that silently never fires; `validateAutomationRule` is the single source of that
+matrix and is proven both ways in `tests/automation.test.mjs`.
+
+Idempotency: `automation_runs` is both the claim and the audit record. `uq_automation_runs_rule_source`
+(migration 032) makes the insert the arbiter between concurrent runs, so a re-run cannot double-fire.
+A failure is written back as `failed` with its message and re-claimed by compare-and-set on later
+nights, up to three attempts; a *deliberate* skip (opt-out, no phone, no email) is recorded as
+`skipped` **with its reason** and is terminal. A run stuck in `running` — process killed mid-send —
+is deliberately NOT re-fired, because nothing can tell whether the SMS went out; it is logged loudly
+and shown on `/operations`. Firing is bounded twice: never before the rule's own `created_at`, and
+never more than two days back, so switching a rule on cannot text five years of finished jobs and a
+cron outage cannot produce a burst of back-dated messages.
+
+*5.9 — what executes now, and what was refused.* `runGrowthOutreach()` sends **campaigns** (status
+`scheduled` and due) and **estimate follow-ups**. `createCampaign` only ever produced drafts, so a
+`scheduleCampaign` / `pauseCampaign` pair was added — without it even a working sender had nothing to
+send. Per-recipient claims live in the new `campaign_deliveries` table (unique on campaign+customer+
+channel), so a campaign that dies half-way through resumes instead of re-texting the first half, and
+a campaign with retryable failures goes back to `scheduled` rather than being declared `sent`.
+Follow-ups retry three times and then fail visibly with `error_message`. **Opt-out is enforced for
+every recipient** through `contactEligibility` — one pure, separately tested rule reading
+`customers.sms_opt_in` / `email_opt_in`, refusing an *unset* flag as well as a false one (a query
+that forgets to select the column would otherwise look like universal consent). Segments are
+`all_customers`, `past_due` (unpaid ≥14 days, the same definition the overdue nudge uses) and
+`inactive` (no job in 365 days); an unknown segment is refused, never widened to "everyone".
+
+Referral **issuance** was the genuinely missing executor: nothing in the product had ever created a
+`referrals` row, so no code was ever delivered. `issueReferral` now creates the code and sends it,
+consent-checked, marking the row `sent_at` or leaving it visibly undelivered with its error. Referral
+**redemption and reward payment** were NOT built — there is no attribution path (nothing sets
+`referred_customer_id` or `reward_status`) and inventing one would mean guessing at the business
+rules. That is why 5.9 is PARTIAL, not DONE.
+
+*5.12 — an honest consumer, and an honest admission.* `feature_flags` is service-role only by
+construction (migration 022 revokes it from `anon` and `authenticated`), so the only possible
+consumer is trusted server code. Two keys now gate real work: `automation_rules` and
+`growth_outreach`, evaluated by `lib/feature-flags.ts` + `lib/core/feature-flags.mjs` with
+blocklist > kill switch > allowlist > deterministic rollout bucket, seeded **enabled at 100%** so
+nothing silently stops working. This is a real kill switch on the two things in the codebase that
+spend a business's money and text its customers on a timer.
+
+What was NOT done: the three keys migration 022 seeded — `finance_operations`, `privacy_center`,
+`support_access` — still gate nothing. Their workspaces are outside this scope
+(`admin/**`, `settings/payments/**`), and wiring a flag to a screen nobody agreed to gate would be
+inventing a use. **Stated plainly rather than papered over**, per the item's own instruction. A flag
+read failure falls back to the configured default (on) and logs, because failing closed would make a
+transient PostgREST error indistinguishable from the stored-but-inert defect being removed.
+
+*Probes:* `tests/automation.test.mjs` (22), `tests/outreach.test.mjs` (18),
+`tests/feature-flags.test.mjs` (15). Suite: 284 → 339, all green. Every structural assertion strips
+comments first and is verified against the pre-change source (the old `operations/actions.ts` stored
+`trigger_type` straight from the form and the old `cron-tasks.ts` contained none of
+`contactEligibility`, `automation_runs` or `featureFlagEvaluator`, so all of them were RED before).
 
 ### Phase 6 — new capabilities (from the gap analysis)
 | # | Capability | Status |

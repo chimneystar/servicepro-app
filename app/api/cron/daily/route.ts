@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 // @ts-ignore - shared pure JavaScript, proven both ways in tests/security.test.mjs
 import { isAuthorizedBearer } from "@/lib/core/security.mjs";
-import { runRecurringGeneration, runReminders } from "@/lib/cron-tasks";
+import { runAutomationRules, runGrowthOutreach, runRecurringGeneration, runReminders } from "@/lib/cron-tasks";
 import { reconcilePendingHelcimPayments } from "@/lib/payments/server";
 import { retryFailedPaymentReceipts } from "@/lib/payments/receipts";
 import { runAutomaticDataRetention } from "@/lib/data-retention";
@@ -15,6 +15,9 @@ export const maxDuration = 60;
  * - Sends day-before appointment reminders + weekly overdue nudges (needs
  *   Twilio + SUPABASE_SERVICE_ROLE_KEY; silently no-ops otherwise).
  * - Reconciles ACH payments that Helcim still reports as processing.
+ * - Executes automation rules (ledger 5.8) and sends scheduled campaigns and
+ *   estimate follow-ups (ledger 5.9). Both honour customer opt-out and both
+ *   record every attempt, including refusals, so nothing fails in silence.
  *
  * REQUIRES CRON_SECRET. Without it this endpoint returns 401 and does nothing —
  * it must never be reachable anonymously, because runAutomaticDataRetention()
@@ -51,6 +54,8 @@ export async function GET(request: NextRequest) {
 
   await run("recurringJobsCreated", runRecurringGeneration);
   await run("reminders", runReminders);
+  await run("automations", runAutomationRules);
+  await run("outreach", runGrowthOutreach);
   await run("pendingPayments", reconcilePendingHelcimPayments);
   await run("paymentReceipts", retryFailedPaymentReceipts);
   await run("dataRetention", runAutomaticDataRetention);
