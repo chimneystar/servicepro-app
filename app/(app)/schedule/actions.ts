@@ -8,6 +8,7 @@ import { t } from "@/lib/i18n";
 // @ts-ignore -- JS module with integer-safe money math
 import { parseAmountToMinor } from "@/lib/core/money.mjs";
 import { changeJobStatus } from "@/lib/job-status";
+import { notifyJobAssigned } from "@/lib/push";
 
 export type ActionResult = { ok: boolean; error?: string };
 
@@ -51,7 +52,7 @@ export async function createJob(_prev: ActionResult, formData: FormData): Promis
     revalidatePath("/customers");
   }
 
-  const { error } = await supabase.from("jobs").insert({
+  const { data: created, error } = await supabase.from("jobs").insert({
     organization_id: profile.organization_id,
     created_by: profile.id,
     customer_id,
@@ -65,12 +66,17 @@ export async function createJob(_prev: ActionResult, formData: FormData): Promis
     job_address: String(formData.get("job_address") ?? "").trim() || null,
     job_city: String(formData.get("job_city") ?? "").trim() || null,
     notes: String(formData.get("notes") ?? "").trim() || null,
-  });
+  }).select("id").maybeSingle();
 
   if (error) {
     // 23P01 = exclusion_violation -> the DB blocked a double-booking
     if ((error as any).code === "23P01") return { ok: false, error: t(locale, "sched.conflict") };
     return { ok: false, error: error.message };
+  }
+
+  // A job booked straight onto a technician is an assignment too: notify them.
+  if (assigned_to && created?.id && assigned_to !== profile.id) {
+    await notifyJobAssigned({ organizationId: profile.organization_id!, jobId: created.id, profileId: assigned_to });
   }
 
   revalidatePath("/schedule");

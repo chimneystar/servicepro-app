@@ -1,5 +1,25 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { pushDelivery } from "@/lib/push";
+
+/**
+ * Enrolment used to end here: the subscription was stored and nothing was ever
+ * sent to it, with nothing anywhere saying so. Every response now carries the
+ * delivery status, so a device that can never receive a notification is told
+ * that at the moment it enrols instead of waiting silently for ever.
+ */
+function deliveryPayload(locale: "en" | "he") {
+  const delivery = pushDelivery(locale);
+  return { delivery: delivery.available ? "ready" : "unavailable", deliveryReason: delivery.reason, deliveryMessage: delivery.message };
+}
+
+/** Lets the workspace show delivery state without enrolling first. */
+export async function GET() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ ok: false, reason: "unauthorized" }, { status: 401 });
+  return NextResponse.json({ ok: true, ...deliveryPayload("en") });
+}
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -25,7 +45,7 @@ export async function POST(request: NextRequest) {
     last_seen_at: new Date().toISOString(),
   }, { onConflict: "profile_id,endpoint" });
   if (error) return NextResponse.json({ ok: false, reason: "save failed" }, { status: 503 });
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, ...deliveryPayload(body.locale === "he" ? "he" : "en") });
 }
 
 export async function DELETE(request: NextRequest) {

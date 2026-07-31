@@ -202,12 +202,12 @@ that exist with nothing behind them.
 | 5.10 | Custom fields — definitions and values have no UI at all | TODO |
 | 5.11 | Inventory movement ledger + parts consumption from jobs | DONE — ledger + derived quantity + job consumption (migration `033_inventory_movements.sql` must be RUN); see note |
 | 5.12 | Feature flags — nothing reads them | PARTIAL — two keys gate real code; the three seeded platform keys still have no consumer (see note) |
-| 5.13 | Push notification delivery — subscriptions stored, no sender | TODO |
+| 5.13 | Push notification delivery — subscriptions stored, no sender | DONE — sender built (`lib/push.ts` + `lib/core/push.mjs`), triggered by technician assignment; dead endpoints removed; unavailability is reported, never silent. See note. |
 | 5.14 | Photo "customer visible" flag — selected, never used | DONE |
 | 5.15 | Call `lib/core/scheduling.mjs` transition rules from app code (written + tested, never invoked) | DONE |
 | 5.16 | Tax jurisdictions — feed `computeDocument` instead of display-only | TODO |
-| 5.17 | Support sessions — grant actual access | TODO |
-| 5.18 | Invitation email delivery — token generated, never sent | TODO |
+| 5.17 | Support sessions — grant actual access | PARTIAL — the session is now the gate for tenant data in `/admin`, revocation is immediate, every attempt is audited. What remains is listed in the note: most platform screens still read tenant metadata on `platform_admins` alone, and no `guided_write` write path exists yet. |
+| 5.18 | Invitation email delivery — token generated, never sent | DONE — the email is sent, the link carries the token, and `accept_invitation(token)` requires token + invited email. 023's owner-invite guard preserved verbatim. See note. |
 | 5.19 | Purchase orders — multi-line, status advance, receive step, inventory link | DONE — actions + `/inventory/receiving` workspace; the `/operations` create form still posts one line (that file is owned elsewhere), see note |
 
 **Note on 5.11 / 5.19 — what shipped, and the negative-stock decision.**
@@ -320,6 +320,89 @@ transient PostgREST error indistinguishable from the stored-but-inert defect bei
 comments first and is verified against the pre-change source (the old `operations/actions.ts` stored
 `trigger_type` straight from the form and the old `cron-tasks.ts` contained none of
 `contactEligibility`, `automation_runs` or `featureFlagEvaluator`, so all of them were RED before).
+
+**Note on 5.13 — push notifications now actually arrive.**
+
+`lib/core/push.mjs` implements Web Push end to end with no new dependency: RFC 8291 `aes128gcm`
+(ECDH P-256 → HKDF-SHA256 → AES-128-GCM) and RFC 8292 VAPID (ES256 over `node:crypto`).
+`lib/push.ts` is the sender: it reads the technician's enabled `device_subscriptions` with the
+service role (RLS on that table is own-profile-only, so a dispatcher legitimately cannot see them),
+sends one encrypted message per device in that device's own language, and writes the outcome to
+`push_notification_events` — a table that existed and had never been written to.
+
+*The trigger:* assigning a technician to a job. `moveDispatchJob`, `addJobTechnician` and
+`createJob` (when it is booked straight onto someone) all call `notifyJobAssigned`. Delivery failure
+is logged and never fails the assignment.
+
+*Dead endpoints:* a push service answering 404 or 410 means the browser threw the subscription away,
+so the row is deleted. `public/sw.js` now also handles `pushsubscriptionchange`, re-subscribing and
+re-registering when the browser rotates a subscription — the other half of the same problem.
+
+*Unavailability is stated, never silent.* With no (or mismatched) VAPID keys, `/api/devices/push`
+answers `delivery: "unavailable"` with a bilingual reason and `/tech` says "this device is enrolled,
+but notifications will NOT be delivered: …". The attempt is recorded with status `unavailable`.
+`lib/core/env-check.mjs` validates the key lengths and the subject scheme; `lib/env.ts` additionally
+proves the pair is a pair, because a mismatched pair is accepted by the browser and refused by every
+push service for ever. `.env.example` carries the three variables EMPTY with generation instructions.
+
+*Proof:* `tests/push.test.mjs` — 18 assertions including a full decrypt of what the sender produces
+by a stand-in subscriber, a wrong-subscriber decrypt that must fail, and ES256 verification of the
+VAPID assertion against both the right and the wrong public key. **Never executed against a real push
+service** — there are no VAPID keys and no browser on this machine. The crypto is verified against
+the RFCs by round trip; the HTTP exchange with FCM/Mozilla is not.
+
+**Note on 5.17 — why this is PARTIAL, and what a session now really governs.**
+
+`support_sessions` recorded a time-boxed, reason-bound, revocable grant that **no code anywhere
+read**. `lib/platform-admin.ts` gated on `platform_admins` alone, so opening a session, letting it
+expire and revoking it were all the same to the system.
+
+What now depends on the session: `openBusinessSnapshot()` in `/admin` — the only call in the product
+that reaches a specific business's own data (customer/job/invoice/team counts and the last ten
+`audit_log` entries). It is refused, with the specific reason, unless a session for that admin and
+that business is active, started, unexpired, unrevoked and of sufficient level. Every attempt,
+granted or refused, is written to `support_session_events` (new in 034, service-role only like the
+rest of the platform tables).
+
+*Revocation is immediate and this is proven, not assumed:* the session row is re-read on every
+attempt — nothing is cached anywhere — and `tests/support-access.test.mjs` flips `revoked_at` between
+two evaluations of the same row and asserts the answer flips from granted to refused. A revoked
+session that is still inside its time window is refused because revocation is checked first.
+
+*What remains, and why this is not DONE:* the rest of `/admin` (the business registry, member counts,
+privacy-configured flag, merchant status) still renders on `platform_admins` alone. Putting that
+behind a session is a redesign of the console — staff need a business list *before* they can open a
+case against one — and it is tenant metadata rather than tenant data. `guided_write` is implemented
+and tested in the rules, but no tenant-write path exists for it to gate yet. Neither gap is claimed
+as finished.
+
+**Note on 5.18 — the invitation is sent, and the token finally means something.**
+
+Two defects, both closed. (1) No email was ever sent — there was no `sendEmail` anywhere in the team
+flow, and the screen told the owner to notify the person out of band. `inviteMember` now builds the
+link from the server-side app URL, sends it through Resend, and records `delivery_status` /
+`sent_at` / `delivery_error` on the invitation. When no provider is connected the invitation is still
+created and the owner is told **in plain words that nobody was emailed**, with the link to send by
+hand — the pending list shows per-invite delivery state, and a Resend button covers a bounce or an
+invitation created before delivery existed. (2) `accept_invitation()` matched on **email alone**, so
+the generated token protected nothing. `accept_invitation(token)` (migration 034) requires a token
+matching an open, unexpired invitation **and** that invitation's email to equal the caller's auth
+email. `/join?token=` parks the token in an httpOnly, SameSite=Lax cookie and `/onboarding` redeems
+it.
+
+*023 is not weakened:* the owner-invite guard added by 023 §2 (an `owner` invitation is honoured only
+if an owner issued it) is carried over verbatim, and `tests/invitations.test.mjs` asserts it is still
+in the SQL.
+
+*The zero-argument `accept_invitation()` is NOT dropped* — it is replaced with a body that only
+answers "which business am I already in?", so its grants and any caller survive while email alone
+stops being a credential. To make sure that cannot strand anyone, `pending_invitation_hint()` tells a
+signed-in user that an invitation is waiting for their address (without revealing the token) instead
+of letting them create a second business by mistake.
+
+*Not verified against a live database.* The migration is static-checked — it drops nothing, every
+create is guarded, and every column it reads is asserted to exist in `schema.sql` / `018` / `022` —
+but no Postgres was available here, so the SQL has never been executed. The same caveat as 0.6.
 
 ### Phase 6 — new capabilities (from the gap analysis)
 | # | Capability | Status |

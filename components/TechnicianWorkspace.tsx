@@ -59,7 +59,13 @@ export default function TechnicianWorkspace({ locale, jobs, vapidPublicKey }: { 
     const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidBytes(vapidPublicKey) });
     const payload = subscription.toJSON();
     const response = await fetch("/api/devices/push", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...payload, deviceName: navigator.userAgent, locale }) });
-    setNotice(response.ok ? (he ? "ההתראות הופעלו במכשיר הזה." : "Notifications are on for this device.") : (he ? "לא הצלחנו לשמור את ההתראות." : "We couldn't save notification access."));
+    if (!response.ok) return setNotice(he ? "לא הצלחנו לשמור את ההתראות." : "We couldn't save notification access.");
+    // Enrolment succeeding is not the same as delivery working. It used to be
+    // reported as if it were, while no sender existed at all.
+    const result = await response.json().catch(() => ({}));
+    setNotice(result?.delivery === "unavailable"
+      ? `${he ? "המכשיר נרשם, אך ההתראות לא יישלחו: " : "This device is enrolled, but notifications will NOT be delivered: "}${result?.deliveryMessage ?? ""}`
+      : (he ? "ההתראות הופעלו במכשיר הזה." : "Notifications are on for this device."));
   }
 
   async function changeStatus(jobId: string, action: "start" | "complete") {

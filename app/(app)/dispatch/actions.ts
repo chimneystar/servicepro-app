@@ -7,6 +7,7 @@ import { getLocale } from "@/lib/locale-server";
 import { t } from "@/lib/i18n";
 // @ts-ignore -- shared JS module
 import { isDoubleBookConflict } from "@/lib/core/db-errors.mjs";
+import { notifyJobAssigned } from "@/lib/push";
 
 export type DispatchResult = { ok: boolean; error?: string };
 
@@ -54,6 +55,10 @@ export async function moveDispatchJob(jobId: string, profileId: string | null): 
       if (isDoubleBookConflict(leadError)) return { ok: false, error: t(locale, "sched.conflict") };
       return { ok: false, error: leadError.message };
     }
+    // The job is now theirs — tell their phone. Push enrolment existed with no
+    // sender at all, so a technician could be given work and never hear about
+    // it. Delivery failure is logged, never fatal to the assignment.
+    await notifyJobAssigned({ organizationId: profile.organization_id!, jobId, profileId });
   }
   revalidatePath("/dispatch");
   return { ok: true };
@@ -69,6 +74,7 @@ export async function addJobTechnician(jobId: string, profileId: string): Promis
   // Migration 028 raises 23P01 for crew overlaps, exactly as the lead-side
   // exclusion constraint does. Say which one it is.
   if (error) return { ok: false, error: isDoubleBookConflict(error) ? t(locale, "sched.conflict") : error.message };
+  await notifyJobAssigned({ organizationId: profile.organization_id!, jobId, profileId });
   revalidatePath("/dispatch");
   return { ok: true };
 }

@@ -63,7 +63,7 @@ as fixes land. See `docs/REMEDIATION-PLAN.md` for what is still open._
 | GPS location sharing with consent record | `/fleet`, `/tech` | tech | PARTIAL — consent row is written implicitly by the first location POST rather than by an explicit consent step |
 | Fleet view of last-known technician locations | `/fleet` | owner/office | REAL |
 | Status-transition rules (done/cancelled terminal) | `lib/core/scheduling.mjs` | — | **STUB** — the logic exists and is well tested, but **no application code calls it** |
-| Push notification enrolment (VAPID) | `/api/devices/push` | tech | **STUB** — subscriptions are stored; **no sender exists anywhere**, so no push is ever delivered |
+| Push notification enrolment (VAPID) | `/api/devices/push` | tech | REAL — sender added (`lib/push.ts`, Web Push aes128gcm + VAPID). Assigning a technician to a job notifies their devices; dead endpoints (404/410) are deleted. With no VAPID keys the feature reports itself UNAVAILABLE on enrolment instead of silently doing nothing |
 
 ## 3. Customers, leads and communications
 
@@ -204,12 +204,12 @@ as fixes land. See `docs/REMEDIATION-PLAN.md` for what is still open._
 | Login | `/login` | staff | REAL |
 | Forgot password / set new password | `/forgot-password`, `/reset-password` | anonymous | REAL |
 | Org creation, owner profile, 14-day trial | `/onboarding` | owner | REAL |
-| Auto-join an invited org on first login | `/onboarding` | staff | REAL |
+| Auto-join an invited org on first login | `/onboarding` | staff | REAL — now redeemed through the emailed token rather than the email address alone; someone who signs up without the link is told an invitation is waiting (`pending_invitation_hint()`) instead of accidentally creating a second business |
 | Onboarding locale / currency / tax label / tax rate | `/onboarding` | owner | REAL |
 | Industry pack selection — 12 trades, EN+HE, services and parts | `/onboarding` | owner | REAL |
 | Pack seeding into price book, job types, bookable services | `/onboarding` | owner | REAL |
 | Sample customer and job seeding | `/onboarding` | owner | REAL |
-| Team invite by email and role | `/team` | owner | PARTIAL — **no email is ever sent**; the invite token is generated and unused |
+| Team invite by email and role | `/team` | owner | REAL — the invitation email is sent (Resend), carries a `/join?token=` link, and delivery state is shown on the screen. `accept_invitation(token)` now requires the token AND the invited email; a Resend button covers a bounced or pre-existing invite. With no email provider the invite is created and plainly reported as NOT emailed |
 | Cancel a pending invitation | `/team` | owner | REAL |
 | Change a member's role (+ capability reset) | `/team` | owner | REAL — silently discards hand-tuned capabilities |
 | Remove a member (last owner protected) | `/team` | owner | REAL |
@@ -272,6 +272,14 @@ Closed so far on this branch: inventory movement ledger and job parts consumptio
 execution · campaign and estimate-follow-up sending · photo "customer visible" flag · scheduling
 transition rules (written and tested since early in the project, called by nothing until now) ·
 refunds and the payments audit trail (provider half unproven — see 5.1).
+**Complete stubs (19, of which push delivery, support-session access granting and invitation email
+delivery are now CLOSED — see the rows above and ledger 5.13 / 5.17 / 5.18):** refunds · tips · saved
+payment methods · ACH hold-until-settled · payment
+schedules and milestones · organisation default deposit · booking deposit charging · automation rules
+· campaigns · referral programmes · custom fields (definitions and values) · inventory movement ledger
+· feature flags · ~~push notification delivery~~ · photo "customer visible" flag · scheduling
+transition-rule engine (written and tested, never called) · tax-jurisdiction calculation · ~~support-session
+access granting~~ · ~~invitation email delivery~~.
 
 **Highest-impact PARTIALs:** estimate deposits not credited to the converted invoice (overbilling) ·
 invoice screen counting unsettled payments as collected · revenue and margin reporting · commission on

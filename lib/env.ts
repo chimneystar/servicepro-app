@@ -1,6 +1,8 @@
 import "server-only";
 // @ts-ignore — pure validation logic, proven both ways in tests/env-check.test.mjs
 import { checkEnv as check } from "@/lib/core/env-check.mjs";
+// @ts-ignore — pure crypto, proven both ways in tests/push.test.mjs
+import { checkVapidKeys } from "@/lib/core/push.mjs";
 
 /**
  * Environment validation at boot.
@@ -23,7 +25,19 @@ export type EnvReport = {
 };
 
 export function checkEnv(): EnvReport {
-  return check(process.env) as EnvReport;
+  const report = check(process.env) as EnvReport;
+  // A VAPID pair that is not actually a pair is accepted by the browser and
+  // refused by every push service for ever. The shape checks live in the pure
+  // module; deriving the public point needs crypto, so it happens here.
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  if (publicKey && privateKey) {
+    const keys = checkVapidKeys(publicKey, privateKey) as { ok: boolean; reason: string };
+    if (!keys.ok && keys.reason === "key_pair_mismatch") {
+      report.warnings.push("VAPID_PRIVATE_KEY and NEXT_PUBLIC_VAPID_PUBLIC_KEY are not a key pair. Every push notification would be refused.");
+    }
+  }
+  return report;
 }
 
 /** Report at boot. Throws when a required capability is missing. */
