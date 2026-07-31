@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
-import { freshDatabase, migrationFiles, DB_DIR } from "./helpers/pg.mjs";
+import { freshDatabase, migrationFiles, isolationTestSql, DB_DIR } from "./helpers/pg.mjs";
+import { planMigrations } from "../lib/core/migrations.mjs";
 
 // ---------------------------------------------------------------------------
 // Can the database be built from scratch?
@@ -37,6 +38,25 @@ test("every migration applies to a clean database, in order", async () => {
   const { applied } = await freshDatabase();
   assert.equal(applied.length, migrationFiles().length,
     "every migration in db/ must apply to an empty database");
+});
+
+test("db/016_isolation_tests.sql passes against the fully migrated schema", async () => {
+  // 016 is a TEST, not a migration — which is why the numbering has no 016 and
+  // why the manifest declares it. It used to be swept into the apply sequence by
+  // a `^\d{3}_` glob and executed as if it were DDL; that happened to work, but
+  // it meant the sequence and the proof were the same list, and nothing checked
+  // that it still passed once the later migrations had added their constraints.
+  //
+  // It raises `ISOLATION FAIL: ...` on any cross-tenant leak and cleans up after
+  // itself, so running it here is the proof, not a smoke test.
+  const { db } = await freshDatabase();
+  await db.exec(isolationTestSql());
+
+  // A test that silently did nothing must not be mistaken for one that passed.
+  const { rows } = await db.query(
+    "select count(*)::int as leftovers from public.organizations where name like '__ISO_TEST_%'",
+  );
+  assert.equal(rows[0].leftovers, 0, "016 must clean up its own fixtures, which it only does on success");
 });
 
 test("the result is the schema the application expects", async () => {
@@ -145,4 +165,41 @@ test("a policy never calls a function its own migration defines later", async ()
   }
   assert.deepEqual(offenders, [],
     `a policy expression is resolved when the policy is created, so the function must already exist:\n  ${offenders.join("\n  ")}`);
+});
+
+test("a migration vanishing from the middle of the sequence fails the suite", () => {
+  // The guard for this existed and was correct — in planMigrations, which only
+  // the runner called. The test harness called classifyFiles, which decides
+  // membership and says nothing about holes. So deleting db/025_*.sql left all
+  // of `npm run verify` green while `npm run db:migrate` refused.
+  //
+  // A hole means some environment applied a file this checkout cannot even name,
+  // which is precisely the situation this project is already in: production runs
+  // DDL from an unmerged branch. It has to fail where people actually look.
+  const manifest = JSON.parse(readFileSync(path.join(DB_DIR, "migrations.manifest.json"), "utf8"));
+  const plan = (filenames) => planMigrations({
+    files: filenames.map((filename) => ({ filename, checksum: null })),
+    ledger: [],
+    nonMigrations: manifest.nonMigrations ?? {},
+    allFilenames: filenames,
+  });
+
+  // The whole directory, not just the migrations: the manifest declares the
+  // non-migration files too, and omitting them is itself a different defect.
+  const all = readdirSync(DB_DIR).filter((f) => f.endsWith(".sql"));
+  const gapped = all.filter((f) => !/^025_/.test(f));
+  assert.notEqual(gapped.length, all.length, "expected db/025_* to exist to plant this defect");
+
+  const holed = plan(gapped);
+  assert.equal(holed.ok, false, "a missing migration must not be reported as a coherent sequence");
+  assert.ok(holed.problems.some((p) => p.code === "sequence_gap"),
+    `expected sequence_gap, got ${JSON.stringify(holed.problems.map((p) => p.code))}`);
+
+  // The other direction: the real tree must be clean, or the check above proves
+  // nothing except that this function always complains.
+  assert.deepEqual(plan(all).problems.map((p) => p.code), [],
+    "the checked-in db/ must itself be coherent");
+
+  // And the harness must be the thing that enforces it, not just this test.
+  assert.doesNotThrow(() => migrationFiles(), "migrationFiles must accept the real tree");
 });

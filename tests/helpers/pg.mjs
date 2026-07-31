@@ -27,23 +27,74 @@ import { btree_gist } from "@electric-sql/pglite/contrib/btree_gist";
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { classifyFiles, planMigrations } from "../../lib/core/migrations.mjs";
 
 export const DB_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../db");
 
 /**
  * The migrations, in the order they must actually be applied.
  *
- * `schema.sql` is the BASELINE and has to run first — but it sorts LAST, so
- * "apply the files in filename order" is wrong for the single most important
- * file in the directory. That is not a detail of this harness; it is ledger item
- * 3.1 ("rename the baseline 001_"), and it is why this function is the one
- * definition of the order rather than a `.sort()` at each call site.
+ * `schema.sql` used to be the BASELINE that had to run first while sorting
+ * LAST, so "apply the files in filename order" was wrong for the single most
+ * important file in the directory — and this function existed to special-case
+ * it. Ledger item 3.1 fixed that at the source: the baseline is now
+ * `db/001_schema.sql`, so filename order and application order are the same
+ * thing, and the special case is gone.
  *
- * `GO-LIVE.sql` is a production checklist, not a migration, and is excluded.
+ * The order is no longer defined here at all. It comes from the migration
+ * runner's own classifier (`lib/core/migrations.mjs` + `db/migrations.manifest.json`),
+ * so this harness, `npm run db:migrate`, `npm run db:docs` and `db/ci/run.sh`
+ * cannot drift apart about what a migration is. Two of the three used to keep
+ * their own copy of the rules, and duplicated rules are how `016` ends up being
+ * applied as a migration in one place and skipped in another.
+ *
+ * `016_isolation_tests.sql` is a TEST, not a migration (see
+ * `isolationTestSql()`), and `GO-LIVE.sql` is a deprecated bundle. Both are
+ * declared in the manifest and excluded here.
  */
 export function migrationFiles() {
-  const numbered = readdirSync(DB_DIR).filter((f) => /^\d{3}_.*\.sql$/.test(f)).sort();
-  return ["schema.sql", ...numbered];
+  const manifest = JSON.parse(readFileSync(path.join(DB_DIR, "migrations.manifest.json"), "utf8"));
+  const filenames = readdirSync(DB_DIR).filter((f) => f.endsWith(".sql"));
+
+  // planMigrations, NOT classifyFiles.
+  //
+  // classifyFiles decides only what IS a migration. The gap check lives in
+  // planMigrations, so calling the former alone meant `npm run verify` — the
+  // thing that runs on every commit — would not notice a migration file
+  // disappearing from the middle of the sequence. Deleting db/025_*.sql left the
+  // whole suite green, while `npm run db:migrate` correctly refused.
+  //
+  // That is this project's signature defect wearing another hat: a guard that is
+  // correct, tested, and simply not invoked on the path that matters. The ledger
+  // is empty here because a checkout has no database — this asks only "is db/
+  // itself coherent", which is exactly the question a test run can answer.
+  const { problems } = planMigrations({
+    files: filenames.map((filename) => ({ filename, checksum: null })),
+    ledger: [],
+    nonMigrations: manifest.nonMigrations ?? {},
+    allFilenames: filenames,
+  });
+  if (problems.length) {
+    throw new Error(
+      `db/ is not a coherent migration sequence, so there is no order to apply:\n  ` +
+        problems.map((p) => `${p.code}: ${p.message}`).join("\n  "),
+    );
+  }
+  const { migrations } = classifyFiles(filenames, manifest.nonMigrations ?? {});
+  return migrations.map((m) => m.filename);
+}
+
+/**
+ * `db/016_isolation_tests.sql` — a test, which is why there is no migration 016.
+ *
+ * It is deliberately NOT in `migrationFiles()`. It used to be swept up by the
+ * `^\d{3}_` glob and applied as if it were a migration, which happened to work
+ * (it cleans up after itself) but meant the sequence and the proof were the same
+ * list. `tests/migrations-apply.test.mjs` runs it explicitly against a freshly
+ * built database instead, so it is executed as what it is.
+ */
+export function isolationTestSql() {
+  return readFileSync(path.join(DB_DIR, "016_isolation_tests.sql"), "utf8");
 }
 
 /** The Supabase-provided surface the migrations rely on. */

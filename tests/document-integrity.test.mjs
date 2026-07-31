@@ -443,7 +443,7 @@ test("the unique constraint on (organization_id, number) is added conditionally"
   assert.match(MIGRATION, /unique\s*\(\s*organization_id\s*,\s*number\s*\)/i);
   // The baseline really does have it — asserted here so the claim in the
   // migration header is checked rather than believed.
-  const schema = readSql("schema.sql");
+  const schema = readSql("001_schema.sql");
   const uniques = schema.match(/unique\s*\(organization_id,\s*number\)/gi) ?? [];
   assert.equal(uniques.length, 2, "schema.sql should declare it on estimates AND invoices");
 });

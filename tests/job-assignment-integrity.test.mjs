@@ -189,7 +189,7 @@ test("the conflict message exists in both languages", () => {
 const overlaps = (a, b) => a.date === b.date && a.start < b.end && b.start < a.end;
 
 test("THE BUG: only jobs.assigned_to is covered by an exclusion constraint", () => {
-  const schema = readSql("db/schema.sql");
+  const schema = readSql("db/001_schema.sql");
   const constraint = schema.slice(schema.indexOf("jobs_no_double_book"));
   assert.match(constraint, /assigned_to with =/, "the original guard is keyed on assigned_to alone");
   // job_assignments carries no times of its own, so no exclusion constraint on

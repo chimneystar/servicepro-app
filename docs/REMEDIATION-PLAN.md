@@ -123,12 +123,94 @@ silently stops running cannot go green.
 ### Phase 3 — data integrity + operations
 | # | Task | Status |
 |---|---|---|
-| 3.1 | Migration ledger table + runner; rename baseline `001_`; regenerate `schema.sql` | TODO |
+| 3.1 | Migration ledger table + runner; rename baseline `001_`; regenerate `schema.sql` | DONE — see note |
 | 3.2 | Rewrite `MIGRATIONS.md` DR runbook (currently omits 018-022); delete `GO-LIVE.sql` | DONE |
 | 3.3 | Env-var validation at boot (zod), fail loudly not at 3am | DONE |
 | 3.4 | Error monitoring + structured logging; cron must report failure, not always `ok:true` | DONE |
 | 3.5 | Backup/restore + rollback runbook | DONE |
 | 3.6 | Add the ~12 missing hot indexes | DONE |
+
+**Note on 3.1 — the migration system.** The database is now the authority on what
+has been applied, not a document.
+
+* **`public.schema_migrations`** (`db/migrations-ledger.sql`) records every
+  migration: version, name, filename as applied, SHA-256 checksum, start and
+  finish timestamps, who applied it, and whether it was `applied` (this runner
+  ran it) or `adopted` (the DDL was already there). RLS on + forced, revoked
+  from `anon` and `authenticated` — with PostgREST an unprotected ledger is a
+  map of which security migrations an environment is missing. Not a numbered
+  migration: it must be able to run before 001 and can never be "pending".
+* **The runner** is `scripts/db-migrate.mjs` — `npm run db:plan` (offline),
+  `db:status`, `db:migrate`, `db:migrate -- adopt`. It shells out to `psql` and
+  imports nothing outside node's standard library, so it adds no dependency.
+  Every decision it makes is a pure function in `lib/core/migrations.mjs`.
+* **Identity is the three-digit version, not the filename.** That is what makes
+  the `schema.sql` → `001_schema.sql` rename safe: no identity changed, one was
+  *assigned*, and `001` is what production actually applied (the owner's own
+  Supabase bundle already ships the baseline under that name). A rename is
+  reported and refused rather than silently re-running DDL; the checksum cannot
+  be the identity, because then a tampered file would become a new migration and
+  re-run itself silently. `db/MIGRATIONS.md` §"Migration identity" is the full
+  argument.
+* **An existing database (production) is `adopt`ed, never re-run.** `adopt`
+  records the sequence as applied and executes nothing.
+* **Nine refusals**, each proven BOTH ways — firing on a planted defect and
+  silent on the good tree — in `tests/migration-runner.test.mjs` (pure) and
+  `tests/migration-ledger-db.test.mjs` (against a real PostgreSQL via PGlite):
+  `checksum_mismatch`, `sequence_gap`, `duplicate_version`, `out_of_order`,
+  `partially_applied`, `applied_file_missing`, `renamed_migration`,
+  `unclassified_file`, `declared_file_missing`.
+* **Checksums normalise CRLF→LF and strip a BOM.** Measured, not assumed: every
+  file in `owner-needed-stuff/` is byte-different from this branch's copy and
+  byte-identical after normalisation, because the repo is developed on Windows
+  with `core.autocrlf=true` and built on Linux. A raw-byte checksum would report
+  tampering on every cross-platform checkout — a false RED is the same defect as
+  a false GREEN, because it gets the guard switched off.
+* **`db/MIGRATIONS.md` is generated** from the files on disk plus
+  `db/migrations.manifest.json` (`npm run db:docs`).
+  `tests/migrations-doc.test.mjs` fails when the doc and the directory disagree,
+  so it can never again stop at 017. It also fails on a missing description —
+  which is how `038_account_security.sql`'s `_(describe this migration)_`
+  placeholder, present for the life of the branch, got written.
+* **The expected schema is derived.** `db/001_schema.sql` is now just migration
+  001, frozen. `npm run db:schema` builds the database from every migration and
+  writes `db/schema.generated.txt` (124 tables, 115 functions, 198 triggers, 233
+  policies, RLS on all 124); `tests/schema-snapshot.test.mjs` rebuilds it and
+  fails on drift.
+* **One definition of the order.** `db/ci/run.sh`, `tests/helpers/pg.mjs` and the
+  runner all ask `lib/core/migrations.mjs` + the manifest. Previously all three
+  kept their own copy, which is how `016` was applied as a migration in one
+  place and skipped in another.
+* `db/ci/run.sh` now applies migrations **with the runner**, then asserts the
+  ledger reconciles and that a second `up` is a no-op — so the CI job proves the
+  runner end-to-end against real PostgreSQL, not merely that the SQL parses.
+
+*Two findings surfaced by the rename, both fixed here.* `schema.sql` had no
+number, so it sorted AFTER `041_` and every tool that walked `db/*.sql` in
+filename order treated the baseline as the newest file:
+
+1. `tests/policy-replacement.test.mjs` had never compared anything against the
+   baseline's policies. Once it could, it reported four violations on `profiles`
+   and `jobs`. All four are **false positives** — the detector was command-blind,
+   and PostgreSQL OR's permissive policies only within the command being
+   executed, so a surviving `FOR SELECT` policy cannot widen a new `FOR UPDATE`
+   one. The detector is now command-aware, with `profiles_owner_write` recorded
+   as a deliberate exception **with its reason** rather than the assertion being
+   deleted. Proven both ways against the real tree by removing 023's
+   `invitations_rw` drop and watching it fire.
+2. The same test was passing **vacuously** for `invitations`: `invitations_rw` is
+   created by a `format()` loop in the baseline, which its literal-only scan
+   could not see, so it compared an empty set against an empty set. The scan is
+   now loop-aware, and a test asserts it is not vacuous.
+
+*What is still NOT verified.* The runner has never been executed against a real
+Supabase project, because there is none available here — `npm run db:migrate`,
+`adopt`, and `psql` invocation are exercised only by inspection. What IS proven
+against real PostgreSQL (PGlite) is the ledger DDL, its constraints, its RLS and
+grants queried as `anon` and `authenticated`, the SQL the runner emits, and every
+guard in both directions. PGlite is Postgres, not Supabase: `auth.uid()`,
+`auth.users` and `storage.objects` are shims, so nothing here proves Supabase's
+own auth or storage behave as assumed.
 
 ### Phase 4 — correctness bugs
 | # | Task | Status |

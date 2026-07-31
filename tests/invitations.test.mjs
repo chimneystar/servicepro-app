@@ -148,7 +148,7 @@ test("migration 034 drops nothing and is idempotent", () => {
 
 test("every column migration 034 writes to exists in the schema it is built on", () => {
   const sql = stripSqlComments(readFileSync(join(root, "db", "034_notifications_support.sql"), "utf8"));
-  const baseline = stripSqlComments(readFileSync(join(root, "db", "schema.sql"), "utf8"));
+  const baseline = stripSqlComments(readFileSync(join(root, "db", "001_schema.sql"), "utf8"));
   const foundation = stripSqlComments(readFileSync(join(root, "db", "018_product_foundation.sql"), "utf8"));
   const platform = stripSqlComments(readFileSync(join(root, "db", "022_operations_privacy_team_admin.sql"), "utf8"));
 

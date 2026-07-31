@@ -11,7 +11,12 @@
     "test": "node --test tests/",
     "test:features": "node --test tests/feature-preservation.test.mjs tests/booking.test.mjs tests/calls.test.mjs",
     "test:e2e": "playwright test",
-    "verify": "npm run typecheck && npm run lint && npm test"
+    "db:plan": "node scripts/db-migrate.mjs plan",
+    "db:status": "node scripts/db-migrate.mjs status",
+    "db:migrate": "node scripts/db-migrate.mjs up",
+    "db:docs": "node scripts/db-docs.mjs",
+    "verify": "npm run typecheck && npm run lint && npm test",
+    "db:schema": "node scripts/db-schema.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
