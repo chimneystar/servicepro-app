@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import CommissionClient, { type TechRow } from "@/components/CommissionClient";
+// @ts-ignore — shared, unit-tested reporting arithmetic (tests/reporting.test.mjs)
+import { collectedMinor, COLLECTED_STATUSES } from "@/lib/core/reporting.mjs";
 
 export const dynamic = "force-dynamic";
 
@@ -24,15 +26,48 @@ export default async function CommissionPage({ searchParams }: { searchParams: P
   const doneSet = new Set(doneNames.length ? doneNames : ["Done"]);
 
   const { data: jobs } = await supabase.from("jobs")
-    .select("assigned_to, price_minor, job_expenses_minor, stage, status, scheduled_date")
+    .select("id, assigned_to, price_minor, job_expenses_minor, stage, status, scheduled_date")
     .is("deleted_at", null).gte("scheduled_date", from).lte("scheduled_date", to);
 
+  // Commission is paid on money COLLECTED, not on what was quoted.
+  //
+  // This previously summed jobs.price_minor for completed jobs, so a technician
+  // earned commission on work the business was never paid for — an unpaid or
+  // partly-paid invoice still generated a full payout, and a refund never
+  // clawed anything back.
+  const completedJobs = (jobs ?? []).filter((j: any) => (doneSet.has(j.stage) || j.status === "done") && j.assigned_to);
+  const jobIds = completedJobs.map((j: any) => j.id);
+
+  // Invoices raised against those jobs, and the settled payments against them.
+  let invoiceRows: any[] = [], paymentRows: any[] = [];
+  if (jobIds.length) {
+    const { data: invs } = await supabase.from("invoices").select("id, job_id").in("job_id", jobIds).is("deleted_at", null);
+    invoiceRows = invs ?? [];
+    const invoiceIds = invoiceRows.map((i) => i.id);
+    if (invoiceIds.length) {
+      const { data: pays } = await supabase.from("payments")
+        .select("invoice_id, base_amount_minor, amount_minor, refunded_minor, normalized_status")
+        .in("invoice_id", invoiceIds)
+        .in("normalized_status", COLLECTED_STATUSES);
+      paymentRows = pays ?? [];
+    }
+  }
+  const jobByInvoice: Record<string, string> = {};
+  invoiceRows.forEach((i) => { jobByInvoice[i.id] = i.job_id; });
+  const techByJob: Record<string, string> = {};
+  completedJobs.forEach((j: any) => { techByJob[j.id] = j.assigned_to; });
+
   const agg: Record<string, { revenue: number; expenses: number; jobs: number }> = {};
-  (jobs ?? []).forEach((j: any) => {
-    const done = doneSet.has(j.stage) || j.status === "done";
-    if (!done || !j.assigned_to) return;
+  completedJobs.forEach((j: any) => {
     const a = (agg[j.assigned_to] ??= { revenue: 0, expenses: 0, jobs: 0 });
-    a.revenue += j.price_minor ?? 0; a.expenses += j.job_expenses_minor ?? 0; a.jobs += 1;
+    a.expenses += j.job_expenses_minor ?? 0;
+    a.jobs += 1;
+  });
+  paymentRows.forEach((p: any) => {
+    const tech = techByJob[jobByInvoice[p.invoice_id] ?? ""];
+    if (!tech) return;
+    const a = (agg[tech] ??= { revenue: 0, expenses: 0, jobs: 0 });
+    a.revenue += collectedMinor([p]);
   });
 
   const rows: TechRow[] = (profiles ?? [])
@@ -44,7 +79,7 @@ export default async function CommissionPage({ searchParams }: { searchParams: P
     <div style={{ maxWidth: 760 }}>
       <Link href="/reports" style={{ color: "#2563eb", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>‹ Reports</Link>
       <h1 style={{ fontSize: 24, fontWeight: 800, margin: "8px 0 4px" }}>Technician commission</h1>
-      <p style={{ color: "#5c6675", fontSize: 13, marginBottom: 12 }}>Payroll from completed jobs, after costs & fees.</p>
+      <p style={{ color: "#5c6675", fontSize: 13, marginBottom: 12 }}>Payroll based on money actually collected on completed jobs, after costs & fees.</p>
 
       <form method="get" style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "end" }}>
         <div><label style={lbl}>From</label><input type="date" name="from" defaultValue={from} style={inp} /></div>

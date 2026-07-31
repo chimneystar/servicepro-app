@@ -5,6 +5,8 @@ import { t } from "@/lib/i18n";
 import { money } from "@/lib/format";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+// @ts-ignore — shared, unit-tested reporting arithmetic (tests/reporting.test.mjs)
+import { periodTotals, collectedMinor, invoiceRevenueExTaxMinor, materialsCostMinor, COLLECTED_STATUSES } from "@/lib/core/reporting.mjs";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +18,6 @@ function range(period: string): { start: string; end: string; label: string } {
   const end = new Date(y, m + 1, 0).toISOString().slice(0, 10);
   return { start, end, label: now.toLocaleString("en-US", { month: "long", year: "numeric" }) };
 }
-const itemRev = (it: any) => Math.round((it.qty_milli * it.unit_price_minor) / 1000);
-const itemCost = (it: any) => Math.round((it.qty_milli * (it.cost_minor ?? 0)) / 1000);
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ period?: string }> }) {
   const search = await searchParams;
@@ -33,7 +33,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 
   const { data: invoices } = await supabase
     .from("invoices")
-    .select("id, total_minor, issue_date, jobs(assigned_to, profiles!jobs_assigned_to_fkey(full_name))")
+    .select("id, total_minor, discount_minor, tax_rate_bps, issue_date, jobs(assigned_to, profiles!jobs_assigned_to_fkey(full_name))")
     .eq("status", "paid").is("deleted_at", null)
     .gte("issue_date", start).lte("issue_date", end);
   const invs = invoices ?? [];
@@ -41,11 +41,22 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 
   let items: any[] = [];
   if (ids.length) {
-    const { data } = await supabase.from("invoice_items").select("invoice_id, qty_milli, unit_price_minor, cost_minor").in("invoice_id", ids);
+    const { data } = await supabase.from("invoice_items").select("invoice_id, qty_milli, unit_price_minor, cost_minor, taxable").in("invoice_id", ids);
     items = data ?? [];
   }
+
+  // Cash actually received in the period. Revenue used to be the sum of
+  // invoices.total_minor for invoices marked paid — what was BILLED, not what
+  // arrived. That ignored partial payments, refunds and surcharges, and counted
+  // an invoice someone hand-marked paid at full face value.
+  const { data: periodPayments } = await supabase
+    .from("payments")
+    .select("invoice_id, base_amount_minor, amount_minor, refunded_minor, normalized_status")
+    .in("normalized_status", COLLECTED_STATUSES)
+    .gte("paid_at", `${start}T00:00:00`).lte("paid_at", `${end}T23:59:59`);
+
   const { data: expenses } = await supabase.from("expenses").select("amount_minor").gte("expense_date", start).lte("expense_date", end);
-  const { data: unpaid } = await supabase.from("invoices").select("total_minor, issue_date").eq("status", "unpaid").is("deleted_at", null);
+  const { data: unpaid } = await supabase.from("invoices").select("total_minor, issue_date").eq("status", "unpaid").is("deleted_at", null).limit(2000);
 
   // Server request time is intentionally captured once for the aging report.
   // eslint-disable-next-line react-hooks/purity
@@ -57,28 +68,44 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   });
   const agingTotal = (unpaid ?? []).reduce((s, i) => s + i.total_minor, 0);
 
-  // per-invoice item revenue/cost
-  const revByInv: Record<string, number> = {}, costByInv: Record<string, number> = {};
-  items.forEach((it) => { revByInv[it.invoice_id] = (revByInv[it.invoice_id] || 0) + itemRev(it); costByInv[it.invoice_id] = (costByInv[it.invoice_id] || 0) + itemCost(it); });
+  const itemsByInvoice: Record<string, any[]> = {};
+  items.forEach((it) => { (itemsByInvoice[it.invoice_id] ||= []).push(it); });
 
-  // per technician
+  const totalExp = (expenses ?? []).reduce((s, e) => s + e.amount_minor, 0);
+
+  // All revenue and margin arithmetic lives in lib/core/reporting.mjs so the
+  // dashboard, the custom report and the commission report cannot disagree —
+  // and so it is unit-tested rather than reasoned about.
+  const totals = periodTotals({
+    payments: periodPayments ?? [],
+    invoices: invs as any[],
+    itemsByInvoice,
+    expensesMinor: totalExp,
+  });
+  const revenueCollected = totals.collectedMinor;
+  const gross = totals.grossProfitMinor;
+  const net = totals.netProfitMinor;
+
+  // Attribute collected cash to the technician on the invoice's job.
+  const techByInvoice: Record<string, string> = {};
+  invs.forEach((i: any) => { techByInvoice[i.id] = i.jobs?.profiles?.full_name || "Unassigned"; });
+
   const byTech: Record<string, { collected: number; profit: number; count: number }> = {};
-  invs.forEach((i: any) => {
-    const name = i.jobs?.profiles?.full_name || "Unassigned";
+  (periodPayments ?? []).forEach((p: any) => {
+    const name = techByInvoice[p.invoice_id] ?? "Unassigned";
     const b = byTech[name] || { collected: 0, profit: 0, count: 0 };
-    b.collected += i.total_minor;
-    b.profit += (revByInv[i.id] || 0) - (costByInv[i.id] || 0);
+    b.collected += collectedMinor([p]);
+    byTech[name] = b;
+  });
+  invs.forEach((i: any) => {
+    const name = techByInvoice[i.id];
+    const b = byTech[name] || { collected: 0, profit: 0, count: 0 };
+    const invoiceItems = itemsByInvoice[i.id] ?? [];
+    b.profit += invoiceRevenueExTaxMinor(i, invoiceItems) - materialsCostMinor(invoiceItems);
     b.count += 1;
     byTech[name] = b;
   });
   const techRows = Object.entries(byTech).sort((a, b) => b[1].collected - a[1].collected);
-
-  const revenueCollected = invs.reduce((s, i) => s + i.total_minor, 0);
-  const totalItemRev = items.reduce((s, it) => s + itemRev(it), 0);
-  const totalItemCost = items.reduce((s, it) => s + itemCost(it), 0);
-  const gross = totalItemRev - totalItemCost;
-  const totalExp = (expenses ?? []).reduce((s, e) => s + e.amount_minor, 0);
-  const net = gross - totalExp;
 
   const pill = (p: string, l: string) => (
     <Link href={`/reports?period=${p}`} style={{ ...seg, ...(period === p ? segOn : {}) }}>{l}</Link>
@@ -102,7 +129,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14, marginBottom: 20 }}>
         <Kpi icon="💰" tone="#15803d" label="Revenue collected" value={money(revenueCollected, cur)} />
-        <Kpi icon="📊" tone="#2563eb" label="Gross profit (rev − cost)" value={money(gross, cur)} />
+        <Kpi icon="📊" tone="#2563eb" label="Gross profit (ex-tax − materials)" value={money(gross, cur)} />
         <Kpi icon="💸" tone="#b45309" label="Expenses" value={money(totalExp, cur)} />
         <Kpi icon="✅" tone={net >= 0 ? "#15803d" : "#dc2626"} label="Net profit" value={money(net, cur)} />
       </div>
