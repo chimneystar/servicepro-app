@@ -1,13 +1,18 @@
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { money } from "@/lib/format";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const search = await searchParams;
-  await requireProfile();
+  // Global search spans customers, jobs and document numbers, so it is an
+  // office-level tool. It previously only authenticated, matching no role at
+  // all — and the route was absent from the preservation manifest entirely.
+  const profile = await requireProfile();
+  if (profile.role === "tech") redirect("/tech");
   const q = (search.q ?? "").trim();
   const supabase = await createClient();
   const { data: org } = await supabase.from("organizations").select("currency").single();

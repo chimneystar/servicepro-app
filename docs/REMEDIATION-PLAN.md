@@ -41,9 +41,9 @@ Status: `TODO` / `WIP` / `DONE` / `BLOCKED`. Keep this honest — a status doc t
 |---|---|---|
 | 0.1 | Fix `tests/booking.test.mjs` (imports `.ts` under `node --test`) — move pure booking logic to `lib/core/booking.mjs` | DONE |
 | 0.2 | Wire ALL test files into `npm test` (7 of 10 are currently orphaned, including the two best) | DONE |
-| 0.3 | Replace tautological RLS greps in `feature-preservation.test.mjs` with real assertions | TODO |
+| 0.3 | Replace tautological RLS greps in `feature-preservation.test.mjs` with real assertions | DONE |
 | 0.4 | Add `test:e2e` script + Playwright `webServer` + auth setup project | TODO |
-| 0.5 | Add CI workflow: typecheck + lint + test on every push | TODO |
+| 0.5 | Add CI workflow: typecheck + lint + test on every push | DONE |
 
 ### Phase 1 — security blockers
 | # | Task | Status |
