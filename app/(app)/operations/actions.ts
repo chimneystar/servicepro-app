@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getLocale } from "@/lib/locale-server";
 // @ts-ignore — integer-safe money engine (JS module, unit-tested)
 import { parseAmountToMinor, parseQtyToMilli, lineSubtotalMinor } from "@/lib/core/money.mjs";
+// @ts-ignore — automation support matrix, proven both ways in tests/automation.test.mjs
+import { automationRefusalMessage, validateAutomationRule } from "@/lib/core/automation.mjs";
 
 // Every action here returns the `{ ok, error }` contract used by
 // app/(app)/customers/actions.ts. They used to return bare `void` and drop the
@@ -73,12 +75,53 @@ export async function createServiceArea(_prev: ActionResult, form: FormData): Pr
   return { ok: true };
 }
 
+/**
+ * Create an automation rule (ledger 5.8).
+ *
+ * This used to accept ANY trigger/action pair and store it. Since nothing
+ * executed rules at all, an owner could save "when an estimate is sent, create
+ * a task" and it would sit there looking configured for ever. Now that the
+ * nightly executor is real (lib/cron-tasks.ts → runAutomationRules), the pairs
+ * it cannot honestly perform are REFUSED HERE, with the reason, instead of
+ * being accepted and quietly ignored — an unsupported rule that is visibly
+ * rejected is a much smaller problem than one that pretends to work.
+ */
 export async function createAutomation(_prev: ActionResult, form: FormData): Promise<ActionResult> {
   const { he, ctx, error } = await guard();
   if (!ctx) return { ok: false, error };
   const name = text(form, "name");
   if (!name) return { ok: false, error: invalid(he) };
-  const { error: dbError } = await ctx.supabase.from("automation_rules").insert({ organization_id: ctx.profile.organization_id, name, trigger_type: text(form, "triggerType"), action_type: text(form, "actionType"), action_json: { message: text(form, "message") }, created_by: ctx.profile.id });
+
+  const validation = validateAutomationRule({
+    triggerType: text(form, "triggerType"),
+    actionType: text(form, "actionType"),
+    message: text(form, "message"),
+    overdueDays: text(form, "overdueDays"),
+  });
+  if (!validation.ok) return { ok: false, error: automationRefusalMessage(validation.reason, he) };
+  const { triggerType, actionType, message, overdueDays } = validation.rule;
+
+  const { error: dbError } = await ctx.supabase.from("automation_rules").insert({
+    organization_id: ctx.profile.organization_id, name,
+    trigger_type: triggerType, action_type: actionType,
+    action_json: { message },
+    condition_json: triggerType === "invoice_overdue" ? { overdue_days: overdueDays } : {},
+    created_by: ctx.profile.id,
+  });
+  if (dbError) return { ok: false, error: saveFailed(he) };
+  revalidatePath("/operations");
+  return { ok: true };
+}
+
+/** Turn a rule on or off. The executor only ever reads rules with enabled = true. */
+export async function setAutomationEnabled(_prev: ActionResult, form: FormData): Promise<ActionResult> {
+  const { he, ctx, error } = await guard();
+  if (!ctx) return { ok: false, error };
+  const id = text(form, "id");
+  if (!id) return { ok: false, error: invalid(he) };
+  const enabled = text(form, "enabled") === "on";
+  const { error: dbError } = await ctx.supabase.from("automation_rules")
+    .update({ enabled }).eq("id", id).eq("organization_id", ctx.profile.organization_id);
   if (dbError) return { ok: false, error: saveFailed(he) };
   revalidatePath("/operations");
   return { ok: true };
