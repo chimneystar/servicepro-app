@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { requireProfile, assertRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+// @ts-ignore — integer-safe money engine (JS module, unit-tested)
+import { parseAmountToMinor, parseQtyToMilli, lineSubtotalMinor } from "@/lib/core/money.mjs";
 
 async function context() {
   const profile = await requireProfile();
@@ -43,11 +45,23 @@ export async function createVendor(form: FormData) {
 export async function createPurchaseOrder(form: FormData) {
   const { profile, supabase } = await context();
   const description = text(form, "description"); if (!description) return;
-  const quantity = Math.max(0.001, Number(form.get("quantity") ?? 1));
-  const unitCostMinor = Math.max(0, Math.round(Number(form.get("unitCost") ?? 0) * 100));
+
+  // Money and quantity go through the tested integer engine. This previously did
+  // Math.round(Number(unitCost) * 100) and then Math.round(quantity * unitCostMinor)
+  // with quantity as an unquantized float — two rounding steps outside the engine
+  // every other document total uses, and NaN on any non-numeric input.
+  let qtyMilli: number, unitCostMinor: number;
+  try {
+    qtyMilli = Math.max(1, parseQtyToMilli(String(form.get("quantity") ?? "1")));
+    unitCostMinor = Math.max(0, parseAmountToMinor(String(form.get("unitCost") ?? "0")));
+  } catch {
+    return; // malformed amount — consistent with the other early returns here
+  }
+  const totalMinor = lineSubtotalMinor(qtyMilli, unitCostMinor);
+
   const poNumber = `PO-${Date.now().toString().slice(-8)}`;
-  const { data: order } = await supabase.from("purchase_orders").insert({ organization_id: profile.organization_id, po_number: poNumber, vendor_id: text(form, "vendorId") || null, job_id: text(form, "jobId") || null, total_minor: Math.round(quantity * unitCostMinor), created_by: profile.id }).select("id").single();
-  if (order) await supabase.from("purchase_order_items").insert({ organization_id: profile.organization_id, purchase_order_id: order.id, description, quantity, unit_cost_minor: unitCostMinor });
+  const { data: order } = await supabase.from("purchase_orders").insert({ organization_id: profile.organization_id, po_number: poNumber, vendor_id: text(form, "vendorId") || null, job_id: text(form, "jobId") || null, total_minor: totalMinor, created_by: profile.id }).select("id").single();
+  if (order) await supabase.from("purchase_order_items").insert({ organization_id: profile.organization_id, purchase_order_id: order.id, description, quantity: qtyMilli / 1000, unit_cost_minor: unitCostMinor });
   revalidatePath("/operations");
 }
 

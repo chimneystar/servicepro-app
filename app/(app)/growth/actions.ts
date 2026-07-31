@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { requireProfile, assertRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+// @ts-ignore — integer-safe money engine (JS module, unit-tested)
+import { parseAmountToMinor } from "@/lib/core/money.mjs";
 
 async function context() { const profile = await requireProfile(); assertRole(profile, ["owner", "office"]); return { profile, supabase: await createClient() }; }
 const value = (data: FormData, key: string) => String(data.get(key) ?? "").trim();
@@ -20,7 +22,11 @@ export async function createReferralProgram(data: FormData) {
 
 export async function recordAdSpend(data: FormData) {
   const { profile, supabase } = await context(); const source = value(data, "source"); if (!source) return;
-  await supabase.from("lead_attribution_costs").insert({ organization_id: profile.organization_id, source, campaign: value(data, "campaign") || null, period_start: value(data, "periodStart"), period_end: value(data, "periodEnd"), spend_minor: Math.max(0, Math.round(Number(data.get("spend") ?? 0) * 100)) }); revalidatePath("/growth");
+  // Integer money, not float: Math.round(Number(x) * 100) mis-rounds and yields
+  // NaN on a typo, which was then silently stored as null.
+  let spendMinor: number;
+  try { spendMinor = Math.max(0, parseAmountToMinor(String(data.get("spend") ?? "0"))); } catch { return; }
+  await supabase.from("lead_attribution_costs").insert({ organization_id: profile.organization_id, source, campaign: value(data, "campaign") || null, period_start: value(data, "periodStart"), period_end: value(data, "periodEnd"), spend_minor: spendMinor }); revalidatePath("/growth");
 }
 
 export async function scheduleEstimateFollowup(data: FormData) {
