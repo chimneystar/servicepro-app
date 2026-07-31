@@ -56,6 +56,21 @@ Status: `TODO` / `WIP` / `DONE` / `BLOCKED`. Keep this honest — a status doc t
 | 0.5 | Add CI workflow: typecheck + lint + test on every push | DONE |
 | 0.6 | **A real database in CI.** `.github/workflows/db.yml` stands up `postgres:16`, applies `schema.sql` + all 26 numbered migrations in order, runs `db/016_isolation_tests.sql` (which nothing had ever executed), then runs 85 adversarial assertions in `db/ci/` as impersonated users — tech, office, owner, other-tenant owner, anon. Closes the gap that every security assertion in the suite was static analysis of SQL text, which cannot prove a policy refuses a query. | **WIP — WRITTEN, NEVER EXECUTED.** No Postgres, Docker or psql on the authoring machine. Verified only by inspection: bash syntax, YAML parse, balanced dollar-quoting, and a grep-derived inventory of the Supabase objects the shim must provide. Nobody may call this DONE until a green run exists in Actions. |
 
+**UPDATE — the "no Postgres on this machine" constraint was false, and it had been shaping decisions
+for the whole session.** PGlite is Postgres compiled to WebAssembly: it runs under `node --test` with no
+Docker, no service and no native build. `tests/helpers/pg.mjs` now builds the entire schema from empty on
+every test run — 41 migrations, 124 tables, 233 policies, RLS on all 124 — and `tests/migrations-apply.test.mjs`
+asserts it. This is real Postgres, so `create policy` really creates a policy and a composite foreign key
+really demands a unique key on the referenced columns; it is NOT Supabase, so `auth.uid()`, `auth.users`
+and `storage.objects` are shims and nothing here proves Supabase's own auth or storage.
+
+Its first run found that **`db/030_refunds.sql` could never have been applied at all** — see ledger 2.1a
+below. Every static check in the repo passed on it. The whole refunds feature — unit tested, trigger
+guarded, reviewed — was correct and unrunnable.
+
+The consequence for 0.6: the 85 adversarial assertions in `db/ci/` no longer need GitHub Actions to be
+executed for the first time. They can run locally, now, on every commit.
+
 **What 0.6 actually contains** — `db/ci/00_supabase_shim.sql` (the `anon`/`authenticated`/`service_role`
 roles, `auth.uid()` backed by a settable `request.jwt.claim.sub` GUC, `auth.users`, `storage.objects`
 + `storage.foldername()`, `pgcrypto`, `btree_gist`, and the Supabase default grants **without which
@@ -88,6 +103,7 @@ silently stops running cannot go green.
 | 1.15 | `autoSendDocument`: derive `origin` server-side, assert org match, escape HTML | DONE |
 | 1.16 | Security headers (CSP, HSTS, X-Frame-Options, Referrer-Policy) in `next.config.mjs` | DONE |
 | 1.17 | Rate limiting on all unauthenticated endpoints | DONE |
+| 2.1a | **REGRESSION FOUND by executing the migrations for the first time — `db/030_refunds.sql` could not be applied to a clean database.** Three defects in one file, two of them mine, the second hidden behind the first: a composite FK added BEFORE the unique key it references; `create policy` calling `public.can_refund_payments()` BEFORE the function was defined; and an exception handler naming `undefined_object` when a missing unique key raises `invalid_foreign_key`, so the graceful-skip branch could never fire. 036 failed too — correctly, its own guard refuses to run before 030. Both files are valid SQL and wrong only in ORDER, which is observable by exactly one means: running them. | **DONE** — fixed in `d45d56d`; `tests/migrations-apply.test.mjs` guards both classes by name, proven both ways (5 of 5 fail on the pre-fix tree) |
 | 1.18 | **REGRESSION FOUND while writing 0.6 — migration 023 §4 was a no-op.** It dropped `job_time_entries_select/_write/_rw`, but migration 009 created them as `time_entries_select` and `time_entries_write` (`db/009_v11.sql:94-100`). Permissive policies are OR'd, so the old org-only pair survived and still granted what the new pair was written to deny — a technician could read and rewrite a colleague's timesheet, and task 1.4 was not actually done. **FIXED:** 023 now drops both real names (plus the wrong ones defensively, since a previous run may have created them). `tests/policy-replacement.test.mjs` covers the CLASS — it asserts that a migration replacing a table's policy set drops every policy an earlier migration created there, and was proven both ways by removing the fix and watching it fire. The three assertions in `db/ci/30_tenant_assertions.sql` should now pass; that remains UNCONFIRMED until the CI database job actually runs. | DONE |
 | 1.19 | Every other `drop policy if exists` in migration 023 was checked by hand against the migration that created the policy (`profiles_self_update`, `invitations_rw`, `jobs_update`, `subscriptions_rw`, the 019 `<t>_select` loop) and all of them match. `job_time_entries` is the only name mismatch found by inspection — but inspection is exactly what missed it for the whole life of the branch, so treat this row as provisional until the CI job in 0.6 has actually run. | DONE (by inspection only) |
 
