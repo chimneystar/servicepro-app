@@ -72,9 +72,25 @@ export async function deleteCustomer(id: string): Promise<ActionResult> {
     return { ok: false, error: t(locale, "err.forbidden") };
   }
   const supabase = await createClient();
-  const { error } = await supabase.from("customers").delete().eq("id", id);
+
+  // SOFT delete. This was a hard `.delete()`, which permanently destroyed the
+  // customer row: no trash, no restore, and no way to recover from a mis-click.
+  // `jobs.customer_id` is `on delete restrict`, so it happened to fail for
+  // customers WITH jobs and silently destroyed everyone else — the newest
+  // customers, the ones most likely to have been added by mistake.
+  //
+  // Every list already filters `deleted_at is null`, so the visible behaviour is
+  // unchanged; the difference is that /trash can now bring it back. Legal
+  // erasure remains a separate path (the privacy anonymiser), which overwrites
+  // the PII rather than hiding the row.
+  const { error } = await supabase
+    .from("customers")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id)
+    .is("deleted_at", null);
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/customers");
+  revalidatePath("/trash");
   return { ok: true };
 }
