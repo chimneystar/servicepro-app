@@ -206,8 +206,18 @@ export async function sendPushToProfile(input: {
  * Called from the dispatch board and from job creation. It reads the job with
  * the service role because `device_subscriptions` is own-profile-only under RLS
  * — the dispatcher legitimately cannot see the technician's devices.
+ *
+ * LEDGER 6c.5 — this trigger was EXTENDED, not replaced. The push is sent
+ * exactly as before, with the same wording; afterwards the result is handed to
+ * `notifyJobAssignedStaff`, which writes the in-app inbox row and — only when
+ * no device was reached — sends an email. Every existing call site therefore
+ * gained an inbox and a fallback without changing a line.
+ *
+ * The import is dynamic because lib/notify.ts imports `sendPushToProfile` from
+ * this module; a static import here would be a module cycle.
  */
 export async function notifyJobAssigned(input: { organizationId: string; jobId: string; profileId: string }): Promise<PushSendResult> {
+  let pushed: PushSendResult = { ok: false, delivered: 0, removed: 0, failed: 0, reason: "error", message: "" };
   try {
     const admin = createAdminClient();
     const { data: job } = await admin.from("jobs")
@@ -216,7 +226,7 @@ export async function notifyJobAssigned(input: { organizationId: string; jobId: 
       .eq("organization_id", input.organizationId)
       .maybeSingle();
     const customer = (job?.customers ?? null) as { name?: string } | null;
-    return await sendPushToProfile({
+    pushed = await sendPushToProfile({
       organizationId: input.organizationId,
       profileId: input.profileId,
       eventType: "job_assigned",
@@ -234,6 +244,26 @@ export async function notifyJobAssigned(input: { organizationId: string; jobId: 
   } catch (cause: any) {
     const message = `Push delivery failed before sending: ${String(cause?.message ?? cause)}`;
     console.error(`${LOG} ${message}`);
-    return { ok: false, delivered: 0, removed: 0, failed: 0, reason: "error", message };
+    pushed = { ok: false, delivered: 0, removed: 0, failed: 0, reason: "error", message };
   }
+
+  // The inbox row and the email fallback. Never allowed to fail the assignment.
+  try {
+    const { notifyJobAssignedStaff } = await import("@/lib/notify");
+    await notifyJobAssignedStaff({
+      organizationId: input.organizationId,
+      jobId: input.jobId,
+      profileId: input.profileId,
+      pushResult: {
+        available: pushDelivery().available,
+        delivered: pushed.delivered,
+        reason: pushed.reason,
+        message: pushed.message,
+      },
+    });
+  } catch (cause: any) {
+    console.error(`${LOG} the staff notification for job ${input.jobId} could not be recorded: ${String(cause?.message ?? cause)}`);
+  }
+
+  return pushed;
 }

@@ -74,6 +74,14 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         <DocForm locale={locale} customers={custOpt} action={createEstimate} newKey="est.new" catalog={catalog ?? []} orgId={profile.organization_id!} />
         <DocForm locale={locale} customers={custOpt} action={createInvoice} newKey="inv.new" catalog={catalog ?? []} orgId={profile.organization_id!} />
         {c.portal_token && <CopyLinkButton path={`/portal/${c.portal_token}`} label="🔗 Portal link" />}
+        {/* Ledger 6c.6 — "here is everything you owe", printable and sendable.
+            Receivables, so not offered to a technician (the page redirects them
+            too, rather than showing a page of zeroes that reads as "nothing due"). */}
+        {canEditRecord && (
+          <Link href={`/customers/${id}/statement`} style={{ background: "#fdf1dc", color: "#b45309", borderRadius: 10, padding: "10px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>
+            🧾 Statement
+          </Link>
+        )}
       </div>
 
       <div style={{ display: "flex", gap: 18, justifyContent: "center", margin: "10px 0 18px" }}>

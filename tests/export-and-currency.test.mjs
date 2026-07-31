@@ -15,8 +15,23 @@ test("every export branch paginates", () => {
   assert.ok(/fetchAllPages/.test(src), "a single request silently stops at the 1000-row cap");
   // Count CALL sites only — `fetchAllPages<` also matches the declaration.
   const calls = src.match(/await fetchAllPages</g) ?? [];
-  assert.equal(calls.length, 3, `invoices, payments and expenses must all page (found ${calls.length})`);
+  assert.ok(calls.length >= 3, `invoices, payments and expenses must all page (found ${calls.length})`);
   assert.ok(/\.range\(a, b\)/.test(src), "paging must actually use range()");
+
+  // STRONGER THAN A COUNT. A fixed count of 3 passed for the wrong reason the
+  // moment a fourth export branch was added: it failed on a legitimate
+  // addition and would have passed on an UNPAGED one that replaced an existing
+  // branch. The real rule is that EVERY read in this file is paged, so a new
+  // branch cannot quietly stop at 1000 rows.
+  const unpaged = [];
+  for (const chunk of src.split(/supabase\s*\.\s*from\(/).slice(1)) {
+    const statement = chunk.split(";")[0];
+    if (!/\.select\(/.test(statement)) continue;                    // not a read at all
+    if (/\.(insert|upsert|update|delete)\(/.test(statement)) continue; // a write; its .select() returns the new row
+    if (/count:\s*"exact"/.test(statement)) continue;                // a head count returns no rows
+    if (!/\.range\(a, b\)/.test(statement)) unpaged.push(statement.split("\n")[0].trim().slice(0, 70));
+  }
+  assert.deepEqual(unpaged, [], `these reads are not paged and will silently truncate:\n  ${unpaged.join("\n  ")}`);
 });
 
 test("payments are filtered in SQL, not in JavaScript", () => {

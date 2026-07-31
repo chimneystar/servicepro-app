@@ -18,6 +18,16 @@ import {
 } from "@/lib/core/outreach.mjs";
 // @ts-ignore -- shared JS module
 import { escapeHtml } from "@/lib/core/security.mjs";
+// @ts-ignore -- shared JS module, proven both ways in tests/statements.test.mjs
+import { dunningMessage, nextDunningStage } from "@/lib/core/statements.mjs";
+// @ts-ignore -- shared JS module, proven both ways in tests/scheduled-reports.test.mjs
+import { digestTotals, isDigestDue, renderDigest } from "@/lib/core/digest.mjs";
+import { loadStatementForCron } from "@/lib/statements";
+import { staffContact } from "@/lib/notify";
+// @ts-ignore -- shared JS module
+import { COLLECTED_STATUSES } from "@/lib/core/reporting.mjs";
+// @ts-ignore -- shared JS module
+import { formatMoney } from "@/lib/core/money.mjs";
 
 const dayISO = (offset = 0) => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toISOString().slice(0, 10); };
 
@@ -666,6 +676,350 @@ export async function runGrowthOutreach(): Promise<OutreachSummary> {
       summary.followupsSent++;
     } catch (e: unknown) {
       await release(errorText(e));
+    }
+  }
+
+  return summary;
+}
+
+// =====================================================================
+//  Structured dunning (ledger 6c.6).
+//
+//  WHAT WAS THERE: `runReminders` above sends ONE overdue SMS per unpaid
+//  invoice, at most weekly, for ever. Day 15 and day 400 get the identical
+//  message at the identical volume, and there is no terminal state — a business
+//  keeps texting somebody it has already written off.
+//
+//  WHAT THIS ADDS: a four-rung ladder that escalates, changes channel, and
+//  STOPS. `nextDunningStage` returns the HIGHEST rung the invoice's age has
+//  earned, so switching this on against a book of year-old invoices sends one
+//  final notice each rather than four nightly messages. `dunning_events` is the
+//  claim (unique per invoice+stage), so a rung fires exactly once.
+//
+//  The weekly nudge is NOT removed. It stays exactly as it was for businesses
+//  that never enable this; the two are kept apart by `organizations.dunning_enabled`
+//  being absent — see the note below on why this is opt-in through the schedule
+//  screen rather than switched on for everybody.
+// =====================================================================
+
+export type DunningSummary = {
+  invoices: number; sent: number; skipped: number; failed: number;
+  providerMissing: number; flagDisabled: number;
+};
+
+/** Bound on invoices examined per organisation per night. */
+const DUNNING_SCAN_LIMIT = 500;
+
+/**
+ * Walk every open invoice and fire at most one dunning rung against each.
+ *
+ * Claim → attempt → release-as-retryable, exactly as the automation runner
+ * does. A consent refusal is TERMINAL and recorded with its reason; a provider
+ * failure is left as `failed` with its message and re-claimed by compare-and-set
+ * on a later night, up to AUTOMATION_MAX_ATTEMPTS.
+ */
+export async function runDunning(): Promise<DunningSummary> {
+  const admin = createAdminClient();
+  const enabledFor = await featureFlagEvaluator("growth_outreach");
+  const nameOf = orgNames(admin);
+  const today = dayISO(0);
+  const origin = appOrigin();
+  const summary: DunningSummary = {
+    invoices: 0, sent: 0, skipped: 0, failed: 0, providerMissing: 0, flagDisabled: 0,
+  };
+
+  const { data: invoices } = await admin.from("invoices")
+    .select(`id, number, organization_id, issue_date, total_minor, public_token, customer_id, customers(${CUSTOMER_CONTACT})`)
+    .eq("status", "unpaid").is("deleted_at", null)
+    .lte("issue_date", isoDaysBefore(today, 7))
+    .order("issue_date", { ascending: true }).limit(DUNNING_SCAN_LIMIT);
+
+  const orgCurrency = new Map<string, string>();
+  const currencyOf = async (organizationId: string): Promise<string> => {
+    const hit = orgCurrency.get(organizationId);
+    if (hit !== undefined) return hit;
+    const { data } = await admin.from("organizations").select("currency").eq("id", organizationId).maybeSingle();
+    const currency = data?.currency ?? "USD";
+    orgCurrency.set(organizationId, currency);
+    return currency;
+  };
+
+  for (const invoice of invoices ?? []) {
+    if (!enabledFor(invoice.organization_id)) { summary.flagDisabled++; continue; }
+
+    // Outstanding is the invoice total net of settled payments, so a partly
+    // paid invoice is dunned for what is left and a fully paid one is not
+    // dunned at all even if its status was never flipped.
+    const { data: paid } = await admin.from("payments")
+      .select("base_amount_minor, amount_minor, refunded_minor, normalized_status")
+      .eq("invoice_id", invoice.id).in("normalized_status", COLLECTED_STATUSES);
+    const collected = (paid ?? []).reduce(
+      (sum: number, row: any) => sum + Math.max(0, Number(row.base_amount_minor ?? row.amount_minor ?? 0) - Number(row.refunded_minor ?? 0)),
+      0,
+    );
+    const outstanding = Number(invoice.total_minor ?? 0) - collected;
+    if (outstanding <= 0) continue;
+
+    const ageDays = Math.round(
+      (new Date(`${today}T00:00:00.000Z`).getTime() - new Date(`${String(invoice.issue_date).slice(0, 10)}T00:00:00.000Z`).getTime()) / 86400000,
+    );
+
+    const { data: history } = await admin.from("dunning_events")
+      .select("stage, status, attempts, id").eq("invoice_id", invoice.id);
+    // Only a rung that actually WENT OUT (or was terminally skipped) counts as
+    // sent. A rung left 'failed' must remain retryable.
+    const done = (history ?? []).filter((row: any) => row.status === "sent" || row.status === "skipped").map((row: any) => row.stage);
+    const rung = nextDunningStage({ ageDays, outstandingMinor: outstanding }, done) as { stage: string; channel: "sms" | "email" } | null;
+    if (!rung) continue;
+    summary.invoices++;
+
+    const ready = rung.channel === "sms" ? providers.sms() : providers.email();
+    if (!ready) {
+      // Checked BEFORE the claim: claiming and failing would burn the retry
+      // budget every night and permanently skip the rung the week the business
+      // finally connects a provider.
+      summary.providerMissing++;
+      continue;
+    }
+
+    const existing = (history ?? []).find((row: any) => row.stage === rung.stage);
+    let eventId: string | null = null;
+    if (!existing) {
+      const { data: claimed, error: claimError } = await admin.from("dunning_events").insert({
+        organization_id: invoice.organization_id, invoice_id: invoice.id,
+        customer_id: invoice.customer_id ?? null, stage: rung.stage, channel: rung.channel,
+        status: "running", attempts: 1, age_days: ageDays, outstanding_minor: outstanding,
+      }).select("id").maybeSingle();
+      if (claimError) {
+        if (!isUniqueViolation(claimError)) console.error(`[cron] could not claim dunning ${rung.stage} for invoice ${invoice.id}:`, claimError.message);
+        continue;
+      }
+      eventId = claimed?.id ?? null;
+    } else {
+      if (String(existing.status) !== "failed") continue;
+      if (Number(existing.attempts ?? 0) >= AUTOMATION_MAX_ATTEMPTS) continue;
+      // Compare-and-set: only the worker that flips 'failed' → 'running' owns it.
+      const { data: retried } = await admin.from("dunning_events")
+        .update({ status: "running", attempts: Number(existing.attempts ?? 0) + 1, reason: null, finished_at: null })
+        .eq("id", existing.id).eq("status", "failed").select("id").maybeSingle();
+      if (!retried) continue;
+      eventId = retried.id;
+    }
+    if (!eventId) continue;
+
+    const customer: any = (invoice as any).customers;
+    const eligibility = contactEligibility(customer, rung.channel);
+    if (!eligibility.ok) {
+      // Consent refusal is TERMINAL and named. A customer who replied STOP must
+      // never receive the next rung, and "we chose not to" must be readable.
+      summary.skipped++;
+      await admin.from("dunning_events")
+        .update({ status: "skipped", reason: eligibility.reason, finished_at: new Date().toISOString() })
+        .eq("id", eventId);
+      continue;
+    }
+
+    try {
+      const businessName = await nameOf(invoice.organization_id);
+      const currency = await currencyOf(invoice.organization_id);
+      const statement = await loadStatementForCron(admin, String(invoice.customer_id), today);
+      const message = dunningMessage({
+        stage: rung.stage,
+        firstName: String(customer?.name ?? "").split(" ")[0] ?? "",
+        businessName, invoiceNumber: String(invoice.number ?? ""),
+        amountLabel: formatMoney(outstanding, { currency }) as string,
+        balanceLabel: formatMoney(statement?.balanceMinor ?? outstanding, { currency }) as string,
+        link: origin && invoice.public_token ? `${origin}/p/${invoice.public_token}` : "",
+      }) as { subject: string; body: string };
+
+      await deliver(admin, {
+        organizationId: invoice.organization_id, channel: rung.channel, to: eligibility.to,
+        body: message.body, subject: message.subject,
+        customerId: invoice.customer_id ?? null, relatedType: `dunning_${rung.stage}`, relatedId: invoice.id,
+      });
+      summary.sent++;
+      await admin.from("dunning_events")
+        .update({ status: "sent", finished_at: new Date().toISOString() }).eq("id", eventId);
+    } catch (e: unknown) {
+      // RELEASE as retryable. A swallowed send is indistinguishable from a
+      // successful one; this is neither.
+      summary.failed++;
+      const reason = errorText(e);
+      await admin.from("dunning_events")
+        .update({ status: "failed", reason, finished_at: new Date().toISOString() }).eq("id", eventId);
+      console.error(`[cron] dunning ${rung.stage} for invoice ${invoice.id} failed:`, reason);
+    }
+  }
+
+  return summary;
+}
+
+// =====================================================================
+//  Scheduled / emailed reports (ledger 6c.9).
+//
+//  Every number in this product required somebody to log in and look at it.
+//
+//  THE ONE RULE: the revenue arithmetic comes from lib/core/reporting.mjs
+//  through `digestTotals`, which is a pass-through to `periodTotals`. Three
+//  screens each grew their own inline copy and all three were wrong in the same
+//  two ways; a fourth copy in an email nobody cross-checks would be the worst,
+//  because a wrong figure in an inbox is trusted and never reconciled.
+// =====================================================================
+
+export type ReportRunSummary = {
+  schedules: number; sent: number; recipients: number; skipped: number; failed: number; providerMissing: number;
+};
+
+export async function runScheduledReports(): Promise<ReportRunSummary> {
+  const admin = createAdminClient();
+  const nameOf = orgNames(admin);
+  const today = dayISO(0);
+  const origin = appOrigin();
+  const summary: ReportRunSummary = {
+    schedules: 0, sent: 0, recipients: 0, skipped: 0, failed: 0, providerMissing: 0,
+  };
+
+  const { data: schedules } = await admin.from("report_schedules")
+    .select("id, organization_id, name, frequency, enabled, recipient_profile_ids, starts_on, last_period_key")
+    .eq("enabled", true).limit(500);
+
+  for (const schedule of schedules ?? []) {
+    const due = isDigestDue(schedule, today) as { due: boolean; reason: string; period?: { start: string; end: string; label: string; key: string } };
+    if (!due.due || !due.period) continue;
+    const period = due.period;
+
+    if (!providers.email()) {
+      // Not claimed: the schedule stays due so it goes out the day an email
+      // provider is connected, rather than being burned tonight.
+      summary.providerMissing++;
+      console.warn(`[cron] report schedule ${schedule.id} needs an email provider that is not configured; left due`);
+      continue;
+    }
+
+    // CLAIM the period. The unique (schedule_id, period_key) makes the insert
+    // the arbiter between concurrent runs, so a cron that fires twice sends one
+    // digest and a week-long outage produces one catch-up, not seven.
+    const { data: claimed, error: claimError } = await admin.from("report_deliveries").insert({
+      organization_id: schedule.organization_id, schedule_id: schedule.id,
+      period_key: period.key, period_start: period.start, period_end: period.end,
+      status: "running", attempts: 1,
+    }).select("id").maybeSingle();
+    if (claimError) {
+      if (!isUniqueViolation(claimError)) console.error(`[cron] could not claim report ${schedule.id}:`, claimError.message);
+      continue;
+    }
+    const deliveryId = claimed?.id ?? null;
+    if (!deliveryId) continue;
+    summary.schedules++;
+
+    try {
+      const organizationId = schedule.organization_id;
+      const [{ data: org }, { data: invoices }, { data: payments }, { data: expenses }, { data: open }] = await Promise.all([
+        admin.from("organizations").select("currency, locale").eq("id", organizationId).maybeSingle(),
+        admin.from("invoices").select("id, total_minor, discount_minor, tax_rate_bps, issue_date")
+          .eq("organization_id", organizationId).eq("status", "paid").is("deleted_at", null)
+          .gte("issue_date", period.start).lte("issue_date", period.end).limit(2000),
+        admin.from("payments").select("invoice_id, base_amount_minor, amount_minor, refunded_minor, normalized_status")
+          .eq("organization_id", organizationId).in("normalized_status", COLLECTED_STATUSES)
+          .gte("paid_at", `${period.start}T00:00:00`).lte("paid_at", `${period.end}T23:59:59`).limit(5000),
+        admin.from("expenses").select("amount_minor").eq("organization_id", organizationId)
+          .gte("expense_date", period.start).lte("expense_date", period.end).limit(2000),
+        admin.from("invoices").select("total_minor").eq("organization_id", organizationId)
+          .eq("status", "unpaid").is("deleted_at", null).limit(2000),
+      ]);
+
+      const invoiceIds = (invoices ?? []).map((row: any) => row.id);
+      const { data: items } = invoiceIds.length
+        ? await admin.from("invoice_items").select("invoice_id, qty_milli, unit_price_minor, cost_minor, taxable").in("invoice_id", invoiceIds).limit(10000)
+        : { data: [] as any[] };
+      const itemsByInvoice: Record<string, any[]> = {};
+      for (const item of items ?? []) (itemsByInvoice[item.invoice_id] ||= []).push(item);
+
+      const currency = org?.currency ?? "USD";
+      const locale: "en" | "he" = org?.locale === "he" ? "he" : "en";
+      const totals = digestTotals({
+        payments: payments ?? [],
+        invoices: invoices ?? [],
+        itemsByInvoice,
+        expensesMinor: (expenses ?? []).reduce((sum: number, row: any) => sum + Number(row.amount_minor ?? 0), 0),
+      });
+
+      const { count: jobsCompleted } = await admin.from("jobs")
+        .select("id", { count: "exact", head: true }).eq("organization_id", organizationId)
+        .eq("status", "done").is("deleted_at", null)
+        .gte("scheduled_date", period.start).lte("scheduled_date", period.end);
+
+      const digest = renderDigest({
+        totals, period, locale,
+        orgName: await nameOf(organizationId),
+        format: (minor: number) => formatMoney(minor, { currency }) as string,
+        reportUrl: origin ? `${origin}/reports` : "",
+        counts: {
+          openInvoices: (open ?? []).length,
+          outstandingMinor: (open ?? []).reduce((sum: number, row: any) => sum + Number(row.total_minor ?? 0), 0),
+          jobsCompleted: jobsCompleted ?? 0,
+        },
+      }) as { subject: string; body: string };
+
+      const ids: string[] = Array.isArray(schedule.recipient_profile_ids) ? schedule.recipient_profile_ids.map(String) : [];
+      const { data: recipients } = ids.length
+        ? await admin.from("profiles").select("id, active, notify_email, notify_email_opt_in").in("id", ids).eq("organization_id", organizationId)
+        : { data: [] as any[] };
+
+      let sent = 0;
+      const problems: string[] = [];
+      for (const profile of recipients ?? []) {
+        // The SAME shared opt-out rule, so a teammate who turned alerts off is
+        // skipped WITH a reason rather than mailed anyway. `staffContact`
+        // resolves the address, because `profiles` has no email column — the
+        // login address lives in auth.users.
+        const eligibility = await staffContact(admin, profile);
+        if (!eligibility.ok) { summary.skipped++; problems.push(`${profile.id}: ${eligibility.reason}`); continue; }
+        try {
+          await deliver(admin, {
+            organizationId, channel: "email", to: eligibility.to!,
+            body: digest.body, subject: digest.subject,
+            relatedType: "report_digest", relatedId: schedule.id,
+          });
+          sent++;
+        } catch (e: unknown) {
+          problems.push(`${profile.id}: ${errorText(e)}`);
+        }
+      }
+
+      if (!ids.length) problems.push("no recipients configured");
+
+      // A digest that reached NOBODY is a failure, and the period claim is
+      // released so it can be retried — otherwise the schedule would look sent.
+      if (sent === 0) {
+        await admin.from("report_deliveries")
+          .update({ status: "failed", reason: problems.join("; ").slice(0, 500) || "nobody was reached", recipients: 0, finished_at: new Date().toISOString() })
+          .eq("id", deliveryId);
+        await admin.from("report_schedules")
+          .update({ last_run_at: new Date().toISOString(), last_error: problems.join("; ").slice(0, 500) || "nobody was reached" })
+          .eq("id", schedule.id);
+        summary.failed++;
+        console.error(`[cron] report schedule ${schedule.id} reached nobody:`, problems.join("; "));
+        continue;
+      }
+
+      await admin.from("report_deliveries")
+        .update({ status: "sent", recipients: sent, reason: problems.length ? problems.join("; ").slice(0, 500) : null, finished_at: new Date().toISOString() })
+        .eq("id", deliveryId);
+      // Only NOW is the period marked claimed on the schedule, so a failure
+      // above leaves it due rather than silently consumed.
+      await admin.from("report_schedules")
+        .update({ last_period_key: period.key, last_run_at: new Date().toISOString(), last_error: problems.length ? problems.join("; ").slice(0, 500) : null })
+        .eq("id", schedule.id);
+      summary.sent++;
+      summary.recipients += sent;
+    } catch (e: unknown) {
+      summary.failed++;
+      const reason = errorText(e);
+      await admin.from("report_deliveries")
+        .update({ status: "failed", reason, finished_at: new Date().toISOString() }).eq("id", deliveryId);
+      await admin.from("report_schedules").update({ last_error: reason, last_run_at: new Date().toISOString() }).eq("id", schedule.id);
+      console.error(`[cron] report schedule ${schedule.id} failed:`, reason);
     }
   }
 

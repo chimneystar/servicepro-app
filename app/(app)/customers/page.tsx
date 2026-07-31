@@ -5,12 +5,13 @@ import { t } from "@/lib/i18n";
 import Link from "next/link";
 import CustomerForm from "./CustomerForm";
 import CustomerList, { type Cust } from "@/components/CustomerList";
+import CustomerBulkBar from "./CustomerBulkBar";
 
 export const dynamic = "force-dynamic";
 
 export default async function CustomersPage({ searchParams }: { searchParams: Promise<{ new?: string }> }) {
   const search = await searchParams;
-  await requireProfile();
+  const profile = await requireProfile();
   const locale = (await getLocale());
   const supabase = await createClient();
   const { data: customers } = await supabase
@@ -29,6 +30,12 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
           <CustomerForm locale={locale} initialOpen={search.new === "1"} />
         </div>
       </div>
+
+      {/* Ledger 6c.10 + 6c.6 — multi-select, bulk statements and bulk opt-out.
+          Owner/office only, matching the actions' own guard. */}
+      {profile.role !== "tech" && (customers ?? []).length > 0 && (
+        <CustomerBulkBar rows={(customers ?? []).map((c) => ({ id: c.id, label: c.name }))} />
+      )}
 
       <CustomerList customers={(customers ?? []) as Cust[]} emptyText={t(locale, "cust.empty")} />
     </div>
