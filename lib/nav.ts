@@ -37,3 +37,30 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/settings/privacy", key: "nav.privacy", icon: "🛡", roles: ["owner"], group: "tools" },
   { href: "/appearance", key: "nav.appearance", icon: "◐", roles: ["owner", "office", "tech"], group: "tools" },
 ];
+
+/** How many destinations fit in the mobile tab bar beside the "More" tab. */
+export const MOBILE_TAB_SLOTS = 4;
+
+/**
+ * Split a member's navigation into the mobile tab bar and everything else.
+ *
+ * THE BUG THIS EXISTS FOR: the tab bar rendered `bottomItems.slice(0, 4)` and
+ * `/more` rendered `!item.bottom`. Six items are marked `bottom`, so for an
+ * owner the fifth and sixth — INVOICES among them — were dropped by the slice
+ * and then excluded by /more for being `bottom`. Invoices was unreachable on a
+ * phone entirely: not in the tab bar, not in More, no link anywhere.
+ *
+ * The cause is that two files each decided the split independently, using
+ * different rules. They now call this, so an item can never fall through the gap
+ * between them again.
+ */
+export function splitNavigation(items: NavItem[]): { tabs: NavItem[]; more: NavItem[] } {
+  const bottom = items.filter((item) => item.bottom);
+  const rest = items.filter((item) => !item.bottom);
+
+  // Everything that does not fit in the tab bar overflows into More — including
+  // `bottom` items. Nothing is dropped by either side.
+  const tabs = bottom.slice(0, MOBILE_TAB_SLOTS);
+  const overflow = bottom.slice(MOBILE_TAB_SLOTS);
+  return { tabs, more: [...overflow, ...rest] };
+}

@@ -1,7 +1,7 @@
 import { loadCapabilities, requireProfile } from "@/lib/auth";
 import { getLocale } from "@/lib/locale-server";
 import { t } from "@/lib/i18n";
-import { NAV_ITEMS } from "@/lib/nav";
+import { NAV_ITEMS, splitNavigation } from "@/lib/nav";
 import Link from "next/link";
 import { isPlatformAdmin } from "@/lib/platform-admin";
 
@@ -11,7 +11,10 @@ export default async function MorePage() {
   const profile = await requireProfile();
   const locale = (await getLocale());
   const [capabilitySet, platformAdmin] = await Promise.all([loadCapabilities(profile), profile.role === "owner" ? isPlatformAdmin(profile.id) : Promise.resolve(false)]);
-  const items = NAV_ITEMS.filter((i) => i.roles.includes(profile.role) && !i.bottom && (!i.capability || capabilitySet.has(i.capability)) && (!i.platformOnly || platformAdmin));
+  // Same split as the tab bar. Filtering on `!i.bottom` here is what hid the
+  // overflow: an item the tab bar had already dropped was excluded again.
+  const mine = NAV_ITEMS.filter((i) => i.roles.includes(profile.role) && (!i.capability || capabilitySet.has(i.capability)) && (!i.platformOnly || platformAdmin));
+  const items = splitNavigation(mine).more;
 
   return (
     <div>

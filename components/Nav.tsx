@@ -6,7 +6,7 @@ import LanguageToggle from "@/components/LanguageToggle";
 import MobileTabs from "@/components/MobileTabs";
 import SidebarTools from "@/components/SidebarTools";
 import NavLink from "@/components/NavLink";
-import { NAV_ITEMS } from "@/lib/nav";
+import { NAV_ITEMS, splitNavigation } from "@/lib/nav";
 import type { CapabilityKey } from "@/lib/auth";
 import Link from "next/link";
 import AppIcon from "@/components/AppIcon";
@@ -24,9 +24,13 @@ export default function Nav({ role, businessName, locale, capabilities, platform
   const mine = NAV_ITEMS.filter((item) => item.roles.includes(role) && (!item.capability || allowed.has(item.capability)) && (!item.platformOnly || platformAdmin));
   const primary = mine.filter((item) => item.group !== "tools");
   const tools = mine.filter((item) => item.group === "tools").map((item) => ({ href: item.href, label: t(locale, item.key), icon: item.icon }));
-  const bottomItems = mine.filter((item) => item.bottom).map((item) => ({ href: item.href, label: t(locale, item.key), icon: item.icon }));
-  const hasMore = mine.some((item) => !item.bottom);
-  const tabItems = hasMore ? [...bottomItems.slice(0, 4), { href: "/more", label: t(locale, "nav.more"), icon: "⋯" }] : bottomItems.slice(0, 5);
+  // One shared split, so the tab bar and /more cannot disagree about who owns an
+  // item. They used to, and Invoices fell through the gap on mobile.
+  const { tabs, more } = splitNavigation(mine);
+  const bottomItems = tabs.map((item) => ({ href: item.href, label: t(locale, item.key), icon: item.icon }));
+  const tabItems = more.length > 0
+    ? [...bottomItems, { href: "/more", label: t(locale, "nav.more"), icon: "⋯" }]
+    : bottomItems;
 
   return (
     <>
