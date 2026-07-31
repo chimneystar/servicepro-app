@@ -185,19 +185,33 @@ for each row execute function public.guard_job_field_authority();
 -- ---------------------------------------------------------------------
 -- 4. job_time_entries: a technician owns only their own timesheet.
 -- ---------------------------------------------------------------------
+-- CRITICAL: the ORIGINAL policies are named time_entries_select and
+-- time_entries_write (db/009_v11.sql:94-98) — NOT job_time_entries_*. An earlier
+-- version of this migration dropped the wrong names, so those two survived.
+--
+-- RLS policies are PERMISSIVE and OR'd together, so a narrower policy added
+-- beside a broader one restricts NOTHING. The org-only pair from 009 kept
+-- granting every technician read and write access to every colleague's
+-- timesheet, while this section looked like it had fixed it. A policy that is
+-- added but not replacing anything is decoration.
 do $$
 begin
   if to_regclass('public.job_time_entries') is null then return; end if;
 
+  -- The real names from migration 009. These are the ones that matter.
+  execute 'drop policy if exists time_entries_select on public.job_time_entries';
+  execute 'drop policy if exists time_entries_write on public.job_time_entries';
+  -- Defensive: names this migration may have created on a previous run.
   execute 'drop policy if exists job_time_entries_select on public.job_time_entries';
+  execute 'drop policy if exists job_time_entries_write on public.job_time_entries';
+  execute 'drop policy if exists job_time_entries_rw on public.job_time_entries';
+
   execute $p$
     create policy job_time_entries_select on public.job_time_entries for select to authenticated
       using (organization_id = public.current_org_id()
              and (public.current_user_role() in ('owner','office') or user_id = auth.uid()))
   $p$;
 
-  execute 'drop policy if exists job_time_entries_write on public.job_time_entries';
-  execute 'drop policy if exists job_time_entries_rw on public.job_time_entries';
   execute $p$
     create policy job_time_entries_write on public.job_time_entries for all to authenticated
       using (organization_id = public.current_org_id()

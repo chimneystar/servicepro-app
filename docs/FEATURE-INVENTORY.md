@@ -9,7 +9,10 @@ so that no functionality is silently lost — whether the codebase is repaired i
 - **STUB** — the UI, setting or table exists but nothing executes behind it. **These are the items
   most likely to be mistaken for working features.**
 
-Counts: **~190 capabilities — 138 REAL, 33 PARTIAL, 19 STUB.**
+**~190 capabilities.** The status column on each row is the authority — a headline count here
+would be derived by pattern-matching and would not survive rewording, so it is deliberately not
+quoted. _Last reconciled 2026-07-31 against branch `fix/production-hardening`; rows are updated
+as fixes land. See `docs/REMEDIATION-PLAN.md` for what is still open._
 
 ---
 
@@ -22,7 +25,7 @@ Counts: **~190 capabilities — 138 REAL, 33 PARTIAL, 19 STUB.**
 | Inline "new customer" while booking a job | `/schedule` | owner/office | REAL |
 | Job-type defaults (duration auto-fills end time, default price) | JobForm | owner/office | REAL |
 | Multi-day jobs (`end_date`) | `/schedule` | owner/office | PARTIAL — honoured by dispatch, but the calendar renders the job only on its start date |
-| Double-booking prevention | DB exclusion constraint | — | REAL at DB level; surfaced as a clear message only on create, not on dispatch reassignment |
+| Double-booking prevention | DB exclusion constraint | — | REAL — enforced by DB constraint for the lead technician AND for crew (migration 028); the conflict is surfaced clearly on create and on dispatch reassignment |
 | Job detail with 11 tabs (details, items, payments, estimates, invoices, attachments, history, warranty, tasks, equipment, checklists) | `/jobs/[id]` | owner/office/tech | REAL |
 | Change job stage (+ legacy enum sync, `stage_changed_at`) | `/jobs/[id]` | owner/office/tech | REAL — but no role check and no transition guard |
 | Create invoice from job (line items or fallback, real numbering) | `/jobs/[id]` | owner/office | REAL |
@@ -40,7 +43,7 @@ Counts: **~190 capabilities — 138 REAL, 33 PARTIAL, 19 STUB.**
 | Add note / follow-up task with due date and assignee | `/jobs/[id]` | owner/office/tech | REAL — techs may only add notes and complete their own |
 | Job completion report + print to PDF | `/jobs/[id]/report` | all + customer | REAL |
 | "On my way" timestamp + customer SMS | `/tech`, `/jobs/[id]` | tech | PARTIAL — SMS only fires if Twilio is configured *and* an enabled template exists |
-| Clock in / clock out, total hours on job | `/jobs/[id]` | tech | PARTIAL — no DB guard against duplicate open entries; a double-click double-counts hours |
+| Clock in / clock out, total hours on job | `/jobs/[id]` | tech | REAL — a unique index on open entries makes a duplicate clock-in impossible; a second click is treated as already clocked in |
 | Complete job with canvas signature and signer name | `/jobs/[id]` | tech + customer | REAL |
 | Job tags editor | `/jobs/[id]` | owner/office | REAL |
 | Job expenses (feeds commission) | `/jobs/[id]` | owner/office | REAL |
@@ -51,10 +54,10 @@ Counts: **~190 capabilities — 138 REAL, 33 PARTIAL, 19 STUB.**
 |---|---|---|---|
 | Calendar — day / week / month, job-type colours | `/schedule` | owner/office | PARTIAL — loads **every** job in the org with no date filter or limit |
 | Dispatch board — drag a job between technician columns | `/dispatch` | owner/office | REAL — validates the target is in the org, optimistic UI with rollback |
-| Add / remove extra crew on a job | `/dispatch` | owner/office | PARTIAL — reassigning a lead leaves the previous lead's assignment row behind |
+| Add / remove extra crew on a job | `/dispatch` | owner/office | REAL — reassigning removes the previous lead's row, and unassigning clears it |
 | Dispatch date navigation | `/dispatch` | owner/office | REAL |
 | Technician workspace — today + upcoming, start/complete | `/tech` | tech | REAL |
-| Offline outbox — queue start/complete, auto-flush on reconnect, pending badge | `/tech`, `/offline` | tech | PARTIAL — rejected events are never dropped, so the badge can stick forever; completing offline never closes the timer |
+| Offline outbox — queue start/complete, auto-flush on reconnect, pending badge | `/tech`, `/offline` | tech | REAL — completing offline closes the technician's open time entry; permanently-rejected events are dropped and reported instead of retrying forever |
 | Offline snapshot of today's jobs | `/offline` | tech | REAL |
 | Daily route sheet + one-click multi-stop Google Maps | `/route` | tech/office | REAL |
 | GPS location sharing with consent record | `/fleet`, `/tech` | tech | PARTIAL — consent row is written implicitly by the first location POST rather than by an explicit consent step |
@@ -78,8 +81,8 @@ Counts: **~190 capabilities — 138 REAL, 33 PARTIAL, 19 STUB.**
 | Tracked phone numbers (label, source, campaign, forward-to, recording) | `/calls` | owner | PARTIAL — create and update only; no deactivate or delete |
 | SMS inbox threads | `/messages` | owner/office | PARTIAL — fetches every message and every customer with no limit |
 | SMS thread view and send (Twilio, or hand off to the phone's SMS app) | `/messages/[phone]` | owner/office | REAL |
-| Inbound SMS webhook | `/api/sms/incoming` | customer | **PARTIAL / UNSAFE** — no signature validation and cross-tenant attribution (see audit §2.10) |
-| Global search across clients, jobs, invoice/estimate numbers | `/search` | owner/office | PARTIAL — jobs match on service text only, not customer name; documents match only an exact number |
+| Inbound SMS webhook | `/api/sms/incoming` | customer | REAL — Twilio signature validated; the tenant is resolved from the tracked number, and an unrecognised number is dropped rather than filed under an arbitrary business. Honours STOP/START |
+| Global search across clients, jobs, invoice/estimate numbers | `/search` | owner/office | PARTIAL — jobs now match on service text OR customer; documents still match only an exact number. Filter injection fixed |
 | Automatic review request on completion + manual "ask for review" | `/jobs/[id]` | owner/office | PARTIAL — needs a review URL configured; otherwise falls back to manual send |
 
 ## 4. Estimates, invoices and money
@@ -159,10 +162,10 @@ Counts: **~190 capabilities — 138 REAL, 33 PARTIAL, 19 STUB.**
 | Capability | Entry point | Users | State |
 |---|---|---|---|
 | Recurring maintenance plans CRUD | `/recurring` | owner/office | REAL |
-| "Generate N due" jobs and roll the schedule forward | `/recurring` | owner/office | PARTIAL — one interval per click, so an overdue plan stays overdue and repeated clicks duplicate jobs; generated jobs also pollute the dispatch board permanently |
-| Nightly recurring generation | daily cron | system | REAL (same `end_date` defect) |
-| Day-before appointment SMS reminders | daily cron | system | PARTIAL — marked sent before sending, so a provider failure suppresses them permanently |
-| Weekly overdue-invoice SMS nudges | daily cron | system | PARTIAL — same defect |
+| "Generate N due" jobs and roll the schedule forward | `/recurring` | owner/office | REAL — catches up past today in one pass, is idempotent per occurrence, and sets end_date so the dispatch board stays clean |
+| Nightly recurring generation | daily cron | system | REAL |
+| Day-before appointment SMS reminders | daily cron | system | REAL — the send is claimed first then released on failure, so a transient provider error can be retried; honours customer opt-out |
+| Weekly overdue-invoice SMS nudges | daily cron | system | REAL — same claim-then-release fix; honours opt-out |
 | Warranty coverage save (type, dates, terms) | `/jobs/[id]` | owner/office | REAL |
 | Report a warranty callback (issue, priority, responsibility) | `/jobs/[id]` | owner/office | REAL |
 | Schedule a return visit — creates a linked job | `/jobs/[id]` | owner/office | REAL — the RPC re-checks role and org, locks the row, and is idempotent |
