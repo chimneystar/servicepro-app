@@ -1003,6 +1003,53 @@ written.
 | 6.6 | Accessibility: label association (`htmlFor` is currently used **zero** times), focus visibility, dialog semantics, button types | TODO |
 | 6.7 | Consolidate overlapping tables (line items, assignment models, permission systems) | TODO |
 
+## STATE AT THE SESSION LIMIT — 2026-07-31, ~23:00 Asia/Jerusalem
+
+Read this first if you are picking this up cold.
+
+**Branch `fix/production-hardening`, 45 commits ahead of `main`. 883 tests
+passing, typecheck / lint / build all clean, working tree clean, no unmerged
+agent work outstanding.** Ledger: 71 done · 8 partial · 1 rejected · 16 open.
+
+### Stopped, not finished
+Three agents were dispatched on the owner's P0 UX findings and **all three died on
+the session limit having done nothing** (they had only read files). Their
+worktrees were empty and have been pruned. Nothing is half-applied — the tree is
+consistent.
+
+### The owner's bundle — `owner-needed-stuff/`
+He sent a complete LOCAL Supabase stack instead of credentials: all 21 migrations
+of `main`, a seed script creating owner/office/tech users, the isolation tests,
+and local mail capture. Scanned before committing — **no credential values**, only
+`process.env` reads and variable names.
+
+**It cannot be run here: Docker and the Supabase CLI are not installed on this
+machine.** That is now the single largest gap on this branch. Until it runs:
+* ledger 0.6 (the Postgres RLS proof) has NEVER executed;
+* every one of the 38 migrations is verified by inspection only;
+* no authenticated browser test has ever run.
+No number of passing unit tests closes any of those.
+
+### Outstanding from the owner's audit (verified real, NOT yet fixed)
+| # | Finding |
+|---|---|
+| A1 | Type scale inverted — 164 CSS rules under 12px, some at 7px; the dashboard greeting is 47px while the customer's name is 10px |
+| A2 | The "Larger text" toggle provably does nothing — it scales `rem`, and **0 of 384** font-size declarations use `rem` |
+| A3 | Expanding the sidebar "Tools" group renders all 11 destinations off-screen with no scroll affordance |
+| A5 | Hebrew customers see English service names; `name_he` is seeded from the English name and the sync trigger can never correct it |
+| A6 | Every business publishes the same hardcoded HVAC menu — a chimney sweep advertises "AC Install", while a bilingual chimney pack exists unused |
+
+A4 (Invoices unreachable on mobile) and B1 (`merchant_accounts` does not exist)
+were verified and FIXED — see commit `eea4048`.
+
+### Two things to raise with the owner
+1. The `MIGRATIONS.md` correction exists only on this unpushed branch, so anyone
+   building from `main` still builds a broken database. His point, and it stands.
+2. Production runs a migration from the unmerged branch
+   `feature/live-communications-payments` — 102 tables against `main`'s 97.
+   Confirm that branch is genuinely intended to merge before treating the drift
+   as harmless. `provider_webhook_events` has RLS on with **zero policies**.
+
 ## Session continuity
 
 **The watchdog is not reliable and must not be trusted as the wake signal.** It has died twice, both
