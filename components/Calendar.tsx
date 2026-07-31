@@ -1,6 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+// @ts-ignore — pure date-window arithmetic, unit-tested by node:test.
+import { visibleRange, covers } from "@/lib/core/query-window.mjs";
 
 export type CalJob = {
   id: string; title: string; service: string; status: string;
@@ -22,7 +25,12 @@ const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.get
 const startOfWeek = (d: Date) => addDays(d, -d.getDay());
 const minutes = (hhmm: string | null) => { if (!hhmm) return START_H * 60; const [h, m] = hhmm.split(":").map(Number); return h * 60 + m; };
 
-export default function Calendar({ jobs, he = false, typeColors = {} }: { jobs: CalJob[]; he?: boolean; typeColors?: Record<string, string> }) {
+export default function Calendar({ jobs, he = false, typeColors = {}, rangeFrom = "", rangeTo = "", truncated = false }: {
+  jobs: CalJob[]; he?: boolean; typeColors?: Record<string, string>;
+  /** The date window /schedule actually loaded. Empty means "unbounded". */
+  rangeFrom?: string; rangeTo?: string; truncated?: boolean;
+}) {
+  const router = useRouter();
   const [view, setView] = useState<"day" | "week" | "month">("week");
   // Initialize date-dependent state AFTER mount so server HTML (which has no
   // "now") and the client agree — avoids hydration mismatch (#418/#423).
@@ -35,6 +43,21 @@ export default function Calendar({ jobs, he = false, typeColors = {} }: { jobs: 
     if (typeof window !== "undefined" && window.innerWidth < 700) setView("day");
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  // The page no longer ships every job in the organisation, so paging out of
+  // the loaded window has to fetch the next one. Without this the user would
+  // page into an empty-looking month and believe the work had vanished.
+  //
+  // fetchWindow() pads a whole month either side of the anchor, and
+  // tests/query-window.test.mjs proves exhaustively that it contains every
+  // visibleRange() for that anchor — so this cannot loop.
+  const needed = cursor ? visibleRange(iso(cursor), view) : null;
+  const loaded = rangeFrom && rangeTo ? { from: rangeFrom, to: rangeTo } : null;
+  const outOfRange = !!(needed && loaded && !covers(loaded, needed));
+  useEffect(() => {
+    if (!outOfRange || !cursor) return;
+    router.replace(`/schedule?anchor=${iso(cursor)}`, { scroll: false });
+  }, [outOfRange, cursor, router]);
 
   if (!cursor) {
     return <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, boxShadow: "0 6px 18px rgba(15,42,94,.06)", padding: 24 }}>
@@ -74,6 +97,16 @@ export default function Calendar({ jobs, he = false, typeColors = {} }: { jobs: 
         </div>
       </div>
 
+      {outOfRange && (
+        <div style={notice}>{he ? "טוענים את התקופה הזאת…" : "Loading this period…"}</div>
+      )}
+      {truncated && !outOfRange && (
+        <div style={{ ...notice, background: "#fff7ed", borderColor: "#fed7aa", color: "#9a3412" }}>
+          {he
+            ? "יש כאן יותר עבודות ממה שאפשר להציג בבת אחת. אפשר לעבור לתצוגת שבוע או יום כדי לראות הכול."
+            : "This period has more jobs than can be shown at once. Switch to the week or day view to see them all."}
+        </div>
+      )}
       <div className="scroll-x">
         {view === "month" ? <MonthView cursor={cursor} jobs={jobs} today={today} he={he} typeColors={typeColors} />
           : <TimeGrid cursor={cursor} jobs={jobs} today={today} he={he} days={view === "day" ? 1 : 7} typeColors={typeColors} />}
@@ -162,7 +195,8 @@ function MonthView({ cursor, jobs, today, he, typeColors = {} }: { cursor: Date;
 
 const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 const fmtHour = (h: number, he: boolean) => he ? `${String(h).padStart(2, "0")}:00` : h === 12 ? "12 PM" : h > 12 ? `${h - 12} PM` : `${h} AM`;
-const navBtn: React.CSSProperties = { width: 30, height: 30, borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: 16, color: "#334155" };
+const notice: React.CSSProperties = { background: "#eef2f8", border: "1px solid #e2e8f0", color: "#334155", padding: "8px 14px", fontSize: 12.5, fontWeight: 600 };
+const navBtn: React.CSSProperties ={ width: 30, height: 30, borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: 16, color: "#334155" };
 const btnGhost: React.CSSProperties = { padding: "6px 12px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontWeight: 700, fontSize: 13 };
 const seg: React.CSSProperties = { border: "none", background: "transparent", padding: "6px 14px", borderRadius: 8, fontWeight: 700, fontSize: 13, color: "#5c6675", cursor: "pointer" };
 const segOn: React.CSSProperties = { background: "#fff", color: "#0b1524", boxShadow: "0 1px 3px rgba(0,0,0,.12)" };

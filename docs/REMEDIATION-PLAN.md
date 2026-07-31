@@ -113,10 +113,10 @@ silently stops running cannot go green.
 | 4.4 | `clockIn` race — DB uniqueness on open entries | DONE |
 | 4.5 | Dispatch reassignment: remove stale lead assignment; surface double-book conflict | DONE |
 | 4.6 | Search: parameterise the PostgREST `.or()` filter injection | DONE |
-| 4.7 | Pagination on `/jobs`, `/schedule`, `/messages`, dashboard, reports | TODO |
+| 4.7 | Pagination on `/jobs`, `/schedule`, `/messages`, dashboard (reports covered by 2.4/2.8) | DONE — dashboard money cards now read a rolling 12 months and are RELABELLED accordingly; see note |
 | 4.8 | Booking: timezone support **DONE**; polygon service areas **PARTIAL — see note below** | PARTIAL |
 | 4.9 | Reminders: mark sent AFTER send; allow retry | DONE |
-| 4.10 | Surface swallowed errors (26 discarding call sites, 21 void actions) | TODO |
+| 4.10 | Surface swallowed errors (25 discarding call sites across 18 components, 10 void actions) | DONE |
 | 4.11 | Crew assignment must respect the no-double-book constraint | DONE (migration `028_crew_double_book.sql` must be RUN — code assumes it) |
 
 **Note on 4.8 — why it is PARTIAL and not DONE.**
@@ -156,6 +156,32 @@ What did change is that the toggle stopped lying:
 
 To close 4.8 fully, a follow-up needs: a geocoder, lat/lng on the address, a
 polygon editor, and real coordinate storage. Until then this is PARTIAL.
+
+
+**4.7 — what was actually changed, and the one honest trade-off.** `/schedule` now loads the anchor
+month ±14 days and `components/Calendar.tsx` re-fetches when the user pages outside it (the
+containment invariant is proven exhaustively over eight years of dates in
+`tests/query-window.test.mjs`, so it can neither loop nor show a falsely empty month). `/messages`
+reads a page of recent messages and resolves customer names with a chunked SQL `or=` instead of the
+whole customers table; `/messages/[phone]` filters the thread in SQL. `/jobs` keeps a limit but now
+counts the real total at the database and says *"showing the 500 most recent of N"* with a Load more
+link. `logCall` matches the caller with `ilike` on a digit-only suffix and re-checks the normalized
+number — the old 1000-row scan was not merely slow, it was **wrong** past 1000 customers.
+
+The dashboard is the trade-off: it cannot show an all-time collected total without reading every
+invoice ever issued. It now reads a rolling 12 months (plus *all* open receivables and live
+estimates, regardless of age, so nothing outstanding falls off the edge) and the Collections and
+Sales cards are **relabelled** to say "last 12 months" instead of "all time". No card was removed;
+the figure is narrower and the label now matches it. The setup checklist still uses exact
+`count: exact, head: true` queries, because "have you ever created an estimate" must not be answered
+from a rolling window. If an all-time figure is wanted back, it needs a materialised total or
+PostgREST aggregates — not a wider `select`.
+
+**4.10 — 25 discarding call sites across 18 components**, plus the 10 `void` actions in
+`/operations` and `/growth`, which now return the `{ ok, error }` contract from
+`app/(app)/customers/actions.ts` and are rendered through `components/ActionForm.tsx`. Two
+success-shown-as-failure colour bugs went with them: `JobActions` inferred success from a leading
+`"✓"` that the success string never had, and `RecurringClient` painted its error banner green.
 
 ### Phase 5 — finish the half-built screens
 **SCOPE DECIDED 2026-07-31: every screen stays. Nothing is deleted; the unfinished third gets

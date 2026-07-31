@@ -32,11 +32,13 @@ export default function JobEquipment({ jobId, equipment }: { jobId: string; equi
               <div className="rtitle">{e.name}</div>
               <div className="rsub">{[e.serial ? `S/N ${e.serial}` : null, e.notes].filter(Boolean).join(" · ") || "—"}</div>
             </div>
-            <button onClick={() => start(async () => { await deleteEquipment(e.id, jobId); router.refresh(); })} disabled={pending} style={xBtn}>🗑️</button>
+            <button onClick={() => { setErr(null); start(async () => { const r = await deleteEquipment(e.id, jobId); if (!r.ok) setErr(r.error ?? (he ? "לא הצלחנו למחוק" : "Could not delete")); else router.refresh(); }); }} disabled={pending} style={xBtn}>🗑️</button>
           </div>
         ))}
         {equipment.length === 0 && <div className="rempty">{he ? "עוד לא נשמר ציוד אצל הלקוח." : "No equipment recorded."}</div>}
       </div>
+      {/* A failed delete used to leave the row on screen with no explanation. */}
+      {err && !adding && <div role="alert" style={errBox}>{err}</div>}
 
       {!adding && <button onClick={() => setAdding(true)} style={btn}>{he ? "הוספת ציוד" : "Add equipment"}</button>}
       {adding && (

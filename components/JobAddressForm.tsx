@@ -1,18 +1,20 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateJobAddress } from "@/app/(app)/jobs/[id]/actions";
 import { useAppLocale } from "@/components/LocaleProvider";
+import { ActionError, useActionStatus } from "@/components/ActionStatus";
 
 export default function JobAddressForm({ jobId, jobAddress, jobCity }: { jobId: string; jobAddress: string | null; jobCity: string | null }) {
   const router = useRouter();
   const he = useAppLocale() === "he";
   const [open, setOpen] = useState(false);
-  const [pending, start] = useTransition();
+  const { pending, error, run } = useActionStatus(he);
 
   function submit(formData: FormData) {
-    start(async () => { await updateJobAddress(jobId, formData); setOpen(false); router.refresh(); });
+    // The form used to close on failure too, taking the typed address with it.
+    run(() => updateJobAddress(jobId, formData), () => { setOpen(false); router.refresh(); });
   }
 
   if (!open) return <button onClick={() => setOpen(true)} style={link}>{he ? "עריכת כתובת העבודה" : "Edit job address"}</button>;
@@ -23,6 +25,7 @@ export default function JobAddressForm({ jobId, jobAddress, jobCity }: { jobId: 
         <input name="job_address" defaultValue={jobAddress ?? ""} placeholder={he ? "כתובת" : "Address"} style={inp} />
         <input name="job_city" defaultValue={jobCity ?? ""} placeholder={he ? "עיר" : "City"} style={inp} />
       </div>
+      <ActionError error={error} />
       <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
         <button type="submit" disabled={pending} style={btn}>{pending ? (he ? "שומרים…" : "Saving…") : (he ? "שמירה" : "Save")}</button>
         <button type="button" onClick={() => setOpen(false)} style={{ ...btn, background: "#e2e9f4", color: "#2563eb" }}>{he ? "ביטול" : "Cancel"}</button>

@@ -1,19 +1,22 @@
 "use client";
 
-import { useState, useRef, useTransition, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { setOnMyWay, clockIn, clockOut, completeJob } from "@/app/(app)/jobs/[id]/actions";
+import { ActionError, useActionStatus } from "@/components/ActionStatus";
 
 export default function JobFieldTools({ jobId, onMyWayAt, startedAt, completedAt, clockedIn, totalMinutes, signedBy }: {
   jobId: string; onMyWayAt: string | null; startedAt: string | null; completedAt: string | null;
   clockedIn: boolean; totalMinutes: number; signedBy: string | null;
 }) {
   const router = useRouter();
-  const [pending, start] = useTransition();
+  // A failed clock-in used to be indistinguishable from a successful one, so a
+  // technician could work a whole call with no time recorded against the job.
+  const { pending, error, run: perform } = useActionStatus();
   const [signOpen, setSignOpen] = useState(false);
   const done = !!completedAt;
 
-  const run = (fn: () => Promise<any>) => start(async () => { await fn(); router.refresh(); });
+  const run = (fn: () => Promise<any>) => perform(fn, () => router.refresh());
   const fmtTime = (iso: string | null) => iso ? new Date(iso).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : null;
 
   return (
@@ -38,6 +41,8 @@ export default function JobFieldTools({ jobId, onMyWayAt, startedAt, completedAt
         ? <button onClick={() => setSignOpen(true)} disabled={pending} style={{ ...b, width: "100%", background: "#fff", color: "#15803d" }}>✅ Complete job {startedAt ? "" : ""}</button>
         : <div style={{ background: "rgba(255,255,255,.12)", borderRadius: 10, padding: "10px 12px", fontSize: 13 }}>✓ Completed {fmtTime(completedAt)}{signedBy ? ` · signed by ${signedBy}` : ""}</div>}
 
+      <ActionError error={error} />
+
       {signOpen && <SignModal jobId={jobId} onClose={() => setSignOpen(false)} />}
     </div>
   );
@@ -45,7 +50,7 @@ export default function JobFieldTools({ jobId, onMyWayAt, startedAt, completedAt
 
 function SignModal({ jobId, onClose }: { jobId: string; onClose: () => void }) {
   const router = useRouter();
-  const [pending, start] = useTransition();
+  const { pending, error, run } = useActionStatus();
   const [name, setName] = useState("");
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawing = useRef(false);
@@ -69,7 +74,9 @@ function SignModal({ jobId, onClose }: { jobId: string; onClose: () => void }) {
 
   function save() {
     const sig = hasInk.current ? canvasRef.current!.toDataURL("image/png") : "";
-    start(async () => { await completeJob(jobId, sig, name); onClose(); router.refresh(); });
+    // The modal used to close regardless, discarding a captured signature that
+    // was never stored — the customer signs once and then it is gone.
+    run(() => completeJob(jobId, sig, name), () => { onClose(); router.refresh(); });
   }
 
   return (
@@ -89,6 +96,7 @@ function SignModal({ jobId, onClose }: { jobId: string; onClose: () => void }) {
           <button onClick={clear} type="button" style={{ ...b, background: "#eef2f8", color: "#2563eb" }}>Clear</button>
           <button onClick={onClose} type="button" style={{ ...b, background: "#e2e9f4", color: "#2563eb" }}>Cancel</button>
         </div>
+        <ActionError error={error} />
       </div>
     </div>
   );

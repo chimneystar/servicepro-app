@@ -24,10 +24,15 @@ export default function JobItems({ jobId, items, currency, canEdit }: { jobId: s
       if (!r.ok) setErr(r.error ?? (he ? "לא הצלחנו לשמור" : "Could not save")); else { setAdding(false); router.refresh(); }
     });
   }
-  function del(id: string) { start(async () => { await deleteJobItem(id, jobId); router.refresh(); }); }
+  function del(id: string) {
+    setErr(null);
+    start(async () => { const r = await deleteJobItem(id, jobId); if (!r.ok) setErr(r.error ?? (he ? "לא הצלחנו למחוק" : "Could not delete")); else router.refresh(); });
+  }
   function makeInvoice() {
     if (!confirm(he ? "ליצור חשבונית מהפריטים האלה?" : "Create an invoice from these items?")) return;
-    start(async () => { const r = await createInvoiceFromJob(jobId); if (r.ok) router.push("/invoices"); });
+    setErr(null);
+    // A refused conversion used to do nothing at all: no redirect, no message.
+    start(async () => { const r = await createInvoiceFromJob(jobId); if (!r.ok) setErr(r.error ?? (he ? "לא הצלחנו ליצור חשבונית" : "Could not create invoice")); else router.push("/invoices"); });
   }
 
   return (
@@ -45,6 +50,7 @@ export default function JobItems({ jobId, items, currency, canEdit }: { jobId: s
         ))}
         {items.length === 0 && <div className="rempty">{he ? "עוד אין פריטים." : "No items yet."}</div>}
       </div>
+      {err && !adding && <div role="alert" style={errBox}>{err}</div>}
 
       {items.length > 0 && (
         <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 4px", fontWeight: 800, fontSize: 16 }}>

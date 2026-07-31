@@ -6,7 +6,7 @@ import { getLocale } from "@/lib/locale-server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 // @ts-ignore - shared pure JavaScript is also exercised directly by Node tests.
-import { callNeedsFollowUp, normalizeUsPhone } from "@/lib/core/calls.mjs";
+import { callNeedsFollowUp, normalizeUsPhone, phoneSearchSuffix } from "@/lib/core/calls.mjs";
 
 export type ServiceRecordResult = { ok: boolean; error?: string; href?: string };
 
@@ -133,9 +133,19 @@ export async function logCall(data: FormData): Promise<ServiceRecordResult> {
     if (!job) return { ok: false, error: invalid(he) }; customerId = job.customer_id;
   }
   if (!customerId) {
+    // Narrow in SQL, confirm in JavaScript. This used to select up to 1000
+    // customers and scan them here, which stopped being correct the moment a
+    // business had more than 1000 customers: the right row could simply be
+    // outside the page the query returned, and the call was filed against
+    // nobody. See lib/core/calls.mjs#phoneSearchSuffix.
     const caller = direction === "inbound" ? fromNumber : toNumber;
-    const { data: customers } = await supabase.from("customers").select("id,phone").is("deleted_at", null).limit(1000);
-    customerId = (customers ?? []).find((row) => normalizeUsPhone(row.phone) === caller)?.id ?? null;
+    const suffix = phoneSearchSuffix(caller);
+    if (suffix) {
+      const { data: candidates } = await supabase
+        .from("customers").select("id,phone").is("deleted_at", null)
+        .ilike("phone", `%${suffix}`).limit(50);
+      customerId = (candidates ?? []).find((row) => normalizeUsPhone(row.phone) === caller)?.id ?? null;
+    }
   }
   const outcome = value(data, "outcome", 80);
   const { error } = await supabase.from("call_events").insert({

@@ -1,15 +1,20 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateCommission } from "@/app/(app)/reports/commission/actions";
+import { ActionError, useActionStatus } from "@/components/ActionStatus";
 
 export type TechRow = { profileId: string; name: string; pct: number; jobs: number; revenueMinor: number; expensesMinor: number };
 const SYM: Record<string, string> = { USD: "$", ILS: "₪", EUR: "€" };
 
 export default function CommissionClient({ rows, currency, canEditPct }: { rows: TechRow[]; currency: string; canEditPct: boolean }) {
   const router = useRouter();
-  const [pending, start] = useTransition();
+  // Saving a commission percentage that the database refused used to leave the
+  // new figure sitting in the input, so payroll was calculated from a number
+  // nobody had actually stored.
+  const { pending, error, run } = useActionStatus();
+  const [saved, setSaved] = useState<string | null>(null);
   const [ccFee, setCcFee] = useState("0");
   const [pcts, setPcts] = useState<Record<string, number>>(Object.fromEntries(rows.map((r) => [r.profileId, r.pct])));
   const cur = SYM[currency] ?? "$";
@@ -24,7 +29,10 @@ export default function CommissionClient({ rows, currency, canEditPct }: { rows:
   };
   const totalCommission = rows.reduce((s, r) => s + calc(r).commission, 0);
 
-  function savePct(id: string) { start(async () => { await updateCommission(id, pcts[id] ?? 0); router.refresh(); }); }
+  function savePct(id: string) {
+    setSaved(null);
+    run(() => updateCommission(id, pcts[id] ?? 0), () => { setSaved(id); setTimeout(() => setSaved(null), 1800); router.refresh(); });
+  }
   function exportCsv() {
     const esc = (v: any) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
     const lines = [["Technician", "Jobs", "Revenue", "Job costs", "CC fees", "Net", "Commission %", "Commission pay"].join(",")];
@@ -63,13 +71,14 @@ export default function CommissionClient({ rows, currency, canEditPct }: { rows:
                 <span style={{ fontSize: 13, color: "#5c6675", fontWeight: 600 }}>Commission</span>
                 <input type="number" value={pcts[r.profileId] ?? 0} disabled={!canEditPct} onChange={(e) => setPcts({ ...pcts, [r.profileId]: parseInt(e.target.value, 10) || 0 })} style={{ width: 70, border: "1px solid #e2e8f0", borderRadius: 8, padding: "7px 10px", fontSize: 15 }} />
                 <span style={{ fontSize: 13, color: "#5c6675" }}>%</span>
-                {canEditPct && <button onClick={() => savePct(r.profileId)} disabled={pending} style={{ background: "#eef2f8", color: "#2563eb", border: "none", borderRadius: 8, padding: "7px 12px", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>Save %</button>}
+                {canEditPct && <button onClick={() => savePct(r.profileId)} disabled={pending} style={{ background: "#eef2f8", color: "#2563eb", border: "none", borderRadius: 8, padding: "7px 12px", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>{saved === r.profileId ? "✓ Saved" : "Save %"}</button>}
               </div>
             </div>
           );
         })}
         {rows.length === 0 && <div className="rempty">No completed jobs with an assigned technician in this period.</div>}
       </div>
+      <ActionError error={error} />
       <p style={{ color: "#5c6675", fontSize: 12, marginTop: 12 }}>Net = job revenue − job costs (entered on each job) − credit-card fees. Commission = net × the technician’s %. Only jobs in a “Done” status count.</p>
     </div>
   );

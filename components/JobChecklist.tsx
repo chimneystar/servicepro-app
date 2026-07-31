@@ -1,24 +1,26 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { addChecklistItem, toggleChecklistItem, deleteChecklistItem } from "@/app/(app)/jobs/[id]/actions";
 import { useAppLocale } from "@/components/LocaleProvider";
+import { ActionError, useActionStatus } from "@/components/ActionStatus";
 
 export type Check = { id: string; label: string; checked: boolean };
 
 export default function JobChecklist({ jobId, items }: { jobId: string; items: Check[] }) {
   const router = useRouter();
   const he = useAppLocale() === "he";
-  const [pending, start] = useTransition();
+  const { pending, error, run } = useActionStatus(he);
   const [text, setText] = useState("");
   const done = items.filter((i) => i.checked).length;
   const pct = items.length ? Math.round((done / items.length) * 100) : 0;
 
   function add() {
     const v = text.trim(); if (!v) return;
-    setText("");
-    start(async () => { await addChecklistItem(jobId, v); router.refresh(); });
+    // The box is cleared only once the row is actually stored, so a rejected
+    // write does not also throw away what the technician typed.
+    run(() => addChecklistItem(jobId, v), () => { setText(""); router.refresh(); });
   }
 
   return (
@@ -36,13 +38,14 @@ export default function JobChecklist({ jobId, items }: { jobId: string; items: C
       <div style={{ display: "grid", gap: 8 }}>
         {items.map((it) => (
           <div key={it.id} style={row}>
-            <input type="checkbox" checked={it.checked} onChange={() => start(async () => { await toggleChecklistItem(it.id, !it.checked, jobId); router.refresh(); })} style={{ width: 20, height: 20 }} />
+            <input type="checkbox" checked={it.checked} disabled={pending} onChange={() => run(() => toggleChecklistItem(it.id, !it.checked, jobId), () => router.refresh())} style={{ width: 20, height: 20 }} />
             <span style={{ flex: 1, textDecoration: it.checked ? "line-through" : "none", color: it.checked ? "#94a3b8" : "#0b1524" }}>{it.label}</span>
-            <button onClick={() => start(async () => { await deleteChecklistItem(it.id, jobId); router.refresh(); })} style={xBtn}>🗑️</button>
+            <button onClick={() => run(() => deleteChecklistItem(it.id, jobId), () => router.refresh())} disabled={pending} style={xBtn}>🗑️</button>
           </div>
         ))}
         {items.length === 0 && <div className="rempty">{he ? "עוד אין סעיפים ברשימת הבדיקה." : "No checklist items yet."}</div>}
       </div>
+      <ActionError error={error} />
     </div>
   );
 }
