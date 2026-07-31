@@ -4,13 +4,15 @@ import { useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { t, type Locale } from "@/lib/i18n";
-import { convertEstimateToInvoice } from "@/app/(app)/estimates/actions";
-import { setInvoicePaid } from "@/app/(app)/invoices/actions";
+import { convertEstimateToInvoice, markEstimateSent } from "@/app/(app)/estimates/actions";
+import { setInvoicePaid, markInvoiceSent } from "@/app/(app)/invoices/actions";
 import ShareDoc, { type ShareTarget } from "@/components/ShareDoc";
 
 export type DocRow = {
   id: string; number: number; status: string; total_minor: number; issue_date: string;
   customer_name: string; public_token: string; customer_email?: string | null; customer_phone?: string | null;
+  /** Ledger 6a.1 — a voided document keeps its number and stays in the list. */
+  voided_at?: string | null;
 };
 
 const SYM: Record<string, string> = { USD: "$", ILS: "₪", EUR: "€" };
@@ -38,10 +40,19 @@ export default function DocList({ rows, locale, currency, kind, emptyKey, status
   const m = (v: number) => cur + (v / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const d = (iso: string) => { if (!iso) return "—"; const x = new Date(iso + "T00:00:00"); return `${x.getDate()}/${x.getMonth() + 1}/${x.getFullYear()}`; };
 
-  function copyLink(token: string) {
-    const url = `${window.location.origin}/p/${token}`;
+  // Ledger 6a.5 — putting the public link in front of the customer is what
+  // locks the figures. Same rule as components/DocDetailActions.tsx; recording
+  // it in only one of the two places would leave the other as a quiet way to
+  // send a document and keep editing it.
+  function recordSent(r: DocRow) {
+    if (r.voided_at) return;
+    (kind === "estimate" ? markEstimateSent(r.id) : markInvoiceSent(r.id)).then(() => router.refresh()).catch(() => {});
+  }
+  function copyLink(r: DocRow) {
+    const url = `${window.location.origin}/p/${r.public_token}`;
     navigator.clipboard?.writeText(url).catch(() => {});
-    setCopied(token); setTimeout(() => setCopied(null), 1600);
+    setCopied(r.public_token); setTimeout(() => setCopied(null), 1600);
+    recordSent(r);
   }
   function convert(r: DocRow) {
     start(async () => {
@@ -85,15 +96,17 @@ export default function DocList({ rows, locale, currency, kind, emptyKey, status
                 <div className="rsub">{d(r.issue_date)}</div>
               </div>
               <div className="rend">
-                <b style={{ fontSize: 15 }}>{m(r.total_minor)}</b>
-                <span className="pill" style={{ background: bg, color: fg }}>{t(locale, `${statusPrefix}.${r.status}`)}</span>
+                <b style={{ fontSize: 15, textDecoration: r.voided_at ? "line-through" : "none", color: r.voided_at ? "#94a3b8" : undefined }}>{m(r.total_minor)}</b>
+                {r.voided_at
+                  ? <span className="pill" style={{ background: "#eef1f6", color: "#57606f" }}>{t(locale, "ist.void")}</span>
+                  : <span className="pill" style={{ background: bg, color: fg }}>{t(locale, `${statusPrefix}.${r.status}`)}</span>}
               </div>
             </Link>
             <div style={{ display: "flex", gap: 8, width: "100%", marginTop: 8, flexWrap: "wrap" }}>
-              <button onClick={() => setShare({ kind, number: r.number, token: r.public_token, customerName: r.customer_name, customerEmail: r.customer_email ?? null, customerPhone: r.customer_phone ?? null, orgName })} style={{ ...actBtn, background: "#2563eb", color: "#fff" }}>📤 Send</button>
-              <button onClick={() => copyLink(r.public_token)} style={actBtn}>{copied === r.public_token ? t(locale, "doc.copied") : `🔗 ${t(locale, "doc.link")}`}</button>
-              {kind === "estimate" && <button onClick={() => convert(r)} disabled={pending} style={{ ...actBtn, background: "#e6f6ec", color: "#15803d" }}>🧾 {t(locale, "doc.to_invoice")}</button>}
-              {kind === "invoice" && r.status === "unpaid" && <button onClick={() => togglePaid(r.id, true)} disabled={pending} style={{ ...actBtn, background: "#e6f6ec", color: "#15803d" }}>✓ Mark paid</button>}
+              {!r.voided_at && <button onClick={() => { setShare({ kind, number: r.number, token: r.public_token, customerName: r.customer_name, customerEmail: r.customer_email ?? null, customerPhone: r.customer_phone ?? null, orgName }); recordSent(r); }} style={{ ...actBtn, background: "#2563eb", color: "#fff" }}>📤 Send</button>}
+              {!r.voided_at && <button onClick={() => copyLink(r)} style={actBtn}>{copied === r.public_token ? t(locale, "doc.copied") : `🔗 ${t(locale, "doc.link")}`}</button>}
+              {kind === "estimate" && !r.voided_at && <button onClick={() => convert(r)} disabled={pending} style={{ ...actBtn, background: "#e6f6ec", color: "#15803d" }}>🧾 {t(locale, "doc.to_invoice")}</button>}
+              {kind === "invoice" && r.status === "unpaid" && !r.voided_at && <button onClick={() => togglePaid(r.id, true)} disabled={pending} style={{ ...actBtn, background: "#e6f6ec", color: "#15803d" }}>✓ Mark paid</button>}
               {kind === "invoice" && r.status === "paid" && <button onClick={() => togglePaid(r.id, false)} disabled={pending} style={actBtn}>↩ Mark due</button>}
             </div>
           </div>

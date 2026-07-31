@@ -51,6 +51,7 @@ Run these **in this exact order**. Every file, no gaps.
 | 31 | `033_inventory_movements.sql` | Append-only stock ledger, derived `inventory_items.quantity`, concurrency guard, multi-line purchase orders with a receive step |
 | 32 | `034_notifications_support.sql` | Push event tracing, the support-access audit table, and an `accept_invitation(token)` that actually requires the emailed token |
 | 33 | `035_custom_fields_tax.sql` | Guards `custom_field_values.entity_id` (audit F21 — polymorphic, no FK, no org check); adds opt-in `organizations.tax_mode` and `document_tax_context()` so tax jurisdictions and customer exemptions can price a document |
+| 34 | `036_document_integrity.sql` | Credit notes and void (the original document and its NUMBER are kept), safe max-aware document numbering with a release-on-failure compare-and-set, the edit lock on sent/signed/paid documents and their line items, and a `version` column on both document tables. **Requires 030** — it refuses to run without `can_refund_payments()` |
 
 There is **no file numbered 016**: `016_isolation_tests.sql` is a *test*, not a
 migration. Run it after step 15 (and again at the end) and confirm you see

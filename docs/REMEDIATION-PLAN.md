@@ -536,12 +536,107 @@ owned by another workstream on this branch.
 ### Phase 6 — new capabilities (from the gap analysis)
 | # | Capability | Status |
 |---|---|---|
-| 6a.1 | Credit notes / invoice void (no way to correct an issued invoice today) | TODO |
+| 6a.1 | Credit notes / invoice void (no way to correct an issued invoice today) | DONE — void + credit-note ledger, migration `036_document_integrity.sql` must be RUN. See note |
 | 6a.2 | Audit trigger on `payments` — the money table has no change history | DONE — audit trigger on payments and payment_refunds (migration 030) |
-| 6a.3 | Unique constraint on document numbers; gapless numbering | TODO |
+| 6a.3 | Unique constraint on document numbers; gapless numbering | **PARTIAL — gapless is deliberately NOT delivered; see the numbering decision in the note.** The constraint, safe allocation and number release are DONE |
 | 6a.4 | Trash / restore for soft-deleted records | TODO |
-| 6a.5 | Lock documents after send/payment | TODO |
-| 6a.6 | Optimistic concurrency (no version column anywhere today) | TODO |
+| 6a.5 | Lock documents after send/payment | DONE (migration 036) — see note |
+| 6a.6 | Optimistic concurrency (no version column anywhere today) | DONE (migration 036) — see note |
+
+**Note on 6a.1 / 6a.3 / 6a.5 / 6a.6 — migration `db/036_document_integrity.sql` must be RUN; the
+code assumes it. It drops nothing and refuses to run unless 030 has been applied.**
+
+*6a.1 — correcting an issued document.* The product had exactly two ways to change an invoice a
+customer already held: edit it in place (which rewrites the figures on the `/p/<token>` link they were
+sent, retroactively and with nothing recording it) and soft-delete (which takes its number out of the
+sequence). Now there are two proper instruments, and the choice between them is not cosmetic.
+**Void** cancels a document nothing has been collected against; the row, its figures and its NUMBER
+are all kept, `voided_at` / `void_reason` / `voided_by` are written, and the database refuses to sign
+it (`approve_document`) or to open a `payment_requests` row against it — so the void holds for card,
+ACH, Zelle and cheque without the checkout code knowing anything about it. **Credit notes** are the
+instrument once money has changed hands: `credit_notes` is an append-only ledger with its own number
+sequence, `invoices.credited_minor` is a derived cache maintained by trigger, and a trigger caps the
+total at the invoice. Same shape as `030_refunds.sql`. A credit note issued in error is CANCELLED
+(recorded, with its own reason), never deleted, so the credit-note sequence has no holes either.
+A credit note deliberately does **not** move money — if the customer already paid and it is going
+back, that is a refund as well, recorded separately, because they are separate events.
+
+*6a.3 — THE NUMBERING DECISION: gaps are accepted, numbers are never reused.* A reused number puts
+two different documents bearing the same number into two customers' hands and no filing untangles
+that afterwards; a gap is only a question. So the item is marked **PARTIAL**, because "gapless
+numbering" as written is not what shipped and claiming it would be a lie. What did ship makes the
+gaps rare and the question answerable: **voiding preserves the number** (the ordinary cause of a
+missing number now appears in the sequence as a cancelled entry rather than as nothing); allocation
+takes `for update` on the organisation row and returns `greatest(counter, max(number in use)) + 1`,
+so the `/settings` next-number override can no longer walk the counter backwards onto an issued
+number; a failed insert hands its number back through `release_document_number()`, an exact
+compare-and-set that returns it only if the counter has not moved and nothing has taken it; and a
+genuine collision is retried rather than surfaced as a raw `23505`. **One correction to the item's
+premise, stated because it was checked:** `db/schema.sql` DOES declare `unique (organization_id,
+number)` inline on both tables (lines 163 and 196), so a database built from that baseline already
+had it. 036 adds it only when no unique constraint over exactly those two columns exists, so an
+existing database does not end up with a second redundant index.
+
+*6a.5 — the lock.* `updateInvoice` had no status guard whatsoever. The lock now lives in three
+places on purpose: `lib/core/documents.mjs` (the rule), the server action (which adds the one thing a
+row trigger cannot see — money settled against the document), and a `before update` trigger on both
+document tables **and both line-item tables**, because the threat model on this branch is PostgREST
+rather than the UI, and locking the stored total while leaving the items writable would be worse than
+either alone. `MATERIAL_FIELDS` and the SQL column list are asserted to be the same set.
+`number` is immutable always. Coming OUT of a lock is refused too — the status dropdown's
+approved → draft was a one-click unlock — with two deliberate exemptions: **`paid` is exempt**
+(the Mark due button and `refundInvoicePayment` in `lib/payments/refunds.ts` both legitimately un-pay
+an invoice, and breaking those would be a regression), and a **sent, approved or rejected estimate
+can be REOPENED** with a reason recorded in the same statement. That exit exists because an estimate
+is a negotiation, not a tax document; a signed one has no exit, and an invoice has none at all.
+`sent_at` is new — nothing in the product tracked "sent" at all, which is precisely why an invoice
+could be repriced after the customer received it. It is stamped where the link actually reaches the
+customer: the Send dialog and the copy-link button, in **both** `DocDetailActions` and `DocList`.
+
+*6a.6 — versioning.* `version` on `estimates` and `invoices`, bumped by trigger on every update. The
+edit form carries the version it loaded; `updateDocument` puts it in the WHERE clause and reads the
+affected rows back, so a second writer matches zero rows and is told — naming both version numbers,
+saying plainly that nothing was saved, and saying to reload. A form that omits the field is refused
+rather than quietly given the old last-write-wins behaviour.
+
+*Probes: `tests/document-integrity.test.mjs` (57). Suite 510 → 567, all green.* Every assertion was
+proven RED as well as green: the pure rules were re-run with `documentLock` forced to "unlocked",
+`assertVersionMatch` forced to accept, and allocation reverted to `counter + 1` (12 failures); the
+structural SQL assertions were re-run with the unlock guard removed, a material field dropped from
+the trigger's list, 023's sign-once guard lost while copying `approve_document` forward, the
+max-aware allocation reverted and DELETE granted on the ledger (5 failures); and the six wiring
+assertions were re-run against the pre-change `lib/documents.ts`, `components/Doc*.tsx` and both
+`actions.ts` files (6 failures). Structural checks strip comments first, so a comment describing a
+guard cannot satisfy a check for the guard.
+
+*What is NOT done, stated rather than papered over.*
+1. **Nothing here has been executed against a live Postgres.** The same caveat as 0.6 and every
+   migration since: the triggers, the row lock and the compare-and-set are verified by inspection and
+   by the probes above, never run. The row-lock behaviour in particular needs the 0.6 CI database.
+2. **The public `/p/[token]` screen does not yet show a void or a credit note.** `app/p/**` is
+   outside this pass's file scope. A voided document cannot be paid or signed (both enforced in the
+   database) and an invoice void reaches the screen through `status = 'void'`, but a voided ESTIMATE
+   still renders as live. `public_document_correction(token)` was added for whoever owns that screen;
+   `public_document()` was deliberately NOT rewritten, because reproducing its whole body to add one
+   key is a needless risk to a function the customer-facing page depends on.
+3. **`openBalance()` in `lib/payments/server.ts` does not subtract `credited_minor`.** That file is
+   owned by another workstream. The consequence is narrow but real: the office screens and the
+   invoice list net credit notes off correctly, the customer's checkout balance does not yet.
+4. **Numbering is per-organisation and per-kind only.** No per-year or per-series numbering, which
+   some jurisdictions want.
+
+*One fix taken outside the four items, because the file was in scope:* `duplicateDocument` omitted
+`deposit_minor`, so duplicating an estimate silently dropped its deposit request. Reported as a known
+gap under 5.7 and closed here.
+
+*Out-of-scope observations from this pass.* (a) `/settings` lets an owner set the next document
+number by hand with no validation at all; 036 makes that safe by construction, but the screen should
+still say what it will do. (b) `app/(app)/share-actions.ts` (`autoSendDocument`) is where a document
+is genuinely emailed or texted, and it is the natural place to stamp `sent_at` — it was left alone
+because it is outside this pass's file list, so a send that goes only through that path does not lock
+the document. (c) `setInvoicePaid(false)` still leaves the payment row behind, already noted as
+PARTIAL in `docs/FEATURE-INVENTORY.md`; with the lock in place that row is now what keeps the invoice
+locked, which is the right outcome but is coincidental rather than designed.
 | 6a.7 | Whole-business data export | TODO |
 | 6b.1 | Capture IP + user-agent (currently **zero** occurrences repo-wide) — e-sign evidence, login forensics | TODO |
 | 6b.2 | Brute-force protection + login attempt log | TODO |

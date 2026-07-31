@@ -9,7 +9,11 @@ import type { CatalogItem } from "@/components/DocForm";
 
 type Opt = { id: string; label: string };
 type Row = { title: string; desc: string; qty: string; price: string; cost: string; taxable: boolean; image_path: string; uploading?: boolean };
-export type EditInitial = { customer_id: string; discount: string; notes: string; issue_date: string; deposit?: string; items: Row[] };
+export type EditInitial = {
+  customer_id: string; discount: string; notes: string; issue_date: string; deposit?: string; items: Row[];
+  /** The row version this form was loaded from (ledger 6a.6). */
+  version?: number;
+};
 
 export default function DocEditor({ kind, docId, action, customers, catalog = [], orgId, initial, returnHref }: {
   kind: "estimate" | "invoice"; docId: string;
@@ -41,6 +45,14 @@ export default function DocEditor({ kind, docId, action, customers, catalog = []
 
   return (
     <form action={formAction} style={{ maxWidth: 640 }}>
+      {/*
+        Optimistic concurrency (ledger 6a.6). The version this form was loaded
+        from travels with the save; the server refuses the write if the row has
+        moved on, instead of the second person's save silently erasing the
+        first's — which is what happened in a three-person office every time two
+        people opened the same estimate.
+      */}
+      <input type="hidden" name="version" value={String(initial.version ?? "")} />
       <label style={lbl}>Customer</label>
       <select name="customer_id" defaultValue={initial.customer_id} style={inp} required>
         {customers.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
