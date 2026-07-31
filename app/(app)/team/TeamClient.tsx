@@ -3,12 +3,14 @@
 import { useActionState, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useFormStatus } from "react-dom";
-import { inviteMember, changeRole, removeMember, cancelInvite, updatePaymentPermissions, updateCapabilities, type ActionResult, type CapabilityValues } from "./actions";
+import { inviteMember, changeRole, removeMember, cancelInvite, resendInvite, updatePaymentPermissions, updateCapabilities, type ActionResult, type CapabilityValues } from "./actions";
+// @ts-ignore -- pure logic, proven both ways in tests/invitations.test.mjs
+import { describeInviteDelivery } from "@/lib/core/invitations.mjs";
 import { t, type Locale } from "@/lib/i18n";
 import { ActionError, useActionStatus } from "@/components/ActionStatus";
 
 type Member = { id: string; full_name: string; role: string };
-type Invite = { id: string; email: string; role: string };
+type Invite = { id: string; email: string; role: string; delivery_status?: string | null; delivery_error?: string | null; sent_at?: string | null };
 type PaymentPermission = { profile_id: string; can_confirm_manual_payments: boolean; can_refund_payments: boolean; can_override_ach_holds: boolean };
 type CapabilityRow = {
   profile_id: string; can_view_customers: boolean; can_edit_customers: boolean; can_manage_schedule: boolean; can_edit_jobs: boolean;
@@ -51,7 +53,11 @@ export default function TeamClient({ locale, members, invites, paymentPermission
           <SendBtn locale={locale} />
         </form>
         {state.error && <div style={err}>{state.error}</div>}
-        {state.ok && <div style={ok}>✓ {t(locale, "team.invite_sent")}</div>}
+        {/* An invitation that was saved but never emailed must not be reported
+            as sent — that was the whole defect: no email was ever sent and the
+            screen said the invitation had gone out. */}
+        {state.ok && !state.notice && <div style={ok}>✓ {t(locale, "team.invite_sent")}</div>}
+        {state.ok && state.notice && <div style={warn}>{state.notice}</div>}
       </div>
 
       {/* Members */}
@@ -84,7 +90,8 @@ export default function TeamClient({ locale, members, invites, paymentPermission
           <h3 style={h3}>{t(locale, "team.pending")} ({invites.length})</h3>
           {invites.map((iv) => (
             <div key={iv.id} style={row}>
-              <div style={{ flex: 1, minWidth: 0 }}><b>{iv.email}</b><div style={{ fontSize: 12, color: "#5c6675" }}>{roleLabel(iv.role)} · {t(locale, "team.invited")}</div></div>
+              <div style={{ flex: 1, minWidth: 0 }}><b>{iv.email}</b><div style={{ fontSize: 12, color: "#5c6675" }}>{roleLabel(iv.role)} · {t(locale, "team.invited")}</div><div style={{ fontSize: 12, color: deliveryColour(describeInviteDelivery(iv, locale).tone) }}>{describeInviteDelivery(iv, locale).text}</div></div>
+              <button onClick={() => run(() => resendInvite(iv.id))} disabled={pending} style={rm}>{he ? "שליחה מחדש" : "Resend"}</button>
               <button onClick={() => run(() => cancelInvite(iv.id))} disabled={pending} style={rm}>{t(locale, "team.cancelInvite")}</button>
             </div>
           ))}
@@ -92,7 +99,7 @@ export default function TeamClient({ locale, members, invites, paymentPermission
       )}
 
       <div style={{ background: "#e0ebff", color: "#1d4ed8", padding: "11px 14px", borderRadius: 12, fontSize: 12.5 }}>
-        {he ? "עובדים שהוזמנו נרשמים לאפליקציה עם כתובת האימייל שאליה נשלחה ההזמנה. הם יצטרפו לעסק עם התפקיד שבחרת. טכנאים רואים רק עבודות ששובצו להם." : "Invited teammates sign up with the invited email address and automatically join your business with the role you selected. Technicians see only jobs assigned to them."}
+        {he ? "אנחנו שולחים לעובד מייל עם קישור הצטרפות אישי. ההצטרפות מחייבת גם את הקישור וגם את כתובת האימייל שאליה נשלח — כתובת אימייל לבדה אינה מספיקה. טכנאים רואים רק עבודות ששובצו להם." : "We email the person a personal join link. Joining needs both that link and the email address it was sent to — the email address alone is not enough. Technicians see only jobs assigned to them."}
       </div>
     </div>
   );
@@ -173,3 +180,5 @@ const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border:
 const rm: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", border: "none", padding: "7px 12px", borderRadius: 9, fontWeight: 700, fontSize: 13, cursor: "pointer" };
 const err: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "9px 12px", borderRadius: 10, fontSize: 13, marginTop: 10 };
 const ok: React.CSSProperties = { background: "#e6f6ec", color: "#15803d", padding: "9px 12px", borderRadius: 10, fontSize: 13, marginTop: 10 };
+const warn: React.CSSProperties = { background: "#fff5e0", color: "#a15c07", padding: "9px 12px", borderRadius: 10, fontSize: 13, marginTop: 10 };
+const deliveryColour = (tone: string) => tone === "ok" ? "#15803d" : tone === "error" ? "#dc2626" : "#a15c07";

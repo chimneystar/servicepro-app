@@ -6,8 +6,11 @@ import { createClient } from "@/lib/supabase/server";
 import { requireProfile, assertRole, type Role } from "@/lib/auth";
 import { getLocale } from "@/lib/locale-server";
 import { t } from "@/lib/i18n";
+import { appUrl, providers, sendEmail } from "@/lib/providers";
+// @ts-ignore -- pure logic, proven both ways in tests/invitations.test.mjs
+import { invitationAcceptUrl, invitationEmail } from "@/lib/core/invitations.mjs";
 
-export type ActionResult = { ok: boolean; error?: string };
+export type ActionResult = { ok: boolean; error?: string; notice?: string };
 export type CapabilityValues = {
   viewCustomers: boolean; editCustomers: boolean; manageSchedule: boolean; editJobs: boolean;
   manageEstimates: boolean; manageInvoices: boolean; managePayments: boolean; viewReports: boolean;
@@ -20,7 +23,74 @@ const memberError = (locale: "en" | "he", message?: string) => message?.includes
   ? (locale === "he" ? "אי אפשר להסיר או לשנות את התפקיד של הבעלים האחרון. קודם הוסיפו בעלים נוסף." : "The last owner cannot be removed or changed. Add another owner first.")
   : saveError(locale);
 
-/** Owner invites a teammate by email + role. They join on sign-up. */
+/**
+ * Actually deliver an invitation, and record whether it was delivered.
+ *
+ * THE DEFECT THIS FIXES: `inviteMember` generated a token, wrote the row, and
+ * SENT NOTHING. There was no `sendEmail` anywhere in the team flow — the screen
+ * simply told the owner to go and tell the person themselves, while the token
+ * it had generated protected nothing because acceptance matched on email alone.
+ *
+ * When no email provider is connected the invitation is still created, but the
+ * row is marked `unavailable` and the owner is told in plain words that nobody
+ * has been emailed. A silent "invitation sent" is the thing being repaired.
+ */
+async function deliverInvitation(input: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  inviteId: string; organizationId: string; email: string; role: string; token: string;
+  inviterName: string; locale: "en" | "he";
+}): Promise<{ delivered: boolean; notice: string }> {
+  const { supabase, locale } = input;
+  const he = locale === "he";
+  // Origin is derived server-side from configuration, never from a request
+  // header — same rule the document-sending path had to be fixed to follow.
+  const acceptUrl = invitationAcceptUrl(appUrl(), input.token) as string | null;
+
+  const markFailure = async (status: "unavailable" | "failed", reason: string, notice: string) => {
+    await supabase.from("invitations").update({ delivery_status: status, delivery_error: reason.slice(0, 500) }).eq("id", input.inviteId);
+    return { delivered: false, notice };
+  };
+
+  if (!acceptUrl) {
+    return markFailure("unavailable", "NEXT_PUBLIC_APP_URL is not configured, so no invitation link could be built",
+      he ? "ההזמנה נשמרה אך לא נשלחה: כתובת האפליקציה (NEXT_PUBLIC_APP_URL) אינה מוגדרת."
+         : "Invitation saved but NOT emailed: the app URL (NEXT_PUBLIC_APP_URL) is not configured.");
+  }
+  if (!providers.email()) {
+    return markFailure("unavailable", "no email provider is connected (RESEND_API_KEY / EMAIL_FROM)",
+      he ? `ההזמנה נשמרה אך לא נשלחה: שירות המייל אינו מחובר. שלחו את הקישור בעצמכם: ${acceptUrl}`
+         : `Invitation saved but NOT emailed: no email provider is connected. Send this link yourself: ${acceptUrl}`);
+  }
+
+  const { data: organization } = await supabase.from("organizations").select("name").eq("id", input.organizationId).maybeSingle();
+  const { subject, html } = invitationEmail({
+    locale, businessName: organization?.name ?? "", inviterName: input.inviterName, role: input.role, acceptUrl,
+  }) as { subject: string; html: string };
+
+  try {
+    const messageId = await sendEmail(input.email, subject, html);
+    await supabase.from("invitations")
+      .update({ delivery_status: "sent", delivery_error: null, sent_at: new Date().toISOString() })
+      .eq("id", input.inviteId);
+    await supabase.from("email_messages").insert({
+      organization_id: input.organizationId, related_type: "invitation", related_id: input.inviteId,
+      to_email: input.email, subject, provider: "resend", provider_message_id: messageId,
+      status: "sent", sent_at: new Date().toISOString(),
+    });
+    return { delivered: true, notice: "" };
+  } catch (cause: any) {
+    const reason = String(cause?.message ?? cause);
+    await supabase.from("email_messages").insert({
+      organization_id: input.organizationId, related_type: "invitation", related_id: input.inviteId,
+      to_email: input.email, subject, provider: "resend", status: "failed", error: reason.slice(0, 500),
+    });
+    return markFailure("failed", reason,
+      he ? `ההזמנה נשמרה אך שליחת המייל נכשלה. שלחו את הקישור בעצמכם: ${acceptUrl}`
+         : `Invitation saved but the email failed to send. Send this link yourself: ${acceptUrl}`);
+  }
+}
+
+/** Owner invites a teammate by email + role. They join through the emailed link. */
 export async function inviteMember(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
   const locale = (await getLocale());
   let profile;
@@ -32,16 +102,48 @@ export async function inviteMember(_prev: ActionResult, formData: FormData): Pro
   if (!["owner", "office", "tech"].includes(role)) return { ok: false, error: t(locale, "err.invalid") };
 
   const supabase = await createClient();
-  const { error } = await supabase.from("invitations").insert({
+  const token = randomUUID();
+  const { data: invite, error } = await supabase.from("invitations").insert({
     organization_id: profile.organization_id,
     email,
     role,
-    token: randomUUID(),
+    token,
     invited_by: profile.id,
+  }).select("id").single();
+  if (error || !invite) return { ok: false, error: memberError(locale, error?.message) };
+
+  const delivery = await deliverInvitation({
+    supabase, inviteId: invite.id, organizationId: profile.organization_id!, email, role, token,
+    inviterName: profile.full_name, locale,
   });
-  if (error) return { ok: false, error: memberError(locale, error.message) };
   revalidatePath("/team");
-  return { ok: true };
+  return delivery.delivered ? { ok: true } : { ok: true, notice: delivery.notice };
+}
+
+/**
+ * Send the invitation again — the only way to reach anyone invited before
+ * delivery existed, and the fix for a bounced or lost email. The token is
+ * unchanged (it is what the link carries) and the 7-day window restarts.
+ */
+export async function resendInvite(id: string): Promise<ActionResult> {
+  const locale = (await getLocale());
+  let profile;
+  try { profile = await guardOwner(); } catch { return { ok: false, error: t(locale, "err.forbidden") }; }
+  const supabase = await createClient();
+  const { data: invite } = await supabase.from("invitations")
+    .select("id, email, role, token, organization_id, accepted_at").eq("id", id).maybeSingle();
+  if (!invite || invite.accepted_at || invite.organization_id !== profile.organization_id) return { ok: false, error: t(locale, "err.invalid") };
+
+  const expires = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+  const { error } = await supabase.from("invitations").update({ expires_at: expires }).eq("id", id);
+  if (error) return { ok: false, error: saveError(locale) };
+
+  const delivery = await deliverInvitation({
+    supabase, inviteId: invite.id, organizationId: invite.organization_id, email: invite.email,
+    role: String(invite.role), token: invite.token, inviterName: profile.full_name, locale,
+  });
+  revalidatePath("/team");
+  return delivery.delivered ? { ok: true } : { ok: true, notice: delivery.notice };
 }
 
 export async function changeRole(memberId: string, role: string): Promise<ActionResult> {

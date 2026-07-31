@@ -47,6 +47,7 @@ Run these **in this exact order**. Every file, no gaps.
 | 27 | `028_crew_double_book.sql` | Extends the no-double-book guarantee to crew (`job_assignments`), not just the lead |
 | 28 | `029_booking_timezone.sql` | `booking_settings.timezone` — booking slot maths runs on the business's clock, not the server's |
 | 29 | `030_refunds.sql` | Refund ledger, derived refunded_minor, refund permission, and the audit trail payments never had |
+| 30 | `034_notifications_support.sql` | Push event tracing, the support-access audit table, and an `accept_invitation(token)` that actually requires the emailed token |
 
 There is **no file numbered 016**: `016_isolation_tests.sql` is a *test*, not a
 migration. Run it after step 15 (and again at the end) and confirm you see

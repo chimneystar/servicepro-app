@@ -45,6 +45,7 @@ export async function updateSession(request: NextRequest) {
     path.startsWith("/p/") ||        // public client document links (view / sign)
     path.startsWith("/book/") ||     // public online-booking request page
     path.startsWith("/portal/") ||   // public customer portal (magic link)
+    path === "/join" ||              // invitation link: parks the token, grants nothing
     path.startsWith("/api/") ||      // payment webhooks / pay redirect
     path === "/offline" ||
     path === "/sw.js" ||

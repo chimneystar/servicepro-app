@@ -17,9 +17,23 @@ export default async function OnboardingPage() {
     .from("profiles").select("organization_id").eq("id", user.id).maybeSingle();
   if (profile?.organization_id) redirect("/");
 
-  // If this user was invited to a business, join it automatically and skip setup.
-  const { data: joinedOrg } = await supabase.rpc("accept_invitation");
-  if (joinedOrg) redirect("/");
+  // Joining a business now requires the token from the invitation email, which
+  // `/join` parked in an httpOnly cookie. Acceptance used to match on EMAIL
+  // ALONE — the generated token was never checked by anything, so possession of
+  // a mailbox was the entire control.
+  const inviteToken = (await cookies()).get("invite_token")?.value ?? "";
+  let joinError: "mismatch" | null = null;
+  if (inviteToken) {
+    const { data: joinedOrg, error: joinRpcError } = await supabase.rpc("accept_invitation", { invite_token: inviteToken });
+    if (joinedOrg) redirect("/");
+    if (joinRpcError?.message?.includes("invitation_email_mismatch")) joinError = "mismatch";
+  }
+
+  // Requiring the token must not strand someone who signed up without opening
+  // the link: tell them an invitation is waiting instead of letting them create
+  // a second business by accident. This reveals no token and grants nothing.
+  const { data: hintRows } = await supabase.rpc("pending_invitation_hint");
+  const pendingInvite = Array.isArray(hintRows) ? hintRows[0] : hintRows;
 
   const c = (await cookies()).get("locale")?.value;
   const locale: Locale = isLocale(c) ? c : DEFAULT_LOCALE;
@@ -132,6 +146,21 @@ export default async function OnboardingPage() {
         </div>
         <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>{t(locale, "onb.welcome")}</h1>
         <p style={{ color: "#64748b", fontSize: 14, marginBottom: 18 }}>{t(locale, "onb.desc")}</p>
+
+        {joinError === "mismatch" && (
+          <div style={{ background: "#fdeaea", color: "#b91c1c", padding: "11px 14px", borderRadius: 12, fontSize: 13, marginBottom: 14 }}>
+            {locale === "he"
+              ? "ההזמנה הזו נשלחה לכתובת אימייל אחרת. התחברו עם הכתובת שאליה נשלחה ההזמנה, או בקשו מבעל העסק לשלוח הזמנה חדשה."
+              : "That invitation was sent to a different email address. Sign in with the address it was sent to, or ask the business owner to send a new invitation."}
+          </div>
+        )}
+        {!joinError && pendingInvite?.organization_name && (
+          <div style={{ background: "#fff5e0", color: "#a15c07", padding: "11px 14px", borderRadius: 12, fontSize: 13, marginBottom: 14 }}>
+            {locale === "he"
+              ? `${pendingInvite.organization_name} הזמינו אתכם להצטרף. פתחו את קישור ההצטרפות מהמייל ששלחנו ל-${pendingInvite.invited_email} כדי להצטרף אליהם במקום ליצור עסק חדש. אם המייל לא הגיע, בקשו מהם לשלוח שוב.`
+              : `${pendingInvite.organization_name} has invited you to join. Open the join link in the email we sent to ${pendingInvite.invited_email} to join them instead of creating a new business. If it didn't arrive, ask them to resend it.`}
+          </div>
+        )}
 
         <label style={label}>{t(locale, "onb.orgName")}</label>
         <input name="orgName" required defaultValue={String(user.user_metadata?.business_name ?? "")} placeholder={t(locale, "onb.orgNamePh")} style={field} />
