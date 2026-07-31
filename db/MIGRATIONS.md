@@ -45,6 +45,7 @@ Run these **in this exact order**. Every file, no gaps.
 | 25 | `026_usd_only.sql` | Aligns the currency constraint with what the payment layer can process |
 | 26 | `027_hot_path_indexes.sql` | Indexes the lookups the app makes on every request |
 | 27 | `028_crew_double_book.sql` | Extends the no-double-book guarantee to crew (`job_assignments`), not just the lead |
+| 28 | `029_booking_timezone.sql` | `booking_settings.timezone` — booking slot maths runs on the business's clock, not the server's |
 
 There is **no file numbered 016**: `016_isolation_tests.sql` is a *test*, not a
 migration. Run it after step 15 (and again at the end) and confirm you see

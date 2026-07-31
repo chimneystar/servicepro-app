@@ -20,7 +20,29 @@ type Settings = {
   deposit_value?: number;
   success_message_en?: string | null;
   success_message_he?: string | null;
+  timezone?: string | null;
 };
+type AreaEnforcement = { total: number; polygons: number; enforceable: number; unenforceable: boolean };
+
+// Curated rather than Intl.supportedValuesOf(): this is a US deployment, and a
+// fixed list renders identically on server and client (no hydration drift — see
+// tests/hydration-guard.test.mjs). Any zone already saved is appended below, so
+// an org that was set to something outside this list never loses its value.
+const US_TIMEZONES = [
+  ["America/New_York", "Eastern — New York"],
+  ["America/Detroit", "Eastern — Detroit"],
+  ["America/Chicago", "Central — Chicago"],
+  ["America/Winnipeg", "Central — Winnipeg"],
+  ["America/Denver", "Mountain — Denver"],
+  ["America/Phoenix", "Mountain, no DST — Phoenix"],
+  ["America/Los_Angeles", "Pacific — Los Angeles"],
+  ["America/Anchorage", "Alaska — Anchorage"],
+  ["Pacific/Honolulu", "Hawaii — Honolulu"],
+  ["America/Puerto_Rico", "Atlantic — Puerto Rico"],
+  ["America/Toronto", "Eastern — Toronto"],
+  ["America/Vancouver", "Pacific — Vancouver"],
+  ["UTC", "UTC"],
+];
 type Service = {
   job_type_id: string;
   name_en: string;
@@ -43,7 +65,7 @@ type Question = {
   active: boolean;
 };
 
-export default function BookingSettingsForm({ locale, orgId, settings, services, jobTypes, questions, hasServiceAreas }: {
+export default function BookingSettingsForm({ locale, orgId, settings, services, jobTypes, questions, hasServiceAreas, areaEnforcement }: {
   locale: Locale;
   orgId: string;
   settings: Settings;
@@ -51,6 +73,7 @@ export default function BookingSettingsForm({ locale, orgId, settings, services,
   jobTypes: JobType[];
   questions: Question[];
   hasServiceAreas: boolean;
+  areaEnforcement: AreaEnforcement;
 }) {
   const he = locale === "he";
   const router = useRouter();
@@ -68,6 +91,10 @@ export default function BookingSettingsForm({ locale, orgId, settings, services,
   const hours = settings.hours_json ?? {};
   const weekday = hours["1"] ?? ["08:00", "17:00"];
   const saturday = hours["6"];
+  const timezone = settings.timezone || "America/New_York";
+  const timezoneOptions = US_TIMEZONES.some(([value]) => value === timezone)
+    ? US_TIMEZONES
+    : [...US_TIMEZONES, [timezone, timezone] as [string, string]];
 
   return <div className="booking-settings">
     <header className="ops-hero">
@@ -93,11 +120,27 @@ export default function BookingSettingsForm({ locale, orgId, settings, services,
           <Toggle name="useTeamCapacity" defaultChecked={settings.use_team_capacity ?? true} title={he ? "שימוש בזמינות הצוות" : "Use team availability"} copy={he ? "שעות שכבר תפוסות לא מוצגות ללקוח." : "Busy arrival windows are hidden from customers."} />
           <Toggle name="enforceServiceArea" defaultChecked={settings.enforce_service_area ?? false} title={he ? "בדיקת אזור השירות" : "Enforce service area"} copy={hasServiceAreas ? (he ? "המיקודים והערים מתפעול ישמשו לאישור הכתובת." : "ZIPs and cities from Operations will gate booking.") : (he ? "צריך להוסיף קודם אזור שירות במסך תפעול." : "Add a service area in Operations first.")} />
         </div>
+        {/* The toggle used to claim enforcement that never ran for polygon areas.
+            Say plainly which areas are actually checked. */}
+        {areaEnforcement.polygons > 0 && <p className="booking-provider-note booking-area-warning" role="status">
+          <strong>{areaEnforcement.unenforceable
+            ? (he ? "אזור השירות אינו נאכף." : "Service area is NOT being enforced.")
+            : (he ? "חלק מאזורי השירות אינם נבדקים." : "Some service areas are not checked.")}</strong>{" "}
+          {he
+            ? `${areaEnforcement.polygons} מתוך ${areaEnforcement.total} אזורי השירות מוגדרים כפוליגון. בדיקת פוליגון מחייבת מיקום גאוגרפי מדויק של הכתובת, שהמערכת אינה מפיקה, ולכן הם אינם נבדקים.`
+            : `${areaEnforcement.polygons} of your ${areaEnforcement.total} service areas are polygons. A polygon can only be tested against map coordinates for the address, which this system does not produce, so polygons are never checked.`}{" "}
+          {areaEnforcement.unenforceable
+            ? (he ? "עד שיתווסף אזור מיקוד או עיר, כל הזמנה תיכנס ללידים לאישור ידני במקום להתאשר אוטומטית." : "Until you add a ZIP or city area, every booking is held in Leads for manual approval instead of being auto-confirmed.")
+            : (he ? "רק אזורי המיקוד והערים נאכפים." : "Only your ZIP and city areas are enforced.")}{" "}
+          <Link href="/operations">{he ? "ניהול אזורי שירות" : "Manage service areas"}</Link>
+        </p>}
       </section>
 
       <section className="settings-section booking-setting-card">
         <h2>{he ? "שעות וזמינות" : "Hours & availability"}</h2>
+        <p className="settings-section-note">{he ? "כל השעות כאן הן לפי אזור הזמן של העסק — לא לפי השרת ולא לפי הדפדפן של הלקוח." : "Every time here is your business's local clock — not the server's and not the customer's browser."}</p>
         <div className="booking-admin-grid">
+          <Field label={he ? "אזור זמן העסק" : "Business timezone"}><select name="timezone" defaultValue={timezone}>{timezoneOptions.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></Field>
           <Field label={he ? "פתיחה א׳–ה׳" : "Weekday opening"}><input type="time" name="weekdayOpen" defaultValue={weekday[0]} /></Field>
           <Field label={he ? "סגירה א׳–ה׳" : "Weekday closing"}><input type="time" name="weekdayClose" defaultValue={weekday[1]} /></Field>
           <Field label={he ? "התראה מראש בשעות" : "Minimum notice (hours)"}><input type="number" name="minNoticeHours" min="0" max="720" defaultValue={settings.min_notice_hours ?? 4} /></Field>
