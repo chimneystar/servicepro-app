@@ -8,6 +8,7 @@ import { getLocale } from "@/lib/locale-server";
 import { computeDocument, parseAmountToMinor, parseQtyToMilli } from "@/lib/core/money.mjs";
 // @ts-ignore -- shared JS module
 import { isUniqueViolation } from "@/lib/core/db-errors.mjs";
+import { changeJobStatus } from "@/lib/job-status";
 
 export type PhotoResult = { ok: boolean; error?: string };
 
@@ -254,6 +255,30 @@ export async function recordPhoto(jobId: string, path: string, label: string, me
 }
 
 /**
+ * Show or hide a photo on the customer's job report.
+ *
+ * job_photos.customer_visible has existed since migration 019 (default true),
+ * was selected and passed to the component, and NOTHING could change it and
+ * nothing read it — so every photo, including internal evidence shots, appeared
+ * on the report handed to the customer. This is the missing half.
+ */
+export async function setPhotoCustomerVisible(photoId: string, visible: boolean, jobId: string): Promise<PhotoResult> {
+  const profile = await requireProfile();
+  const supabase = await createClient();
+
+  const { data: photo } = await supabase
+    .from("job_photos").select("id, organization_id").eq("id", photoId).maybeSingle();
+  if (!photo) return { ok: false, error: "not_found" };
+  if (photo.organization_id !== profile.organization_id) return { ok: false, error: "forbidden" };
+
+  const { error } = await supabase.from("job_photos").update({ customer_visible: visible }).eq("id", photo.id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/jobs/${jobId}`);
+  revalidatePath(`/jobs/${jobId}/report`);
+  return { ok: true };
+}
+
+/**
  * Delete a job photo (row + storage object).
  *
  * SECURITY: the storage path is derived from the row, never taken from the
@@ -289,11 +314,10 @@ export async function deletePhoto(id: string, _path: string, jobId: string): Pro
 }
 
 /** Update a job's status from the detail page. */
+/** See setJobStatus in schedule/actions.ts — same guard, same reasoning. */
 export async function updateJobStatus(jobId: string, status: string): Promise<PhotoResult> {
-  await requireProfile();
-  const supabase = await createClient();
-  const { error } = await supabase.from("jobs").update({ status }).eq("id", jobId);
-  if (error) return { ok: false, error: error.message };
+  const result = await changeJobStatus(jobId, status);
+  if (!result.ok) return result;
   revalidatePath(`/jobs/${jobId}`);
   return { ok: true };
 }

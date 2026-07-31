@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { recordPhoto, deletePhoto } from "@/app/(app)/jobs/[id]/actions";
+import { setPhotoCustomerVisible, recordPhoto, deletePhoto } from "@/app/(app)/jobs/[id]/actions";
 
 export type Photo = { id: string; path: string; url: string | null; label: string | null; mediaType: "image" | "video"; parentPhotoId: string | null; customerVisible: boolean };
 
@@ -53,6 +53,16 @@ export default function JobPhotos({ jobId, orgId, photos }: { jobId: string; org
     setBusy(false);
   }
 
+  async function toggleVisible(photo: Photo) {
+    setBusy(true); setError(null);
+    const result = await setPhotoCustomerVisible(photo.id, !photo.customerVisible, jobId);
+    // A silently-failed toggle reads as "it didn't register", and the
+    // consequence here is a private photo staying on a customer's document.
+    if (!result.ok) setError(result.error ?? (he ? "לא הצלחנו לעדכן את התמונה." : "We couldn't update that photo."));
+    router.refresh();
+    setBusy(false);
+  }
+
   return (
     <div>
       <label style={upload}>
@@ -65,6 +75,22 @@ export default function JobPhotos({ jobId, orgId, photos }: { jobId: string; org
           <div key={p.id} style={{ position: "relative", aspectRatio: "1", borderRadius: 12, overflow: "hidden", border: "1px solid #e2e8f0", background: "#eef2f8" }}>
             {p.url ? (p.mediaType === "video" ? <video src={p.url} controls playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <img src={p.url} alt={p.label ?? ""} style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <div style={{ padding: 8, fontSize: 11, color: "#5c6675" }}>{p.mediaType}</div>}
             {p.mediaType === "image" && p.url && <button type="button" onClick={() => setEditing(p)} style={annotateBtn}>{he ? "סימון" : "Mark up"}</button>}
+            {/* The customer's job report only shows photos marked visible. Every
+                photo defaults to visible, so this is how an internal shot —
+                damage evidence, a note to the office — is kept off the document
+                handed to the customer. */}
+            <button
+              type="button"
+              onClick={() => toggleVisible(p)}
+              style={visibilityBtn(p.customerVisible)}
+              title={p.customerVisible
+                ? (he ? "מוצג בדוח ללקוח — לחצו כדי להסתיר" : "Shown on the customer report — click to hide")
+                : (he ? "מוסתר מהלקוח — לחצו כדי להציג" : "Hidden from the customer — click to show")}
+              aria-label={p.customerVisible
+                ? (he ? "הסתרת התמונה מהלקוח" : "Hide this photo from the customer")
+                : (he ? "הצגת התמונה ללקוח" : "Show this photo to the customer")}
+              aria-pressed={!p.customerVisible}
+            >{p.customerVisible ? "👁" : "🚫"}</button>
             <button onClick={() => remove(p)} style={delBtn} title="Delete">✕</button>
           </div>
         ))}
@@ -88,3 +114,9 @@ function PhotoAnnotator({ photo, he, onCancel, onSave }: { photo: Photo; he: boo
 const upload: React.CSSProperties = { display: "inline-block", border: "2px dashed #b9c8e6", color: "#2563eb", background: "#f8fbff", borderRadius: 12, padding: "12px 18px", fontWeight: 700, fontSize: 14, cursor: "pointer" };
 const delBtn: React.CSSProperties = { position: "absolute", top: 5, right: 5, background: "rgba(220,38,38,.92)", color: "#fff", border: "none", width: 24, height: 24, borderRadius: 7, fontSize: 12, cursor: "pointer" };
 const annotateBtn: React.CSSProperties = { position: "absolute", left: 5, bottom: 5, minHeight: 26, padding: "0 7px", border: 0, borderRadius: 7, background: "rgba(16,26,46,.88)", color: "#fff", fontSize: 9, fontWeight: 800, cursor: "pointer" };
+
+const visibilityBtn = (visible: boolean): React.CSSProperties => ({
+  position: "absolute", top: 6, insetInlineStart: 6, width: 26, height: 26,
+  borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, lineHeight: 1,
+  background: visible ? "rgba(21,128,61,.85)" : "rgba(100,116,139,.9)", color: "#fff",
+});

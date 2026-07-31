@@ -16,7 +16,16 @@ export default async function JobReportPage({ params }: { params: Promise<{ id: 
   const { data: org } = await supabase.from("organizations").select("name, logo_url, accent_color, phone, email, currency, document_footer").single();
   if (!job) return <div style={{ padding: 40 }}>Job not found.</div>;
 
-  const { data: rows } = await supabase.from("job_photos").select("storage_path, label").eq("job_id", id).order("created_at");
+  // customer_visible is honoured here. The column has existed since migration
+  // 019 with a default of true, was selected on the job page, passed into the
+  // component — and used by nothing. This report is the CUSTOMER-facing artifact
+  // (it is printed and handed over), so an internal photo taken as evidence or a
+  // note to the office was shown to them regardless.
+  const { data: rows } = await supabase.from("job_photos")
+    .select("storage_path, label")
+    .eq("job_id", id)
+    .eq("customer_visible", true)
+    .order("created_at");
   const photos = await Promise.all((rows ?? []).map(async (r) => {
     const { data } = await supabase.storage.from("job-photos").createSignedUrl(r.storage_path, 3600);
     return { url: data?.signedUrl ?? null, label: r.label };

@@ -203,8 +203,8 @@ that exist with nothing behind them.
 | 5.11 | Inventory movement ledger + parts consumption from jobs | TODO |
 | 5.12 | Feature flags — nothing reads them | TODO |
 | 5.13 | Push notification delivery — subscriptions stored, no sender | TODO |
-| 5.14 | Photo "customer visible" flag — selected, never used | TODO |
-| 5.15 | Call `lib/core/scheduling.mjs` transition rules from app code (written + tested, never invoked) | TODO |
+| 5.14 | Photo "customer visible" flag — selected, never used | DONE |
+| 5.15 | Call `lib/core/scheduling.mjs` transition rules from app code (written + tested, never invoked) | DONE |
 | 5.16 | Tax jurisdictions — feed `computeDocument` instead of display-only | TODO |
 | 5.17 | Support sessions — grant actual access | TODO |
 | 5.18 | Invitation email delivery — token generated, never sent | TODO |

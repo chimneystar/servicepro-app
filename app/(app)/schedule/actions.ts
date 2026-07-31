@@ -7,6 +7,7 @@ import { getLocale } from "@/lib/locale-server";
 import { t } from "@/lib/i18n";
 // @ts-ignore -- JS module with integer-safe money math
 import { parseAmountToMinor } from "@/lib/core/money.mjs";
+import { changeJobStatus } from "@/lib/job-status";
 
 export type ActionResult = { ok: boolean; error?: string };
 
@@ -76,11 +77,20 @@ export async function createJob(_prev: ActionResult, formData: FormData): Promis
   return { ok: true };
 }
 
+/**
+ * Change a job's status.
+ *
+ * Previously this accepted ANY string, wrote it straight to the column, and
+ * checked only that the caller was signed in — so a technician could close any
+ * job they could see, reopen a completed one, or write a status no screen
+ * understands. It is routed through the guarded path now; the legal transitions
+ * have been defined and tested in lib/core/scheduling.mjs all along and were
+ * never called.
+ */
 export async function setJobStatus(id: string, status: string): Promise<ActionResult> {
-  await requireProfile();
-  const supabase = await createClient();
-  const { error } = await supabase.from("jobs").update({ status }).eq("id", id);
-  if (error) return { ok: false, error: error.message };
+  const result = await changeJobStatus(id, status);
+  if (!result.ok) return result;
   revalidatePath("/schedule");
+  revalidatePath("/dispatch");
   return { ok: true };
 }
