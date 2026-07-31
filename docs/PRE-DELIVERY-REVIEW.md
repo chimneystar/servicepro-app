@@ -87,6 +87,50 @@ balance calculation that omits refunds. Not a syntax error.
 
 ---
 
+## Wave 0 — can the guards themselves fail?
+
+**Added because this is now the most-evidenced failure mode in this codebase, by
+a wide margin.** The canary above asks whether the *review* can fail. This asks
+whether the *shipped guards* can — and on the evidence, that question is not
+rhetorical:
+
+| what was found | how it presented |
+|---|---|
+| `tests/booking.test.mjs` imported a `.ts` file under `node --test` | had never executed once |
+| RLS assertions matched a `%I` format string | true for every table, so vacuous |
+| i18n parity compared two strings that were both empty on CRLF | passed on any input |
+| scheduling transition rules | correct, tested, invoked by nothing |
+| migration 023's `drop policy` named policies that did not exist | silent no-op; the original policies survived and were OR'd |
+| `tests/reporting.test.mjs` passed only settled payments | replacing the collected-money helper with a naive sum stayed green |
+| the 85 adversarial assertions in `db/ci/` | written, never executed |
+| `sequence_gap` in the migration classifier | correct, unit-tested, and not called by the path that runs on every commit |
+| `db/030_refunds.sql` | valid SQL, unit-tested, trigger-guarded, reviewed — and impossible to apply |
+
+Every one of these was **green** before it was found. None would have been caught
+by reading the code, because in each case the code was reasonable and the test
+existed. They were found by *running the thing* or by *planting a defect*.
+
+So, before Wave 1:
+
+1. **For every probe this work added that guards a blocker-class property**
+   (money, tenancy, authorization, document integrity, migration ordering),
+   plant a violation of the exact property it claims to protect and confirm it
+   fires. Not a syntax error — a plausible regression.
+2. **Confirm each guard is reachable on the path that actually runs.** A guard
+   invoked only by a script nobody runs is decorative. The specific check: does
+   `npm run verify` fail? Not "does the function return an error when called".
+3. **Confirm each guard is silent on the good tree.** A false RED gets the guard
+   switched off, which is strictly worse than never having written it — this is
+   why the migration checksums normalize CRLF rather than compare raw bytes.
+4. Any guard that cannot be made to fail is **reported as a finding**, not
+   quietly fixed.
+
+This wave is mechanical and cheap, and it has already caught two real holes
+during implementation rather than review. Run it first: a clean Wave 1 over a
+suite whose guards cannot fail means nothing at all.
+
+---
+
 ## Wave 1 — independent review, parallel, distinct lenses
 
 Seven reviewers, each with one lens, each explicitly told the empty answer is
