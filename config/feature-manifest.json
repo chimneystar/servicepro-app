@@ -33,6 +33,7 @@
     { "path": "/reports/export", "file": "app/(app)/reports/export/page.tsx", "roles": ["owner", "office"] },
     { "path": "/reports/commission", "file": "app/(app)/reports/commission/page.tsx", "roles": ["owner", "office"] },
     { "path": "/reports/timesheets", "file": "app/(app)/reports/timesheets/page.tsx", "roles": ["owner", "office"] },
+    { "path": "/trash", "file": "app/(app)/trash/page.tsx", "roles": ["owner", "office"] },
     { "path": "/archive", "file": "app/(app)/archive/page.tsx", "roles": ["owner", "office"] },
     { "path": "/archive/import", "file": "app/(app)/archive/import/page.tsx", "roles": ["owner", "office"] },
     { "path": "/team", "file": "app/(app)/team/page.tsx", "roles": ["owner"] },

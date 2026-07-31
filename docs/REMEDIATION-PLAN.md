@@ -539,10 +539,10 @@ owned by another workstream on this branch.
 | 6a.1 | Credit notes / invoice void (no way to correct an issued invoice today) | TODO |
 | 6a.2 | Audit trigger on `payments` — the money table has no change history | DONE — audit trigger on payments and payment_refunds (migration 030) |
 | 6a.3 | Unique constraint on document numbers; gapless numbering | TODO |
-| 6a.4 | Trash / restore for soft-deleted records | TODO |
+| 6a.4 | Trash / restore for soft-deleted records | DONE — `/trash` lists every soft-deleted customer, job, estimate and invoice with who deleted it and when (`deleted_by`, migration 037, backfilled from `audit_log`), and restores it. Owner/office, matching deletion. Restore is parent-first and enforced by trigger as well as by the action; a privacy-erased customer is never restorable. See 6a.4 note below |
 | 6a.5 | Lock documents after send/payment | TODO |
 | 6a.6 | Optimistic concurrency (no version column anywhere today) | TODO |
-| 6a.7 | Whole-business data export | TODO |
+| 6a.7 | Whole-business data export | DONE — `/api/export/business`, owner-only, streams all 94 tenant tables paginated at 1000 rows, tenant-scoped explicitly on every query, bearer tokens redacted at every depth including inside `audit_log` jsonb. `/reports/export` states what is and is not in the file. See 6a.7 note below |
 | 6b.1 | Capture IP + user-agent (currently **zero** occurrences repo-wide) — e-sign evidence, login forensics | TODO |
 | 6b.2 | Brute-force protection + login attempt log | TODO |
 | 6b.3 | Permission-change history | TODO |
@@ -564,6 +564,68 @@ owned by another workstream on this branch.
 | 6c.10 | Bulk operations on lists | TODO |
 | 6c.11 | Technician skills / certifications + dispatch matching | TODO |
 | 6c.12 | Accounting sync (QuickBooks / Xero) | TODO |
+
+*6a.4 Trash / restore — the rule that was chosen, and why.* Restore is **parent-first and never
+cascades downward**. A job, estimate or invoice comes back only when every parent it points at is
+already live (customer always; for an invoice also `job_id` and `estimate_id` when set). The
+alternative — restore it anyway — produces an invoice sitting in the ledger attached to a customer no
+screen can open: a record that looks whole and is not, which is the same class of failure as the
+truncated export. Restoring a parent does **not** drag its children back, because they were deleted by
+separate decisions. Two more refusals: a customer erased to satisfy a **completed privacy deletion
+request** is never restorable (that erasure is a legal obligation, and the identifying columns were
+overwritten anyway — "restoring" would yield a shell named `Deleted customer · 1a2b3c4d`), and a job
+whose technician slot is now occupied is refused by the existing `jobs_no_double_book` exclusion
+constraint, whose `23P01` is translated into an instruction instead of leaking. All three rules live in
+`lib/core/recovery.mjs` (proven both ways) **and** as triggers in `db/037_recovery.sql`; the action
+checks first so the user gets a readable reason naming the parent, the trigger is the authority because
+a check-then-write in a server action is a race and covers only that one caller.
+
+**Out-of-scope observations found while building it.** (a) `deleteCustomer`
+(`app/(app)/customers/actions.ts:66`) calls `.delete()`, a HARD delete — it does not set `deleted_at`
+at all. `customers_delete` RLS permits it for owner/office, and `jobs.customer_id` is `on delete
+restrict`, so a customer with jobs fails (PostgREST reports the FK error) while a customer without jobs
+is destroyed outright and can never appear in the trash. (b) Consequently the only writers of
+`customers.deleted_at` are the privacy anonymiser and the migration-batch rollback, and the only writer
+of `jobs.deleted_at` is the migration-batch rollback; the everyday mis-click path is
+`softDeleteDocument` on estimates and invoices. The trash screen covers all four regardless, but
+customers will not benefit until `deleteCustomer` is converted to a soft delete. Both files are owned
+by other workstreams on this branch.
+
+*6a.7 Whole-business export — what is in the file and what is not.* One owner-only streaming JSON
+document at `/api/export/business` covering **all 94 tables that carry `organization_id`** (plus
+`organizations` itself, keyed on `id`), paged 1000 rows at a time through the same `fetchAllPages` /
+`pageThrough` pair the accounting CSVs now use — a second copy of "read all of it" would eventually
+disagree with the first. Every query carries an explicit `.eq(orgKey, orgId)` taken from the session
+profile, never from the request, on top of RLS.
+
+The include/exclude line is **not "sensitive vs not" — it is "does this value authenticate someone?"**
+The existing GDPR export gets this backwards in both directions at once: it ships `customers.portal_token`
+and both documents' `public_token` (bearer credentials — holding the string *is* being that customer)
+**and** internal `cost_minor` margins to a member of the public. Here: tokens are redacted even though
+the file goes to the owner, because an export is copied, emailed and left in a downloads folder, and a
+leaked one would otherwise be a live session for every customer at once; cost, margin, commission and
+job expenses are **included**, because without them the file is not a copy of the business. Redaction is
+by column name, recursive, and therefore also strips tokens out of `audit_log.old_data` / `new_data`,
+which are whole-row jsonb snapshots — a top-level-only pass would have exported every token the business
+ever had while the `customers` rows looked clean. Redacted keys are kept with a `[redacted …]` value so a
+deliberate omission cannot be mistaken for a bug.
+
+Excluded outright, each with the reason shown in the UI and repeated inside the file: `merchant_secrets`,
+`payment_checkout_secrets` (credentials), `webhook_events` (no `organization_id` — no row can honestly be
+attributed to one business), and `feature_flags` / `platform_admins` / `release_records` / `release_events`
+(ServicePro's own platform data). **Not included, stated plainly on the screen:** files in Storage — job
+photos and videos, logos, imported spreadsheets. The rows describing them (`job_photos.storage_path`, and
+so on) are exported, so the owner has the full list, but the binaries are not in the JSON. Also excluded:
+login credentials, which live in Supabase Auth and are not readable by the application. `meta` is written
+**last**, as a trailer carrying `status`, per-table `rowCounts` and any `problems`; the screen tells the
+owner to check that `meta.status` reads `complete`. A table that fails to read is recorded and the whole
+file is marked `incomplete` rather than quietly shrinking, and a mid-stream failure aborts the response so
+the file does not parse — a backup that fails loudly beats one that ends early and looks finished.
+
+**Not verified against a live Postgres** — there is none on this machine. `db/037_recovery.sql` and the
+manifest's 94 table/column pairs are checked by inspection and by structural assertion against `db/*.sql`
+(`tests/business-export.test.mjs` fails if a future migration adds a tenant table that is neither
+exported nor excused).
 
 ### Phase 7 — architecture + maintainability
 | # | Task | Status |

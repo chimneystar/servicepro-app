@@ -133,7 +133,8 @@ as fixes land. See `docs/REMEDIATION-PLAN.md` for what is still open._
 |---|---|---|---|
 | Reports dashboard — revenue, gross, expenses, net, by-tech, aging | `/reports` | owner/office | PARTIAL — "revenue collected" ignores partial payments and refunds; gross-profit KPI excludes discount and tax, so margin reads high |
 | Custom report builder (5 sections, date range, print) | `/reports/custom` | owner/office | REAL |
-| Accounting CSV export — invoices / payments / expenses | `/reports/export` | owner/office | PARTIAL — the payments export filters in JS after an unbounded fetch, so it silently truncates |
+| Accounting CSV export — invoices / payments / expenses | `/reports/export` | owner/office | REAL — filtered in SQL and paged to exhaustion via the shared `fetchAllPages` in `lib/export.ts`; no longer stops at PostgREST's 1000-row cap |
+| Whole-business data export — all 94 tenant tables in one streamed JSON file | `/reports/export` → `/api/export/business` | owner | REAL — paginated, tenant-scoped on every query, bearer tokens redacted at every depth; the screen and the file both state that Storage files (photos, logos) and login credentials are not included, and `meta.status` reports completeness |
 | Commission report with editable % and CSV | `/reports/commission` | owner edit, office view | PARTIAL — pays on quoted `price_minor`, not money actually collected |
 | Timesheet report and export | `/reports/timesheets` | owner/office | REAL |
 | Tax jurisdictions and rules | `/finance` | owner + permission | PARTIAL — rules now feed `computeDocument` (opt-in `organizations.tax_mode`), effective-dated and combined additively; rules scoped to labour/materials are listed as NOT charged, because no line item is classified as either |
@@ -249,7 +250,8 @@ as fixes land. See `docs/REMEDIATION-PLAN.md` for what is still open._
 | Business health overview | `/admin` | platform staff | REAL |
 | Migration import (Workiz / Housecall Pro / spreadsheet) | `/migration` | owner/office | PARTIAL — customers only; no jobs, invoices or history |
 | Migration batch rollback | `/migration` | owner | REAL |
-| Legacy archive import + browse/search + restore | `/archive` | owner/office | REAL |
+| Legacy archive import + browse/search + restore | `/archive` | owner/office | REAL — `customers.archived = true`; a different concept from the trash below, and still separate from it |
+| Trash — list and restore soft-deleted customers, jobs, estimates and invoices, with who deleted each and when | `/trash` | owner/office | PARTIAL — the screen, the restore and the consistency rules are real for all four tables, but `deleteCustomer` still HARD-deletes (`.delete()`), so an everyday customer deletion never reaches the trash. Estimates and invoices, the common mis-click path, do |
 | PWA install, service worker, offline navigation fallback | all | staff | REAL |
 | Health check (DB reachability + latency) | `/api/health` | anonymous | REAL — unauthenticated, uses the service-role key |
 

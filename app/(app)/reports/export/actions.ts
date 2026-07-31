@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile, assertRole } from "@/lib/auth";
+import { fetchAllPages } from "@/lib/export";
 
 export type ExportResult = { ok: boolean; csv?: string; filename?: string; error?: string };
 
@@ -18,20 +19,12 @@ const money = (minor: number) => (minor / 100).toFixed(2);
  * PostgREST caps a response at a default 1000 rows. Every branch of this export
  * relied on a single unpaginated request, so any business past that count sent
  * its accountant a SILENTLY INCOMPLETE ledger — no error, no warning, just
- * missing money. This pages until the source is exhausted.
+ * missing money. `fetchAllPages` (lib/export.ts) pages until the source is
+ * exhausted, and raises `export_too_large` rather than paging forever.
+ *
+ * It lives in lib/export.ts because the whole-business export needs the same
+ * guarantee; two copies of "read all of it" would eventually stop agreeing.
  */
-const PAGE = 1000;
-async function fetchAllPages<T>(build: (fromRow: number, toRow: number) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
-  const all: T[] = [];
-  for (let page = 0; ; page++) {
-    const { data, error } = await build(page * PAGE, page * PAGE + PAGE - 1);
-    if (error) throw error;
-    const batch = data ?? [];
-    all.push(...batch);
-    if (batch.length < PAGE) return all;
-    if (page > 500) throw new Error("export_too_large"); // 500k rows: refuse rather than hang
-  }
-}
 
 /** Export invoices, payments, or expenses to a QuickBooks-friendly CSV. */
 export async function exportCsv(kind: "invoices" | "payments" | "expenses", from: string, to: string): Promise<ExportResult> {

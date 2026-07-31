@@ -31,6 +31,9 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/fleet", key: "nav.fleet", icon: "📍", roles: ["owner", "office"], group: "tools" },
   { href: "/growth", key: "nav.growth", icon: "🚀", roles: ["owner", "office"], group: "tools" },
   { href: "/migration", key: "nav.migration", icon: "⇥", roles: ["owner", "office"], group: "tools" },
+  // Restoring is exactly as privileged as deleting: owner/office. A screen that
+  // cannot be reached is the same as no screen, which is what 6a.4 was.
+  { href: "/trash", key: "nav.trash", icon: "🗑", roles: ["owner", "office"], group: "tools" },
   { href: "/settings/privacy", key: "nav.privacy", icon: "🛡", roles: ["owner"], group: "tools" },
   { href: "/appearance", key: "nav.appearance", icon: "◐", roles: ["owner", "office", "tech"], group: "tools" },
 ];
