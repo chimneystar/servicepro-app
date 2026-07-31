@@ -22,8 +22,8 @@
     "prove:probes": "node scripts/prove-probes-red.mjs"
   },
   "dependencies": {
-    "@supabase/ssr": "^0.5.2",
-    "@supabase/supabase-js": "^2.45.4",
+    "@supabase/ssr": "^0.12.4",
+    "@supabase/supabase-js": "^2.111.0",
     "next": "^16.2.12",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
