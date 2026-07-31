@@ -190,7 +190,7 @@ that exist with nothing behind them.
 
 | # | Stub to finish | Status |
 |---|---|---|
-| 5.1 | Refunds — write `refunded_minor`, wire `can_refund_payments`, provider refund call | TODO |
+| 5.1 | Refunds — write `refunded_minor`, wire `can_refund_payments`, provider refund call | PARTIAL — record + ledger + permission + audit trail DONE and tested; the Helcim provider call is implemented but has NEVER run (no sandbox credentials). Manual refunds are complete and exact. |
 | 5.2 | Tips — collect at checkout, not just read in receipts | TODO |
 | 5.3 | Saved payment methods | TODO |
 | 5.4 | ACH hold-until-settled — make the toggle do something | TODO |
@@ -214,7 +214,7 @@ that exist with nothing behind them.
 | # | Capability | Status |
 |---|---|---|
 | 6a.1 | Credit notes / invoice void (no way to correct an issued invoice today) | TODO |
-| 6a.2 | Audit trigger on `payments` — the money table has no change history | TODO |
+| 6a.2 | Audit trigger on `payments` — the money table has no change history | DONE — audit trigger on payments and payment_refunds (migration 030) |
 | 6a.3 | Unique constraint on document numbers; gapless numbering | TODO |
 | 6a.4 | Trash / restore for soft-deleted records | TODO |
 | 6a.5 | Lock documents after send/payment | TODO |
