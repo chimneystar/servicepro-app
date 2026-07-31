@@ -19,7 +19,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   const locale = await getLocale();
   const supabase = await createClient();
   const { data: inv } = await supabase.from("invoices")
-    .select("id, number, status, discount_minor, tax_rate_bps, issue_date, notes, public_token, customers(name, address, city, phone, email)")
+    .select("id, number, status, discount_minor, tax_rate_bps, issue_date, notes, public_token, estimate_id, customers(name, address, city, phone, email)")
     .eq("id", id).is("deleted_at", null).maybeSingle();
   const { data: org } = await supabase.from("organizations").select("name, logo_url, tagline, phone, email, currency, tax_label, accent_color").single();
   if (!inv) return <div><Link href="/invoices" style={back}>‹ Invoices</Link><div style={{ padding: 40, textAlign: "center", color: "#5c6675" }}>Invoice not found.</div></div>;
@@ -32,9 +32,32 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   }));
   const totals = computeDocument({ items: items.map((i) => ({ qtyMilli: i.qty_milli, unitPriceMinor: i.unit_price_minor, taxable: i.taxable })), discountMinor: inv.discount_minor, taxRateBps: inv.tax_rate_bps });
 
-  // Payment summary
-  const { data: pays } = await supabase.from("payments").select("amount_minor, method, reference, paid_at").eq("invoice_id", id).order("paid_at");
-  const paid = (pays ?? []).reduce((s: number, p: any) => s + p.amount_minor, 0);
+  // Payment summary.
+  //
+  // Two corrections here, both of which showed the office more money than the
+  // business had actually received:
+  //   1. This summed EVERY payment row regardless of status, so a declined card
+  //      or an ACH transfer still in flight read as collected. Every other
+  //      reader in the codebase filters to settled/partially_refunded — this
+  //      screen was the one out of step.
+  //   2. Refunds were never subtracted.
+  // It also now credits a deposit paid against the originating estimate, matching
+  // openBalance() in lib/payments/server.ts. See db/024_deposit_credit.sql.
+  const SETTLED = ["settled", "partially_refunded"];
+  let paymentQuery = supabase
+    .from("payments")
+    .select("amount_minor, base_amount_minor, refunded_minor, normalized_status, method, reference, paid_at")
+    .in("normalized_status", SETTLED)
+    .order("paid_at");
+  paymentQuery = inv.estimate_id
+    ? paymentQuery.or(`invoice_id.eq.${id},estimate_id.eq.${inv.estimate_id}`)
+    : paymentQuery.eq("invoice_id", id);
+  const { data: pays } = await paymentQuery;
+
+  const paid = (pays ?? []).reduce(
+    (s: number, p: any) => s + Math.max(0, Number(p.base_amount_minor ?? p.amount_minor ?? 0) - Number(p.refunded_minor ?? 0)),
+    0,
+  );
   const balance = Math.max(0, totals.totalMinor - paid);
   const c: any = inv.customers;
   const accent = org?.accent_color || "#2563eb";

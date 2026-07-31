@@ -11,7 +11,7 @@ import {
   type HelcimTransactionData,
 } from "@/lib/payments/helcim";
 // @ts-ignore — shared pure ESM helpers are also exercised by Node's test runner.
-import { paymentAmountParts } from "@/lib/payments/core.mjs";
+import { creditedMinor, paymentAmountParts } from "@/lib/payments/core.mjs";
 
 type PublicDocument = {
   id: string;
@@ -55,7 +55,7 @@ async function resolvePublicDocument(admin: ReturnType<typeof createAdminClient>
 
   const { data: invoice } = await admin
     .from("invoices")
-    .select("id, organization_id, number, total_minor")
+    .select("id, organization_id, number, total_minor, estimate_id")
     .eq("public_token", token)
     .is("deleted_at", null)
     .maybeSingle();
@@ -69,23 +69,46 @@ async function resolvePublicDocument(admin: ReturnType<typeof createAdminClient>
     amountMinor: Number(invoice.total_minor ?? 0),
     currency: organization?.currency ?? "USD",
     signed: true,
-    estimateId: null,
+    // The estimate this invoice came from, when it was converted from one.
+    // Deposits live on payments.estimate_id and MUST be credited against this
+    // invoice, or the customer is billed for the deposit a second time.
+    estimateId: invoice.estimate_id ?? null,
     invoiceId: invoice.id,
   };
 }
 
+// Balance arithmetic lives in lib/payments/core.mjs (creditedMinor) so that
+// openBalance, refreshInvoicePaidState and the invoice screen cannot drift
+// apart about what "paid" means — and so it is unit-tested rather than reasoned
+// about. See tests/deposit-credit.test.mjs.
+
+/**
+ * What is still owed on this document, in minor units.
+ *
+ * For an INVOICE converted from an estimate this credits BOTH the payments
+ * booked directly against the invoice AND any deposit paid against the
+ * originating estimate. Previously only the former counted, so a paid deposit
+ * was invisible here and the customer was asked for the full amount again.
+ */
 async function openBalance(admin: ReturnType<typeof createAdminClient>, document: PublicDocument) {
   let query = admin
     .from("payments")
     .select("base_amount_minor, refunded_minor, normalized_status")
     .eq("organization_id", document.organizationId)
     .in("normalized_status", ["settled", "partially_refunded"]);
-  query = document.invoiceId ? query.eq("invoice_id", document.invoiceId) : query.eq("estimate_id", document.estimateId!);
+
+  if (document.invoiceId && document.estimateId) {
+    // Converted invoice: credit the invoice's own payments and the estimate's deposit.
+    query = query.or(`invoice_id.eq.${document.invoiceId},estimate_id.eq.${document.estimateId}`);
+  } else if (document.invoiceId) {
+    query = query.eq("invoice_id", document.invoiceId);
+  } else {
+    query = query.eq("estimate_id", document.estimateId!);
+  }
+
   const { data, error } = await query;
   if (error) throw new PaymentError("Payment balance is temporarily unavailable", "balance_unavailable", 503);
-  const settled = (data ?? []).reduce((sum, payment) =>
-    sum + Math.max(0, Number(payment.base_amount_minor ?? 0) - Number(payment.refunded_minor ?? 0)), 0);
-  return Math.max(0, document.amountMinor - settled);
+  return Math.max(0, document.amountMinor - creditedMinor(data));
 }
 
 function documentFields(document: PublicDocument) {
@@ -320,15 +343,23 @@ export async function confirmHelcimCheckout(input: {
 }
 
 async function refreshInvoicePaidState(admin: ReturnType<typeof createAdminClient>, invoiceId: string) {
-  const [{ data: invoice }, { data: payments }] = await Promise.all([
-    admin.from("invoices").select("id, total_minor").eq("id", invoiceId).single(),
-    admin.from("payments").select("base_amount_minor, refunded_minor, normalized_status").eq("invoice_id", invoiceId)
-      .in("normalized_status", ["settled", "partially_refunded"]),
-  ]);
+  const { data: invoice } = await admin
+    .from("invoices").select("id, total_minor, estimate_id").eq("id", invoiceId).single();
   if (!invoice) return;
-  const paid = (payments ?? []).reduce((sum, payment) =>
-    sum + Math.max(0, Number(payment.base_amount_minor ?? 0) - Number(payment.refunded_minor ?? 0)), 0);
-  if (paid >= Number(invoice.total_minor)) {
+
+  // Must agree with openBalance: a deposit paid on the originating estimate
+  // counts towards this invoice, otherwise an invoice fully covered by a
+  // deposit plus a final payment would never flip to paid.
+  let query = admin
+    .from("payments")
+    .select("base_amount_minor, refunded_minor, normalized_status")
+    .in("normalized_status", ["settled", "partially_refunded"]);
+  query = invoice.estimate_id
+    ? query.or(`invoice_id.eq.${invoiceId},estimate_id.eq.${invoice.estimate_id}`)
+    : query.eq("invoice_id", invoiceId);
+
+  const { data: payments } = await query;
+  if (creditedMinor(payments) >= Number(invoice.total_minor)) {
     await admin.from("invoices").update({ status: "paid", paid_online: true, paid_at: new Date().toISOString() }).eq("id", invoiceId);
   }
 }

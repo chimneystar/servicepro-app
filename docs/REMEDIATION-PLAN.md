@@ -69,12 +69,12 @@ Status: `TODO` / `WIP` / `DONE` / `BLOCKED`. Keep this honest — a status doc t
 ### Phase 2 — money correctness
 | # | Task | Status |
 |---|---|---|
-| 2.1 | Link invoices to their originating estimate; credit paid deposits (**overbilling**) | TODO |
-| 2.2 | Stripe deposit webhook: set `estimate_id` so deposits are not orphaned | TODO |
-| 2.3 | Invoice detail: filter to settled payments, subtract refunds | TODO |
+| 2.1 | Link invoices to their originating estimate; credit paid deposits (**overbilling**) | DONE |
+| 2.2 | Stripe deposit webhook: set `estimate_id` so deposits are not orphaned | DONE |
+| 2.3 | Invoice detail: filter to settled payments, subtract refunds | DONE |
 | 2.4 | Reports: collected revenue from payments, not invoice totals; fix margin to include discount/tax | TODO |
 | 2.5 | Commission from collected money, not quoted price | TODO |
-| 2.6 | Idempotency: `convertEstimateToInvoice`, manual submissions, Stripe replay window | TODO |
+| 2.6 | Idempotency: `convertEstimateToInvoice`, manual submissions, Stripe replay window | DONE |
 | 2.7 | Replace float money maths in finance/growth/operations with `parseAmountToMinor` | TODO |
 | 2.8 | Payments export: filter in SQL, remove silent truncation | TODO |
 | 2.9 | **DECIDED: USD only.** Remove ILS/EUR from the onboarding currency choice and the `organizations.currency` check, so nobody can select a currency the payment path rejects. Hebrew UI is unaffected — language and currency are independent. | TODO |

@@ -60,8 +60,17 @@ export async function convertEstimateToInvoice(estimateId: string): Promise<Conv
   catch { return { ok: false, error: t(locale, "err.forbidden") }; }
 
   const supabase = await createClient();
-  const { data: est } = await supabase.from("estimates").select("*").eq("id", estimateId).single();
+  const { data: est } = await supabase
+    .from("estimates").select("*").eq("id", estimateId).is("deleted_at", null).maybeSingle();
   if (!est) return { ok: false, error: t(locale, "err.invalid") };
+
+  // Idempotency: the button is hidden client-side once the estimate is
+  // approved, but the server action accepted any repeat call and minted a
+  // second invoice with a second document number. A double-click or a stale
+  // tab sent the customer two invoices for one job.
+  const { data: existing } = await supabase
+    .from("invoices").select("number").eq("estimate_id", estimateId).is("deleted_at", null).maybeSingle();
+  if (existing) return { ok: true, invoiceNumber: existing.number as number };
 
   const { data: items } = await supabase.from("estimate_items").select("*").eq("estimate_id", estimateId).order("sort");
   const { data: number, error: numErr } = await supabase.rpc("next_document_number", { p_org: profile.organization_id, p_kind: "invoice" });
@@ -72,6 +81,10 @@ export async function convertEstimateToInvoice(estimateId: string): Promise<Conv
     customer_id: est.customer_id, status: "unpaid",
     discount_minor: est.discount_minor, tax_rate_bps: est.tax_rate_bps, total_minor: est.total_minor,
     notes: est.notes,
+    // Load-bearing: deposits are recorded against payments.estimate_id. Without
+    // this link the open balance ignores a paid deposit and the customer is
+    // billed the full amount a second time. See db/024_deposit_credit.sql.
+    estimate_id: est.id,
   }).select("id").single();
   if (error) return { ok: false, error: error.message };
 
