@@ -91,16 +91,19 @@ as fixes land. See `docs/REMEDIATION-PLAN.md` for what is still open._
 |---|---|---|---|
 | Estimate list and create with line items (per-item taxable, cost, photo) | `/estimates` | owner/office | REAL |
 | Estimate detail, PDF print, activity timeline | `/estimates/[id]` | owner/office | REAL |
-| Estimate edit — items, discount, deposit amount | `/estimates/[id]/edit` | owner/office | REAL |
-| Estimate status draft / sent / approved / rejected | `/estimates` | owner/office | REAL |
-| Estimate duplicate and soft-delete | `/estimates` | owner/office | REAL |
+| Estimate edit — items, discount, deposit amount | `/estimates/[id]/edit` | owner/office | REAL — **narrowed by design (ledger 6a.5)**: a sent, approved, rejected, signed or part-paid estimate no longer edits in place. Sent/approved/rejected can be REOPENED with a recorded reason, which returns it to draft and restores full editing; signed or part-paid cannot, and duplicate is the route there |
+| Estimate status draft / sent / approved / rejected | `/estimates` | owner/office | REAL — moving BACK to draft now goes through Reopen (with a reason) instead of the dropdown, because the dropdown was a one-click way to unlock the figures. Marking 'sent' also stamps `sent_at` |
+| Estimate duplicate and soft-delete | `/estimates` | owner/office | REAL — duplicate now carries `deposit_minor` (it was silently dropped). Soft-delete is refused once the estimate has gone out; **Void** replaces it and keeps the document and its number |
 | Convert estimate to invoice | `/estimates/[id]` | owner/office | **PARTIAL — a paid deposit is NOT credited; the customer is billed the full amount again.** No idempotency guard either |
 | Deposit request on an estimate | `/estimates/[id]` | owner/office → customer | PARTIAL — amount typed by hand; paid state never shown internally |
 | Organisation default deposit (percent / fixed) | `/settings/payments` | owner | REAL — applied to every estimate at insert by `apply_default_estimate_deposit()` (migration 031), clamped to the document total; the settings screen shows a worked example |
 | Invoice list and create | `/invoices` | owner/office | REAL |
-| Invoice detail with paid / balance tiles | `/invoices/[id]` | owner/office | PARTIAL — **counts failed and in-flight payments as collected** |
-| Invoice edit / duplicate / soft-delete | `/invoices/[id]` | owner/office | REAL |
+| Invoice detail with paid / balance tiles | `/invoices/[id]` | owner/office | REAL — settled payments only, refunds subtracted, deposits credited, and credit notes netted off the bill in a third tile |
+| Invoice edit / duplicate / soft-delete | `/invoices/[id]` | owner/office | REAL — edit is refused once the invoice is sent, signed, paid or part-paid (ledger 6a.5); soft-delete is refused from the same point. Corrections go through **credit note** or **void**, both of which keep the original and its number |
 | Mark invoice paid / unpaid by hand | `/invoices` | owner/office | PARTIAL — un-paying leaves the payment row behind; marking paid skips the insert if any payment exists |
+| **Void an estimate or invoice, with a reason** | `/estimates/[id]`, `/invoices/[id]` | owner/office | REAL (new, ledger 6a.1) — cancels the document while keeping it, its figures and its NUMBER; refused once money has been collected; the database then refuses to sign it or to open a checkout against it |
+| **Credit notes against an invoice** | `/invoices/[id]` | owner + `can_refund_payments` | REAL (new, ledger 6a.1) — own numbered, dated, reasoned document; append-only ledger; capped at the invoice total by a database trigger; cancelled rather than deleted if issued in error. Does NOT move money — record the refund separately |
+| **Optimistic concurrency on document edits** | `/estimates/[id]/edit`, `/invoices/[id]/edit` | owner/office | REAL (new, ledger 6a.6) — a stale save is refused and says what happened, instead of silently overwriting a colleague |
 | Line items — qty in milliunits, unit price in minor units, cost, taxable flag, image | everywhere | all | REAL |
 | Tax — org rate, per-item taxable, applied on top | engine | all | REAL |
 | Document-level discount with proportional taxable split | engine | all | REAL |

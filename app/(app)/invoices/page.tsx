@@ -18,7 +18,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
   const filter = search.filter ?? "all";
 
   const [{ data: invoices }, { data: customers }, { data: org }, { data: catalog }] = await Promise.all([
-    supabase.from("invoices").select("id, number, status, total_minor, issue_date, public_token, customers(name, email, phone)").is("deleted_at", null).eq("archived", false).order("number", { ascending: false }),
+    supabase.from("invoices").select("id, number, status, total_minor, issue_date, public_token, voided_at, credited_minor, customers(name, email, phone)").is("deleted_at", null).eq("archived", false).order("number", { ascending: false }),
     supabase.from("customers").select("id, name").is("deleted_at", null).eq("archived", false).order("name"),
     supabase.from("organizations").select("currency, name").single(),
     supabase.from("price_book").select("id, name, description, price_minor, cost_minor, taxable, image_path").order("name"),
@@ -27,14 +27,21 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
   const cur = org?.currency ?? "USD";
   const all = invoices ?? [];
 
-  // Due vs paid totals
-  const outstanding = all.filter((i) => i.status === "unpaid").reduce((s, i) => s + i.total_minor, 0);
-  const collected = all.filter((i) => i.status === "paid").reduce((s, i) => s + i.total_minor, 0);
-  const dueCount = all.filter((i) => i.status === "unpaid").length;
-  const paidCount = all.filter((i) => i.status === "paid").length;
+  // Due vs paid totals.
+  //
+  // Ledger 6a.1: a voided invoice is cancelled, so it owes nothing and earned
+  // nothing — counting it here would keep a withdrawn invoice in the
+  // receivables for ever. A credit note reduces what is still owed without
+  // touching the invoice, so it is netted off the same way.
+  const live = all.filter((i: any) => !i.voided_at);
+  const billed = (i: any) => Math.max(0, Number(i.total_minor ?? 0) - Number(i.credited_minor ?? 0));
+  const outstanding = live.filter((i) => i.status === "unpaid").reduce((s, i) => s + billed(i), 0);
+  const collected = live.filter((i) => i.status === "paid").reduce((s, i) => s + billed(i), 0);
+  const dueCount = live.filter((i) => i.status === "unpaid").length;
+  const paidCount = live.filter((i) => i.status === "paid").length;
 
-  const shown = filter === "unpaid" ? all.filter((i) => i.status === "unpaid")
-    : filter === "paid" ? all.filter((i) => i.status === "paid")
+  const shown = filter === "unpaid" ? live.filter((i) => i.status === "unpaid")
+    : filter === "paid" ? live.filter((i) => i.status === "paid")
     : all;
 
   const tab = (key: string, label: string) => (
@@ -67,7 +74,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
       </div>
 
       <DocList
-        rows={shown.map((e: any) => ({ id: e.id, number: e.number, status: e.status, total_minor: e.total_minor, issue_date: e.issue_date, public_token: e.public_token, customer_name: e.customers?.name ?? "—", customer_email: e.customers?.email ?? null, customer_phone: e.customers?.phone ?? null }))}
+        rows={shown.map((e: any) => ({ id: e.id, number: e.number, status: e.status, total_minor: e.total_minor, issue_date: e.issue_date, public_token: e.public_token, voided_at: e.voided_at ?? null, customer_name: e.customers?.name ?? "—", customer_email: e.customers?.email ?? null, customer_phone: e.customers?.phone ?? null }))}
         locale={locale} currency={cur} orgName={org?.name ?? ""} kind="invoice" emptyKey="inv.empty" statusPrefix="ist" />
     </div>
   );

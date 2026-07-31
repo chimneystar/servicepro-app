@@ -10,6 +10,10 @@ import { computeDocument } from "@/lib/core/money.mjs";
 import ActivityTimeline from "@/components/ActivityTimeline";
 import { loadActivity } from "@/lib/activity";
 import { getLocale } from "@/lib/locale-server";
+import DocCorrections from "@/components/DocCorrections";
+import { loadCreditNotes, assertDocumentEditable } from "@/lib/documents";
+// @ts-ignore -- document integrity rules (JS module, unit-tested)
+import { documentLock } from "@/lib/core/documents.mjs";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +23,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   const locale = await getLocale();
   const supabase = await createClient();
   const { data: inv } = await supabase.from("invoices")
-    .select("id, number, status, discount_minor, tax_rate_bps, issue_date, notes, public_token, estimate_id, customers(name, address, city, phone, email)")
+    .select("id, number, status, discount_minor, tax_rate_bps, issue_date, notes, public_token, estimate_id, version, sent_at, signed_at, paid_at, voided_at, void_reason, credited_minor, customers(name, address, city, phone, email)")
     .eq("id", id).is("deleted_at", null).maybeSingle();
   const { data: org } = await supabase.from("organizations").select("name, logo_url, tagline, phone, email, currency, tax_label, accent_color").single();
   if (!inv) return <div><Link href="/invoices" style={back}>‹ Invoices</Link><div style={{ padding: 40, textAlign: "center", color: "#5c6675" }}>Invoice not found.</div></div>;
@@ -58,7 +62,16 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
     (s: number, p: any) => s + Math.max(0, Number(p.base_amount_minor ?? p.amount_minor ?? 0) - Number(p.refunded_minor ?? 0)),
     0,
   );
-  const balance = Math.max(0, totals.totalMinor - paid);
+  // Ledger 6a.1 — a credit note reduces what is owed WITHOUT touching the
+  // invoice, so the balance has to net it off here. `credited_minor` is a cache
+  // maintained by trigger from the credit_notes ledger (migration 036), exactly
+  // as `refunded_minor` is maintained from payment_refunds.
+  const creditNotes = await loadCreditNotes(supabase, id);
+  const credited = Number(inv.credited_minor ?? 0);
+  const billed = Math.max(0, totals.totalMinor - credited);
+  const balance = Math.max(0, billed - paid);
+  const lockState = documentLock("invoice", { ...inv, collected_minor: paid });
+  const editable = await assertDocumentEditable("invoice", inv, locale);
   const c: any = inv.customers;
   const accent = org?.accent_color || "#2563eb";
   const cur = org?.currency ?? "USD";
@@ -71,12 +84,24 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
       </div>
       <div className="no-print" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 14, marginBottom: 14 }}>
         <DocDetailActions kind="invoice" id={inv.id} token={inv.public_token} status={inv.status} number={inv.number}
+          locked={lockState.locked} voided={!!inv.voided_at}
           customerName={c?.name ?? "—"} customerEmail={c?.email ?? null} customerPhone={c?.phone ?? null} orgName={org?.name ?? ""} />
       </div>
 
-      {(pays ?? []).length > 0 && (
-        <div className="no-print" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+      <div className="no-print">
+        <DocCorrections kind="invoice" id={inv.id} number={inv.number} currency={cur}
+          totalMinor={totals.totalMinor} creditedMinor={credited} collectedMinor={paid}
+          voidedAt={inv.voided_at ?? null} voidReason={inv.void_reason ?? null}
+          locked={lockState.locked} lockReason={editable.ok ? null : editable.error ?? null}
+          reopenable={false} creditNotes={creditNotes} />
+      </div>
+
+      {((pays ?? []).length > 0 || credited > 0) && (
+        <div className="no-print" style={{ display: "grid", gridTemplateColumns: credited > 0 ? "1fr 1fr 1fr" : "1fr 1fr", gap: 10, marginBottom: 14 }}>
           <div style={{ background: "#e6f6ec", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: 12, color: "#15803d", fontWeight: 700 }}>Paid</div><div style={{ fontSize: 20, fontWeight: 800, color: "#15803d" }}>{money(paid, cur)}</div></div>
+          {credited > 0 && (
+            <div style={{ background: "#eef2f8", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: 12, color: "#5c6675", fontWeight: 700 }}>Credited</div><div style={{ fontSize: 20, fontWeight: 800, color: "#5c6675" }}>−{money(credited, cur)}</div></div>
+          )}
           <div style={{ background: balance > 0 ? "#fdf1dc" : "#eef2f8", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: 12, color: "#b45309", fontWeight: 700 }}>Balance</div><div style={{ fontSize: 20, fontWeight: 800, color: balance > 0 ? "#b45309" : "#15803d" }}>{money(balance, cur)}</div></div>
         </div>
       )}
