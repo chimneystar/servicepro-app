@@ -2,7 +2,7 @@
 //
 // WHY THIS EXISTS
 // ---------------
-// Until this file, not one of the 41 migrations in db/ had ever been executed —
+// Until this file, not one of the migrations in db/ had ever been executed —
 // by anyone. They were applied by hand, one at a time, by pasting them into the
 // Supabase SQL editor, and the only evidence any of them worked was that
 // production had not visibly broken. There was no way to build the schema from
@@ -94,16 +94,29 @@ do $$ begin create role service_role;   exception when duplicate_object then nul
  * Throws on the FIRST migration that fails, naming it. A migration that cannot
  * be applied to an empty database is broken whether or not production happens to
  * have survived it.
+ *
+ * `shim` replaces the minimal Supabase surface above. The RLS assertion runner
+ * passes db/ci/00_supabase_shim.sql instead, because proving that migration 023
+ * revokes anon's access requires anon to have HAD access — which only the
+ * Supabase-style `alter default privileges` in that file sets up. With the
+ * minimal shim, the revoke would be a no-op and the assertions would prove
+ * nothing.
+ *
+ * `skip` omits named files. db/016_isolation_tests.sql is a TEST, not a
+ * migration, and the assertion runner executes it separately so that a failure
+ * there reports as a failed isolation test rather than as a broken migration.
  */
-export async function freshDatabase({ upTo = null } = {}) {
+export async function freshDatabase({ upTo = null, shim = SUPABASE_SHIM, skip = [], beforeEach = null } = {}) {
   const db = new PGlite({ extensions: { pgcrypto, btree_gist } });
   await db.exec("create extension if not exists pgcrypto;");
   await db.exec("create extension if not exists btree_gist;");
-  await db.exec(SUPABASE_SHIM);
+  await db.exec(shim);
 
   const applied = [];
   for (const file of migrationFiles()) {
+    if (skip.includes(file)) continue;
     const sql = readFileSync(path.join(DB_DIR, file), "utf8");
+    if (beforeEach) await beforeEach(file, sql, db);
     try {
       await db.exec(sql);
       applied.push(file);

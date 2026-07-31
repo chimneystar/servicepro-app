@@ -166,33 +166,91 @@ select ci.assert(
   'the owner invitation really landed');
 
 -- Second gate: acceptance re-checks who issued an owner-level invite.
--- The invitee has no profile yet, which is the state accept_invitation() acts on.
+-- The invitee has no profile yet, which is the state acceptance acts on.
+--
+-- THE ENTRY POINT MOVED, AND THESE ASSERTIONS DID NOT FOLLOW IT. When this
+-- file was written, 023 §2 had just put the owner-issuer check inside the
+-- zero-argument public.accept_invitation(). Migration 034 §3a then moved the
+-- whole of acceptance to public.accept_invitation(TEXT) — because email alone
+-- was the only control and the generated token protected nothing — and 034 §3b
+-- deliberately gutted the zero-argument form so that it now answers only
+-- "which business am I already in?".
+--
+-- Nobody updated db/ci/. The first real execution of this suite found all three
+-- of the assertions here failing, and the reason they failed is worse than a
+-- broken policy: they were aimed at a decommissioned function. They had been
+-- "verified by inspection" against SQL that no caller reaches
+-- (app/onboarding/page.tsx calls rpc("accept_invitation", { invite_token })),
+-- while the function that DOES grant organisation membership had never had a
+-- single executed assertion pointed at it.
+--
+-- Rewritten below against the live entry point, plus the two attack cases 034
+-- created and nothing covered: a forwarded token, and the mailbox-only join
+-- that 034 exists to refuse.
 reset role;
 select set_config('request.jwt.claim.sub', 'aaaa0000-0000-4000-8000-00000000000e', false);
 set role authenticated;
 
 select ci.assert(
-  ci.refusal($q$select public.accept_invitation()$q$) = '42501',
-  'accept_invitation() REFUSES an owner-level invite that an office user issued');
+  ci.refusal($q$select public.accept_invitation('ci-token-forged')$q$) = '42501',
+  'accept_invitation(token) REFUSES an owner-level invite that an office user issued');
+
+-- A leaked or forwarded link. The token is valid and open; the caller is simply
+-- not the person it was issued to. 034 added this check; nothing asserted it.
+select ci.assert(
+  ci.refusal($q$select public.accept_invitation('ci-token-genuine')$q$) = '42501',
+  'accept_invitation(token) REFUSES a valid token belonging to someone else');
+
+-- The defect 034 §3b exists to close: possession of a mailbox is not a
+-- credential. Someone WITH a pending invitation must still get nothing from the
+-- token-less form. If this ever starts returning an organisation again, the
+-- email-only join is back.
+select ci.assert(
+  public.accept_invitation() is null,
+  'the token-less accept_invitation() grants nothing, even to a genuine invitee');
+
+select ci.assert(
+  public.accept_invitation('no-such-token') is null,
+  'accept_invitation(token) grants nothing for an unknown token');
+select ci.assert(
+  public.accept_invitation('') is null,
+  'accept_invitation(token) grants nothing for an empty token');
 
 reset role;
 select ci.assert(
   (select count(*) from public.profiles where id = 'aaaa0000-0000-4000-8000-00000000000e') = 0,
   'the forged invitee gained no profile at all');
 
--- LEGITIMATE: the same call, on an owner-level invite an owner actually issued,
--- must still work — otherwise ownership transfer is impossible.
+-- LEGITIMATE: the same call, on an owner-level invite an owner actually issued
+-- and with the token that was emailed to that address, must still work —
+-- otherwise ownership transfer is impossible.
 select set_config('request.jwt.claim.sub', 'aaaa0000-0000-4000-8000-00000000000f', false);
 set role authenticated;
 
 select ci.assert(
-  public.accept_invitation() = 'aaaa0000-0000-4000-8000-000000000001',
-  'accept_invitation() ACCEPTS an owner-level invite that an owner issued');
+  public.accept_invitation('ci-token-genuine') = 'aaaa0000-0000-4000-8000-000000000001',
+  'accept_invitation(token) ACCEPTS an owner-level invite that an owner issued');
 
 reset role;
 select ci.assert(
   (select role::text from public.profiles where id = 'aaaa0000-0000-4000-8000-00000000000f') = 'owner',
   'the genuine invitee is now an owner of tenant A');
+select ci.assert(
+  (select accepted_at is not null and accepted_by = 'aaaa0000-0000-4000-8000-00000000000f'
+     from public.invitations where token = 'ci-token-genuine'),
+  'the redeemed invitation is closed and records who redeemed it');
+
+-- And it is single-use. A token that has been redeemed must not admit anyone
+-- else, or the emailed link is a permanent key to the business.
+select set_config('request.jwt.claim.sub', 'aaaa0000-0000-4000-8000-00000000000e', false);
+set role authenticated;
+select ci.assert(
+  public.accept_invitation('ci-token-genuine') is null,
+  'a redeemed invitation token cannot be redeemed a second time');
+reset role;
+select ci.assert(
+  (select count(*) from public.profiles where id = 'aaaa0000-0000-4000-8000-00000000000e') = 0,
+  'the second redemption of that token created no profile');
 
 reset role;
 select set_config('request.jwt.claim.sub', '', false);

@@ -82,11 +82,19 @@ insert into public.invoices (id, organization_id, number, customer_id, total_min
    'bbbb0000-0000-4000-8000-000000000006', 20000)
 on conflict (id) do nothing;
 
-insert into public.payments (id, organization_id, invoice_id, amount_minor) values
+-- status is set EXPLICITLY, and it has to be. `payments.status` defaults to
+-- 'requires_payment' (schema.sql:282); migration 017's trg_prepare_payment_row
+-- copies that into normalized_status; and 017's payments_normalized_status_check
+-- does not list 'requires_payment'. So an insert that relies on the column's own
+-- default is rejected by the table's own constraint. Every payment insert in the
+-- application passes status:'paid' explicitly, so nothing in production takes
+-- that path — but this fixture did, and that is how the first real run of this
+-- suite found it. See docs/REMEDIATION-PLAN.md ledger 0.6.
+insert into public.payments (id, organization_id, invoice_id, amount_minor, status) values
   ('aaaa0000-0000-4000-8000-000000000009', 'aaaa0000-0000-4000-8000-000000000001',
-   'aaaa0000-0000-4000-8000-000000000008', 10000),
+   'aaaa0000-0000-4000-8000-000000000008', 10000, 'paid'),
   ('bbbb0000-0000-4000-8000-000000000009', 'bbbb0000-0000-4000-8000-000000000001',
-   'bbbb0000-0000-4000-8000-000000000008', 20000)
+   'bbbb0000-0000-4000-8000-000000000008', 20000, 'paid')
 on conflict (id) do nothing;
 
 -- An unsigned estimate with a known public token, for the approve_document
@@ -106,6 +114,25 @@ insert into public.job_time_entries (id, organization_id, job_id, user_id, start
   ('aaaa0000-0000-4000-8000-00000000000d', 'aaaa0000-0000-4000-8000-000000000001',
    'aaaa0000-0000-4000-8000-000000000007', 'aaaa0000-0000-4000-8000-000000000005', now() - interval '2 hours', null)
 on conflict (id) do nothing;
+
+-- Where each technician physically was. Migration 023 §5 narrowed
+-- technician_locations to owner/office plus "my own rows", but migration 019's
+-- technician_locations_manage (for ALL, owner/office) survives beside it — and
+-- PERMISSIVE policies are OR'd, so whether the narrowing achieved anything is a
+-- question about the running database, not about either file. One row per
+-- technician in tenant A and one in tenant B, so the question can be asked.
+insert into public.technician_locations (id, organization_id, profile_id, latitude, longitude) values
+  (9001, 'aaaa0000-0000-4000-8000-000000000001', 'aaaa0000-0000-4000-8000-000000000004', 51.5, -0.12),
+  (9002, 'aaaa0000-0000-4000-8000-000000000001', 'aaaa0000-0000-4000-8000-000000000005', 51.6, -0.13),
+  (9003, 'bbbb0000-0000-4000-8000-000000000001', 'bbbb0000-0000-4000-8000-000000000002', 40.7, -74.0)
+on conflict (id) do nothing;
+
+-- Tech A1 has consented to location tracking; tech A2 has NOT. The consent row
+-- is what technician_locations_own_insert requires.
+insert into public.technician_location_consents (profile_id, organization_id, consented, consented_at) values
+  ('aaaa0000-0000-4000-8000-000000000004', 'aaaa0000-0000-4000-8000-000000000001', true, now()),
+  ('aaaa0000-0000-4000-8000-000000000005', 'aaaa0000-0000-4000-8000-000000000001', false, null)
+on conflict (profile_id) do nothing;
 
 -- ---------------------------------------------------------------------
 -- Fixtures must actually exist, or every "forbidden" assertion below would
@@ -138,6 +165,9 @@ select ci.assert((select count(*) from public.job_time_entries
 select ci.assert((select signed_at is null from public.estimates
                    where id = 'aaaa0000-0000-4000-8000-00000000000a'),
                  'fixture: estimate starts unsigned');
+select ci.assert((select count(*) from public.technician_locations
+                   where id in (9001, 9002, 9003)) = 3,
+                 'fixture: 3 technician location pings across 2 tenants');
 
 -- ---------------------------------------------------------------------
 -- The harness itself must work. If impersonation silently did nothing, every
