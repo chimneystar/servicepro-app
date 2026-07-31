@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { addMinutes, buildBookingSlots, matchesServiceArea, normalizePhone } from "../lib/booking.ts";
+import { addMinutes, buildBookingSlots, matchesServiceArea, normalizePhone } from "../lib/core/booking.mjs";
 
 const hours={"1":["08:00","17:00"],"2":["08:00","17:00"],"3":["08:00","17:00"],"4":["08:00","17:00"],"5":["08:00","17:00"],"6":null,"7":null};
 

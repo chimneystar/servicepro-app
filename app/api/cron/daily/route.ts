@@ -1,4 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
+// @ts-ignore - shared pure JavaScript, proven both ways in tests/security.test.mjs
+import { isAuthorizedBearer } from "@/lib/core/security.mjs";
 import { runRecurringGeneration, runReminders } from "@/lib/cron-tasks";
 import { reconcilePendingHelcimPayments } from "@/lib/payments/server";
 import { retryFailedPaymentReceipts } from "@/lib/payments/receipts";
@@ -13,18 +15,49 @@ export const maxDuration = 60;
  * - Sends day-before appointment reminders + weekly overdue nudges (needs
  *   Twilio + SUPABASE_SERVICE_ROLE_KEY; silently no-ops otherwise).
  * - Reconciles ACH payments that Helcim still reports as processing.
- * Protected by CRON_SECRET when that env var is set.
+ *
+ * REQUIRES CRON_SECRET. Without it this endpoint returns 401 and does nothing —
+ * it must never be reachable anonymously, because runAutomaticDataRetention()
+ * permanently deletes customer records across every organisation.
  */
 export async function GET(request: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (secret && request.headers.get("authorization") !== `Bearer ${secret}`) {
+  // FAIL CLOSED. This endpoint deletes customer data across every organisation
+  // (runAutomaticDataRetention) and spends money on SMS. The previous guard
+  // skipped authentication entirely when CRON_SECRET was unset — and
+  // .env.example ships it blank, making that the default.
+  //
+  // isAuthorizedBearer refuses an empty secret by construction and is proven in
+  // both directions in tests/security.test.mjs.
+  if (!isAuthorizedBearer(request.headers.get("authorization"), process.env.CRON_SECRET)) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
-  const result: any = { ok: true };
-  try { result.recurringJobsCreated = await runRecurringGeneration(); } catch (e: any) { result.recurringError = String(e?.message ?? e); }
-  try { result.reminders = await runReminders(); } catch (e: any) { result.remindersError = String(e?.message ?? e); }
-  try { result.pendingPayments = await reconcilePendingHelcimPayments(); } catch (e: any) { result.pendingPaymentsError = String(e?.message ?? e); }
-  try { result.paymentReceipts = await retryFailedPaymentReceipts(); } catch (e: any) { result.paymentReceiptsError = String(e?.message ?? e); }
-  try { result.dataRetention = await runAutomaticDataRetention(); } catch (e: any) { result.dataRetentionError = String(e?.message ?? e); }
-  return NextResponse.json(result);
+
+  // Each subsystem is isolated so one failure does not suppress the rest — but
+  // the route must NOT report success when any of them failed. A green cron
+  // dashboard over a broken system is the failure this guards against.
+  const result: Record<string, unknown> = {};
+  const failures: string[] = [];
+
+  const run = async (name: string, task: () => Promise<unknown>) => {
+    try {
+      result[name] = await task();
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      failures.push(name);
+      result[`${name}Error`] = message;
+      console.error(`[cron/daily] ${name} failed:`, message);
+    }
+  };
+
+  await run("recurringJobsCreated", runRecurringGeneration);
+  await run("reminders", runReminders);
+  await run("pendingPayments", reconcilePendingHelcimPayments);
+  await run("paymentReceipts", retryFailedPaymentReceipts);
+  await run("dataRetention", runAutomaticDataRetention);
+
+  const ok = failures.length === 0;
+  return NextResponse.json(
+    { ok, ...(ok ? {} : { failed: failures }), ...result },
+    { status: ok ? 200 : 500 },
+  );
 }

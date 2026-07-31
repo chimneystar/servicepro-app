@@ -1,0 +1,445 @@
+<title>ServicePro — Software Review &amp; Remediation Plan</title>
+
+<style>
+  :root {
+    --paper:      #F7F7F5;
+    --surface:    #FFFFFF;
+    --ink:        #191C1F;
+    --ink-soft:   #4A5359;
+    --ink-faint:  #737E85;
+    --rule:       #DFE1DF;
+    --accent:     #16506B;
+    --accent-soft:#E8EFF3;
+    --critical:   #A32A21;
+    --warn:       #8A5A07;
+    --good:       #2F6B45;
+
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+
+    --measure: 68ch;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:      #14171A;
+      --surface:    #1B1F23;
+      --ink:        #EDEFF0;
+      --ink-soft:   #B0B8BD;
+      --ink-faint:  #808A91;
+      --rule:       #2C3238;
+      --accent:     #6FB3D2;
+      --accent-soft:#1D2B33;
+      --critical:   #E2796E;
+      --warn:       #D2A24C;
+      --good:       #74B98D;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:#14171A; --surface:#1B1F23; --ink:#EDEFF0; --ink-soft:#B0B8BD;
+    --ink-faint:#808A91; --rule:#2C3238; --accent:#6FB3D2; --accent-soft:#1D2B33;
+    --critical:#E2796E; --warn:#D2A24C; --good:#74B98D;
+  }
+  :root[data-theme="light"] {
+    --paper:#F7F7F5; --surface:#FFFFFF; --ink:#191C1F; --ink-soft:#4A5359;
+    --ink-faint:#737E85; --rule:#DFE1DF; --accent:#16506B; --accent-soft:#E8EFF3;
+    --critical:#A32A21; --warn:#8A5A07; --good:#2F6B45;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: var(--measure);
+    margin: 0 auto;
+    padding: 4rem 1.5rem 6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 3.25rem;
+  }
+
+  .masthead { display: flex; flex-direction: column; gap: 1rem; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  h1 {
+    font-family: var(--serif);
+    font-size: clamp(2rem, 5vw, 2.9rem);
+    line-height: 1.12;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+    margin: 0;
+  }
+  .standfirst {
+    font-family: var(--serif);
+    font-size: 1.2rem;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    max-width: 58ch;
+  }
+  .byline {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--ink-faint);
+    border-top: 1px solid var(--rule);
+    padding-top: 0.9rem;
+  }
+
+  section { display: flex; flex-direction: column; gap: 1.15rem; }
+
+  h2 {
+    font-family: var(--serif);
+    font-size: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  h2 .num {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    display: block;
+    margin-bottom: 0.4rem;
+    font-weight: 400;
+  }
+  h3 {
+    font-family: var(--sans);
+    font-size: 0.83rem;
+    font-weight: 650;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+  p { margin: 0; max-width: 62ch; }
+  strong { font-weight: 650; }
+
+  .verdict {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    padding: 1.4rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+
+  .group { display: flex; flex-direction: column; gap: 0.8rem; }
+
+  .item {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--sev, var(--rule));
+    padding: 1rem 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .item.crit { --sev: var(--critical); }
+  .item.high { --sev: var(--warn); }
+  .item.add  { --sev: var(--good); }
+
+  .item-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .item-title { font-weight: 650; font-size: 1rem; }
+  .chip {
+    font-family: var(--mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    padding: 0.16rem 0.5rem;
+    border: 1px solid currentColor;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .chip.crit { color: var(--critical); }
+  .chip.high { color: var(--warn); }
+  .chip.add  { color: var(--good); }
+  .item p { font-size: 0.95rem; color: var(--ink-soft); max-width: 60ch; }
+
+  ul { margin: 0; padding-left: 1.15rem; display: flex; flex-direction: column; gap: 0.5rem; max-width: 62ch; }
+  li { font-size: 0.97rem; color: var(--ink-soft); }
+  li strong { color: var(--ink); }
+
+  .phases { border-collapse: collapse; width: 100%; font-size: 0.94rem; }
+  .phases th, .phases td { text-align: left; padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  .phases th {
+    font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--ink-faint); font-weight: 400;
+  }
+  .phases td:first-child { font-family: var(--mono); color: var(--accent); white-space: nowrap; }
+  .scroller { overflow-x: auto; }
+
+  .note {
+    font-size: 0.93rem;
+    color: var(--ink-faint);
+    border-top: 1px solid var(--rule);
+    padding-top: 1.1rem;
+    max-width: 62ch;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .item { transition: border-color 140ms ease; }
+  }
+  a { color: var(--accent); }
+  a:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="page">
+
+  <header class="masthead">
+    <div class="eyebrow">Software Review</div>
+    <h1>ServicePro: what we found, and what we&rsquo;re going to do about it</h1>
+    <p class="standfirst">
+      We completed a full review of the system &mdash; every screen, every payment path, and the
+      database underneath. The foundation is genuinely good. A number of specific faults are
+      serious, and we are fixing all of them before this serves a single customer.
+    </p>
+    <div class="byline">Prepared 31 July 2026 &middot; Full technical detail available on request</div>
+  </header>
+
+  <section>
+    <h2><span class="num">The short version</span>The system is worth keeping &mdash; and it is not ready yet</h2>
+    <div class="verdict">
+      <p>
+        We considered rebuilding from scratch and decided against it, deliberately. The hardest parts
+        to get right &mdash; keeping each business&rsquo;s data separate, calculating money to the cent,
+        securing card details, and the full Hebrew and English interface &mdash; are already done
+        correctly. Rebuilding would cost roughly twice as much and would put those at risk.
+      </p>
+      <p>
+        What is wrong is concentrated in the newer, faster-built parts of the system: gaps in who is
+        allowed to do what, a handful of billing errors, and missing safety nets. Those are all
+        fixable, and <strong>we are fixing everything &mdash; not only the urgent items.</strong>
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">What we found &mdash; 01</span>Faults that could affect your customers</h2>
+    <div class="group">
+      <div class="item crit">
+        <div class="item-head"><span class="item-title">Deposits are not credited to the final invoice</span><span class="chip crit">Urgent</span></div>
+        <p>A customer who pays a deposit on a quote is then billed the full amount again. Nothing in the system links the deposit to the invoice, and no screen would reveal the mistake.</p>
+      </div>
+      <div class="item crit">
+        <div class="item-head"><span class="item-title">Signed documents can be re-signed by anyone with the link</span><span class="chip crit">Urgent</span></div>
+        <p>An approved quote can have its signature replaced with a different name at any time. If a job were ever disputed, the original signature would not stand up.</p>
+      </div>
+      <div class="item crit">
+        <div class="item-head"><span class="item-title">Customer portal links never expire and cannot be cancelled</span><span class="chip crit">Urgent</span></div>
+        <p>One forwarded email gives permanent access to that customer&rsquo;s full history &mdash; and to the payment links on every one of their invoices.</p>
+      </div>
+      <div class="item high">
+        <div class="item-head"><span class="item-title">Text messages can be faked into your inbox</span><span class="chip high">High</span></div>
+        <p>The system does not verify that an incoming text genuinely came from the phone network, and can file a message under the wrong business entirely.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">What we found &mdash; 02</span>Faults in your numbers</h2>
+    <div class="group">
+      <div class="item high">
+        <div class="item-head"><span class="item-title">Invoices count money you have not received</span><span class="chip high">High</span></div>
+        <p>Declined cards and bank transfers still in progress are shown as paid, so an invoice can look settled when it is not.</p>
+      </div>
+      <div class="item high">
+        <div class="item-head"><span class="item-title">Revenue and profit figures are overstated</span><span class="chip high">High</span></div>
+        <p>The dashboard counts invoice totals rather than money actually collected, and the profit figure leaves out discounts and tax. These are the numbers used for payroll and tax decisions.</p>
+      </div>
+      <div class="item high">
+        <div class="item-head"><span class="item-title">Commission is paid on quoted work, not collected work</span><span class="chip high">High</span></div>
+        <p>Technicians earn commission on jobs the business was never paid for.</p>
+      </div>
+      <div class="item high">
+        <div class="item-head"><span class="item-title">Repeat-maintenance jobs clog the dispatch board</span><span class="chip high">High</span></div>
+        <p>Jobs created automatically each night reappear on every future day and never clear. The board degrades on its own, with no one doing anything wrong.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">What we found &mdash; 03</span>Who can do what</h2>
+    <div class="group">
+      <div class="item crit">
+        <div class="item-head"><span class="item-title">Any staff member can promote themselves to owner</span><span class="chip crit">Urgent</span></div>
+        <p>There are two separate ways a technician or office user can give themselves full owner rights &mdash; including access to payment settings and financial records. This is the single most important thing we found.</p>
+      </div>
+      <div class="item high">
+        <div class="item-head"><span class="item-title">Technicians can change their own commission rate and colleagues&rsquo; timesheets</span><span class="chip high">High</span></div>
+        <p>They can also see every colleague&rsquo;s location history, supplier costs and marketing spend.</p>
+      </div>
+      <div class="item high">
+        <div class="item-head"><span class="item-title">Anyone signed in can send an email as your business</span><span class="chip high">High</span></div>
+        <p>Branded with your name and logo, to any address, containing any link.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">What we found &mdash; 04</span>What happens when something goes wrong</h2>
+    <div class="group">
+      <div class="item crit">
+        <div class="item-head"><span class="item-title">A nightly task deletes customer records and is not password-protected</span><span class="chip crit">Urgent</span></div>
+        <p>Because of how it was configured, it can currently be triggered by anyone on the internet.</p>
+      </div>
+      <div class="item crit">
+        <div class="item-head"><span class="item-title">The written recovery instructions rebuild the wrong system</span><span class="chip crit">Urgent</span></div>
+        <p>They stop partway through, so following them after a failure produces a database the software cannot run on. There is also no backup or rollback procedure written down at all.</p>
+      </div>
+      <div class="item high">
+        <div class="item-head"><span class="item-title">Nothing tells anyone when the system fails</span><span class="chip high">High</span></div>
+        <p>There is no alerting. The nightly job reports success even when every part of it has failed, so a problem could run for weeks unnoticed.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">The plan</span>We fix everything, in this order</h2>
+    <p>
+      Security comes first because it decides whether the system can go live at all. Nothing already
+      working will be removed &mdash; we catalogued all ~190 existing capabilities first, specifically
+      so that nothing is lost along the way. Every screen in the system is treated as needed, and the
+      unfinished ones get finished rather than deleted.
+    </p>
+    <div class="scroller">
+      <table class="phases">
+        <thead><tr><th>Stage</th><th>What we do</th><th>Why it comes here</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Permissions and access</td><td>Decides whether it can go live at all</td></tr>
+          <tr><td>2</td><td>Billing and money accuracy</td><td>Protects customers and your books</td></tr>
+          <tr><td>3</td><td>Backups, alerting, recovery</td><td>So a bad day stays a bad day</td></tr>
+          <tr><td>4</td><td>The remaining defects</td><td>Dispatch, sync, search, scheduling</td></tr>
+          <tr><td>5</td><td>Finish the half-built screens</td><td>So nothing on screen is decorative</td></tr>
+          <tr><td>6</td><td>New capabilities <span style="color:var(--ink-faint)">(below)</span></td><td>Once the base is trustworthy</td></tr>
+          <tr><td>7</td><td>Long-term maintainability</td><td>So future changes stay cheap and safe</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">What we&rsquo;re adding</span>Capabilities the system is missing</h2>
+    <p>
+      The review also asked a second question: what <em>should</em> be here that is not? These are the
+      gaps worth closing &mdash; some because the business is exposed without them, some because they
+      are simply what a service company needs.
+    </p>
+
+    <h3>Protecting your records</h3>
+    <div class="group">
+      <div class="item add">
+        <div class="item-head"><span class="item-title">Credit notes and invoice cancellation</span><span class="chip add">New</span></div>
+        <p>Today there is no correct way to cancel or correct an invoice you have already issued &mdash; only editing it, which rewrites history. Accountants and tax authorities require better.</p>
+      </div>
+      <div class="item add">
+        <div class="item-head"><span class="item-title">A full record of every change to money</span><span class="chip add">New</span></div>
+        <p>Jobs, invoices and quotes keep a change history. Payments do not &mdash; the one table where it matters most.</p>
+      </div>
+      <div class="item add">
+        <div class="item-head"><span class="item-title">Guaranteed invoice numbering, plus undo</span><span class="chip add">New</span></div>
+        <p>Nothing currently prevents two invoices sharing a number, and deleted records cannot be recovered from any screen.</p>
+      </div>
+      <div class="item add">
+        <div class="item-head"><span class="item-title">Locking documents once sent or paid</span><span class="chip add">New</span></div>
+        <p>So the figures a customer approved cannot quietly change afterwards.</p>
+      </div>
+      <div class="item add">
+        <div class="item-head"><span class="item-title">A complete export of your own business data</span><span class="chip add">New</span></div>
+        <p>Your data should be yours to take, in full, at any time.</p>
+      </div>
+    </div>
+
+    <h3>Trust and accountability</h3>
+    <div class="group">
+      <div class="item add">
+        <div class="item-head"><span class="item-title">Proper evidence on signatures and logins</span><span class="chip add">New</span></div>
+        <p>The system records nothing about <em>where</em> an action came from. A signed quote captures only a name and a drawing &mdash; thin evidence in a dispute.</p>
+      </div>
+      <div class="item add">
+        <div class="item-head"><span class="item-title">Two-step login, and the ability to sign out a lost phone</span><span class="chip add">New</span></div>
+        <p>An owner account controls payouts and customer data behind a single password today.</p>
+      </div>
+      <div class="item add">
+        <div class="item-head"><span class="item-title">An activity log you can actually read</span><span class="chip add">New</span></div>
+        <p>&ldquo;What changed in my business last week, and who did it?&rdquo; is not answerable today. Changes to staff permissions leave no trace at all.</p>
+      </div>
+      <div class="item add">
+        <div class="item-head"><span class="item-title">Protection against repeated password guessing, and STOP handling for texts</span><span class="chip add">New</span></div>
+        <p>A customer replying STOP is currently stored as an ordinary message and reminders keep sending &mdash; a legal risk in several markets.</p>
+      </div>
+    </div>
+
+    <h3>Running the business better</h3>
+    <div class="group">
+      <div class="item add">
+        <div class="item-head"><span class="item-title">Parts used on a job come out of stock automatically</span><span class="chip add">New</span></div>
+        <p>Stock is a standalone counter today; nothing decrements it when a technician fits a part, so it drifts out of date within a week &mdash; and job costs exclude materials.</p>
+      </div>
+      <div class="item add">
+        <div class="item-head"><span class="item-title">True job profitability, including labour</span><span class="chip add">New</span></div>
+        <p>Clock-in data is collected but never reaches any profit figure.</p>
+      </div>
+      <div class="item add">
+        <div class="item-head"><span class="item-title">Technician holiday and time off</span><span class="chip add">New</span></div>
+        <p>Booking and dispatch will currently schedule someone who is away.</p>
+      </div>
+      <div class="item add">
+        <div class="item-head"><span class="item-title">Good / better / best quote options</span><span class="chip add">New</span></div>
+        <p>The single biggest lever on quote acceptance, and the system can only produce one flat price.</p>
+      </div>
+      <div class="item add">
+        <div class="item-head"><span class="item-title">Notifications for your staff</span><span class="chip add">New</span></div>
+        <p>Nothing currently tells a technician they have been assigned a job, or tells you that a payment arrived.</p>
+      </div>
+      <div class="item add">
+        <div class="item-head"><span class="item-title">Customer statements, appointment confirmations and calendar sync</span><span class="chip add">New</span></div>
+        <p>Plus a weekly summary by email, and the ability to act on many jobs or invoices at once instead of one at a time.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">In closing</span>What this means for you</h2>
+    <p>
+      Nothing you can see today is being taken away. The work is sequenced so that the system becomes
+      safe first, correct second, and richer third &mdash; and every fix ships with a test that proves it
+      stayed fixed, which is the part that was missing until now.
+    </p>
+    <p>
+      Two questions have now been settled, and both shape the plan above. <strong>Every screen stays.</strong>
+      The roughly one third of the system that is unfinished groundwork will be completed rather than
+      removed &mdash; so features that today look real but do nothing, such as refunds, tips, automatic
+      follow-up campaigns and stock movements, will actually work. And <strong>invoicing stays in US
+      dollars</strong>, which matches the card provider already integrated; we will remove the other
+      currency options from setup so no one can select one that payments cannot handle.
+    </p>
+    <p class="note">
+      The commitment is straightforward: we work through the list until there is nothing left on it.
+      Progress is tracked in the project itself rather than in status emails, so at any point you can
+      ask what is done, what is in flight, and what remains &mdash; and get an answer grounded in the
+      software, not in a summary.
+    </p>
+  </section>
+
+</div>

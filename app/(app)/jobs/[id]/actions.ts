@@ -251,13 +251,37 @@ export async function recordPhoto(jobId: string, path: string, label: string, me
   return { ok: true };
 }
 
-/** Delete a job photo (storage object + row). */
-export async function deletePhoto(id: string, path: string, jobId: string): Promise<PhotoResult> {
-  await requireProfile();
+/**
+ * Delete a job photo (row + storage object).
+ *
+ * SECURITY: the storage path is derived from the row, never taken from the
+ * caller. It previously accepted a client-supplied `path` and removed it before
+ * checking anything, so any signed-in user could delete any object in the
+ * bucket — and the file was gone even when the row delete then failed.
+ * The `path` parameter is retained for call-site compatibility and ignored.
+ */
+export async function deletePhoto(id: string, _path: string, jobId: string): Promise<PhotoResult> {
+  const profile = await requireProfile();
   const supabase = await createClient();
-  await supabase.storage.from("job-photos").remove([path]);
-  const { error } = await supabase.from("job_photos").delete().eq("id", id);
+
+  // Read first: RLS scopes this to the caller's organisation.
+  const { data: photo } = await supabase
+    .from("job_photos")
+    .select("id, storage_path, job_id, organization_id")
+    .eq("id", id)
+    .maybeSingle();
+  if (!photo) return { ok: false, error: "not_found" };
+  if (photo.organization_id !== profile.organization_id) return { ok: false, error: "forbidden" };
+
+  // Delete the row first. If that is refused, the file must survive.
+  const { error } = await supabase.from("job_photos").delete().eq("id", photo.id);
   if (error) return { ok: false, error: error.message };
+
+  if (photo.storage_path) {
+    const { error: storageError } = await supabase.storage.from("job-photos").remove([photo.storage_path]);
+    if (storageError) console.error(`[deletePhoto] row ${photo.id} deleted but object ${photo.storage_path} remains:`, storageError.message);
+  }
+
   revalidatePath(`/jobs/${jobId}`);
   return { ok: true };
 }
