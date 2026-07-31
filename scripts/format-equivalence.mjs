@@ -178,7 +178,15 @@ function listFiles() {
 
 function readBase(file) {
   try {
-    return git("show", `${BASE}:${file}`);
+    // stderr is swallowed on purpose: a file added on this branch makes
+    // `git show` print `fatal: path ... exists on disk, but not in <ref>`, which
+    // is the expected answer here, not a problem. It is counted as "skipped".
+    return execFileSync("git", ["show", `${BASE}:${file}`], {
+      cwd: ROOT,
+      encoding: "utf8",
+      maxBuffer: 1 << 28,
+      stdio: ["ignore", "pipe", "ignore"],
+    });
   } catch {
     return null; // added on this branch — nothing to compare against
   }
