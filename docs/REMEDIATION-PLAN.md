@@ -128,6 +128,8 @@ silently stops running cannot go green.
 | 4.9 | Reminders: mark sent AFTER send; allow retry | DONE |
 | 4.10 | Surface swallowed errors (25 discarding call sites across 18 components, 10 void actions) | DONE |
 | 4.11 | Crew assignment must respect the no-double-book constraint | DONE (migration `028_crew_double_book.sql` must be RUN — code assumes it) |
+| 4.12 | **A5 — Hebrew customers read English service names.** `db/020_booking_experience.sql:78-79` seeded `booking_services.name_he` from `jt.name` (the ENGLISH name) and the sync trigger's `on conflict do update` set `name_en` only, so it was wrong on the first insert and could never self-correct. | DONE (migration `041_booking_locale_packs.sql` must be RUN — see note) |
+| 4.13 | **A6 — every business published the same hardcoded HVAC menu.** `db/005_more.sql:8` defaults `organizations.job_types` to a fixed HVAC list which `006` turned into rows, while the twelve bilingual packs in `lib/industry-packs.ts` fed only the price book. | DONE (migration `041_booking_locale_packs.sql` must be RUN — see note) |
 
 **Note on 4.8 — why it is PARTIAL and not DONE.**
 
@@ -167,6 +169,49 @@ What did change is that the toggle stopped lying:
 To close 4.8 fully, a follow-up needs: a geocoder, lat/lng on the address, a
 polygon editor, and real coordinate storage. Until then this is PARTIAL.
 
+
+**Note on 4.12 / 4.13 — migration `db/041_booking_locale_packs.sql` must be RUN; the code assumes
+it. Additive, idempotent, drops nothing.**
+
+*The decision that mattered: an organisation that already has job types is NOT re-seeded.* The pack
+menu is inserted only where `not exists (select 1 from job_types where organization_id = …)`, so a
+business with even one job type is skipped entirely — nothing added, nothing removed. Its published
+list is what customers are booking from and what leads, jobs and booking deposits reference by id;
+rewriting it would be a worse defect than the one being fixed. What DOES change for such a business
+is spelling, never offering: a `name_he` that is null or byte-identical to `name_en` is a mis-seed by
+definition and is replaced with the real Hebrew name when the catalogue knows one. A Hebrew name a
+human typed is never touched.
+
+*Why the Hebrew name can now correct itself, in three layers rather than one backfill.*
+`industry_pack_services` puts the twelve bilingual packs (plus the neutral fallback) in the database,
+so translation does not need a round trip through the app; `resolve_booking_service_names()` resolves
+a service's two names from the explicit columns, then the linked pack item, then a catalogue match on
+the name itself; the sync trigger applies it on **every** job-type write and its `on conflict do
+update` now maintains `name_he`; and `repair_booking_service_names()` is an owner-callable,
+re-runnable repair wired to a button on `/settings/booking` that reports how many names it fixed. A
+one-time backfill would only have relocated the defect to the next mis-seeded row.
+
+*An unknown translation is stored as NULL, deliberately* — storing the English name in `name_he` is
+exactly what made A5 invisible, and the public page (`app/book/[org]/BookingForm.tsx`) already falls
+back to English at render time.
+
+*A6 at its source:* `job_types` gained `name_en` / `name_he` / `pack_key` / `pack_item_key`;
+onboarding writes all four from the chosen trades; a business that picks NO trade gets a
+trade-neutral bilingual visit list instead of somebody else's trade (stated on the onboarding screen);
+and `organizations.job_types` now defaults to `'{}'`, so 005's HVAC array can never seed anyone new.
+Existing values are left alone. The price-book import is untouched and asserted to be untouched.
+
+*Proof:* `tests/booking-locale.test.mjs` — 19 probes, **17 of which fail against the pre-fix tree**
+(re-run with the work stashed and the migration removed; the two that stay green are preservation
+guards: the packs were already translated, which is the point of A6). The SQL assertions are made
+against the **effective** definition — the last `create or replace` of a function or trigger across
+the whole migration sequence — so a later migration reintroducing 020's body would fail them, and
+every column, trigger, constraint and function name 041 uses is asserted to exist in the migration
+that creates it. Suite 883 → 902, all green; typecheck, lint and build clean.
+
+*Not verified against a live Postgres* — the same caveat as every migration on this branch since 0.6.
+`create or replace trigger` (PG14+) and the resolver's Hebrew-script test are verified by inspection
+only.
 
 **4.7 — what was actually changed, and the one honest trade-off.** `/schedule` now loads the anchor
 month ±14 days and `components/Calendar.tsx` re-fetches when the user pages outside it (the
@@ -1239,11 +1284,11 @@ No number of passing unit tests closes any of those.
 | ~~A1~~ | **FIXED** — type scale rebuilt; smallest text 7px → 12px. See the A1/A2 note under 6.6 |
 | ~~A2~~ | **FIXED** — every font size in the product is now `rem`, so the toggle moves all 1,110 of them. See the A1/A2 note under 6.6 |
 | A3 | Expanding the sidebar "Tools" group renders all 11 destinations off-screen with no scroll affordance |
-| A5 | Hebrew customers see English service names; `name_he` is seeded from the English name and the sync trigger can never correct it |
-| A6 | Every business publishes the same hardcoded HVAC menu — a chimney sweep advertises "AC Install", while a bilingual chimney pack exists unused |
 
 A4 (Invoices unreachable on mobile) and B1 (`merchant_accounts` does not exist)
-were verified and FIXED — see commit `eea4048`.
+were verified and FIXED — see commit `eea4048`. **A5 (Hebrew service names) and
+A6 (the hardcoded HVAC menu) were verified and FIXED** — ledger 4.12 / 4.13 and
+migration `db/041_booking_locale_packs.sql`, which must be RUN.
 
 ### Two things to raise with the owner
 1. The `MIGRATIONS.md` correction exists only on this unpushed branch, so anyone

@@ -140,6 +140,77 @@ export const INDUSTRY_PACKS: IndustryPack[] = [
   ]},
 ];
 
+/**
+ * The identity of a pack item, shared by `price_book.pack_item_key`,
+ * `job_types.pack_item_key` and `industry_pack_services.pack_item_key`
+ * (migration 041). One format, one place, so the three cannot drift.
+ */
+export function packItemKey(packKey: string, kind: "service" | "part", itemKey: string) {
+  return `${packKey}:${kind}:${itemKey}`;
+}
+
+/**
+ * The fallback menu for a business that picked no trade at all.
+ *
+ * Without it such a business publishes an EMPTY booking page (nothing has
+ * created job types for a new organisation since migration 006's one-time
+ * backfill), and the old alternative was worse: migration 005's default handed
+ * every business the same HVAC list, so a chimney sweep advertised "AC
+ * Install". These five are deliberately trade-neutral — they describe a visit,
+ * not a trade — and are as translated as everything else here.
+ */
+export const GENERIC_PACK_KEY = "general";
+export const GENERIC_SERVICES: (CatalogPackItem & { bookAs: "job" | "estimate" })[] = [
+  { ...s("service-call", "Service call", "קריאת שירות"), bookAs: "job" },
+  { ...s("estimate-visit", "On-site estimate", "ביקור להצעת מחיר"), bookAs: "estimate" },
+  { ...s("repair", "Repair visit", "ביקור תיקון"), bookAs: "job" },
+  { ...s("maintenance", "Maintenance visit", "ביקור תחזוקה"), bookAs: "job" },
+  { ...s("emergency", "Emergency call-out", "קריאת חירום"), bookAs: "job" },
+];
+
+export type BookableService = {
+  /** What the business itself sees on its own screens, in its own language. */
+  name: string;
+  name_en: string;
+  name_he: string;
+  pack_key: string;
+  pack_item_key: string;
+  book_as: "job" | "estimate";
+  sort: number;
+};
+
+/**
+ * The services a business should actually publish: the trades it chose, in
+ * BOTH languages, falling back to the neutral list when it chose none.
+ *
+ * Both names are always returned, because the public booking page is bilingual
+ * regardless of which language the business runs its own screens in — that is
+ * the whole of defect A5.
+ */
+export function bookableServicesFor(trades: string[], locale: "en" | "he"): BookableService[] {
+  const chosen = INDUSTRY_PACKS.filter((pack) => trades.includes(pack.key));
+  const rows: Omit<BookableService, "sort">[] = chosen.length
+    ? chosen.flatMap((pack) =>
+        pack.items.filter((item) => item.kind === "service").map((item) => ({
+          name: locale === "he" ? item.he : item.en,
+          name_en: item.en,
+          name_he: item.he,
+          pack_key: pack.key,
+          pack_item_key: packItemKey(pack.key, "service", item.key),
+          book_as: "job" as const,
+        })),
+      )
+    : GENERIC_SERVICES.map((item) => ({
+        name: locale === "he" ? item.he : item.en,
+        name_en: item.en,
+        name_he: item.he,
+        pack_key: GENERIC_PACK_KEY,
+        pack_item_key: packItemKey(GENERIC_PACK_KEY, "service", item.key),
+        book_as: item.bookAs,
+      }));
+  return rows.map((row, sort) => ({ ...row, sort }));
+}
+
 export function catalogItemsFor(trades: string[], includeParts: boolean, locale: "en" | "he") {
   return INDUSTRY_PACKS.filter((pack) => trades.includes(pack.key)).flatMap((pack) =>
     pack.items.filter((item) => includeParts || item.kind === "service").map((item) => ({
@@ -150,7 +221,7 @@ export function catalogItemsFor(trades: string[], includeParts: boolean, locale:
       cost_minor: 0,
       taxable: true,
       industry_key: pack.key,
-      pack_item_key: `${pack.key}:${item.kind}:${item.key}`,
+      pack_item_key: packItemKey(pack.key, item.kind, item.key),
       item_kind: item.kind,
     })),
   );

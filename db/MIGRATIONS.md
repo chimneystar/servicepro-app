@@ -57,6 +57,7 @@ Run these **in this exact order**. Every file, no gaps.
 | 37 | `038_account_security.sql` | _(describe this migration)_ |
 | 38 | `039_scheduling_sales.sql` | Technician pay rates and labour costing, time off, skills, estimate options, appointment tokens |
 | 39 | `040_communications.sql` | Staff notification inbox (claim + audit), the dunning ladder's per-rung claim, sent statements, **calendar feed tokens bounded like 023 §10's portal tokens** (NOT NULL expiry, revocation, scope), report schedules with a per-period delivery claim, the bulk-operation failure record, and accounting-export idempotency. Additive: drops nothing |
+| 40 | `041_booking_locale_packs.sql` | The bilingual trade catalogue in the database, `job_types.name_en/name_he/pack_item_key`, a sync trigger that maintains the Hebrew booking-service name instead of copying the English one, a re-runnable `repair_booking_service_names()`, the pack menu for businesses that chose trades and have **no** job types (an org that already has any is skipped entirely), and an empty default for `organizations.job_types` so 005's HVAC list seeds nobody new. Additive: drops nothing |
 
 There is **no file numbered 016**: `016_isolation_tests.sql` is a *test*, not a
 migration. Run it after step 15 (and again at the end) and confirm you see

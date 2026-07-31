@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { addBookingQuestion, deleteBookingQuestion, saveBookingSettings } from "./actions";
+import { addBookingQuestion, deleteBookingQuestion, repairServiceNames, saveBookingSettings } from "./actions";
 import type { Locale } from "@/lib/i18n";
 
 type Settings = {
@@ -54,7 +54,7 @@ type Service = {
   book_as: "job" | "estimate";
   active: boolean;
 };
-type JobType = { id: string; name: string; duration_min: number; default_price_minor: number; sort: number };
+type JobType = { id: string; name: string; name_en?: string | null; name_he?: string | null; duration_min: number; default_price_minor: number; sort: number };
 type Question = {
   id: string;
   label_en: string;
@@ -79,15 +79,20 @@ export default function BookingSettingsForm({ locale, orgId, settings, services,
   const router = useRouter();
   const [pending, start] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+  // A job type with no booking service yet: show its own translations
+  // (migration 041) rather than repeating the English name in the Hebrew
+  // column. Copying English into name_he is defect A5 — it is what made an
+  // untranslated service indistinguishable from a translated one.
   const rows: Service[] = jobTypes.map((jobType) => services.find((service) => service.job_type_id === jobType.id) ?? {
     job_type_id: jobType.id,
-    name_en: jobType.name,
-    name_he: jobType.name,
+    name_en: jobType.name_en || jobType.name,
+    name_he: jobType.name_he || null,
     duration_min: jobType.duration_min,
     price_minor: jobType.default_price_minor,
     book_as: "job",
     active: true,
   });
+  const untranslated = rows.filter((row) => !row.name_he || row.name_he === row.name_en).length;
   const hours = settings.hours_json ?? {};
   const weekday = hours["1"] ?? ["08:00", "17:00"];
   const saturday = hours["6"];
@@ -154,6 +159,25 @@ export default function BookingSettingsForm({ locale, orgId, settings, services,
       <section className="settings-section booking-setting-card">
         <h2>{he ? "שירותים שאפשר להזמין" : "Bookable services"}</h2>
         <p className="settings-section-note">{he ? "כל שירות מגיע מסוגי העבודות. אפשר להציג שם ותיאור שונים ללקוחות." : "Services come from Job types. Customer-facing names and descriptions can be different."}</p>
+        {/* A5: a service with no Hebrew name is shown to Hebrew customers in
+            English. Say so, and offer the repair — which reads the bilingual
+            trade catalogue and can be run as many times as it takes. It never
+            touches a Hebrew name somebody typed. */}
+        {untranslated > 0 && <p className="booking-provider-note" role="status">
+          <strong>{he ? `ל-${untranslated} שירותים אין שם בעברית.` : `${untranslated} service${untranslated === 1 ? " has" : "s have"} no Hebrew name.`}</strong>{" "}
+          {he
+            ? "לקוחות שגולשים בעברית יראו אותם באנגלית. אפשר למלא את השם ידנית כאן, או למשוך את השמות מקטלוג התחומים הדו-לשוני."
+            : "Hebrew customers see those in English. Fill the Hebrew name in yourself below, or pull the names from the bilingual trade catalogue."}{" "}
+          <button type="button" disabled={pending} onClick={() => start(async () => {
+            const result = await repairServiceNames();
+            setMessage(result.ok
+              ? (result.fixed > 0
+                  ? (he ? `${result.fixed} שמות בעברית תוקנו` : `Repaired ${result.fixed} Hebrew name${result.fixed === 1 ? "" : "s"}`)
+                  : (he ? "לא נמצא תרגום לשירותים האלה בקטלוג" : "The catalogue has no translation for these services"))
+              : (result.error ?? "Error"));
+            if (result.ok) router.refresh();
+          })}>{he ? "תיקון השמות בעברית" : "Repair Hebrew names"}</button>
+        </p>}
         <div className="booking-service-admin">{rows.length ? rows.map((row) => {
           const id = String(row.job_type_id); const key = id.replaceAll("-", "");
           return <article key={id}>
@@ -161,7 +185,7 @@ export default function BookingSettingsForm({ locale, orgId, settings, services,
             <label className="booking-service-enabled"><input type="checkbox" name={`enabled_${key}`} defaultChecked={row.active ?? true} /><strong>{he ? "מוצג בדף" : "Shown online"}</strong></label>
             <div className="booking-admin-grid">
               <Field label="English"><input name={`nameEn_${key}`} defaultValue={row.name_en} /></Field>
-              <Field label="עברית"><input name={`nameHe_${key}`} defaultValue={row.name_he ?? row.name_en} /></Field>
+              <Field label="עברית"><input name={`nameHe_${key}`} defaultValue={row.name_he && row.name_he !== row.name_en ? row.name_he : ""} placeholder={row.name_en} /></Field>
               <Field label={he ? "משך בדקות" : "Duration (min)"}><input type="number" name={`duration_${key}`} min="15" defaultValue={row.duration_min} /></Field>
               <Field label={he ? "מחיר (אפשר להשאיר 0)" : "Price (0 hides price)"}><input type="number" step="0.01" min="0" name={`price_${key}`} defaultValue={(Number(row.price_minor ?? 0) / 100).toFixed(2)} /></Field>
               <Field label={he ? "נוצר כ" : "Book as"}><select name={`bookAs_${key}`} defaultValue={row.book_as ?? "job"}><option value="job">{he ? "עבודה" : "Job"}</option><option value="estimate">{he ? "בקשת הצעת מחיר" : "Estimate request"}</option></select></Field>

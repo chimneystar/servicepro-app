@@ -23,6 +23,27 @@ export async function saveBookingSettings(data:FormData){
   revalidatePath("/settings/booking");revalidatePath(`/book/${organizationId}`);return{ok:true};
 }
 
+/**
+ * Pull real Hebrew service names out of the bilingual trade catalogue
+ * (`industry_pack_services`, migration 041) for every booking service that has
+ * none — the A5 repair, exposed so it can be run whenever it is needed rather
+ * than once at migration time.
+ *
+ * The rule lives in `repair_booking_service_names()`, not here, because the
+ * database is also where the sync trigger applies it: a Hebrew name that is
+ * null or identical to the English one is a mis-seed and is replaced; a Hebrew
+ * name a human typed is never touched. The function is SECURITY DEFINER and
+ * re-checks org and owner role itself, so the threat model is PostgREST, not
+ * this screen.
+ */
+export async function repairServiceNames(){
+  const profile=await requireProfile();assertRole(profile,["owner"]);const organizationId=profile.organization_id!;const supabase=await createClient();
+  const {data,error}=await supabase.rpc("repair_booking_service_names",{p_org:organizationId});
+  if(error)return{ok:false as const,error:error.message,fixed:0};
+  revalidatePath("/settings/booking");revalidatePath(`/book/${organizationId}`);
+  return{ok:true as const,error:null,fixed:Number(data??0)};
+}
+
 export async function addBookingQuestion(data:FormData){
   const profile=await requireProfile();assertRole(profile,["owner"]);const organizationId=profile.organization_id!;const supabase=await createClient();
   const labelEn=text(data,"labelEn",180);if(!labelEn)return{ok:false,error:"English question text is required"};
