@@ -44,6 +44,19 @@ Status: `TODO` / `WIP` / `DONE` / `BLOCKED`. Keep this honest — a status doc t
 | 0.3 | Replace tautological RLS greps in `feature-preservation.test.mjs` with real assertions | DONE |
 | 0.4 | Add `test:e2e` script + Playwright `webServer` + auth setup project | DONE |
 | 0.5 | Add CI workflow: typecheck + lint + test on every push | DONE |
+| 0.6 | **A real database in CI.** `.github/workflows/db.yml` stands up `postgres:16`, applies `schema.sql` + all 26 numbered migrations in order, runs `db/016_isolation_tests.sql` (which nothing had ever executed), then runs 85 adversarial assertions in `db/ci/` as impersonated users — tech, office, owner, other-tenant owner, anon. Closes the gap that every security assertion in the suite was static analysis of SQL text, which cannot prove a policy refuses a query. | **WIP — WRITTEN, NEVER EXECUTED.** No Postgres, Docker or psql on the authoring machine. Verified only by inspection: bash syntax, YAML parse, balanced dollar-quoting, and a grep-derived inventory of the Supabase objects the shim must provide. Nobody may call this DONE until a green run exists in Actions. |
+
+**What 0.6 actually contains** — `db/ci/00_supabase_shim.sql` (the `anon`/`authenticated`/`service_role`
+roles, `auth.uid()` backed by a settable `request.jwt.claim.sub` GUC, `auth.users`, `storage.objects`
++ `storage.foldername()`, `pgcrypto`, `btree_gist`, and the Supabase default grants **without which
+migration 023 §8's revoke-from-anon would be a no-op and prove nothing**);
+`10_fixtures.sql` (two tenants, five identities, fixed literal UUIDs); `20_privilege_assertions.sql`
+(§2.1 + §2.12); `30_tenant_assertions.sql` (cross-tenant read/write on customers, jobs, invoices,
+payments, plus timesheet privacy); `40_document_assertions.sql` (`approve_document` signs once);
+`run.sh`. Every assertion proves **both directions** — the forbidden action is refused *and* the
+legitimate equivalent still succeeds — because a suite that only ever refuses would pass against a
+completely broken database. `run.sh` also enforces a minimum assertion count, so a suite that
+silently stops running cannot go green.
 
 ### Phase 1 — security blockers
 | # | Task | Status |
@@ -65,6 +78,8 @@ Status: `TODO` / `WIP` / `DONE` / `BLOCKED`. Keep this honest — a status doc t
 | 1.15 | `autoSendDocument`: derive `origin` server-side, assert org match, escape HTML | DONE |
 | 1.16 | Security headers (CSP, HSTS, X-Frame-Options, Referrer-Policy) in `next.config.mjs` | DONE |
 | 1.17 | Rate limiting on all unauthenticated endpoints | DONE |
+| 1.18 | **REGRESSION FOUND while writing 0.6 — migration 023 §4 is a no-op.** It drops `job_time_entries_select`, `job_time_entries_write` and `job_time_entries_rw`, but migration 009 created those policies under different names: `time_entries_select` and `time_entries_write` (`db/009_v11.sql:94-100`). Both survive 023, both are PERMISSIVE, and both are org-only with no `user_id` predicate. Permissive policies are OR'd, so the old pair still grants what the new pair was written to deny: **a technician can still read and rewrite a colleague's timesheet**, exactly as audit §2.20 described. Task 1.4 is therefore not actually done. Fix: a migration that drops `time_entries_select` and `time_entries_write` by their real names. Three assertions in `db/ci/30_tenant_assertions.sql` are written against the correct behaviour and are expected RED until it lands. | TODO |
+| 1.19 | Every other `drop policy if exists` in migration 023 was checked by hand against the migration that created the policy (`profiles_self_update`, `invitations_rw`, `jobs_update`, `subscriptions_rw`, the 019 `<t>_select` loop) and all of them match. `job_time_entries` is the only name mismatch found by inspection — but inspection is exactly what missed it for the whole life of the branch, so treat this row as provisional until the CI job in 0.6 has actually run. | DONE (by inspection only) |
 
 ### Phase 2 — money correctness
 | # | Task | Status |
