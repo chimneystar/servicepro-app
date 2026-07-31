@@ -1005,10 +1005,10 @@ written.
 
 **Note on 6.6 — the typographic half (owner findings A1 and A2). The rest of 6.6 is untouched.**
 
-*The mechanism, and why.* Every font size in the product is now expressed in `rem` — all 403 declarations
+*The mechanism, and why.* Every font size in the product is now expressed in `rem` — all 405 declarations
 in `app/globals.css` (including two `font:` shorthands and ten `clamp()` display sizes) and all 705 inline
 `fontSize` props under `app/` and `components/`. A CSS custom-property multiplier was considered and
-rejected: `calc(12px * var(--text-scale))` works, but it must be written at all 1,108 sites, and a site
+rejected: `calc(12px * var(--text-scale))` works, but it must be written at all 1,110 sites, and a site
 that is missed silently keeps working while ignoring the toggle — which is the present defect, only harder
 to detect. With `rem`, unit purity IS the proof: zero non-`rem` font-size units means nothing can opt out,
 and that is a single static assertion. `rem` also honours the reader's own browser and OS text-size
@@ -1031,7 +1031,7 @@ choose is 17px with 13px metadata (was 14px / 9.5px).
 present and already correct; it moved the root 16px → 18px and changed nothing, because no element
 referenced the root. So `tests/typography.test.mjs` asserts nothing about that rule's existence — it reads
 the percentage out of the stylesheet, resolves **every** font size in the product at both roots, and
-requires each one to move. 403 CSS declarations and 705 inline props all move; the same computation run
+requires each one to move. 405 CSS declarations and 705 inline props all move; the same computation run
 over a verbatim pre-change sample moves **zero**, which is the owner's live measurement reproduced
 statically and is kept in the file permanently as the cry-wolf guard.
 
@@ -1090,7 +1090,7 @@ No number of passing unit tests closes any of those.
 | # | Finding |
 |---|---|
 | ~~A1~~ | **FIXED** — type scale rebuilt; smallest text 7px → 12px. See the A1/A2 note under 6.6 |
-| ~~A2~~ | **FIXED** — every font size in the product is now `rem`, so the toggle moves all 1,108 of them. See the A1/A2 note under 6.6 |
+| ~~A2~~ | **FIXED** — every font size in the product is now `rem`, so the toggle moves all 1,110 of them. See the A1/A2 note under 6.6 |
 | A3 | Expanding the sidebar "Tools" group renders all 11 destinations off-screen with no scroll affordance |
 | A5 | Hebrew customers see English service names; `name_he` is seeded from the English name and the sync trigger can never correct it |
 | A6 | Every business publishes the same hardcoded HVAC menu — a chimney sweep advertises "AC Install", while a bilingual chimney pack exists unused |
