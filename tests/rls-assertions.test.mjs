@@ -2,8 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
 import {
-  ciDatabase, runAssertionScript, runIsolationTest, describe,
-  ASSERTION_FILES, CI_DIR, policyDropsThatRemovedNothing, installedPolicies,
+  ciDatabase,
+  runAssertionScript,
+  runIsolationTest,
+  describe,
+  ASSERTION_FILES,
+  CI_DIR,
+  policyDropsThatRemovedNothing,
+  installedPolicies,
 } from "./helpers/rls-harness.mjs";
 
 // ---------------------------------------------------------------------------
@@ -53,8 +59,11 @@ test("every assertion in db/ci/ executes, and passes", async () => {
   // The fixtures are not decoration. They assert that impersonation really took
   // effect and that RLS is really enforced for the impersonated role. If those
   // fail, every "CANNOT" assertion below is meaningless theatre.
-  assert.equal(fixtures.filter((r) => !r.ok).length, 0,
-    `the fixtures could not establish a trustworthy starting state, so nothing below means anything:\n${describe(fixtures)}`);
+  assert.equal(
+    fixtures.filter((r) => !r.ok).length,
+    0,
+    `the fixtures could not establish a trustworthy starting state, so nothing below means anything:\n${describe(fixtures)}`,
+  );
 
   const results = [...fixtures];
   for (const file of ASSERTION_FILES) {
@@ -63,15 +72,20 @@ test("every assertion in db/ci/ executes, and passes", async () => {
 
   const failed = results.filter((r) => !r.ok);
   const laundered = results.filter((r) => r.ok && r.afterFailure);
-  assert.deepEqual(failed.map((r) => `${r.file}:${r.line} ${r.label}`), [],
+  assert.deepEqual(
+    failed.map((r) => `${r.file}:${r.line} ${r.label}`),
+    [],
     `RLS assertions FAILED against a real Postgres:\n${describe(failed)}\n` +
-    (laundered.length
-      ? `\n  ${laundered.length} later assertion(s) reported ok, but ran after a failure was rolled ` +
-        `back and cannot be trusted until the failures above are fixed.`
-      : ""));
+      (laundered.length
+        ? `\n  ${laundered.length} later assertion(s) reported ok, but ran after a failure was rolled ` +
+          `back and cannot be trusted until the failures above are fixed.`
+        : ""),
+  );
 
-  assert.ok(results.length >= MIN_ASSERTIONS,
-    `only ${results.length} assertions ran, expected at least ${MIN_ASSERTIONS} — assertions were skipped`);
+  assert.ok(
+    results.length >= MIN_ASSERTIONS,
+    `only ${results.length} assertions ran, expected at least ${MIN_ASSERTIONS} — assertions were skipped`,
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -108,10 +122,13 @@ test("no migration drops a policy that does not exist", async () => {
   // tests/rls-assertions-can-fail.test.mjs.
   const real = findings.filter((f) => !f.tableCreatedInSameFile && !f.siblingDropRemovedSomething);
 
-  assert.deepEqual(real.map((f) => `${f.file}: drop policy ${f.name} on ${f.table}`), [],
+  assert.deepEqual(
+    real.map((f) => `${f.file}: drop policy ${f.name} on ${f.table}`),
+    [],
     "these drop a policy name nothing ever created, so they removed NOTHING and any broader policy " +
-    "that was supposed to be replaced is still in force and still OR'd with the new one:\n  " +
-    real.map((f) => `${f.file}: drop policy ${f.name} on ${f.table}`).join("\n  "));
+      "that was supposed to be replaced is still in force and still OR'd with the new one:\n  " +
+      real.map((f) => `${f.file}: drop policy ${f.name} on ${f.table}`).join("\n  "),
+  );
 });
 
 test("every policy on a tenant table constrains the tenant", async () => {
@@ -138,8 +155,16 @@ test("every policy on a tenant table constrains the tenant", async () => {
     return !parts.every((e) => scoped(e) || /\bfalse\b/.test(e) || /auth\.uid\(\)/.test(e));
   });
 
-  assert.deepEqual(offenders.map((r) => `${r.tablename}.${r.policyname}`), [],
+  assert.deepEqual(
+    offenders.map((r) => `${r.tablename}.${r.policyname}`),
+    [],
     "these policies sit on a table that HAS an organization_id and never mention it, so they are " +
-    "OR'd with the correct policies and hand the row to any authenticated user of any business:\n  " +
-    offenders.map((r) => `${r.tablename}.${r.policyname} [${r.cmd}]\n      using: ${r.qual}\n      check: ${r.with_check}`).join("\n  "));
+      "OR'd with the correct policies and hand the row to any authenticated user of any business:\n  " +
+      offenders
+        .map(
+          (r) =>
+            `${r.tablename}.${r.policyname} [${r.cmd}]\n      using: ${r.qual}\n      check: ${r.with_check}`,
+        )
+        .join("\n  "),
+  );
 });
