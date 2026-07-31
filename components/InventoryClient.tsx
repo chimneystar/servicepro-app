@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useFormState, useFormStatus } from "react-dom";
 import { saveInventoryItem, adjustQuantity, deleteInventoryItem, type ActionResult } from "@/app/(app)/inventory/actions";
 // @ts-ignore — pure logic, unit-tested in tests/inventory.test.mjs
 import { formatQtyMilli, isOversold } from "@/lib/core/inventory.mjs";
+import Modal from "@/components/Modal";
 
 export type Item = { id: string; name: string; sku: string | null; unit: string; quantity: number; quantity_milli: number; low_stock_threshold: number; cost_minor: number };
 const sym: Record<string, string> = { USD: "$", ILS: "₪", EUR: "€" };
@@ -14,6 +15,7 @@ const sym: Record<string, string> = { USD: "$", ILS: "₪", EUR: "€" };
 export default function InventoryClient({ items, currency }: { items: Item[]; currency: string }) {
   const router = useRouter();
   const [editing, setEditing] = useState<Item | null | undefined>(undefined);
+  const titleId = useId();
   const [state, formAction] = useFormState(saveInventoryItem, { ok: false } as ActionResult);
   const [adjustError, setAdjustError] = useState<string | null>(null);
   const cur = sym[currency] ?? "$";
@@ -46,7 +48,7 @@ export default function InventoryClient({ items, currency }: { items: Item[]; cu
         <div style={{ display: "flex", gap: 8 }}>
           <Link href="/inventory/movements" style={{ ...btn, background: "#eef2f8", color: "#2563eb", textDecoration: "none" }}>📜 Stock history</Link>
           <Link href="/inventory/receiving" style={{ ...btn, background: "#eef2f8", color: "#2563eb", textDecoration: "none" }}>📦 Receiving</Link>
-          <button onClick={() => setEditing(null)} style={btn}>➕ Add item</button>
+          <button type="button" onClick={() => setEditing(null)} style={btn}><span aria-hidden="true">➕</span> Add item</button>
         </div>
       </div>
 
@@ -73,11 +75,11 @@ export default function InventoryClient({ items, currency }: { items: Item[]; cu
                 <div style={{ fontWeight: 700 }}>{it.name} {isLow && <span style={{ color: "#b91c1c", fontSize: 12 }}>· low</span>}</div>
                 <div style={{ fontSize: 12.5, color: "#5c6675" }}>{[it.sku && `SKU ${it.sku}`, `${cur}${(it.cost_minor / 100).toFixed(2)}/${it.unit}`].filter(Boolean).join(" · ")}</div>
               </div>
-              <button onClick={() => adj(it.id, -1)} style={qBtn}>−</button>
+              <button type="button" onClick={() => adj(it.id, -1)} style={qBtn} aria-label={`Decrease quantity of ${it.name}`}>−</button>
               <b style={{ minWidth: 40, textAlign: "center", color: isOversold(it) ? "#9a3412" : isLow ? "#b91c1c" : "#0b1524" }}>{formatQtyMilli(it.quantity_milli)}</b>
-              <button onClick={() => adj(it.id, 1)} style={qBtn}>+</button>
-              <button onClick={() => setEditing(it)} style={mini}>✏️</button>
-              <button onClick={() => del(it.id)} style={{ ...mini, background: "#fdeaea" }}>🗑️</button>
+              <button type="button" onClick={() => adj(it.id, 1)} style={qBtn} aria-label={`Increase quantity of ${it.name}`}>+</button>
+              <button type="button" onClick={() => setEditing(it)} style={mini} aria-label={`Edit ${it.name}`}>✏️</button>
+              <button type="button" onClick={() => del(it.id)} style={{ ...mini, background: "#fdeaea" }} aria-label={`Delete ${it.name}`}>🗑️</button>
             </div>
           );
         })}
@@ -85,37 +87,35 @@ export default function InventoryClient({ items, currency }: { items: Item[]; cu
       </div>
 
       {editing !== undefined && (
-        <div style={overlay} onClick={(e) => e.target === e.currentTarget && setEditing(undefined)}>
-          <form action={formAction} style={modal}>
-            <h3 style={{ fontSize: 17, fontWeight: 800, marginBottom: 12 }}>{editing ? "Edit item" : "New item"}</h3>
+        <Modal onClose={() => setEditing(undefined)} labelledBy={titleId} width={440}>
+          <form action={formAction}>
+            <h3 id={titleId} style={{ fontSize: 17, fontWeight: 800, marginBottom: 12 }}>{editing ? "Edit item" : "New item"}</h3>
             {editing && <input type="hidden" name="id" value={editing.id} />}
-            <L>Name</L><input name="name" defaultValue={editing?.name ?? ""} style={inp} required />
+            <label style={{ display: "block" }}><L>Name</L><input name="name" defaultValue={editing?.name ?? ""} style={inp} required /></label>
             <div style={two}>
-              <div><L>SKU</L><input name="sku" defaultValue={editing?.sku ?? ""} style={inp} /></div>
-              <div><L>Unit</L><input name="unit" defaultValue={editing?.unit ?? "unit"} style={inp} /></div>
+              <div><label style={{ display: "block" }}><L>SKU</L><input name="sku" defaultValue={editing?.sku ?? ""} style={inp} /></label></div>
+              <div><label style={{ display: "block" }}><L>Unit</L><input name="unit" defaultValue={editing?.unit ?? "unit"} style={inp} /></label></div>
             </div>
             <div style={two}>
-              <div><L>Quantity</L><input name="quantity" type="number" step="0.001" defaultValue={editing ? formatQtyMilli(editing.quantity_milli) : 0} style={inp} /></div>
-              <div><L>Low-stock alert at</L><input name="low" type="number" defaultValue={editing?.low_stock_threshold ?? 0} style={inp} /></div>
+              <div><label style={{ display: "block" }}><L>Quantity</L><input name="quantity" type="number" step="0.001" defaultValue={editing ? formatQtyMilli(editing.quantity_milli) : 0} style={inp} /></label></div>
+              <div><label style={{ display: "block" }}><L>Low-stock alert at</L><input name="low" type="number" defaultValue={editing?.low_stock_threshold ?? 0} style={inp} /></label></div>
             </div>
-            {editing && <><L>Why is the count changing?</L><input name="reason" style={inp} placeholder="Stocktake, breakage, returned to vendor…" /></>}
-            <L>Cost per unit</L><input name="cost" type="number" step="0.01" defaultValue={editing ? (editing.cost_minor / 100).toFixed(2) : ""} style={inp} placeholder="0.00" />
+            {editing && <label style={{ display: "block" }}><L>Why is the count changing?</L><input name="reason" style={inp} placeholder="Stocktake, breakage, returned to vendor…" /></label>}
+            <label style={{ display: "block" }}><L>Cost per unit</L><input name="cost" type="number" step="0.01" defaultValue={editing ? (editing.cost_minor / 100).toFixed(2) : ""} style={inp} placeholder="0.00" /></label>
             {state.error && <div style={err}>{state.error}</div>}
             <div style={{ display: "flex", gap: 10, marginTop: 14 }}><Save /><button type="button" onClick={() => setEditing(undefined)} style={{ ...btn, background: "#e2e9f4", color: "#2563eb" }}>Cancel</button></div>
           </form>
-        </div>
+        </Modal>
       )}
     </div>
   );
 }
 
 function Save() { const { pending } = useFormStatus(); return <button type="submit" disabled={pending} style={btn}>{pending ? "Saving…" : "💾 Save"}</button>; }
-function L({ children }: { children: React.ReactNode }) { return <label style={lbl}>{children}</label>; }
+function L({ children }: { children: React.ReactNode }) { return <span style={lbl}>{children}</span>; }
 const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", padding: "9px 15px", borderRadius: 10, fontWeight: 700, cursor: "pointer" };
 const qBtn: React.CSSProperties = { background: "#eef2f8", color: "#2563eb", border: "none", borderRadius: 8, width: 32, height: 32, fontSize: 18, fontWeight: 800, cursor: "pointer", flexShrink: 0 };
 const mini: React.CSSProperties = { background: "#eef2f8", border: "none", borderRadius: 8, padding: "5px 8px", cursor: "pointer", fontSize: 13, flexShrink: 0 };
-const overlay: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,30,61,.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 24, zIndex: 100, overflowY: "auto" };
-const modal: React.CSSProperties = { background: "#fff", borderRadius: 18, width: "100%", maxWidth: 440, padding: 22 };
 const two: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 };
 const lbl: React.CSSProperties = { fontSize: 12.5, fontWeight: 700, color: "#334155", display: "block", margin: "10px 0 6px" };
 const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 16, outline: "none" };

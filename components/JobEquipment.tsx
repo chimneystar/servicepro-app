@@ -27,12 +27,12 @@ export default function JobEquipment({ jobId, equipment }: { jobId: string; equi
       <div className="rlist">
         {equipment.map((e) => (
           <div className="ritem" key={e.id}>
-            <span style={{ fontSize: 20 }}>🔧</span>
+            <span style={{ fontSize: 20 }} aria-hidden="true">🔧</span>
             <div className="rmain">
               <div className="rtitle">{e.name}</div>
               <div className="rsub">{[e.serial ? `S/N ${e.serial}` : null, e.notes].filter(Boolean).join(" · ") || "—"}</div>
             </div>
-            <button onClick={() => { setErr(null); start(async () => { const r = await deleteEquipment(e.id, jobId); if (!r.ok) setErr(r.error ?? (he ? "לא הצלחנו למחוק" : "Could not delete")); else router.refresh(); }); }} disabled={pending} style={xBtn}>🗑️</button>
+            <button type="button" onClick={() => { setErr(null); start(async () => { const r = await deleteEquipment(e.id, jobId); if (!r.ok) setErr(r.error ?? (he ? "לא הצלחנו למחוק" : "Could not delete")); else router.refresh(); }); }} disabled={pending} style={xBtn} aria-label={he ? `מחיקת "${e.name}"` : `Delete "${e.name}"`}>🗑️</button>
           </div>
         ))}
         {equipment.length === 0 && <div className="rempty">{he ? "עוד לא נשמר ציוד אצל הלקוח." : "No equipment recorded."}</div>}
@@ -40,12 +40,12 @@ export default function JobEquipment({ jobId, equipment }: { jobId: string; equi
       {/* A failed delete used to leave the row on screen with no explanation. */}
       {err && !adding && <div role="alert" style={errBox}>{err}</div>}
 
-      {!adding && <button onClick={() => setAdding(true)} style={btn}>{he ? "הוספת ציוד" : "Add equipment"}</button>}
+      {!adding && <button type="button" onClick={() => setAdding(true)} style={btn}>{he ? "הוספת ציוד" : "Add equipment"}</button>}
       {adding && (
         <form action={submit} style={{ background: "#f8fbff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, marginTop: 10 }}>
-          <input name="name" placeholder={he ? "שם הציוד או הדגם" : "Equipment name or model"} style={inp} autoFocus />
-          <input name="serial" placeholder={he ? "מספר סידורי, אם יש" : "Serial number, if available"} style={{ ...inp, marginTop: 8 }} />
-          <input name="notes" placeholder={he ? "הערות" : "Notes"} style={{ ...inp, marginTop: 8 }} />
+          <input name="name" placeholder={he ? "שם הציוד או הדגם" : "Equipment name or model"} aria-label={he ? "שם הציוד או הדגם" : "Equipment name or model"} style={inp} autoFocus />
+          <input name="serial" placeholder={he ? "מספר סידורי, אם יש" : "Serial number, if available"} aria-label={he ? "מספר סידורי, אם יש" : "Serial number, if available"} style={{ ...inp, marginTop: 8 }} />
+          <input name="notes" placeholder={he ? "הערות" : "Notes"} aria-label={he ? "הערות" : "Notes"} style={{ ...inp, marginTop: 8 }} />
           {err && <div style={errBox}>{err}</div>}
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
             <button type="submit" disabled={pending} style={btn}>{pending ? (he ? "שומרים…" : "Saving…") : (he ? "שמירה" : "Save")}</button>

@@ -47,7 +47,7 @@ export default function CommissionClient({ rows, currency, canEditPct }: { rows:
         <label style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>Credit-card fee %
           <input value={ccFee} onChange={(e) => setCcFee(e.target.value)} type="number" step="0.01" style={{ width: 80, marginInlineStart: 8, border: "1px solid #e2e8f0", borderRadius: 8, padding: "7px 10px", fontSize: 15 }} />
         </label>
-        <button onClick={exportCsv} style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}>⬇ Export CSV</button>
+        <button type="button" onClick={exportCsv} style={{ background: "#2563eb", color: "#fff", border: "none", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 13.5, cursor: "pointer" }}><span aria-hidden="true">⬇</span> Export CSV</button>
         <div style={{ marginInlineStart: "auto", fontWeight: 800, fontSize: 16 }}>Total payout: <span style={{ color: "#15803d" }}>{m(totalCommission)}</span></div>
       </div>
 
@@ -68,10 +68,12 @@ export default function CommissionClient({ rows, currency, canEditPct }: { rows:
                 <KV label="Net" v={m(c.net)} strong />
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 13, color: "#5c6675", fontWeight: 600 }}>Commission</span>
-                <input type="number" value={pcts[r.profileId] ?? 0} disabled={!canEditPct} onChange={(e) => setPcts({ ...pcts, [r.profileId]: parseInt(e.target.value, 10) || 0 })} style={{ width: 70, border: "1px solid #e2e8f0", borderRadius: 8, padding: "7px 10px", fontSize: 15 }} />
+                <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 13, color: "#5c6675", fontWeight: 600 }}>Commission</span>
+                  <input type="number" value={pcts[r.profileId] ?? 0} disabled={!canEditPct} onChange={(e) => setPcts({ ...pcts, [r.profileId]: parseInt(e.target.value, 10) || 0 })} style={{ width: 70, border: "1px solid #e2e8f0", borderRadius: 8, padding: "7px 10px", fontSize: 15 }} />
+                </label>
                 <span style={{ fontSize: 13, color: "#5c6675" }}>%</span>
-                {canEditPct && <button onClick={() => savePct(r.profileId)} disabled={pending} style={{ background: "#eef2f8", color: "#2563eb", border: "none", borderRadius: 8, padding: "7px 12px", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>{saved === r.profileId ? "✓ Saved" : "Save %"}</button>}
+                {canEditPct && <button type="button" onClick={() => savePct(r.profileId)} disabled={pending} style={{ background: "#eef2f8", color: "#2563eb", border: "none", borderRadius: 8, padding: "7px 12px", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>{saved === r.profileId ? <><span aria-hidden="true">✓</span> Saved</> : "Save %"}</button>}
               </div>
             </div>
           );

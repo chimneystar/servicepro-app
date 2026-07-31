@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { updateSettings, type ActionResult } from "./actions";
 import type { Locale } from "@/lib/i18n";
@@ -63,9 +63,9 @@ export default function SettingsForm({ locale, org }: { locale: Locale; org: Org
 function Save({ locale }: { locale: Locale }) { const { pending } = useFormStatus(); return <button type="submit" disabled={pending} className="settings-save">{pending ? (locale === "he" ? "שומרים…" : "Saving…") : (locale === "he" ? "שמירת השינויים" : "Save changes")}</button>; }
 function Section({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) { return <section className="settings-section"><h3>{title}</h3>{note && <p className="settings-section-note">{note}</p>}{children}</section>; }
 function Row({ children }: { children: React.ReactNode }) { return <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 12 }}>{children}</div>; }
-function Field({ name, label, value, type = "text", placeholder, dir }: { name: string; label: string; value: string; type?: string; placeholder?: string; dir?: "ltr" | "rtl" }) { return <div style={{ marginBottom: 13 }}><label style={labelStyle}>{label}</label><input name={name} defaultValue={value} type={type} step={type === "number" ? "0.001" : undefined} placeholder={placeholder} dir={dir} style={inputStyle} /></div>; }
-function Select({ name, label, value, options }: { name: string; label: string; value: string; options: [string, string][] }) { return <div style={{ marginBottom: 13 }}><label style={labelStyle}>{label}</label><select name={name} defaultValue={value} style={inputStyle}>{options.map(([optionValue, optionLabel]) => <option key={optionValue} value={optionValue}>{optionLabel}</option>)}</select></div>; }
-function TextArea({ name, label, value, placeholder }: { name: string; label: string; value: string; placeholder: string }) { return <div style={{ marginBottom: 13 }}><label style={labelStyle}>{label}</label><textarea name={name} defaultValue={value} rows={3} placeholder={placeholder} style={{ ...inputStyle, resize: "vertical" }} /></div>; }
+function Field({ name, label, value, type = "text", placeholder, dir }: { name: string; label: string; value: string; type?: string; placeholder?: string; dir?: "ltr" | "rtl" }) { const id = useId(); return <div style={{ marginBottom: 13 }}><label htmlFor={id} style={labelStyle}>{label}</label><input id={id} name={name} defaultValue={value} type={type} step={type === "number" ? "0.001" : undefined} placeholder={placeholder} dir={dir} style={inputStyle} /></div>; }
+function Select({ name, label, value, options }: { name: string; label: string; value: string; options: [string, string][] }) { const id = useId(); return <div style={{ marginBottom: 13 }}><label htmlFor={id} style={labelStyle}>{label}</label><select id={id} name={name} defaultValue={value} style={inputStyle}>{options.map(([optionValue, optionLabel]) => <option key={optionValue} value={optionValue}>{optionLabel}</option>)}</select></div>; }
+function TextArea({ name, label, value, placeholder }: { name: string; label: string; value: string; placeholder: string }) { const id = useId(); return <div style={{ marginBottom: 13 }}><label htmlFor={id} style={labelStyle}>{label}</label><textarea id={id} name={name} defaultValue={value} rows={3} placeholder={placeholder} style={{ ...inputStyle, resize: "vertical" }} /></div>; }
 const labelStyle: React.CSSProperties = { display: "block", marginBottom: 6, color: "#33415c", fontSize: 12.5, fontWeight: 750 };
 const inputStyle: React.CSSProperties = { width: "100%", minHeight: 43, padding: "9px 12px", border: "1px solid #dde5f0", borderRadius: 12, outline: "none" };
 const errorStyle: React.CSSProperties = { padding: "11px 13px", borderRadius: 12, background: "#fff0f0", color: "#b93545", fontSize: 13 };

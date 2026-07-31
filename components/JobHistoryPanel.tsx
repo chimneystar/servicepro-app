@@ -32,7 +32,7 @@ export default function JobHistoryPanel({ jobId, locale, entries, team, customer
         <label className="wide"><span>{composer === "note" ? (he ? "מה חשוב לדעת?" : "What should the team know?") : (he ? "מה צריך לעשות?" : "What needs to happen?")}</span><input name="title" required maxLength={180} placeholder={composer === "note" ? (he ? "לדוגמה: הלקוח ביקש להתקשר לפני ההגעה" : "e.g. Customer asked for a call before arrival") : (he ? "לדוגמה: לחזור ללקוח עם מחיר" : "e.g. Call back with pricing")} /></label>
         <label className="wide"><span>{he ? "פרטים נוספים" : "Details"}</span><textarea name="body" rows={2} placeholder={he ? "אפשר להוסיף הקשר, מספר דגם או סיכום קצר" : "Add context, a model number, or a short summary"} /></label>
         {composer === "follow_up" && <><label><span>{he ? "עד מתי" : "Due"}</span><input name="dueAt" type="datetime-local" required /></label><label><span>{he ? "באחריות" : "Assigned to"}</span><select name="assignedTo"><option value="">{he ? "המשרד" : "Office"}</option>{team.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</select></label></>}
-        <button disabled={pending}>{pending ? (he ? "שומרים…" : "Saving…") : composer === "note" ? (he ? "הוספת הערה" : "Add note") : (he ? "יצירת משימת המשך" : "Create follow-up")}</button>
+        <button type="submit" disabled={pending}>{pending ? (he ? "שומרים…" : "Saving…") : composer === "note" ? (he ? "הוספת הערה" : "Add note") : (he ? "יצירת משימת המשך" : "Create follow-up")}</button>
       </form> : <form className="history-action-form" onSubmit={(event) => { event.preventDefault(); const form = event.currentTarget; const data = new FormData(form); data.set("jobId", jobId); run(() => logCall(data), form); }}>
         <label><span>{he ? "כיוון" : "Direction"}</span><select name="direction" value={direction} onChange={(event) => setDirection(event.target.value as "inbound" | "outbound")}><option value="outbound">{he ? "יוצאת" : "Outbound"}</option><option value="inbound">{he ? "נכנסת" : "Inbound"}</option></select></label>
         <label><span>{he ? "תוצאה" : "Result"}</span><select name="status"><option value="completed">{he ? "נענתה" : "Answered"}</option><option value="missed">{he ? "לא נענתה" : "Missed"}</option><option value="voicemail">{he ? "הודעה קולית" : "Voicemail"}</option><option value="failed">{he ? "לא הושלמה" : "Failed"}</option></select></label>
@@ -43,7 +43,7 @@ export default function JobHistoryPanel({ jobId, locale, entries, team, customer
         <label><span>{he ? "משך בשניות" : "Duration (seconds)"}</span><input name="durationSeconds" type="number" min="0" defaultValue="0" /></label>
         <label className="history-check"><input name="needsFollowUp" type="checkbox" /><span>{he ? "נדרש מעקב" : "Needs follow-up"}</span></label>
         <label className="wide"><span>{he ? "סיכום קצר" : "Short summary"}</span><textarea name="notes" rows={2} /></label>
-        <button disabled={pending}>{pending ? (he ? "שומרים…" : "Saving…") : (he ? "שמירת השיחה" : "Save call")}</button>
+        <button type="submit" disabled={pending}>{pending ? (he ? "שומרים…" : "Saving…") : (he ? "שמירת השיחה" : "Save call")}</button>
       </form>}
       {message && <div className="history-form-message" role="status">{message}</div>}
     </section>

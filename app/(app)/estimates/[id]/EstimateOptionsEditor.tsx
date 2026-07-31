@@ -87,14 +87,14 @@ export default function EstimateOptionsEditor({ locale, currency, estimateId, op
             {option.items.map((row) => (
               <div key={row.id} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, padding: "5px 0", borderTop: "1px solid #f1f4f9" }}>
                 <span style={{ flex: 1, minWidth: 0 }}>{row.title || row.description} · {(row.qty_milli / 1000).toLocaleString(locale === "he" ? "he-IL" : "en-US")} × {money(row.unit_price_minor, currency)}</span>
-                {!signed && <button type="button" disabled={busy} style={rm} onClick={() => run(() => deleteEstimateOptionItem(row.id, estimateId))}>×</button>}
+                {!signed && <button type="button" disabled={busy} style={rm} aria-label={he ? "מחיקת שורה" : "Remove line"} onClick={() => run(() => deleteEstimateOptionItem(row.id, estimateId))}>×</button>}
               </div>
             ))}
 
             {!signed && (
               <form style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}
                 action={(formData) => run(() => addEstimateOptionItem(option.id, estimateId, formData))}>
-                <input name="description" required placeholder={he ? "תיאור" : "description"} style={{ ...inp, flex: "2 1 160px" }} />
+                <input name="description" required placeholder={he ? "תיאור" : "description"} aria-label={he ? "תיאור" : "description"} style={{ ...inp, flex: "2 1 160px" }} />
                 <input name="qty" defaultValue="1" inputMode="decimal" style={{ ...inp, flex: "0 0 70px" }} aria-label={he ? "כמות" : "qty"} />
                 <input name="price" defaultValue="0" inputMode="decimal" style={{ ...inp, flex: "0 0 90px" }} aria-label={he ? "מחיר" : "price"} />
                 <input name="cost" defaultValue="0" inputMode="decimal" style={{ ...inp, flex: "0 0 90px" }} aria-label={he ? "עלות" : "cost"} />

@@ -1000,8 +1000,107 @@ written.
 | 6.3 | One action contract; error/loading boundaries per route group; toast primitive | TODO |
 | 6.4 | De-minify the 78 long-line files; Prettier + max-len lint | TODO |
 | 6.5 | Design system: tokens + ~15 primitives; retire 871 inline style objects | TODO |
-| 6.6 | Accessibility: label association (`htmlFor` is currently used **zero** times), focus visibility, dialog semantics, button types | TODO |
+| 6.6 | Accessibility: label association (`htmlFor` is currently used **zero** times), focus visibility, dialog semantics, button types | **PARTIAL** — the four named defects are closed everywhere except two quarantined directories; typography (A1/A2) is a separate workstream. See note |
 | 6.7 | Consolidate overlapping tables (line items, assignment models, permission systems) | TODO |
+
+**Note on A3 and 6.6 — measured before, measured after.**
+
+*A3 — the sidebar.* The finding was right about the symptom and slightly wrong
+about the mechanism: `.side-nav` has always had `overflow-y: auto`, so the Tools
+destinations were never technically unreachable. They were **invisible**, which
+for a user is the same thing. macOS and iOS draw OVERLAY scrollbars — nothing at
+all is painted until something is already moving — so a column holding twice its
+own height looked exactly like a column that ends where it ends. Verified in
+Chromium with `--enable-features=OverlayScrollbar`: styling `scrollbar-color`
+changes **zero pixels** at rest, so a styled scrollbar alone would not have
+fixed it. Four things did:
+
+1. `components/SideNavScroller.tsx` — the scroll port now measures itself and
+   shows a gradient at whichever edge has content beyond it. It is `aria-hidden`:
+   this was never a screen-reader defect, the links were always in the tree.
+2. Two height-based media queries tighten sidebar SPACING (not type — A1/A2 are
+   owned elsewhere and no `font-size` was touched) on laptop-sized screens.
+3. `/appearance` was rendered TWICE in the sidebar — once inside Tools, once in
+   `.side-utilities`. The Tools copy is gone. It stays reachable on desktop
+   (utilities) and on mobile (`splitNavigation` keys off `bottom`, not `group`).
+4. `.desk-side` is `overflow: hidden` with a flex-none footer, so nothing can be
+   pushed past the bottom of the window again; expanding Tools now scrolls the
+   panel into view, and the active row scrolls itself into view on load.
+
+Measured, owner mode, all destinations, Tools expanded — *navigation visible
+without scrolling*: **1491×812 46%→58%, 1366×768 43%→62%, 1280×700 37%→55%**;
+content height 1245px→1073px. `tests/nav-reachability.test.mjs` (10 probes) runs
+a real headless Chromium against the real `globals.css` at all three viewports
+in LTR and RTL and asserts every destination is reachable and hit-testable, the
+footer and utilities are on screen, no destination appears twice, the sidebar
+matches `lib/nav.ts` exactly, and the cue is showing at rest and gone at the end
+of the list. **Proven RED against `HEAD`'s CSS and markup**: 46/43/37% visible
+(fails the ≥50% budget at all three), `/appearance` duplicated, and no cue
+element in the DOM at all. CI now installs Chromium; the probe FAILS rather than
+skips when the browser is missing, so it cannot become a permanent no-op.
+
+`splitNavigation` was NOT re-forked. The probe loads and executes the real
+function out of `lib/nav.ts` and asserts neither `Nav.tsx` nor `/more` has grown
+a second opinion about the split.
+
+*6.6 — accessibility, non-typographic.* Measured with the probe's own scanner
+against `HEAD` and against the result:
+
+| | before | after |
+|---|---|---|
+| form controls with no programmatic label | **241 of 402** | **28 of 403**, all quarantined |
+| `<button>` with no `type` (defaults to submit) | **174 of 315** | **0** in scope, 1 quarantined |
+| files using `htmlFor` | 1 (0 on `main`) | 2 |
+| hand-rolled `position: fixed` overlays with no dialog semantics | 13 | 0 |
+
+Of the 375 labelled controls, 234 are wrapped in their `<label>`, 135 carry
+`aria-label`/`aria-labelledby` (reusing the control's own bilingual placeholder
+text wherever one existed, so nothing is English-only in a Hebrew UI), and 6 use
+`useId()` + `htmlFor`/`id` — the shared `Field` helper in `SettingsForm.tsx`,
+where the label and the input are separated by markup and wrapping was not
+possible. `htmlFor` is not the goal in itself; association is, and a wrapping
+`<label>` is association with no id to collide.
+
+`components/Modal.tsx` replaces thirteen byte-identical copied overlays and adds
+what none of them had: `role="dialog"`, `aria-modal`, an accessible name, focus
+moved in, a Tab trap, focus RESTORED to the opener (guarded on `isConnected`, so
+a dialog opened from a row that was then deleted does not throw focus into the
+void), Escape, and a body scroll lock. `JobPhotos.tsx` keeps its own canvas
+layout but gained a name and an Escape handler.
+
+Focus: `:focus-visible` now draws a 3px **opaque** outline (the old one was 28%
+alpha, invisible on a laptop in daylight) and it is `!important`, because ~60
+inline style objects set `outline: "none"` on their inputs and an inline style
+beats a stylesheet. There is a `forced-colors` fallback, and a white ring inside
+the dark sidebar. A skip link was added to `app/(app)/layout.tsx` — up to 29
+navigation links preceded the content on every screen.
+
+`eslint-plugin-jsx-a11y` is wired into `npm run lint` with 15 rules as **errors**
+and **zero `eslint-disable` for any of them anywhere in the tree**; the probe
+asserts both. `jsx-a11y/no-static-element-interactions` is pinned to the
+plugin's own documented handler list (click and key events) rather than
+`eslint-config-next`'s wider one, because the only thing that widening caught was
+the dispatch board's drag-and-drop, and no ARIA attribute makes dragging
+keyboard-operable. That gap is closed in the markup instead:
+`components/DispatchBoard.tsx` now has a per-job "assign to" select driving the
+same `moveDispatchJob` action, so reassigning a technician — the board's primary
+action, previously **mouse-only** — works from a keyboard.
+
+*What is NOT done, which is why this is PARTIAL.*
+1. **`app/(app)/settings/booking/**` (22 controls, 1 button) and
+   `app/onboarding/**` (6 controls)** were being edited by another workstream in
+   the same session and were out of this pass's file scope. They are pinned in
+   `tests/accessibility.test.mjs` at their exact remaining counts: the numbers
+   can only go down, the test says so loudly when they do, and no new file can
+   join the list.
+2. **Only 15 of the plugin's rules are on.** The rest of the recommended set
+   would land as a wall of pre-existing findings across files this pass does not
+   own. Turning them on one at a time is the remainder of 6.6.
+3. **Nothing here was tested with an actual screen reader**, and no automated
+   axe run exists — the assertions are source-level plus one browser layout
+   probe. A VoiceOver/NVDA pass over the ten busiest screens is still owed.
+4. **Typography (A1, A2) is untouched by this pass** and is the larger half of
+   what a user would call "accessibility" on this product.
 
 ## STATE AT THE SESSION LIMIT — 2026-07-31, ~23:00 Asia/Jerusalem
 
@@ -1035,7 +1134,7 @@ No number of passing unit tests closes any of those.
 |---|---|
 | A1 | Type scale inverted — 164 CSS rules under 12px, some at 7px; the dashboard greeting is 47px while the customer's name is 10px |
 | A2 | The "Larger text" toggle provably does nothing — it scales `rem`, and **0 of 384** font-size declarations use `rem` |
-| A3 | Expanding the sidebar "Tools" group renders all 11 destinations off-screen with no scroll affordance |
+| ~~A3~~ | ~~Expanding the sidebar "Tools" group renders all 11 destinations off-screen with no scroll affordance~~ — **FIXED**, with a headless-browser probe proven both ways. See the A3/6.6 note under Phase 7 |
 | A5 | Hebrew customers see English service names; `name_he` is seeded from the English name and the sync trigger can never correct it |
 | A6 | Every business publishes the same hardcoded HVAC menu — a chimney sweep advertises "AC Install", while a bilingual chimney pack exists unused |
 

@@ -73,14 +73,14 @@ export default function TeamWorkforce({ locale, currency, members, skills, timeO
             : "A job that requires a certification cannot be assigned to somebody who does not hold it — the assignment is refused with the reason. An EXPIRED certification counts as not held, because it is exactly as illegal as none."}
         </p>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 10 }}>
-          <select value={skillFor} onChange={(e) => setSkillFor(e.target.value)} style={{ ...inp, flex: "1 1 150px" }}>
+          <select value={skillFor} onChange={(e) => setSkillFor(e.target.value)} style={{ ...inp, flex: "1 1 150px" }} aria-label={he ? "עובד" : "Team member"}>
             {members.map((m) => <option key={m.id} value={m.id}>{m.full_name || "—"}</option>)}
           </select>
-          <input list="sp-skill-codes" value={skillCode} onChange={(e) => setSkillCode(e.target.value)} placeholder={he ? "קוד (gas, hvac…)" : "code (gas, hvac…)"} style={{ ...inp, flex: "1 1 130px" }} />
+          <input list="sp-skill-codes" value={skillCode} onChange={(e) => setSkillCode(e.target.value)} placeholder={he ? "קוד (gas, hvac…)" : "code (gas, hvac…)"} style={{ ...inp, flex: "1 1 130px" }} aria-label={he ? "קוד (gas, hvac…)" : "code (gas, hvac…)"} />
           <datalist id="sp-skill-codes">
             {(COMMON_SKILLS as { code: string; en: string; he: string }[]).map((s) => <option key={s.code} value={s.code}>{he ? s.he : s.en}</option>)}
           </datalist>
-          <input value={skillNumber} onChange={(e) => setSkillNumber(e.target.value)} placeholder={he ? "מספר רישיון" : "licence no."} style={{ ...inp, flex: "1 1 130px" }} />
+          <input value={skillNumber} onChange={(e) => setSkillNumber(e.target.value)} placeholder={he ? "מספר רישיון" : "licence no."} style={{ ...inp, flex: "1 1 130px" }} aria-label={he ? "מספר רישיון" : "licence no."} />
           <input type="date" value={skillExpires} onChange={(e) => setSkillExpires(e.target.value)} style={{ ...inp, flex: "0 0 150px" }} aria-label={he ? "תוקף עד" : "Expires"} />
           <button type="button" disabled={busy || !skillCode.trim()} style={btn}
             onClick={() => run(async () => {
@@ -118,16 +118,16 @@ export default function TeamWorkforce({ locale, currency, members, skills, timeO
             : "The online booking calendar and the dispatch board both stop offering these times. Choosing \"whole business\" closes the day for everybody — the public-holiday case."}
         </p>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end", marginBottom: 10 }}>
-          <select value={offFor} onChange={(e) => setOffFor(e.target.value)} style={{ ...inp, flex: "1 1 150px" }}>
+          <select value={offFor} onChange={(e) => setOffFor(e.target.value)} style={{ ...inp, flex: "1 1 150px" }} aria-label={he ? "עובד" : "Team member"}>
             <option value="">{he ? "כל העסק (סגור)" : "Whole business (closed)"}</option>
             {members.map((m) => <option key={m.id} value={m.id}>{m.full_name || "—"}</option>)}
           </select>
           <input type="date" value={offStart} onChange={(e) => setOffStart(e.target.value)} style={{ ...inp, flex: "0 0 150px" }} aria-label={he ? "מתאריך" : "From"} />
           <input type="date" value={offEnd} onChange={(e) => setOffEnd(e.target.value)} style={{ ...inp, flex: "0 0 150px" }} aria-label={he ? "עד תאריך" : "To"} />
-          <select value={offKind} onChange={(e) => setOffKind(e.target.value)} style={{ ...inp, flex: "0 0 140px" }}>
+          <select value={offKind} onChange={(e) => setOffKind(e.target.value)} style={{ ...inp, flex: "0 0 140px" }} aria-label={he ? "סוג" : "Type"}>
             {["time_off", "vacation", "sick", "personal", "training", "holiday", "other"].map((k) => <option key={k} value={k}>{k}</option>)}
           </select>
-          <input value={offNote} onChange={(e) => setOffNote(e.target.value)} placeholder={he ? "הערה" : "note"} style={{ ...inp, flex: "1 1 120px" }} />
+          <input value={offNote} onChange={(e) => setOffNote(e.target.value)} placeholder={he ? "הערה" : "note"} style={{ ...inp, flex: "1 1 120px" }} aria-label={he ? "הערה" : "note"} />
           <button type="button" disabled={busy} style={btn}
             onClick={() => run(async () => {
               const result = await addTimeOff({ memberId: offFor, startsOn: offStart, endsOn: offEnd, kind: offKind, note: offNote });

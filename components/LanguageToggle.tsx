@@ -28,8 +28,8 @@ export default function LanguageToggle({ current, dark = false }: { current: Loc
 
   return (
     <div style={{ display: "inline-flex", gap: 4 }}>
-      <button style={{ ...base, ...(current === "en" ? on : off) }} onClick={() => set("en")}>EN</button>
-      <button style={{ ...base, ...(current === "he" ? on : off) }} onClick={() => set("he")}>עב</button>
+      <button type="button" style={{ ...base, ...(current === "en" ? on : off) }} onClick={() => set("en")}>EN</button>
+      <button type="button" style={{ ...base, ...(current === "he" ? on : off) }} onClick={() => set("he")}>עב</button>
     </div>
   );
 }

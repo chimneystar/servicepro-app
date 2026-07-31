@@ -32,15 +32,15 @@ export default function JobChecklist({ jobId, items }: { jobId: string; items: C
         </div>
       )}
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-        <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder={he ? "הוספת סעיף לבדיקה…" : "Add checklist item…"} style={inp} />
-        <button onClick={add} disabled={pending} style={btn}>➕</button>
+        <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder={he ? "הוספת סעיף לבדיקה…" : "Add checklist item…"} aria-label={he ? "הוספת סעיף לבדיקה…" : "Add checklist item…"} style={inp} />
+        <button type="button" onClick={add} disabled={pending} style={btn} aria-label={he ? "הוספת סעיף" : "Add item"}>➕</button>
       </div>
       <div style={{ display: "grid", gap: 8 }}>
         {items.map((it) => (
           <div key={it.id} style={row}>
-            <input type="checkbox" checked={it.checked} disabled={pending} onChange={() => run(() => toggleChecklistItem(it.id, !it.checked, jobId), () => router.refresh())} style={{ width: 20, height: 20 }} />
+            <input type="checkbox" checked={it.checked} disabled={pending} onChange={() => run(() => toggleChecklistItem(it.id, !it.checked, jobId), () => router.refresh())} style={{ width: 20, height: 20 }} aria-label={it.label} />
             <span style={{ flex: 1, textDecoration: it.checked ? "line-through" : "none", color: it.checked ? "#94a3b8" : "#0b1524" }}>{it.label}</span>
-            <button onClick={() => run(() => deleteChecklistItem(it.id, jobId), () => router.refresh())} disabled={pending} style={xBtn}>🗑️</button>
+            <button type="button" onClick={() => run(() => deleteChecklistItem(it.id, jobId), () => router.refresh())} disabled={pending} style={xBtn} aria-label={he ? `מחיקת "${it.label}"` : `Delete "${it.label}"`}>🗑️</button>
           </div>
         ))}
         {items.length === 0 && <div className="rempty">{he ? "עוד אין סעיפים ברשימת הבדיקה." : "No checklist items yet."}</div>}

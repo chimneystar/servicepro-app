@@ -78,6 +78,7 @@ export default function PurchaseOrderPanel({
                     </div>
                     {outstanding > 0 && po.status !== "cancelled" && (
                       <button
+                        type="button"
                         disabled={pending}
                         onClick={() => run(() => receivePurchaseOrderLine(line.id, formatQtyMilli(outstanding)))}
                         style={smallBtn}
@@ -93,10 +94,11 @@ export default function PurchaseOrderPanel({
 
             <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
               {po.status === "draft" && (
-                <button disabled={pending} onClick={() => run(() => advancePurchaseOrderStatus(po.id, "ordered"))} style={smallBtn}>Mark ordered</button>
+                <button type="button" disabled={pending} onClick={() => run(() => advancePurchaseOrderStatus(po.id, "ordered"))} style={smallBtn}>Mark ordered</button>
               )}
-              <button disabled={pending} onClick={() => setAddingTo(addingTo === po.id ? null : po.id)} style={{ ...smallBtn, background: "#eef2f8", color: "#2563eb" }}>Add line</button>
+              <button type="button" disabled={pending} onClick={() => setAddingTo(addingTo === po.id ? null : po.id)} style={{ ...smallBtn, background: "#eef2f8", color: "#2563eb" }}>Add line</button>
               <button
+                type="button"
                 disabled={pending}
                 onClick={() => { if (confirm(`Cancel ${po.po_number}?`)) run(() => advancePurchaseOrderStatus(po.id, "cancelled")); }}
                 style={{ ...smallBtn, background: "#fdeaea", color: "#b91c1c" }}
@@ -109,11 +111,11 @@ export default function PurchaseOrderPanel({
                 style={{ background: "#f8fbff", border: "1px solid #e2e8f0", borderRadius: 10, padding: 12, marginTop: 10 }}
               >
                 <input type="hidden" name="purchaseOrderId" value={po.id} />
-                <input name="description" placeholder="Item or material" style={inp} required />
+                <input name="description" placeholder="Item or material" aria-label="Item or material" style={inp} required />
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1.4fr", gap: 8, marginTop: 8 }}>
-                  <input name="quantity" type="number" step="0.001" min="0.001" defaultValue="1" style={inp} />
-                  <input name="unitCost" type="number" step="0.01" min="0" placeholder="Unit cost" style={inp} />
-                  <select name="inventoryItemId" style={inp}>
+                  <input name="quantity" type="number" step="0.001" min="0.001" defaultValue="1" aria-label="Quantity" style={inp} />
+                  <input name="unitCost" type="number" step="0.01" min="0" placeholder="Unit cost" aria-label="Unit cost" style={inp} />
+                  <select name="inventoryItemId" style={inp} aria-label="Linked inventory item">
                     <option value="">Not stocked</option>
                     {inventory.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
                   </select>

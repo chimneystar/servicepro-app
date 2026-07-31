@@ -61,24 +61,24 @@ export default function DocDetailActions({ kind, id, token, status, number, lock
         {/* Editing a locked document is refused by the action AND by a database
             trigger. Showing the button anyway would just walk the user into a
             refusal, so it is replaced by the reason. */}
-        {!locked && <Link href={`${base}/${id}/edit`} style={{ ...btn, background: "#2563eb", color: "#fff", textDecoration: "none" }}>✏️ Edit</Link>}
-        {locked && !voided && <span style={{ ...btn, background: "#fdf1dc", color: "#7c4a03", cursor: "default" }}>🔒 Amounts locked</span>}
-        {!voided && <button onClick={openShare} style={{ ...btn, background: "#e0ebff", color: "#2563eb" }}>📤 Send</button>}
-        {!voided && <button onClick={copyLink} style={btn}>{copied ? "✓ Copied" : "🔗 Link"}</button>}
-        <button onClick={dup} disabled={pending} style={btn}>⧉ Duplicate</button>
-        {kind === "estimate" && status !== "approved" && !voided && <button onClick={convert} disabled={pending} style={{ ...btn, background: "#e6f6ec", color: "#15803d" }}>🧾 Convert to invoice</button>}
-        {kind === "invoice" && status !== "paid" && !voided && <button onClick={() => togglePaid(true)} disabled={pending} style={{ ...btn, background: "#e6f6ec", color: "#15803d" }}>✓ Mark paid</button>}
-        {kind === "invoice" && status === "paid" && <button onClick={() => togglePaid(false)} disabled={pending} style={btn}>↩ Mark due</button>}
-        {!locked && <button onClick={del} disabled={pending} style={{ ...btn, background: "#fdeaea", color: "#dc2626" }}>🗑️ Delete</button>}
+        {!locked && <Link href={`${base}/${id}/edit`} style={{ ...btn, background: "#2563eb", color: "#fff", textDecoration: "none" }}><span aria-hidden="true">✏️</span> Edit</Link>}
+        {locked && !voided && <span style={{ ...btn, background: "#fdf1dc", color: "#7c4a03", cursor: "default" }}><span aria-hidden="true">🔒</span> Amounts locked</span>}
+        {!voided && <button type="button" onClick={openShare} style={{ ...btn, background: "#e0ebff", color: "#2563eb" }}><span aria-hidden="true">📤</span> Send</button>}
+        {!voided && <button type="button" onClick={copyLink} style={btn}>{copied ? <><span aria-hidden="true">✓</span> Copied</> : <><span aria-hidden="true">🔗</span> Link</>}</button>}
+        <button type="button" onClick={dup} disabled={pending} style={btn}><span aria-hidden="true">⧉</span> Duplicate</button>
+        {kind === "estimate" && status !== "approved" && !voided && <button type="button" onClick={convert} disabled={pending} style={{ ...btn, background: "#e6f6ec", color: "#15803d" }}><span aria-hidden="true">🧾</span> Convert to invoice</button>}
+        {kind === "invoice" && status !== "paid" && !voided && <button type="button" onClick={() => togglePaid(true)} disabled={pending} style={{ ...btn, background: "#e6f6ec", color: "#15803d" }}><span aria-hidden="true">✓</span> Mark paid</button>}
+        {kind === "invoice" && status === "paid" && <button type="button" onClick={() => togglePaid(false)} disabled={pending} style={btn}><span aria-hidden="true">↩</span> Mark due</button>}
+        {!locked && <button type="button" onClick={del} disabled={pending} style={{ ...btn, background: "#fdeaea", color: "#dc2626" }}><span aria-hidden="true">🗑️</span> Delete</button>}
       </div>
 
       {kind === "estimate" && !voided && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
           <span style={{ fontSize: 12.5, color: "#5c6675", fontWeight: 700 }}>Status:</span>
           <select value={status} onChange={(e) => estStatus(e.target.value)} disabled={pending} style={{ border: "1px solid #e2e8f0", borderRadius: 9, padding: "7px 10px", fontSize: 13, fontWeight: 600, background: "#fff" }}>
             <option value="draft">Draft</option><option value="sent">Sent</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
           </select>
-        </div>
+        </label>
       )}
 
       <ActionError error={error} />

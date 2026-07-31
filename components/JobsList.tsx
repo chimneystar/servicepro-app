@@ -18,6 +18,7 @@ export default function JobsList({ jobs, stages, currency, nowMs, truncated = fa
    *  loaded page, not the whole business, and saying so is the whole point. */
   truncated?: boolean; loadedCount?: number; totalCount?: number; loadMoreHref?: string | null;
 }) {
+  const he = typeof document !== "undefined" && document.documentElement.dir === "rtl";
   const [tab, setTab] = useState("all");
   const [q, setQ] = useState("");
   const [tag, setTag] = useState("");
@@ -58,11 +59,11 @@ export default function JobsList({ jobs, stages, currency, nowMs, truncated = fa
       {/* Search + tag filter */}
       <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
         <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
-          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}>🔍</span>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search client, service, address, tag…" style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 12, padding: "11px 12px 11px 38px", fontSize: 16, outline: "none" }} />
+          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }} aria-hidden="true">🔍</span>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search client, service, address, tag…" aria-label="Search client, service, address, tag…" style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 12, padding: "11px 12px 11px 38px", fontSize: 16, outline: "none" }} />
         </div>
         {allTags.length > 0 && (
-          <select value={tag} onChange={(e) => setTag(e.target.value)} style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: "11px 12px", fontSize: 14, background: "#fff", fontWeight: 600 }}>
+          <select value={tag} onChange={(e) => setTag(e.target.value)} aria-label={he ? "סינון לפי תגית" : "Filter by tag"} style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: "11px 12px", fontSize: 14, background: "#fff", fontWeight: 600 }}>
             <option value="">All tags</option>
             {allTags.map((t) => <option key={t} value={t}>🏷 {t}</option>)}
           </select>
@@ -103,7 +104,7 @@ export default function JobsList({ jobs, stages, currency, nowMs, truncated = fa
 
 function TabBtn({ label, n, on, onClick, color }: { label: string; n: number; on: boolean; onClick: () => void; color: string }) {
   return (
-    <button onClick={onClick} style={{ border: "none", background: "transparent", padding: "8px 12px 10px", cursor: "pointer", whiteSpace: "nowrap", fontSize: 13.5, fontWeight: 700, color: on ? color : "#5c6675", borderBottom: on ? `3px solid ${color}` : "3px solid transparent", marginBottom: -3 }}>
+    <button type="button" onClick={onClick} style={{ border: "none", background: "transparent", padding: "8px 12px 10px", cursor: "pointer", whiteSpace: "nowrap", fontSize: 13.5, fontWeight: 700, color: on ? color : "#5c6675", borderBottom: on ? `3px solid ${color}` : "3px solid transparent", marginBottom: -3 }}>
       {label} <span style={{ background: on ? color : "#eef2f8", color: on ? "#fff" : "#8892a2", borderRadius: 20, padding: "1px 7px", fontSize: 11, marginInlineStart: 3 }}>{n}</span>
     </button>
   );

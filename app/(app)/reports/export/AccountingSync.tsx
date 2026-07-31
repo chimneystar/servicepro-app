@@ -98,7 +98,7 @@ export default function AccountingSync({
       </p>
       <textarea
         value={ledgerCsv} onChange={(e) => setLedgerCsv(e.target.value)}
-        placeholder="Paste the ledger's CSV export here…" rows={5}
+        placeholder="Paste the ledger's CSV export here…" aria-label="Paste the ledger's CSV export here…" rows={5}
         style={{ ...inp, fontFamily: "ui-monospace, monospace", fontSize: 12 }}
       />
       <button type="button" onClick={check} disabled={pending || !ledgerCsv.trim()} style={{ ...btn, marginTop: 8, opacity: ledgerCsv.trim() ? 1 : 0.5 }}>

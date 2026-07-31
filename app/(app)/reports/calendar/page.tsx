@@ -67,7 +67,7 @@ export default async function CalendarFeedPage() {
 
       <ActionForm action={createCalendarFeed} successLabel="Calendar feed created" className="ops-form">
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 16 }}>
-          <input name="label" placeholder="Name this feed (optional)" maxLength={80} style={input} />
+          <input name="label" placeholder="Name this feed (optional)" aria-label="Name this feed (optional)" maxLength={80} style={input} />
           <select name="scope" defaultValue="mine" style={input} aria-label="What this feed covers">
             <option value="mine">My jobs only</option>
             {canOrgScope && <option value="organization">The whole schedule</option>}

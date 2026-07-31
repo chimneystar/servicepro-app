@@ -116,18 +116,18 @@ export default function DocCorrections({
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         {canVoid && (
-          <button onClick={() => setOpen(open === "void" ? null : "void")} disabled={pending} style={{ ...btn, background: "#fdeaea", color: "#dc2626" }}>
-            ⃠ Void {kind}
+          <button type="button" onClick={() => setOpen(open === "void" ? null : "void")} disabled={pending} style={{ ...btn, background: "#fdeaea", color: "#dc2626" }}>
+            <span aria-hidden="true">⃠</span> Void {kind}
           </button>
         )}
         {kind === "invoice" && remainingCreditable > 0 && (
-          <button onClick={() => setOpen(open === "credit" ? null : "credit")} disabled={pending} style={{ ...btn, background: "#e0ebff", color: "#2563eb" }}>
-            ↩ Credit note
+          <button type="button" onClick={() => setOpen(open === "credit" ? null : "credit")} disabled={pending} style={{ ...btn, background: "#e0ebff", color: "#2563eb" }}>
+            <span aria-hidden="true">↩</span> Credit note
           </button>
         )}
         {kind === "estimate" && reopenable && (
-          <button onClick={() => setOpen(open === "reopen" ? null : "reopen")} disabled={pending} style={btn}>
-            ✎ Reopen for re-quoting
+          <button type="button" onClick={() => setOpen(open === "reopen" ? null : "reopen")} disabled={pending} style={btn}>
+            <span aria-hidden="true">✎</span> Reopen for re-quoting
           </button>
         )}
       </div>
@@ -147,7 +147,7 @@ export default function DocCorrections({
             It can no longer be signed or paid. This cannot be undone.
           </p>
           <Reason value={reason} onChange={setReason} />
-          <button onClick={doVoid} disabled={pending || shortReason} style={{ ...btn, background: "#dc2626", color: "#fff", opacity: shortReason ? 0.5 : 1 }}>
+          <button type="button" onClick={doVoid} disabled={pending || shortReason} style={{ ...btn, background: "#dc2626", color: "#fff", opacity: shortReason ? 0.5 : 1 }}>
             {pending ? "Voiding…" : "Void it"}
           </button>
         </Panel>
@@ -160,10 +160,12 @@ export default function DocCorrections({
             up to <b>{m(remainingCreditable)}</b> can still be credited. The invoice
             itself is not changed; the credit note is its own numbered document.
           </p>
-          <label style={lbl}>Amount to credit</label>
-          <input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" step="0.01" min="0" style={inp} placeholder="0.00" />
+          <label style={{ display: "block" }}>
+            <span style={lbl}>Amount to credit</span>
+            <input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" step="0.01" min="0" style={inp} placeholder="0.00" />
+          </label>
           <Reason value={reason} onChange={setReason} />
-          <button onClick={doCredit} disabled={pending || shortReason || !amount} style={{ ...btn, background: "#2563eb", color: "#fff", opacity: shortReason || !amount ? 0.5 : 1 }}>
+          <button type="button" onClick={doCredit} disabled={pending || shortReason || !amount} style={{ ...btn, background: "#2563eb", color: "#fff", opacity: shortReason || !amount ? 0.5 : 1 }}>
             {pending ? "Issuing…" : "Issue credit note"}
           </button>
         </Panel>
@@ -176,7 +178,7 @@ export default function DocCorrections({
             reopened it, when, and why are recorded on the estimate.
           </p>
           <Reason value={reason} onChange={setReason} />
-          <button onClick={doReopen} disabled={pending || shortReason} style={{ ...btn, background: "#2563eb", color: "#fff", opacity: shortReason ? 0.5 : 1 }}>
+          <button type="button" onClick={doReopen} disabled={pending || shortReason} style={{ ...btn, background: "#2563eb", color: "#fff", opacity: shortReason ? 0.5 : 1 }}>
             {pending ? "Reopening…" : "Reopen it"}
           </button>
         </Panel>
@@ -209,7 +211,7 @@ function CreditList({ notes, m, onCancel, pending }: {
               {cancelled && <div style={{ fontSize: 12, color: "#b45309" }}>Cancelled: {n.cancel_reason ?? "—"}</div>}
             </div>
             {!cancelled && (
-              <button onClick={() => onCancel(n.id)} disabled={pending} style={{ ...btn, background: "#eef2f8", color: "#5c6675", padding: "6px 10px", fontSize: 12 }}>
+              <button type="button" onClick={() => onCancel(n.id)} disabled={pending} style={{ ...btn, background: "#eef2f8", color: "#5c6675", padding: "6px 10px", fontSize: 12 }}>
                 Cancel
               </button>
             )}
@@ -229,7 +231,7 @@ function Panel({ title, onCancel, children }: { title: string; onCancel: () => v
     <div style={{ background: "#f8fbff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, marginTop: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
         <b style={{ fontSize: 13.5 }}>{title}</b>
-        <button onClick={onCancel} style={{ ...btn, background: "transparent", color: "#5c6675", padding: "4px 6px" }}>✕</button>
+        <button type="button" onClick={onCancel} aria-label="Close" style={{ ...btn, background: "transparent", color: "#5c6675", padding: "4px 6px" }}>✕</button>
       </div>
       {children}
     </div>
@@ -238,11 +240,11 @@ function Panel({ title, onCancel, children }: { title: string; onCancel: () => v
 
 function Reason({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
-    <>
-      <label style={lbl}>Reason (kept on the record permanently)</label>
+    <label style={{ display: "block" }}>
+      <span style={lbl}>Reason (kept on the record permanently)</span>
       <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={2} style={inp}
         placeholder={`At least ${MIN_REASON_LENGTH} characters — e.g. "duplicate of #1043"`} />
-    </>
+    </label>
   );
 }
 

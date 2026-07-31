@@ -28,14 +28,16 @@ export default function JobActions({ jobId, stage, stages, canInvoice }: { jobId
 
   return (
     <div>
-      <label style={{ fontSize: 12.5, fontWeight: 700, color: "#334155", display: "block", marginBottom: 6 }}>{he ? "סטטוס" : "Status"}</label>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-        <span style={{ width: 12, height: 12, borderRadius: 4, background: current?.color ?? "#2563eb", flexShrink: 0 }} />
-        <select value={stage} disabled={pending} onChange={(e) => changeStage(e.target.value)} style={{ flex: 1, border: "1px solid #e2e8f0", borderRadius: 10, padding: "11px 12px", background: "#fff", fontWeight: 600 }}>
-          {list.map((s) => <option key={s.name} value={s.name}>{s.name}</option>)}
-        </select>
-      </div>
-      {canInvoice && <button onClick={makeInvoice} disabled={pending} style={{ width: "100%", background: "#15803d", color: "#fff", border: "none", borderRadius: 12, padding: 14, fontWeight: 800, fontSize: 15, cursor: "pointer" }}>{he ? "יצירת חשבונית מהעבודה" : "Create invoice from job"}</button>}
+      <label style={{ display: "block" }}>
+        <span style={{ fontSize: 12.5, fontWeight: 700, color: "#334155", display: "block", marginBottom: 6 }}>{he ? "סטטוס" : "Status"}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+          <span style={{ width: 12, height: 12, borderRadius: 4, background: current?.color ?? "#2563eb", flexShrink: 0 }} aria-hidden="true" />
+          <select value={stage} disabled={pending} onChange={(e) => changeStage(e.target.value)} style={{ flex: 1, border: "1px solid #e2e8f0", borderRadius: 10, padding: "11px 12px", background: "#fff", fontWeight: 600 }}>
+            {list.map((s) => <option key={s.name} value={s.name}>{s.name}</option>)}
+          </select>
+        </div>
+      </label>
+      {canInvoice && <button type="button" onClick={makeInvoice} disabled={pending} style={{ width: "100%", background: "#15803d", color: "#fff", border: "none", borderRadius: 12, padding: 14, fontWeight: 800, fontSize: 15, cursor: "pointer" }}>{he ? "יצירת חשבונית מהעבודה" : "Create invoice from job"}</button>}
       {ok && <div role="status" style={{ marginTop: 10, color: "#15803d", fontSize: 13, fontWeight: 600 }}>✓ {ok}</div>}
       <ActionError error={error} style={{ marginTop: 10 }} />
     </div>

@@ -24,15 +24,15 @@ export default function JobTasks({ jobId, tasks }: { jobId: string; tasks: Task[
     <div>
       {tasks.length > 0 && <div style={{ fontSize: 13, color: "#5c6675", marginBottom: 8 }}>{he ? `${doneCount} מתוך ${tasks.length} הושלמו` : `${doneCount} of ${tasks.length} complete`}</div>}
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-        <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder={he ? "הוספת משימה…" : "Add a task…"} style={inp} />
-        <button onClick={add} disabled={pending} style={btn}>➕</button>
+        <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder={he ? "הוספת משימה…" : "Add a task…"} aria-label={he ? "הוספת משימה…" : "Add a task…"} style={inp} />
+        <button type="button" onClick={add} disabled={pending} style={btn} aria-label={he ? "הוספת משימה" : "Add task"}>➕</button>
       </div>
       <div style={{ display: "grid", gap: 8 }}>
         {tasks.map((t) => (
           <div key={t.id} style={row}>
-            <input type="checkbox" checked={t.done} disabled={pending} onChange={() => run(() => toggleJobTask(t.id, !t.done, jobId), () => router.refresh())} style={{ width: 20, height: 20 }} />
+            <input type="checkbox" checked={t.done} disabled={pending} onChange={() => run(() => toggleJobTask(t.id, !t.done, jobId), () => router.refresh())} style={{ width: 20, height: 20 }} aria-label={t.title} />
             <span style={{ flex: 1, textDecoration: t.done ? "line-through" : "none", color: t.done ? "#94a3b8" : "#0b1524" }}>{t.title}</span>
-            <button onClick={() => run(() => deleteJobTask(t.id, jobId), () => router.refresh())} disabled={pending} style={xBtn}>🗑️</button>
+            <button type="button" onClick={() => run(() => deleteJobTask(t.id, jobId), () => router.refresh())} disabled={pending} style={xBtn} aria-label={he ? `מחיקת המשימה "${t.title}"` : `Delete task "${t.title}"`}>🗑️</button>
           </div>
         ))}
         {tasks.length === 0 && <div className="rempty">{he ? "עוד אין משימות." : "No tasks yet."}</div>}

@@ -44,21 +44,21 @@ export default function JobParts({ jobId, stock }: { jobId: string; stock: Stock
   return (
     <div style={{ marginTop: 12 }}>
       {!open && (
-        <button onClick={() => setOpen(true)} style={{ ...btn, background: "#eef2f8", color: "#2563eb" }}>
+        <button type="button" onClick={() => setOpen(true)} style={{ ...btn, background: "#eef2f8", color: "#2563eb" }}>
           {he ? "שימוש בחלק מהמלאי" : "Use a part from stock"}
         </button>
       )}
       {open && (
         <form action={submit} style={{ background: "#f8fbff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14 }}>
-          <select name="inventoryItemId" style={inp} required>
+          <select name="inventoryItemId" style={inp} required aria-label={he ? "בחירת חלק" : "Choose a part"}>
             <option value="">{he ? "בחירת חלק" : "Choose a part"}</option>
             {stock.map((s) => (
               <option key={s.id} value={s.id}>{s.name} · {formatQtyMilli(s.quantity_milli)} {s.unit}</option>
             ))}
           </select>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
-            <input name="qty" type="number" step="0.001" min="0.001" defaultValue="1" placeholder={he ? "כמות" : "Qty"} style={inp} />
-            <input name="price" type="number" step="0.01" min="0" placeholder={he ? "מחיר ללקוח" : "Price to customer"} style={inp} />
+            <input name="qty" type="number" step="0.001" min="0.001" defaultValue="1" placeholder={he ? "כמות" : "Qty"} aria-label={he ? "כמות" : "Qty"} style={inp} />
+            <input name="price" type="number" step="0.01" min="0" placeholder={he ? "מחיר ללקוח" : "Price to customer"} aria-label={he ? "מחיר ללקוח" : "Price to customer"} style={inp} />
           </div>
           {error && <div role="alert" style={errBox}>{error}</div>}
           {needsOverride && (

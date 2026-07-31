@@ -53,7 +53,7 @@ function TemplateRow({ locale, trigger, tpl }: { locale: Locale; trigger: string
           {enabled ? (he ? "פעילה" : "On") : (he ? "כבויה" : "Off")}
         </label>
       </div>
-      <textarea name="body" defaultValue={tpl.body} rows={3} style={inp} placeholder={he ? "כתבו כאן את ההודעה שהלקוח יקבל…" : "Write the message your customer will receive…"} />
+      <textarea name="body" defaultValue={tpl.body} rows={3} style={inp} placeholder={he ? "כתבו כאן את ההודעה שהלקוח יקבל…" : "Write the message your customer will receive…"} aria-label={he ? "כתבו כאן את ההודעה שהלקוח יקבל…" : "Write the message your customer will receive…"} />
       {state.error && <div style={err}>{state.error}</div>}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
         <Save locale={locale} />

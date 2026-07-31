@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { setPhotoCustomerVisible, recordPhoto, deletePhoto } from "@/app/(app)/jobs/[id]/actions";
@@ -91,7 +91,7 @@ export default function JobPhotos({ jobId, orgId, photos }: { jobId: string; org
                 : (he ? "הצגת התמונה ללקוח" : "Show this photo to the customer")}
               aria-pressed={!p.customerVisible}
             >{p.customerVisible ? "👁" : "🚫"}</button>
-            <button onClick={() => remove(p)} style={delBtn} title="Delete">✕</button>
+            <button type="button" onClick={() => remove(p)} style={delBtn} title="Delete" aria-label={he ? "מחיקת התמונה" : "Delete photo"}>✕</button>
           </div>
         ))}
         {photos.length === 0 && <div style={{ color: "#5c6675", fontSize: 13, padding: 8 }}>{he ? "עדיין אין תמונות או סרטונים." : "No photos or videos yet."}</div>}
@@ -103,12 +103,18 @@ export default function JobPhotos({ jobId, orgId, photos }: { jobId: string; org
 
 function PhotoAnnotator({ photo, he, onCancel, onSave }: { photo: Photo; he: boolean; onCancel: () => void; onSave: (blob: Blob, photo: Photo) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null); const drawing = useRef(false);
+  const titleId = useId();
   useEffect(() => { const canvas = canvasRef.current; if (!canvas || !photo.url) return; const image = new Image(); image.crossOrigin = "anonymous"; image.onload = () => { const scale = Math.min(1, 900 / image.naturalWidth); canvas.width = Math.round(image.naturalWidth * scale); canvas.height = Math.round(image.naturalHeight * scale); canvas.getContext("2d")?.drawImage(image,0,0,canvas.width,canvas.height); }; image.src = photo.url; }, [photo]);
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) { if (event.key === "Escape") onCancel(); }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onCancel]);
   function point(event: React.PointerEvent<HTMLCanvasElement>) { const canvas = event.currentTarget; const rect = canvas.getBoundingClientRect(); return { x: (event.clientX-rect.left)*(canvas.width/rect.width), y: (event.clientY-rect.top)*(canvas.height/rect.height) }; }
   function start(event: React.PointerEvent<HTMLCanvasElement>) { drawing.current = true; event.currentTarget.setPointerCapture(event.pointerId); const ctx = event.currentTarget.getContext("2d"); const p = point(event); if (ctx) { ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.strokeStyle = "#f44336"; ctx.lineWidth = Math.max(4,event.currentTarget.width/140); ctx.lineCap = "round"; ctx.lineJoin = "round"; } }
   function move(event: React.PointerEvent<HTMLCanvasElement>) { if (!drawing.current) return; const ctx = event.currentTarget.getContext("2d"); const p = point(event); if (ctx) { ctx.lineTo(p.x,p.y); ctx.stroke(); } }
   function save() { canvasRef.current?.toBlob((blob) => { if (blob) onSave(blob,photo); },"image/png",.92); }
-  return <div className="photo-annotator" role="dialog" aria-modal="true"><div><header><strong>{he ? "סימון על התמונה" : "Mark up photo"}</strong><small>{he ? "ציירו באדום על האזור שחשוב להראות." : "Draw in red over the area you want to call out."}</small></header><canvas ref={canvasRef} onPointerDown={start} onPointerMove={move} onPointerUp={() => drawing.current=false} onPointerCancel={() => drawing.current=false} /><footer><button type="button" onClick={save}>{he ? "שמירת עותק" : "Save copy"}</button><button type="button" onClick={onCancel}>{he ? "ביטול" : "Cancel"}</button></footer></div></div>;
+  return <div className="photo-annotator" role="dialog" aria-modal="true" aria-labelledby={titleId}><div><header><strong id={titleId}>{he ? "סימון על התמונה" : "Mark up photo"}</strong><small>{he ? "ציירו באדום על האזור שחשוב להראות." : "Draw in red over the area you want to call out."}</small></header><canvas ref={canvasRef} onPointerDown={start} onPointerMove={move} onPointerUp={() => drawing.current=false} onPointerCancel={() => drawing.current=false} /><footer><button type="button" onClick={save}>{he ? "שמירת עותק" : "Save copy"}</button><button type="button" onClick={onCancel}>{he ? "ביטול" : "Cancel"}</button></footer></div></div>;
 }
 
 const upload: React.CSSProperties = { display: "inline-block", border: "2px dashed #b9c8e6", color: "#2563eb", background: "#f8fbff", borderRadius: 12, padding: "12px 18px", fontWeight: 700, fontSize: 14, cursor: "pointer" };

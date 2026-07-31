@@ -22,7 +22,7 @@ export default function SetupChecklist({ steps }: { steps: Step[] }) {
           <div style={{ fontSize: 17, fontWeight: 800 }}>{he ? "מסיימים את ההגדרה" : "Finish setting up"}</div>
           <div style={{ fontSize: 12.5, opacity: .9 }}>{he ? `${done} מתוך ${steps.length} הושלמו · ${pct}% מוכן` : `${done} of ${steps.length} complete · ${pct}% ready`}</div>
         </div>
-        <button onClick={() => run(() => dismissOnboarding(), () => router.refresh())} disabled={pending} style={{ background: "rgba(255,255,255,.18)", color: "#fff", border: "none", borderRadius: 8, padding: "6px 10px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>{he ? "הסתרה" : "Dismiss"}</button>
+        <button type="button" onClick={() => run(() => dismissOnboarding(), () => router.refresh())} disabled={pending} style={{ background: "rgba(255,255,255,.18)", color: "#fff", border: "none", borderRadius: 8, padding: "6px 10px", fontWeight: 700, fontSize: 12, cursor: "pointer" }}>{he ? "הסתרה" : "Dismiss"}</button>
       </div>
 
       <div style={{ height: 7, background: "rgba(255,255,255,.22)", borderRadius: 99, margin: "12px 0 14px" }}>

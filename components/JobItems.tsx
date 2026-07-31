@@ -45,7 +45,7 @@ export default function JobItems({ jobId, items, currency, canEdit }: { jobId: s
               <div className="rsub">{(it.qty_milli / 1000).toLocaleString("en-US")} × {money(it.unit_price_minor, currency)}</div>
             </div>
             <div className="rend"><b>{money(lineTotal(it), currency)}</b></div>
-            {canEdit && <button onClick={() => del(it.id)} disabled={pending} style={xBtn}>🗑️</button>}
+            {canEdit && <button type="button" onClick={() => del(it.id)} disabled={pending} style={xBtn} aria-label={he ? `מחיקת "${it.description}"` : `Delete "${it.description}"`}>🗑️</button>}
           </div>
         ))}
         {items.length === 0 && <div className="rempty">{he ? "עוד אין פריטים." : "No items yet."}</div>}
@@ -58,16 +58,16 @@ export default function JobItems({ jobId, items, currency, canEdit }: { jobId: s
         </div>
       )}
 
-      {canEdit && !adding && <button onClick={() => setAdding(true)} style={btn}>{he ? "הוספת פריט" : "Add item"}</button>}
-      {canEdit && items.length > 0 && <button onClick={makeInvoice} disabled={pending} style={{ ...btn, background: "#e6f6ec", color: "#15803d", marginInlineStart: 8 }}>{he ? "יצירת חשבונית מהפריטים" : "Create invoice from items"}</button>}
+      {canEdit && !adding && <button type="button" onClick={() => setAdding(true)} style={btn}>{he ? "הוספת פריט" : "Add item"}</button>}
+      {canEdit && items.length > 0 && <button type="button" onClick={makeInvoice} disabled={pending} style={{ ...btn, background: "#e6f6ec", color: "#15803d", marginInlineStart: 8 }}>{he ? "יצירת חשבונית מהפריטים" : "Create invoice from items"}</button>}
 
       {adding && (
         <form action={submit} style={{ background: "#f8fbff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, marginTop: 10 }}>
-          <input name="description" placeholder={he ? "תיאור" : "Description"} style={inp} autoFocus />
+          <input name="description" placeholder={he ? "תיאור" : "Description"} aria-label={he ? "תיאור" : "Description"} style={inp} autoFocus />
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 8 }}>
-            <input name="qty" type="number" step="0.001" defaultValue="1" placeholder={he ? "כמות" : "Qty"} style={inp} />
-            <input name="price" type="number" step="0.01" placeholder={he ? "מחיר ליחידה" : "Unit price"} style={inp} />
-            <input name="cost" type="number" step="0.01" placeholder={he ? "עלות" : "Cost"} style={inp} />
+            <input name="qty" type="number" step="0.001" defaultValue="1" placeholder={he ? "כמות" : "Qty"} aria-label={he ? "כמות" : "Qty"} style={inp} />
+            <input name="price" type="number" step="0.01" placeholder={he ? "מחיר ליחידה" : "Unit price"} aria-label={he ? "מחיר ליחידה" : "Unit price"} style={inp} />
+            <input name="cost" type="number" step="0.01" placeholder={he ? "עלות" : "Cost"} aria-label={he ? "עלות" : "Cost"} style={inp} />
           </div>
           {err && <div style={errBox}>{err}</div>}
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
