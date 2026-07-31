@@ -22,7 +22,7 @@ type EventRow = { id: number; event_type: string; ip: string | null; ip_trusted:
 type Factor = { id: string; status: string; friendly_name?: string | null; created_at?: string };
 
 const initial: SecurityResult = { ok: false };
-const listStyle = { margin: "6px 0 0", paddingInlineStart: 18, fontSize: 12, lineHeight: 1.5 } as const;
+const listStyle = { margin: "6px 0 0", paddingInlineStart: 18, fontSize: "0.75rem", lineHeight: 1.5 } as const;
 
 export default function AccountSecurity({ locale, security, events, role }: { locale: Locale; security: SecurityRow; events: EventRow[]; role: string }) {
   const he = locale === "he";
@@ -146,7 +146,7 @@ function TwoFactor({ locale, enrolledAt, role }: { locale: Locale; enrolledAt: s
       </header>
       <div className="ops-card-body" style={{ display: "grid", gap: 10 }}>
         {role === "owner" && verified.length === 0 && (
-          <p style={{ margin: 0, fontSize: 12 }}>{he
+          <p style={{ margin: 0, fontSize: "0.75rem" }}>{he
             ? "החשבון הזה שולט בתשלומים ובכל נתוני הלקוחות. סיסמה בלבד היא לא מספיק."
             : "This account controls payouts and every customer record. A password alone is not enough."}</p>
         )}
@@ -173,7 +173,7 @@ function TwoFactor({ locale, enrolledAt, role }: { locale: Locale; enrolledAt: s
           <div style={{ display: "grid", gap: 8 }}>
             {enrolling.qr && <img src={enrolling.qr} alt={he ? "קוד QR לאפליקציית האימות" : "Authenticator QR code"} style={{ width: 176, height: 176 }} />}
             <small>{he ? "או הזינו את המפתח ידנית:" : "Or enter this key by hand:"} <code>{enrolling.secret}</code></small>
-            <label style={{ display: "grid", gap: 5, fontSize: 11, fontWeight: 800 }}>{he ? "קוד בן שש ספרות" : "Six-digit code"}
+            <label style={{ display: "grid", gap: 5, fontSize: "0.75rem", fontWeight: 800 }}>{he ? "קוד בן שש ספרות" : "Six-digit code"}
               <input value={code} onChange={(event) => setCode(event.target.value)} inputMode="numeric" maxLength={6} style={{ minHeight: 43, padding: "9px 11px", borderRadius: 11, border: "1px solid var(--line)" }} />
             </label>
             <div className="ops-actions">
@@ -221,7 +221,7 @@ function Devices({ locale, security, events }: { locale: Locale; security: Secur
       <header><div><h2>{he ? "מכשירים והתחברויות" : "Devices & sign-ins"}</h2>
         <p>{he ? "מה שהשרת ראה. עד עכשיו הוא לא ראה דבר." : "What the server observed. Until now it observed nothing."}</p></div></header>
       <div className="ops-card-body" style={{ display: "grid", gap: 10 }}>
-        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.75rem" }}>
           <input type="checkbox" checked={alertsOn} disabled={pending}
             onChange={(event) => {
               const next = event.target.checked;
@@ -258,7 +258,7 @@ function Devices({ locale, security, events }: { locale: Locale; security: Secur
           ))}
         </ul>
 
-        <p style={{ margin: 0, fontSize: 10.5, color: "var(--muted)" }}>{he
+        <p style={{ margin: 0, fontSize: "0.75rem", color: "var(--muted)" }}>{he
           ? "אלה התחברויות, לא הפעלות חיות. ניתוק מכשיר בודד אינו אפשרי דרך ה-API של Supabase, ולכן הניתוק הוא של כל המכשירים."
           : "These are sign-ins, not live sessions. Supabase's client API cannot revoke one device on its own, so revocation is all-or-nothing."}</p>
       </div>

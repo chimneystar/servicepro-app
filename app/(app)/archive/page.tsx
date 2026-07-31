@@ -18,12 +18,12 @@ export default async function ArchivePage() {
     <div style={{ maxWidth: 760 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 800 }}>Archive (legacy records)</h1>
-          <p style={{ color: "#5c6675", fontSize: 13 }}>{(data ?? []).length} archived · kept separate from your active data</p>
+          <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>Archive (legacy records)</h1>
+          <p style={{ color: "#5c6675", fontSize: "0.8125rem" }}>{(data ?? []).length} archived · kept separate from your active data</p>
         </div>
-        <Link href="/archive/import" style={{ background: "#9a3412", color: "#fff", borderRadius: 10, padding: "10px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>⬆ Import old records</Link>
+        <Link href="/archive/import" style={{ background: "#9a3412", color: "#fff", borderRadius: 10, padding: "10px 14px", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none" }}>⬆ Import old records</Link>
       </div>
-      <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", color: "#9a3412", borderRadius: 12, padding: "11px 14px", fontSize: 13, margin: "10px 0 16px" }}>
+      <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", color: "#9a3412", borderRadius: 12, padding: "11px 14px", fontSize: "0.8125rem", margin: "10px 0 16px" }}>
         🗄️ This is your records-only area. Archived clients don’t show in active customers, scheduling, or reports. Use <b>Restore</b> to bring one back into active use.
       </div>
       <ArchiveList records={(data ?? []) as ArchRow[]} />

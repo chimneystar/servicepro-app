@@ -23,7 +23,7 @@ export default function PriceBookClient({ locale, items, currency }: { locale: L
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800 }}>{t(locale, "pb.title")}</h1>
+        <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>{t(locale, "pb.title")}</h1>
         <button onClick={() => setEditing(null)} style={btn}>➕ {t(locale, "pb.new")}</button>
       </div>
 
@@ -35,7 +35,7 @@ export default function PriceBookClient({ locale, items, currency }: { locale: L
               <div className="rsub">{it.category || ""}{it.category ? " · " : ""}{m(it.cost_minor)} cost · {it.unit}</div>
             </div>
             <div className="rend">
-              <b style={{ fontSize: 15 }}>{m(it.price_minor)}</b>
+              <b style={{ fontSize: "0.9375rem" }}>{m(it.price_minor)}</b>
               <div style={{ display: "flex", gap: 6 }}>
                 <button onClick={() => setEditing(it)} style={mini}>✏️</button>
                 <button onClick={() => del(it.id)} style={{ ...mini, background: "#fdeaea" }}>🗑️</button>
@@ -49,7 +49,7 @@ export default function PriceBookClient({ locale, items, currency }: { locale: L
       {editing !== undefined && (
         <div style={overlay} onClick={(e) => e.target === e.currentTarget && setEditing(undefined)}>
           <form action={formAction} style={modal}>
-            <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 14 }}>{editing ? editing.name : t(locale, "pb.new")}</h3>
+            <h3 style={{ fontSize: "1.125rem", fontWeight: 800, marginBottom: 14 }}>{editing ? editing.name : t(locale, "pb.new")}</h3>
             {editing && <input type="hidden" name="id" value={editing.id} />}
             <L>{t(locale, "pb.name")}</L><input name="name" defaultValue={editing?.name ?? ""} style={inp} required />
             <div style={two}>
@@ -76,10 +76,10 @@ function Save({ locale }: { locale: Locale }) { const { pending } = useFormStatu
 function L({ children }: { children: React.ReactNode }) { return <label style={lbl}>{children}</label>; }
 
 const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", padding: "10px 16px", borderRadius: 10, fontWeight: 700, cursor: "pointer" };
-const mini: React.CSSProperties = { background: "#eef2f8", border: "none", borderRadius: 8, padding: "5px 8px", cursor: "pointer", fontSize: 13 };
+const mini: React.CSSProperties = { background: "#eef2f8", border: "none", borderRadius: 8, padding: "5px 8px", cursor: "pointer", fontSize: "0.8125rem" };
 const overlay: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,30,61,.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 24, zIndex: 100, overflowY: "auto" };
 const modal: React.CSSProperties = { background: "#fff", borderRadius: 18, width: "100%", maxWidth: 460, padding: 22 };
 const two: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 };
-const lbl: React.CSSProperties = { fontSize: 12.5, fontWeight: 700, color: "#334155", display: "block", margin: "10px 0 6px" };
-const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 14, outline: "none" };
-const err: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "9px 12px", borderRadius: 10, fontSize: 13, marginTop: 10 };
+const lbl: React.CSSProperties = { fontSize: "0.8125rem", fontWeight: 700, color: "#334155", display: "block", margin: "10px 0 6px" };
+const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: "0.875rem", outline: "none" };
+const err: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "9px 12px", borderRadius: 10, fontSize: "0.8125rem", marginTop: 10 };

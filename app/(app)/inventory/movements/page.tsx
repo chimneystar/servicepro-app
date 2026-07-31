@@ -46,9 +46,9 @@ export default async function InventoryMovementsPage() {
 
   return (
     <div style={{ maxWidth: 860 }}>
-      <Link href="/inventory" style={{ fontSize: 13, color: "#2563eb", textDecoration: "none" }}>← {he ? "חזרה למלאי" : "Back to inventory"}</Link>
-      <h1 style={{ fontSize: 24, fontWeight: 800, margin: "8px 0 4px" }}>{he ? "יומן תנועות מלאי" : "Stock ledger"}</h1>
-      <p style={{ color: "#5c6675", fontSize: 13, marginBottom: 14 }}>
+      <Link href="/inventory" style={{ fontSize: "0.8125rem", color: "#2563eb", textDecoration: "none" }}>← {he ? "חזרה למלאי" : "Back to inventory"}</Link>
+      <h1 style={{ fontSize: "1.5rem", fontWeight: 800, margin: "8px 0 4px" }}>{he ? "יומן תנועות מלאי" : "Stock ledger"}</h1>
+      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 14 }}>
         {he
           ? "כל קבלה, שימוש ותיקון — עם מי, מתי ולמה. היומן הוא מקור האמת; הכמות בפריט נגזרת ממנו."
           : "Every receipt, consumption and correction — with who, when and why. The ledger is the source of truth; the quantity on each item is derived from it."}
@@ -64,7 +64,7 @@ export default async function InventoryMovementsPage() {
               <div className="rmain">
                 <div className="rtitle">
                   {nameOfItem.get(m.item_id) ?? (he ? "פריט שנמחק" : "Deleted item")}
-                  {m.allow_negative && <span style={{ color: "#9a3412", fontSize: 12 }}> · {he ? "מתחת לאפס" : "below zero"}</span>}
+                  {m.allow_negative && <span style={{ color: "#9a3412", fontSize: "0.75rem" }}> · {he ? "מתחת לאפס" : "below zero"}</span>}
                 </div>
                 <div className="rsub">
                   {m.kind} · {m.reason} · {nameOfActor.get(m.created_by ?? "") ?? (he ? "מערכת" : "system")} · {fmtDate(String(m.created_at).slice(0, 10))}
@@ -81,7 +81,7 @@ export default async function InventoryMovementsPage() {
         {movements.length === 0 && <div className="rempty">{he ? "עוד לא נרשמו תנועות." : "No stock movements recorded yet."}</div>}
       </div>
       {movements.length === PAGE && (
-        <p style={{ color: "#5c6675", fontSize: 12.5, marginTop: 10 }}>
+        <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginTop: 10 }}>
           {he ? `מוצגות ${PAGE} התנועות האחרונות.` : `Showing the ${PAGE} most recent movements.`}
         </p>
       )}

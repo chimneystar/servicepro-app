@@ -98,11 +98,11 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
 
       {((pays ?? []).length > 0 || credited > 0) && (
         <div className="no-print" style={{ display: "grid", gridTemplateColumns: credited > 0 ? "1fr 1fr 1fr" : "1fr 1fr", gap: 10, marginBottom: 14 }}>
-          <div style={{ background: "#e6f6ec", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: 12, color: "#15803d", fontWeight: 700 }}>Paid</div><div style={{ fontSize: 20, fontWeight: 800, color: "#15803d" }}>{money(paid, cur)}</div></div>
+          <div style={{ background: "#e6f6ec", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: "0.75rem", color: "#15803d", fontWeight: 700 }}>Paid</div><div style={{ fontSize: "1.25rem", fontWeight: 800, color: "#15803d" }}>{money(paid, cur)}</div></div>
           {credited > 0 && (
-            <div style={{ background: "#eef2f8", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: 12, color: "#5c6675", fontWeight: 700 }}>Credited</div><div style={{ fontSize: 20, fontWeight: 800, color: "#5c6675" }}>−{money(credited, cur)}</div></div>
+            <div style={{ background: "#eef2f8", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: "0.75rem", color: "#5c6675", fontWeight: 700 }}>Credited</div><div style={{ fontSize: "1.25rem", fontWeight: 800, color: "#5c6675" }}>−{money(credited, cur)}</div></div>
           )}
-          <div style={{ background: balance > 0 ? "#fdf1dc" : "#eef2f8", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: 12, color: "#b45309", fontWeight: 700 }}>Balance</div><div style={{ fontSize: 20, fontWeight: 800, color: balance > 0 ? "#b45309" : "#15803d" }}>{money(balance, cur)}</div></div>
+          <div style={{ background: balance > 0 ? "#fdf1dc" : "#eef2f8", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: "0.75rem", color: "#b45309", fontWeight: 700 }}>Balance</div><div style={{ fontSize: "1.25rem", fontWeight: 800, color: balance > 0 ? "#b45309" : "#15803d" }}>{money(balance, cur)}</div></div>
         </div>
       )}
 
@@ -112,4 +112,4 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
     </div>
   );
 }
-const back: React.CSSProperties = { color: "#2563eb", fontWeight: 700, fontSize: 14, textDecoration: "none" };
+const back: React.CSSProperties = { color: "#2563eb", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none" };

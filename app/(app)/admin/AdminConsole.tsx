@@ -49,7 +49,7 @@ function Keys({he,role}:{he:boolean;role:string}){
         </div>
         {role!=="super_admin"&&<small style={{color:"var(--muted)"}}>{he?"רק super_admin יכול להריץ רוטציה.":"Only a super_admin can run a rotation."}</small>}
         {message&&<p className="ops-message" role="status">{message}</p>}
-        <p style={{margin:0,fontSize:10.5,color:"var(--muted)"}}>{he
+        <p style={{margin:0,fontSize:"0.75rem",color:"var(--muted)"}}>{he
           ?"בין הפריסה לסיום הרוטציה, שורה שטרם הוצפנה מחדש אינה קריאה למסלול התשלומים — הוא אינו קורא key_version. זו הסיבה ש-6b.9 מסומן PARTIAL."
           :"Between deploying a new key and finishing the rotation, a not-yet-rotated row cannot be read by the payment path, which does not consult key_version. That window is why ledger 6b.9 is PARTIAL."}</p>
       </>}

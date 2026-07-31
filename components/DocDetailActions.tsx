@@ -74,8 +74,8 @@ export default function DocDetailActions({ kind, id, token, status, number, lock
 
       {kind === "estimate" && !voided && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
-          <span style={{ fontSize: 12.5, color: "#5c6675", fontWeight: 700 }}>Status:</span>
-          <select value={status} onChange={(e) => estStatus(e.target.value)} disabled={pending} style={{ border: "1px solid #e2e8f0", borderRadius: 9, padding: "7px 10px", fontSize: 13, fontWeight: 600, background: "#fff" }}>
+          <span style={{ fontSize: "0.8125rem", color: "#5c6675", fontWeight: 700 }}>Status:</span>
+          <select value={status} onChange={(e) => estStatus(e.target.value)} disabled={pending} style={{ border: "1px solid #e2e8f0", borderRadius: 9, padding: "7px 10px", fontSize: "0.8125rem", fontWeight: 600, background: "#fff" }}>
             <option value="draft">Draft</option><option value="sent">Sent</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
           </select>
         </div>
@@ -88,4 +88,4 @@ export default function DocDetailActions({ kind, id, token, status, number, lock
   );
 }
 
-const btn: React.CSSProperties = { background: "#eef2f8", color: "#2563eb", border: "none", borderRadius: 9, padding: "9px 13px", fontWeight: 700, fontSize: 13, cursor: "pointer" };
+const btn: React.CSSProperties = { background: "#eef2f8", color: "#2563eb", border: "none", borderRadius: 9, padding: "9px 13px", fontWeight: 700, fontSize: "0.8125rem", cursor: "pointer" };

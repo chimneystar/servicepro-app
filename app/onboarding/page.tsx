@@ -135,8 +135,8 @@ export default async function OnboardingPage() {
   }
 
   const card: React.CSSProperties = { width: "100%", maxWidth: 880, background: "#fff", borderRadius: 24, padding: 28, boxShadow: "0 20px 50px rgba(15,42,94,.12)" };
-  const label: React.CSSProperties = { fontSize: 12.5, fontWeight: 700, color: "#334155", display: "block", marginBottom: 6 };
-  const field: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 12, padding: "11px 13px", fontSize: 15, marginBottom: 14 };
+  const label: React.CSSProperties = { fontSize: "0.8125rem", fontWeight: 700, color: "#334155", display: "block", marginBottom: 6 };
+  const field: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 12, padding: "11px 13px", fontSize: "0.9375rem", marginBottom: 14 };
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
@@ -144,18 +144,18 @@ export default async function OnboardingPage() {
         <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
           <LanguageToggle current={locale} />
         </div>
-        <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>{t(locale, "onb.welcome")}</h1>
-        <p style={{ color: "#64748b", fontSize: 14, marginBottom: 18 }}>{t(locale, "onb.desc")}</p>
+        <h1 style={{ fontSize: "1.375rem", fontWeight: 800, marginBottom: 4 }}>{t(locale, "onb.welcome")}</h1>
+        <p style={{ color: "#64748b", fontSize: "0.875rem", marginBottom: 18 }}>{t(locale, "onb.desc")}</p>
 
         {joinError === "mismatch" && (
-          <div style={{ background: "#fdeaea", color: "#b91c1c", padding: "11px 14px", borderRadius: 12, fontSize: 13, marginBottom: 14 }}>
+          <div style={{ background: "#fdeaea", color: "#b91c1c", padding: "11px 14px", borderRadius: 12, fontSize: "0.8125rem", marginBottom: 14 }}>
             {locale === "he"
               ? "ההזמנה הזו נשלחה לכתובת אימייל אחרת. התחברו עם הכתובת שאליה נשלחה ההזמנה, או בקשו מבעל העסק לשלוח הזמנה חדשה."
               : "That invitation was sent to a different email address. Sign in with the address it was sent to, or ask the business owner to send a new invitation."}
           </div>
         )}
         {!joinError && pendingInvite?.organization_name && (
-          <div style={{ background: "#fff5e0", color: "#a15c07", padding: "11px 14px", borderRadius: 12, fontSize: 13, marginBottom: 14 }}>
+          <div style={{ background: "#fff5e0", color: "#a15c07", padding: "11px 14px", borderRadius: 12, fontSize: "0.8125rem", marginBottom: 14 }}>
             {locale === "he"
               ? `${pendingInvite.organization_name} הזמינו אתכם להצטרף. פתחו את קישור ההצטרפות מהמייל ששלחנו ל-${pendingInvite.invited_email} כדי להצטרף אליהם במקום ליצור עסק חדש. אם המייל לא הגיע, בקשו מהם לשלוח שוב.`
               : `${pendingInvite.organization_name} has invited you to join. Open the join link in the email we sent to ${pendingInvite.invited_email} to join them instead of creating a new business. If it didn't arrive, ask them to resend it.`}
@@ -201,8 +201,8 @@ export default async function OnboardingPage() {
         </div>
 
         <div style={{ margin: "8px 0 18px", paddingTop: 18, borderTop: "1px solid #e2e8f0" }}>
-          <h2 style={{ fontSize: 17, fontWeight: 850, marginBottom: 5 }}>{locale === "he" ? "אילו שירותים אתם מציעים?" : "What services do you provide?"}</h2>
-          <p style={{ color: "#64748b", fontSize: 13, marginBottom: 12 }}>{locale === "he" ? "נוסיף לספר המחירים שירותים שימושיים עם מחיר ריק. אפשר לערוך הכול אחר כך." : "We’ll add a ready-to-use catalog with blank prices. You can edit everything later."}</p>
+          <h2 style={{ fontSize: "1.0625rem", fontWeight: 850, marginBottom: 5 }}>{locale === "he" ? "אילו שירותים אתם מציעים?" : "What services do you provide?"}</h2>
+          <p style={{ color: "#64748b", fontSize: "0.8125rem", marginBottom: 12 }}>{locale === "he" ? "נוסיף לספר המחירים שירותים שימושיים עם מחיר ריק. אפשר לערוך הכול אחר כך." : "We’ll add a ready-to-use catalog with blank prices. You can edit everything later."}</p>
           <div className="onboarding-trade-grid">
             {INDUSTRY_PACKS.map((pack) => <label key={pack.key} className="onboarding-trade-choice"><input type="checkbox" name="trades" value={pack.key} /><span>{locale === "he" ? pack.he : pack.en}</span><small>{pack.items.filter((item) => item.kind === "service").length} {locale === "he" ? "שירותים" : "services"}</small></label>)}
           </div>
@@ -210,7 +210,7 @@ export default async function OnboardingPage() {
           <label className="onboarding-option"><input type="checkbox" name="sampleData" defaultChecked /><span><b>{locale === "he" ? "להוסיף לקוח ועבודה לדוגמה" : "Add a sample customer and job"}</b><small>{locale === "he" ? "דרך מהירה להכיר את המערכת. הרשומות מסומנות כדוגמה." : "A quick way to learn the workflow. Sample records are clearly marked."}</small></span></label>
         </div>
 
-        <button type="submit" style={{ width: "100%", background: "#2563eb", color: "#fff", border: "none", borderRadius: 12, padding: 14, fontSize: 16, fontWeight: 700, cursor: "pointer" }}>
+        <button type="submit" style={{ width: "100%", background: "#2563eb", color: "#fff", border: "none", borderRadius: 12, padding: 14, fontSize: "1rem", fontWeight: 700, cursor: "pointer" }}>
           {t(locale, "onb.create")}
         </button>
       </form>

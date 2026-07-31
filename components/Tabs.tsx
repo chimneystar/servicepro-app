@@ -11,7 +11,7 @@ export default function Tabs({ tabs }: { tabs: { label: string; badge?: string; 
           <button key={idx} onClick={() => setI(idx)}
             style={{
               border: "none", background: "transparent", padding: "10px 14px 12px", cursor: "pointer",
-              fontSize: 14, fontWeight: 700, whiteSpace: "nowrap",
+              fontSize: "0.875rem", fontWeight: 700, whiteSpace: "nowrap",
               color: idx === i ? "#2563eb" : "#5c6675",
               borderBottom: idx === i ? "3px solid #2563eb" : "3px solid transparent", marginBottom: -1,
             }}>

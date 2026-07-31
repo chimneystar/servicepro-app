@@ -51,13 +51,13 @@ export default async function StatementPage({
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, margin: "8px 0 14px", flexWrap: "wrap" }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 800 }}>Statement of account</h1>
-          <p style={{ color: "#5c6675", fontSize: 13 }}>
+          <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>Statement of account</h1>
+          <p style={{ color: "#5c6675", fontSize: "0.8125rem" }}>
             As of {fmtDate(statement.asOf)}{statement.since ? ` · activity since ${fmtDate(statement.since)}` : ""}
           </p>
         </div>
-        <div style={{ textAlign: "end", fontSize: 13, color: "#5c6675" }}>
-          <div style={{ fontWeight: 800, fontSize: 15, color: "#0b1524" }}>{org.name}</div>
+        <div style={{ textAlign: "end", fontSize: "0.8125rem", color: "#5c6675" }}>
+          <div style={{ fontWeight: 800, fontSize: "0.9375rem", color: "#0b1524" }}>{org.name}</div>
           {[org.address, org.city].filter(Boolean).join(", ") && <div>{[org.address, org.city].filter(Boolean).join(", ")}</div>}
           {org.phone && <div>{org.phone}</div>}
           {org.email && <div>{org.email}</div>}
@@ -77,14 +77,14 @@ export default async function StatementPage({
         />
       </div>
 
-      <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, marginBottom: 16, fontSize: 14 }}>
+      <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, marginBottom: 16, fontSize: "0.875rem" }}>
         <div style={{ fontWeight: 800, marginBottom: 4 }}>{customer.name}</div>
         {billTo && <div style={{ color: "#5c6675" }}>{billTo}</div>}
         {customer.email && <div style={{ color: "#5c6675" }}>{customer.email}</div>}
         {customer.phone && <div style={{ color: "#5c6675" }}>{customer.phone}</div>}
         {/* Consent is shown, because whoever is about to press Send should know
             before they press it, not afterwards from a skip reason. */}
-        <div style={{ marginTop: 6, fontSize: 12.5, color: "#5c6675" }}>
+        <div style={{ marginTop: 6, fontSize: "0.8125rem", color: "#5c6675" }}>
           SMS: {customer.sms_opt_in === false ? "opted OUT" : customer.sms_opt_in === true ? "opted in" : "unknown"}
           {" · "}
           Email: {customer.email_opt_in === false ? "unsubscribed" : customer.email_opt_in === true ? "opted in" : "unknown"}
@@ -93,7 +93,7 @@ export default async function StatementPage({
 
       <h3 style={h3}>Activity</h3>
       <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13.5, minWidth: 520 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.875rem", minWidth: 520 }}>
           <thead>
             <tr>
               <Th>Date</Th><Th>Description</Th><Th right>Charge</Th><Th right>Payment</Th><Th right>Balance</Th>
@@ -133,7 +133,7 @@ export default async function StatementPage({
           <div className="ritem" key={bucket.key}>
             <div className="rmain"><div className="rtitle">{bucket.label}</div></div>
             <div className="rend">
-              <b style={{ fontSize: 15, color: bucket.key === "d90_plus" && statement.aging[bucket.key] > 0 ? "#dc2626" : "#0b1524" }}>
+              <b style={{ fontSize: "0.9375rem", color: bucket.key === "d90_plus" && statement.aging[bucket.key] > 0 ? "#dc2626" : "#0b1524" }}>
                 {money(statement.aging[bucket.key] ?? 0, cur)}
               </b>
             </div>
@@ -158,7 +158,7 @@ export default async function StatementPage({
         </>
       )}
 
-      <div style={{ marginTop: 18, padding: "12px 14px", background: "#f5f7fb", border: "1px solid #e2e8f0", borderRadius: 12, fontSize: 12.5, color: "#5c6675" }}>
+      <div style={{ marginTop: 18, padding: "12px 14px", background: "#f5f7fb", border: "1px solid #e2e8f0", borderRadius: 12, fontSize: "0.8125rem", color: "#5c6675" }}>
         Payments are counted when they <b>settle</b>, net of refunds — the same rule the revenue report uses, so this
         statement and /reports can never disagree. Draft and voided invoices are not billed here.
       </div>
@@ -169,8 +169,8 @@ export default async function StatementPage({
 function Kpi({ label, value, tone }: { label: string; value: string; tone?: string }) {
   return (
     <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 14 }}>
-      <div style={{ fontSize: 20, fontWeight: 800, color: tone ?? "#0b1524" }}>{value}</div>
-      <div style={{ fontSize: 12.5, color: "#5c6675", fontWeight: 600 }}>{label}</div>
+      <div style={{ fontSize: "1.25rem", fontWeight: 800, color: tone ?? "#0b1524" }}>{value}</div>
+      <div style={{ fontSize: "0.8125rem", color: "#5c6675", fontWeight: 600 }}>{label}</div>
     </div>
   );
 }
@@ -180,5 +180,5 @@ function Th({ children, right }: { children: React.ReactNode; right?: boolean })
 function Td({ children, right }: { children: React.ReactNode; right?: boolean }) {
   return <td style={{ padding: "10px 8px", borderBottom: "1px solid #eef1f6", textAlign: right ? "end" : "start" }}>{children}</td>;
 }
-const back: React.CSSProperties = { color: "#2563eb", fontWeight: 700, fontSize: 14, textDecoration: "none" };
-const h3: React.CSSProperties = { fontSize: 16, fontWeight: 800, margin: "18px 0 8px" };
+const back: React.CSSProperties = { color: "#2563eb", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none" };
+const h3: React.CSSProperties = { fontSize: "1rem", fontWeight: 800, margin: "18px 0 8px" };

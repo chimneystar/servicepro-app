@@ -31,14 +31,14 @@ export default async function RoutePage({ searchParams }: { searchParams: Promis
   return (
     <div style={{ maxWidth: 760 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4, gap: 10, flexWrap: "wrap" }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800 }}>Today’s route</h1>
+        <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>Today’s route</h1>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <Link href={`/route?date=${prev}`} style={navBtn}>‹</Link>
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#5c6675" }}>{fmtDate(date)}</span>
+          <span style={{ fontSize: "0.8125rem", fontWeight: 700, color: "#5c6675" }}>{fmtDate(date)}</span>
           <Link href={`/route?date=${next}`} style={navBtn}>›</Link>
         </div>
       </div>
-      <p style={{ color: "#5c6675", fontSize: 13, marginBottom: 14 }}>{stops.length} stop{stops.length === 1 ? "" : "s"}</p>
+      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 14 }}>{stops.length} stop{stops.length === 1 ? "" : "s"}</p>
 
       {mapsRoute && <a href={mapsRoute} target="_blank" style={{ display: "block", textAlign: "center", background: "#2563eb", color: "#fff", borderRadius: 12, padding: 14, fontWeight: 800, textDecoration: "none", marginBottom: 14 }}>🗺️ Open full route in Google Maps ({withAddr.length} stops)</a>}
 
@@ -48,11 +48,11 @@ export default async function RoutePage({ searchParams }: { searchParams: Promis
             <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#0f2a5e", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, flexShrink: 0 }}>{i + 1}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                <b style={{ fontSize: 15 }}>{s.time || "—"} · {s.name}</b>
+                <b style={{ fontSize: "0.9375rem" }}>{s.time || "—"} · {s.name}</b>
                 <b>{money(s.price, cur)}</b>
               </div>
-              <div style={{ fontSize: 13, color: "#5c6675" }}>{s.service}{s.tech ? ` · ${s.tech}` : ""}</div>
-              {s.addr && <div style={{ fontSize: 13, color: "#5c6675" }}>📍 {s.addr}</div>}
+              <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>{s.service}{s.tech ? ` · ${s.tech}` : ""}</div>
+              {s.addr && <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>📍 {s.addr}</div>}
               <div style={{ display: "flex", gap: 14, marginTop: 6 }}>
                 <Link href={`/jobs/${s.id}`} style={clink}>Open job</Link>
                 {s.addr && <a href={"https://maps.google.com/?q=" + encodeURIComponent(s.addr)} target="_blank" style={clink}>🧭 Navigate</a>}
@@ -68,5 +68,5 @@ export default async function RoutePage({ searchParams }: { searchParams: Promis
 }
 
 function shift(iso: string, days: number) { const d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + days); return d.toISOString().slice(0, 10); }
-const navBtn: React.CSSProperties = { background: "#eef2f8", color: "#2563eb", borderRadius: 8, padding: "6px 12px", fontWeight: 800, textDecoration: "none", fontSize: 16 };
-const clink: React.CSSProperties = { color: "#2563eb", textDecoration: "none", fontWeight: 700, fontSize: 13 };
+const navBtn: React.CSSProperties = { background: "#eef2f8", color: "#2563eb", borderRadius: 8, padding: "6px 12px", fontWeight: 800, textDecoration: "none", fontSize: "1rem" };
+const clink: React.CSSProperties = { color: "#2563eb", textDecoration: "none", fontWeight: 700, fontSize: "0.8125rem" };

@@ -48,7 +48,7 @@ export default function EstimateOptionsEditor({ locale, currency, estimateId, op
 
   return (
     <div style={card}>
-      <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 6 }}>{he ? "חלופות מחיר (בסיסי / מומלץ / מקסימלי)" : "Price options (good / better / best)"}</div>
+      <div style={{ fontWeight: 800, fontSize: "0.9375rem", marginBottom: 6 }}>{he ? "חלופות מחיר (בסיסי / מומלץ / מקסימלי)" : "Price options (good / better / best)"}</div>
       <p style={hint}>
         {he
           ? "הלקוח בוחר חלופה בעמוד הציבורי, והחלופה שנבחרה היא זו שהופכת לחשבונית. מקדמה שכבר שולמה נשארת מקושרת להצעה ומזוכה בחשבונית."
@@ -82,10 +82,10 @@ export default function EstimateOptionsEditor({ locale, currency, estimateId, op
               <span style={{ marginInlineStart: "auto", fontWeight: 800 }}>{money(summary.totalMinor, currency)}</span>
               {summary.upgradeMinor > 0 && <small style={{ color: "#5c6675" }}>+{money(summary.upgradeMinor, currency)}</small>}
             </div>
-            {summary.depositMinor > 0 && <div style={{ fontSize: 12, color: "#5c6675", marginTop: 2 }}>{he ? "מקדמה" : "Deposit"}: {money(summary.depositMinor, currency)}</div>}
+            {summary.depositMinor > 0 && <div style={{ fontSize: "0.75rem", color: "#5c6675", marginTop: 2 }}>{he ? "מקדמה" : "Deposit"}: {money(summary.depositMinor, currency)}</div>}
 
             {option.items.map((row) => (
-              <div key={row.id} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, padding: "5px 0", borderTop: "1px solid #f1f4f9" }}>
+              <div key={row.id} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: "0.8125rem", padding: "5px 0", borderTop: "1px solid #f1f4f9" }}>
                 <span style={{ flex: 1, minWidth: 0 }}>{row.title || row.description} · {(row.qty_milli / 1000).toLocaleString(locale === "he" ? "he-IL" : "en-US")} × {money(row.unit_price_minor, currency)}</span>
                 {!signed && <button type="button" disabled={busy} style={rm} onClick={() => run(() => deleteEstimateOptionItem(row.id, estimateId))}>×</button>}
               </div>
@@ -122,10 +122,10 @@ export default function EstimateOptionsEditor({ locale, currency, estimateId, op
 }
 
 const card: React.CSSProperties = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16, marginTop: 14 };
-const hint: React.CSSProperties = { fontSize: 12.5, color: "#5c6675", marginBottom: 10, lineHeight: 1.5 };
-const inp: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 9, padding: "8px 10px", fontSize: 13, outline: "none", background: "#fff" };
-const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", padding: "8px 13px", borderRadius: 9, fontWeight: 700, cursor: "pointer", fontSize: 13 };
-const ghost: React.CSSProperties = { background: "#eef1f6", color: "#334155", border: "none", padding: "8px 13px", borderRadius: 9, fontWeight: 700, cursor: "pointer", fontSize: 13 };
-const rm: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", border: "none", padding: "6px 11px", borderRadius: 9, fontWeight: 700, fontSize: 12.5, cursor: "pointer" };
-const errBox: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "9px 12px", borderRadius: 10, fontSize: 13, marginBottom: 10 };
-const warnBox: React.CSSProperties = { background: "#fff5e0", color: "#a15c07", padding: "9px 12px", borderRadius: 10, fontSize: 13, marginBottom: 10 };
+const hint: React.CSSProperties = { fontSize: "0.8125rem", color: "#5c6675", marginBottom: 10, lineHeight: 1.5 };
+const inp: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 9, padding: "8px 10px", fontSize: "0.8125rem", outline: "none", background: "#fff" };
+const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", padding: "8px 13px", borderRadius: 9, fontWeight: 700, cursor: "pointer", fontSize: "0.8125rem" };
+const ghost: React.CSSProperties = { background: "#eef1f6", color: "#334155", border: "none", padding: "8px 13px", borderRadius: 9, fontWeight: 700, cursor: "pointer", fontSize: "0.8125rem" };
+const rm: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", border: "none", padding: "6px 11px", borderRadius: 9, fontWeight: 700, fontSize: "0.8125rem", cursor: "pointer" };
+const errBox: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "9px 12px", borderRadius: 10, fontSize: "0.8125rem", marginBottom: 10 };
+const warnBox: React.CSSProperties = { background: "#fff5e0", color: "#a15c07", padding: "9px 12px", borderRadius: 10, fontSize: "0.8125rem", marginBottom: 10 };

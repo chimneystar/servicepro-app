@@ -53,7 +53,7 @@ export default function DocForm({ locale, customers, action, newKey, catalog = [
       {open && (
         <div style={overlay} onClick={(e) => e.target === e.currentTarget && setOpen(false)}>
           <form action={formAction} style={modal}>
-            <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 14 }}>{t(locale, newKey)}</h3>
+            <h3 style={{ fontSize: "1.125rem", fontWeight: 800, marginBottom: 14 }}>{t(locale, newKey)}</h3>
             <label style={lbl}>{t(locale, "doc.customer")}</label>
             <select name="customer_id" style={inp} required>
               {customers.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
@@ -82,7 +82,7 @@ export default function DocForm({ locale, customers, action, newKey, catalog = [
                 <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 8, flexWrap: "wrap" }}>
                   <input type="hidden" name="taxable" value={r.taxable ? "1" : "0"} />
                   <input type="hidden" name="image_path" value={r.image_path} />
-                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer" }}>
                     <input type="checkbox" checked={r.taxable} onChange={(e) => update(i, { taxable: e.target.checked })} style={{ width: 18, height: 18 }} /> Taxable
                   </label>
                   <label style={photoBtn}>
@@ -93,15 +93,15 @@ export default function DocForm({ locale, customers, action, newKey, catalog = [
                 </div>
               </div>
             ))}
-            <button type="button" onClick={() => setRows([...rows, blankRow()])} style={{ ...btn, background: "#e2e9f4", color: "#2563eb", padding: "8px 12px", fontSize: 13, marginTop: 4 }}>➕ {t(locale, "doc.add_item")}</button>
+            <button type="button" onClick={() => setRows([...rows, blankRow()])} style={{ ...btn, background: "#e2e9f4", color: "#2563eb", padding: "8px 12px", fontSize: "0.8125rem", marginTop: 4 }}>➕ {t(locale, "doc.add_item")}</button>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 14 }}>
               <div><label style={lbl}>{t(locale, "doc.discount")}</label><input name="discount" type="number" step="0.01" defaultValue="0" style={inp} /></div>
-              <div style={{ alignSelf: "end", textAlign: "end", fontSize: 13, color: "#5c6675", paddingBottom: 10 }}>Items subtotal ≈ {sym}{(previewSubtotal / 100).toFixed(2)}</div>
+              <div style={{ alignSelf: "end", textAlign: "end", fontSize: "0.8125rem", color: "#5c6675", paddingBottom: 10 }}>Items subtotal ≈ {sym}{(previewSubtotal / 100).toFixed(2)}</div>
             </div>
             <label style={lbl}>{t(locale, "form.notes")}</label>
             <textarea name="notes" rows={2} style={inp} />
-            <div style={{ fontSize: 12, color: "#5c6675", marginTop: 8 }}>ℹ️ Tax & total are calculated on save (only taxable items are taxed). New items are saved to your library for reuse.</div>
+            <div style={{ fontSize: "0.75rem", color: "#5c6675", marginTop: 8 }}>ℹ️ Tax & total are calculated on save (only taxable items are taxed). New items are saved to your library for reuse.</div>
             {state.error && <div style={err}>{state.error}</div>}
             <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
               <Save locale={locale} />
@@ -125,10 +125,10 @@ const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border:
 const overlay: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,30,61,.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 30, zIndex: 100, overflowY: "auto" };
 const modal: React.CSSProperties = { background: "#fff", borderRadius: 18, width: "100%", maxWidth: 580, padding: 22 };
 const itemCard: React.CSSProperties = { background: "#f8fbff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, marginBottom: 10 };
-const lbl: React.CSSProperties = { fontSize: 12.5, fontWeight: 700, color: "#334155", display: "block", margin: "6px 0 6px" };
-const miniLbl: React.CSSProperties = { fontSize: 10.5, color: "#5c6675", fontWeight: 700, display: "block", marginBottom: 3 };
-const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 16, outline: "none" };
-const cell: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: "9px", fontSize: 14, outline: "none", width: "100%" };
-const photoBtn: React.CSSProperties = { background: "#e0ebff", color: "#2563eb", borderRadius: 8, padding: "7px 12px", fontWeight: 700, fontSize: 13, cursor: "pointer" };
+const lbl: React.CSSProperties = { fontSize: "0.8125rem", fontWeight: 700, color: "#334155", display: "block", margin: "6px 0 6px" };
+const miniLbl: React.CSSProperties = { fontSize: "0.8125rem", color: "#5c6675", fontWeight: 700, display: "block", marginBottom: 3 };
+const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: "1rem", outline: "none" };
+const cell: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: "9px", fontSize: "0.875rem", outline: "none", width: "100%" };
+const photoBtn: React.CSSProperties = { background: "#e0ebff", color: "#2563eb", borderRadius: 8, padding: "7px 12px", fontWeight: 700, fontSize: "0.8125rem", cursor: "pointer" };
 const xBtn: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", border: "none", borderRadius: 8, padding: "6px 9px", cursor: "pointer", flexShrink: 0 };
-const err: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "9px 12px", borderRadius: 10, fontSize: 13, marginTop: 12 };
+const err: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "9px 12px", borderRadius: 10, fontSize: "0.8125rem", marginTop: 12 };

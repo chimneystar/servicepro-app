@@ -72,7 +72,7 @@ function TaxSetupCard({he,setup}:{he:boolean;setup:TaxSetup}){
       :"A rule scoped to labour or materials is not charged. Document line items carry a taxable flag and nothing else — no field classifies a line as labour or materials — so its base cannot be identified. It is listed, not silently applied to everything."}</div>}
     <form action={action} className="ops-form">
       <input type="hidden" name="mode" value={on?"flat":"jurisdictions"}/>
-      <p style={{fontSize:13,color:"#5c6675",margin:"6px 0"}}>{on
+      <p style={{fontSize:"0.8125rem",color:"#5c6675",margin:"6px 0"}}>{on
         ?(he?"מעבר לשיעור אחיד יחזיר את החישוב לשיעור היחיד שבהגדרות. מסמכים קיימים לא משתנים.":"Switching back to the flat rate returns pricing to the single rate in Settings. Existing documents are not changed.")
         :(he?"הפעלה תגרום למסמכים חדשים להשתמש בסכום שיעורי האזורים שבתוקף במקום בשיעור האחיד. מסמכים קיימים לא משתנים.":"Turning this on makes NEW documents use the sum of the jurisdiction rates in force instead of the flat rate. Existing documents are not changed.")}</p>
       <ActionRow state={state} he={he}/>

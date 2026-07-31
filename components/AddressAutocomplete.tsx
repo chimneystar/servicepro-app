@@ -55,9 +55,9 @@ export default function AddressAutocomplete({ value, city, onChange, onCity, add
     <div>
       <input ref={ref} name={addressName} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} autoComplete="off" style={inp} />
       <input name={cityName} value={city} onChange={(e) => onCity(e.target.value)} placeholder="City" style={{ ...inp, marginTop: 8 }} />
-      {key && ready && <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>📍 Powered by Google — pick a suggestion to auto-fill.</div>}
+      {key && ready && <div style={{ fontSize: "0.8125rem", color: "#94a3b8", marginTop: 4 }}>📍 Powered by Google — pick a suggestion to auto-fill.</div>}
     </div>
   );
 }
 
-const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "11px 12px", fontSize: 16, outline: "none" };
+const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "11px 12px", fontSize: "1rem", outline: "none" };

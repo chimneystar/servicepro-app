@@ -63,7 +63,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800 }}>{t(locale, "sched.title")}</h1>
+        <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>{t(locale, "sched.title")}</h1>
         <JobForm locale={locale} customers={custOpts} techs={techOpts} jobTypes={jobTypes ?? undefined} initialOpen={search.new === "1"} />
       </div>
       <Calendar

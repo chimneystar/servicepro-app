@@ -16,7 +16,7 @@ export default function LanguageToggle({ current, dark = false }: { current: Loc
   }
 
   const base: React.CSSProperties = {
-    border: "none", padding: "5px 10px", borderRadius: 8, fontSize: 12.5, fontWeight: 700,
+    border: "none", padding: "5px 10px", borderRadius: 8, fontSize: "0.8125rem", fontWeight: 700,
     cursor: "pointer",
   };
   const on = dark

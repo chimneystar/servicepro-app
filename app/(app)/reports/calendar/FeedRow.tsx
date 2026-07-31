@@ -40,14 +40,14 @@ export default function FeedRow({ feed, origin, daysLeft }: { feed: Feed; origin
     <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, marginBottom: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "baseline" }}>
         <b>{feed.label || (feed.scope === "mine" ? "My schedule" : "Whole schedule")}</b>
-        <span style={{ fontSize: 12.5, color: daysLeft <= 14 ? "#b45309" : "#5c6675" }}>
+        <span style={{ fontSize: "0.8125rem", color: daysLeft <= 14 ? "#b45309" : "#5c6675" }}>
           {daysLeft > 0 ? `expires in ${daysLeft} day${daysLeft === 1 ? "" : "s"}` : "expired"}
           {feed.last_accessed_at ? ` · last fetched ${feed.last_accessed_at.slice(0, 10)}` : " · never fetched"}
         </span>
       </div>
 
       <div style={{ display: "flex", gap: 8, marginTop: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <code style={{ flex: "1 1 260px", background: "#f5f7fb", border: "1px solid #eef1f6", borderRadius: 8, padding: "7px 9px", fontSize: 11.5, overflowX: "auto", whiteSpace: "nowrap" }}>
+        <code style={{ flex: "1 1 260px", background: "#f5f7fb", border: "1px solid #eef1f6", borderRadius: 8, padding: "7px 9px", fontSize: "0.8125rem", overflowX: "auto", whiteSpace: "nowrap" }}>
           {url}
         </code>
         <button
@@ -71,12 +71,12 @@ export default function FeedRow({ feed, origin, daysLeft }: { feed: Feed; origin
         </button>
       </div>
 
-      {error && <div role="alert" style={{ marginTop: 8, color: "#b91c1c", fontSize: 13, fontWeight: 700 }}>{error}</div>}
+      {error && <div role="alert" style={{ marginTop: 8, color: "#b91c1c", fontSize: "0.8125rem", fontWeight: 700 }}>{error}</div>}
     </div>
   );
 }
 
 const button: React.CSSProperties = {
   background: "#eef2f8", color: "#0b1524", border: "none", borderRadius: 8,
-  padding: "7px 11px", fontWeight: 700, fontSize: 12.5, cursor: "pointer",
+  padding: "7px 11px", fontWeight: 700, fontSize: "0.8125rem", cursor: "pointer",
 };

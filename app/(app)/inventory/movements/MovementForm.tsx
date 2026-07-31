@@ -71,7 +71,7 @@ export default function MovementForm({ items }: { items: ItemRow[] }) {
       <input name="reason" placeholder="Why? (delivery note, stocktake, breakage…)" style={{ ...inp, marginTop: 8 }} required />
       {error && <div role="alert" style={errBox}>{error}</div>}
       {needsOverride && (
-        <label style={{ display: "block", fontSize: 12.5, color: "#9a3412", marginTop: 8 }}>
+        <label style={{ display: "block", fontSize: "0.8125rem", color: "#9a3412", marginTop: 8 }}>
           <input type="checkbox" name="allowNegative" value="true" defaultChecked /> Record it anyway — the stock was really used. The item is flagged for a count.
         </label>
       )}
@@ -84,5 +84,5 @@ export default function MovementForm({ items }: { items: ItemRow[] }) {
 }
 
 const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", padding: "9px 15px", borderRadius: 10, fontWeight: 700, cursor: "pointer" };
-const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 16, outline: "none" };
-const errBox: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "8px 12px", borderRadius: 10, fontSize: 13, marginTop: 8 };
+const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: "1rem", outline: "none" };
+const errBox: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "8px 12px", borderRadius: 10, fontSize: "0.8125rem", marginTop: 8 };

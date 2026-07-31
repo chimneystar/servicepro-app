@@ -53,9 +53,9 @@ export default function AccountingSync({
 
   return (
     <div style={{ maxWidth: 620, marginTop: 22 }}>
-      <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 6 }}>QuickBooks / Xero</h2>
+      <h2 style={{ fontSize: "1.125rem", fontWeight: 800, marginBottom: 6 }}>QuickBooks / Xero</h2>
 
-      <div role="note" style={{ background: "#fff7ed", border: "1px solid #fcd9a8", color: "#9a3412", borderRadius: 12, padding: "12px 14px", fontSize: 13, marginBottom: 14 }}>
+      <div role="note" style={{ background: "#fff7ed", border: "1px solid #fcd9a8", color: "#9a3412", borderRadius: 12, padding: "12px 14px", fontSize: "0.8125rem", marginBottom: 14 }}>
         <b>This is not a live connection — it is PARTIAL.</b> {status.reason}
         <div style={{ marginTop: 8, fontWeight: 700 }}>What works today:</div>
         <ul style={{ margin: "4px 0 0", paddingInlineStart: 18 }}>
@@ -85,21 +85,21 @@ export default function AccountingSync({
           <button type="button" onClick={() => download("expenses")} disabled={pending} style={btn}>⬇ Expenses for {target === "xero" ? "Xero" : "QuickBooks"}</button>
         </div>
         {message && (
-          <div role="status" style={{ marginTop: 12, color: message.ok ? "#15803d" : "#dc2626", fontWeight: 700, fontSize: 13 }}>
+          <div role="status" style={{ marginTop: 12, color: message.ok ? "#15803d" : "#dc2626", fontWeight: 700, fontSize: "0.8125rem" }}>
             {message.text}
           </div>
         )}
       </div>
 
-      <h3 style={{ fontSize: 15, fontWeight: 800, margin: "18px 0 6px" }}>Check the books match</h3>
-      <p style={{ fontSize: 12.5, color: "#5c6675", marginBottom: 8 }}>
+      <h3 style={{ fontSize: "0.9375rem", fontWeight: 800, margin: "18px 0 6px" }}>Check the books match</h3>
+      <p style={{ fontSize: "0.8125rem", color: "#5c6675", marginBottom: 8 }}>
         Export the same period out of {target === "xero" ? "Xero" : "QuickBooks"} and paste it here. Rows are matched on
         the SP- reference, so only what this product sent is compared.
       </p>
       <textarea
         value={ledgerCsv} onChange={(e) => setLedgerCsv(e.target.value)}
         placeholder="Paste the ledger's CSV export here…" rows={5}
-        style={{ ...inp, fontFamily: "ui-monospace, monospace", fontSize: 12 }}
+        style={{ ...inp, fontFamily: "ui-monospace, monospace", fontSize: "0.75rem" }}
       />
       <button type="button" onClick={check} disabled={pending || !ledgerCsv.trim()} style={{ ...btn, marginTop: 8, opacity: ledgerCsv.trim() ? 1 : 0.5 }}>
         {pending ? "Checking…" : "⇄ Reconcile"}
@@ -109,7 +109,7 @@ export default function AccountingSync({
         <div
           role="status"
           style={{
-            marginTop: 12, borderRadius: 12, padding: "12px 14px", fontSize: 13, border: "1px solid",
+            marginTop: 12, borderRadius: 12, padding: "12px 14px", fontSize: "0.8125rem", border: "1px solid",
             ...(result.balanced
               ? { background: "#e6f6ec", borderColor: "#b7e3c6", color: "#15803d" }
               : { background: "#fdeaea", borderColor: "#f5b5b5", color: "#b91c1c" }),
@@ -151,7 +151,7 @@ export default function AccountingSync({
   );
 }
 
-const lbl: React.CSSProperties = { fontSize: 12.5, fontWeight: 700, color: "#334155", display: "block", marginBottom: 5 };
-const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 14, outline: "none" };
-const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", borderRadius: 10, padding: "11px 16px", fontWeight: 700, fontSize: 13.5, cursor: "pointer" };
+const lbl: React.CSSProperties = { fontSize: "0.8125rem", fontWeight: 700, color: "#334155", display: "block", marginBottom: 5 };
+const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: "0.875rem", outline: "none" };
+const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", borderRadius: 10, padding: "11px 16px", fontWeight: 700, fontSize: "0.875rem", cursor: "pointer" };
 const list: React.CSSProperties = { margin: "4px 0 0", paddingInlineStart: 18, display: "grid", gap: 2 };

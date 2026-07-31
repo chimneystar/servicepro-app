@@ -20,7 +20,7 @@ export default function MessageTemplatesEditor({ locale, templates }: { locale: 
   const byTrigger = new Map(templates.map((t) => [t.trigger, t]));
   return (
     <div>
-      <div style={{ background: "#e0ebff", color: "#1d4ed8", padding: "11px 14px", borderRadius: 12, fontSize: 13, marginBottom: 16 }}>
+      <div style={{ background: "#e0ebff", color: "#1d4ed8", padding: "11px 14px", borderRadius: 12, fontSize: "0.8125rem", marginBottom: 16 }}>
         {he ? "אפשר לערוך כל הודעה. השדות " : "Customize every message. The fields "}<b>{"{name}"}</b>, <b>{"{service}"}</b>, <b>{"{date}"}</b>, <b>{"{time}"}</b>, <b>{"{business}"}</b>{he ? " יתמלאו אוטומטית בפרטי הלקוח והעבודה." : " are filled automatically with the customer and job details."}
       </div>
       {ORDER.map((trig) => (
@@ -43,12 +43,12 @@ function TemplateRow({ locale, trigger, tpl }: { locale: Locale; trigger: string
     <form action={formAction} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16, marginBottom: 12, boxShadow: "0 6px 18px rgba(15,42,94,.05)" }}>
       <input type="hidden" name="trigger" value={trigger} />
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-        <span style={{ fontSize: 20 }}>{meta.icon}</span>
+        <span style={{ fontSize: "1.25rem" }}>{meta.icon}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: 15 }}>{title}</div>
-          <div style={{ fontSize: 12, color: "#5c6675" }}>{when}</div>
+          <div style={{ fontWeight: 800, fontSize: "0.9375rem" }}>{title}</div>
+          <div style={{ fontSize: "0.75rem", color: "#5c6675" }}>{when}</div>
         </div>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 700, color: enabled ? "#15803d" : "#94a3b8", cursor: "pointer" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8125rem", fontWeight: 700, color: enabled ? "#15803d" : "#94a3b8", cursor: "pointer" }}>
           <input type="checkbox" name="enabled" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} style={{ width: 20, height: 20 }} />
           {enabled ? (he ? "פעילה" : "On") : (he ? "כבויה" : "Off")}
         </label>
@@ -57,7 +57,7 @@ function TemplateRow({ locale, trigger, tpl }: { locale: Locale; trigger: string
       {state.error && <div style={err}>{state.error}</div>}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
         <Save locale={locale} />
-        {saved && <span style={{ color: "#15803d", fontWeight: 700, fontSize: 13 }}>{he ? "נשמר" : "Saved"}</span>}
+        {saved && <span style={{ color: "#15803d", fontWeight: 700, fontSize: "0.8125rem" }}>{he ? "נשמר" : "Saved"}</span>}
       </div>
     </form>
   );
@@ -69,5 +69,5 @@ function Save({ locale }: { locale: Locale }) {
 }
 
 const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", padding: "9px 16px", borderRadius: 10, fontWeight: 700, cursor: "pointer" };
-const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 14, outline: "none", resize: "vertical" };
-const err: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "9px 12px", borderRadius: 10, fontSize: 13, marginTop: 8 };
+const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: "0.875rem", outline: "none", resize: "vertical" };
+const err: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "9px 12px", borderRadius: 10, fontSize: "0.8125rem", marginTop: 8 };

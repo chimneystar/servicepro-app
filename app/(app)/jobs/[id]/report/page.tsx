@@ -38,25 +38,25 @@ export default async function JobReportPage({ params }: { params: Promise<{ id: 
   return (
     <div style={{ minHeight: "100vh", background: "#eef3fb", padding: "18px 14px" }}>
       <div className="no-print" style={{ maxWidth: 720, margin: "0 auto 10px", display: "flex", justifyContent: "space-between" }}>
-        <Link href={`/jobs/${id}`} style={{ color: "#2563eb", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>‹ Back to job</Link>
+        <Link href={`/jobs/${id}`} style={{ color: "#2563eb", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none" }}>‹ Back to job</Link>
         <PrintButton label="Save as PDF" />
       </div>
 
       <div className="print-card" style={{ maxWidth: 720, margin: "0 auto", background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 20px 60px rgba(15,42,94,.14)" }}>
         <div style={{ background: accent, color: "#fff", padding: "22px 26px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(255,255,255,.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, overflow: "hidden" }}>
+            <div style={{ width: 48, height: 48, borderRadius: 12, background: "rgba(255,255,255,.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem", overflow: "hidden" }}>
               {org?.logo_url ? <img src={org.logo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : "❄️"}
             </div>
-            <div><div style={{ fontSize: 18, fontWeight: 800 }}>{org?.name}</div><div style={{ fontSize: 12.5, opacity: .9 }}>{[org?.phone, org?.email].filter(Boolean).join(" · ")}</div></div>
+            <div><div style={{ fontSize: "1.125rem", fontWeight: 800 }}>{org?.name}</div><div style={{ fontSize: "0.8125rem", opacity: .9 }}>{[org?.phone, org?.email].filter(Boolean).join(" · ")}</div></div>
           </div>
-          <div style={{ textAlign: "end" }}><div style={{ fontSize: 20, fontWeight: 800 }}>JOB REPORT</div></div>
+          <div style={{ textAlign: "end" }}><div style={{ fontSize: "1.25rem", fontWeight: 800 }}>JOB REPORT</div></div>
         </div>
 
         <div style={{ padding: "22px 26px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", marginBottom: 16 }}>
-            <div><div style={cap}>Customer</div><div style={{ fontSize: 16, fontWeight: 800 }}>{c?.name}</div><div style={{ fontSize: 13, color: "#5c6675" }}>{[c?.address, c?.city].filter(Boolean).join(", ")}</div><div style={{ fontSize: 13, color: "#5c6675" }}>{c?.phone}</div></div>
-            <div style={{ textAlign: "end" }}><div style={cap}>Service</div><div style={{ fontSize: 16, fontWeight: 800 }}>{job.service}</div><div style={{ fontSize: 13, color: "#5c6675" }}>{fmtDate(job.scheduled_date)}</div><div style={{ fontSize: 13, color: "#5c6675" }}>Tech: {(job as any).profiles?.full_name || "—"}</div></div>
+            <div><div style={cap}>Customer</div><div style={{ fontSize: "1rem", fontWeight: 800 }}>{c?.name}</div><div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>{[c?.address, c?.city].filter(Boolean).join(", ")}</div><div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>{c?.phone}</div></div>
+            <div style={{ textAlign: "end" }}><div style={cap}>Service</div><div style={{ fontSize: "1rem", fontWeight: 800 }}>{job.service}</div><div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>{fmtDate(job.scheduled_date)}</div><div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>Tech: {(job as any).profiles?.full_name || "—"}</div></div>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 10, marginBottom: 16 }}>
@@ -66,7 +66,7 @@ export default async function JobReportPage({ params }: { params: Promise<{ id: 
             <Kv label="Price" value={money(job.price_minor, org?.currency ?? "USD")} />
           </div>
 
-          {job.notes && <div style={{ background: "#f8fafc", borderRadius: 10, padding: 12, fontSize: 13, marginBottom: 16 }}><b>Notes</b><br />{job.notes}</div>}
+          {job.notes && <div style={{ background: "#f8fafc", borderRadius: 10, padding: 12, fontSize: "0.8125rem", marginBottom: 16 }}><b>Notes</b><br />{job.notes}</div>}
 
           {photos.length > 0 && <>
             <div style={cap}>Photos</div>
@@ -78,11 +78,11 @@ export default async function JobReportPage({ params }: { params: Promise<{ id: 
           <div style={{ borderTop: "1px solid #eef1f6", paddingTop: 14, marginTop: 6 }}>
             <div style={cap}>Customer approval</div>
             {job.completion_signature
-              ? <div><img src={job.completion_signature} alt="signature" style={{ height: 80, marginTop: 6 }} /><div style={{ fontSize: 13, color: "#0b1524", fontWeight: 700 }}>{job.completion_signed_by || "Signed"}</div></div>
-              : <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 6 }}>Not signed yet.</div>}
+              ? <div><img src={job.completion_signature} alt="signature" style={{ height: 80, marginTop: 6 }} /><div style={{ fontSize: "0.8125rem", color: "#0b1524", fontWeight: 700 }}>{job.completion_signed_by || "Signed"}</div></div>
+              : <div style={{ fontSize: "0.8125rem", color: "#94a3b8", marginTop: 6 }}>Not signed yet.</div>}
           </div>
         </div>
-        <div style={{ background: "#f8fafc", borderTop: "1px solid #eef1f6", padding: "12px 26px", textAlign: "center", fontSize: 12, color: "#94a3b8" }}>
+        <div style={{ background: "#f8fafc", borderTop: "1px solid #eef1f6", padding: "12px 26px", textAlign: "center", fontSize: "0.75rem", color: "#94a3b8" }}>
           {org?.document_footer || `${org?.name} · Thank you for your business!`}
         </div>
       </div>
@@ -91,6 +91,6 @@ export default async function JobReportPage({ params }: { params: Promise<{ id: 
 }
 
 function Kv({ label, value }: { label: string; value: string }) {
-  return <div style={{ background: "#f8fafc", borderRadius: 10, padding: "9px 12px" }}><div style={cap}>{label}</div><div style={{ fontSize: 13.5, fontWeight: 700 }}>{value}</div></div>;
+  return <div style={{ background: "#f8fafc", borderRadius: 10, padding: "9px 12px" }}><div style={cap}>{label}</div><div style={{ fontSize: "0.875rem", fontWeight: 700 }}>{value}</div></div>;
 }
-const cap: React.CSSProperties = { fontSize: 10.5, color: "#94a3b8", fontWeight: 800, letterSpacing: .5, textTransform: "uppercase" };
+const cap: React.CSSProperties = { fontSize: "0.8125rem", color: "#94a3b8", fontWeight: 800, letterSpacing: .5, textTransform: "uppercase" };

@@ -39,11 +39,11 @@ export default function JobAppointment({ locale, jobId, confirmation, confirmedA
 
   return (
     <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16, marginTop: 12 }}>
-      <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 8 }}>{he ? "אישור הפגישה ומעקב הגעה" : "Appointment confirmation & arrival"}</div>
-      <div style={{ background: tone.bg, color: tone.fg, borderRadius: 10, padding: "9px 12px", fontSize: 13, fontWeight: 700 }}>
+      <div style={{ fontWeight: 800, fontSize: "0.875rem", marginBottom: 8 }}>{he ? "אישור הפגישה ומעקב הגעה" : "Appointment confirmation & arrival"}</div>
+      <div style={{ background: tone.bg, color: tone.fg, borderRadius: 10, padding: "9px 12px", fontSize: "0.8125rem", fontWeight: 700 }}>
         {label}{stamp ? ` · ${new Date(stamp).toLocaleString(he ? "he-IL" : "en-US")}` : ""}
       </div>
-      {note && <div style={{ fontSize: 12.5, color: "#5c6675", marginTop: 6 }}>{he ? "הערת הלקוח" : "Customer note"}: {note}</div>}
+      {note && <div style={{ fontSize: "0.8125rem", color: "#5c6675", marginTop: 6 }}>{he ? "הערת הלקוח" : "Customer note"}: {note}</div>}
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
         <button type="button" disabled={busy} style={btn}
@@ -77,7 +77,7 @@ export default function JobAppointment({ locale, jobId, confirmation, confirmedA
       </div>
 
       {url && (
-        <div style={{ marginTop: 10, fontSize: 12.5 }}>
+        <div style={{ marginTop: 10, fontSize: "0.8125rem" }}>
           <a href={url} target="_blank" rel="noreferrer" style={{ color: "#2563eb", fontWeight: 700, wordBreak: "break-all" }}>{url}</a>
           <div style={{ color: "#5c6675", marginTop: 3 }}>
             {he ? "קישור זה פג תוקף ואפשר לבטלו. הוא מציג רק את הפגישה הזו — לא מחיר, לא מסמך ולא עבודה אחרת." : "This link expires and can be revoked. It shows this appointment only — no price, no document, no other job."}
@@ -85,11 +85,11 @@ export default function JobAppointment({ locale, jobId, confirmation, confirmedA
           </div>
         </div>
       )}
-      {notice && <div style={{ background: "#fff5e0", color: "#a15c07", padding: "9px 12px", borderRadius: 10, fontSize: 12.5, marginTop: 10 }}>{notice}</div>}
-      {error && <div style={{ background: "#fdeaea", color: "#dc2626", padding: "9px 12px", borderRadius: 10, fontSize: 12.5, marginTop: 10 }}>{error}</div>}
+      {notice && <div style={{ background: "#fff5e0", color: "#a15c07", padding: "9px 12px", borderRadius: 10, fontSize: "0.8125rem", marginTop: 10 }}>{notice}</div>}
+      {error && <div style={{ background: "#fdeaea", color: "#dc2626", padding: "9px 12px", borderRadius: 10, fontSize: "0.8125rem", marginTop: 10 }}>{error}</div>}
     </div>
   );
 }
 
-const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", padding: "9px 14px", borderRadius: 10, fontWeight: 700, cursor: "pointer", fontSize: 13.5 };
-const ghost: React.CSSProperties = { background: "#eef1f6", color: "#334155", border: "none", padding: "9px 14px", borderRadius: 10, fontWeight: 700, cursor: "pointer", fontSize: 13.5 };
+const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", padding: "9px 14px", borderRadius: 10, fontWeight: 700, cursor: "pointer", fontSize: "0.875rem" };
+const ghost: React.CSSProperties = { background: "#eef1f6", color: "#334155", border: "none", padding: "9px 14px", borderRadius: 10, fontWeight: 700, cursor: "pointer", fontSize: "0.875rem" };

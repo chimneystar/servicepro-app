@@ -26,7 +26,7 @@ export function DocTable({ rows, locale, currency, emptyKey, statusPrefix }: {
               <div className="rsub">{fmtDate(r.issue_date)}</div>
             </div>
             <div className="rend">
-              <b style={{ fontSize: 15 }}>{fmtMoney(r.total_minor, currency)}</b>
+              <b style={{ fontSize: "0.9375rem" }}>{fmtMoney(r.total_minor, currency)}</b>
               <span className="pill" style={{ background: bg, color: fg }}>{t(locale, `${statusPrefix}.${r.status}`)}</span>
             </div>
           </div>

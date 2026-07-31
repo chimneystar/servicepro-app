@@ -80,7 +80,7 @@ export default function DocEditor({ kind, docId, action, customers, catalog = []
           <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 8, flexWrap: "wrap" }}>
             <input type="hidden" name="taxable" value={r.taxable ? "1" : "0"} />
             <input type="hidden" name="image_path" value={r.image_path} />
-            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.8125rem", fontWeight: 600, cursor: "pointer" }}>
               <input type="checkbox" checked={r.taxable} onChange={(e) => update(i, { taxable: e.target.checked })} style={{ width: 18, height: 18 }} /> Taxable
             </label>
             <label style={photoBtn}>
@@ -91,7 +91,7 @@ export default function DocEditor({ kind, docId, action, customers, catalog = []
           </div>
         </div>
       ))}
-      <button type="button" onClick={() => setRows([...rows, { title: "", desc: "", qty: "1", price: "", cost: "", taxable: true, image_path: "" }])} style={{ ...btn, background: "#e2e9f4", color: "#2563eb", padding: "8px 12px", fontSize: 13, marginTop: 4 }}>➕ Add item</button>
+      <button type="button" onClick={() => setRows([...rows, { title: "", desc: "", qty: "1", price: "", cost: "", taxable: true, image_path: "" }])} style={{ ...btn, background: "#e2e9f4", color: "#2563eb", padding: "8px 12px", fontSize: "0.8125rem", marginTop: 4 }}>➕ Add item</button>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 14 }}>
         <div><label style={lbl}>Discount</label><input name="discount" type="number" step="0.01" defaultValue={initial.discount} style={inp} /></div>
@@ -101,10 +101,10 @@ export default function DocEditor({ kind, docId, action, customers, catalog = []
         <div style={{ marginTop: 10 }}>
           <label style={lbl}>Deposit to request (optional)</label>
           <input name="deposit" type="number" step="0.01" defaultValue={initial.deposit ?? "0"} style={inp} placeholder="0.00" />
-          <div style={{ fontSize: 12, color: "#5c6675", marginTop: 4 }}>Shown on the estimate as the amount due to schedule the work.</div>
+          <div style={{ fontSize: "0.75rem", color: "#5c6675", marginTop: 4 }}>Shown on the estimate as the amount due to schedule the work.</div>
         </div>
       )}
-      <div style={{ textAlign: "end", fontSize: 13, color: "#5c6675", margin: "6px 2px" }}>Items subtotal ≈ ${(subtotal / 100).toFixed(2)} · tax &amp; total recalculated on save</div>
+      <div style={{ textAlign: "end", fontSize: "0.8125rem", color: "#5c6675", margin: "6px 2px" }}>Items subtotal ≈ ${(subtotal / 100).toFixed(2)} · tax &amp; total recalculated on save</div>
       <label style={lbl}>Notes</label>
       <textarea name="notes" rows={3} defaultValue={initial.notes} style={inp} />
 
@@ -121,10 +121,10 @@ function Save() { const { pending } = useFormStatus(); return <button type="subm
 
 const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", padding: "11px 18px", borderRadius: 10, fontWeight: 700, cursor: "pointer" };
 const itemCard: React.CSSProperties = { background: "#f8fbff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, marginBottom: 10 };
-const lbl: React.CSSProperties = { fontSize: 12.5, fontWeight: 700, color: "#334155", display: "block", margin: "6px 0 6px" };
-const miniLbl: React.CSSProperties = { fontSize: 10.5, color: "#5c6675", fontWeight: 700, display: "block", marginBottom: 3 };
-const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 16, outline: "none" };
-const cell: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: "9px", fontSize: 14, outline: "none", width: "100%" };
-const photoBtn: React.CSSProperties = { background: "#e0ebff", color: "#2563eb", borderRadius: 8, padding: "7px 12px", fontWeight: 700, fontSize: 13, cursor: "pointer" };
+const lbl: React.CSSProperties = { fontSize: "0.8125rem", fontWeight: 700, color: "#334155", display: "block", margin: "6px 0 6px" };
+const miniLbl: React.CSSProperties = { fontSize: "0.8125rem", color: "#5c6675", fontWeight: 700, display: "block", marginBottom: 3 };
+const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: "1rem", outline: "none" };
+const cell: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 8, padding: "9px", fontSize: "0.875rem", outline: "none", width: "100%" };
+const photoBtn: React.CSSProperties = { background: "#e0ebff", color: "#2563eb", borderRadius: 8, padding: "7px 12px", fontWeight: 700, fontSize: "0.8125rem", cursor: "pointer" };
 const xBtn: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", border: "none", borderRadius: 8, padding: "6px 9px", cursor: "pointer", flexShrink: 0 };
-const err: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "9px 12px", borderRadius: 10, fontSize: 13, marginTop: 12 };
+const err: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "9px 12px", borderRadius: 10, fontSize: "0.8125rem", marginTop: 12 };

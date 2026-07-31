@@ -57,18 +57,18 @@ export default function SignApprove({ token, locale }: { token: string; locale: 
 
   return (
     <div style={{ border: "1px solid #e2e8f0", borderRadius: 14, padding: 16 }}>
-      <label style={{ fontSize: 12.5, fontWeight: 700, color: "#334155", display: "block", marginBottom: 6 }}>{t(locale, "doc.your_name")}</label>
-      <input value={name} onChange={(e) => setName(e.target.value)} style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "11px 12px", fontSize: 16, outline: "none", marginBottom: 12 }} placeholder="John Smith" />
+      <label style={{ fontSize: "0.8125rem", fontWeight: 700, color: "#334155", display: "block", marginBottom: 6 }}>{t(locale, "doc.your_name")}</label>
+      <input value={name} onChange={(e) => setName(e.target.value)} style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "11px 12px", fontSize: "1rem", outline: "none", marginBottom: 12 }} placeholder="John Smith" />
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-        <label style={{ fontSize: 12.5, fontWeight: 700, color: "#334155" }}>{t(locale, "doc.sign_here")}</label>
-        <button type="button" onClick={clear} style={{ background: "none", border: "none", color: "#2563eb", fontWeight: 700, fontSize: 12.5, cursor: "pointer" }}>{t(locale, "doc.clear")}</button>
+        <label style={{ fontSize: "0.8125rem", fontWeight: 700, color: "#334155" }}>{t(locale, "doc.sign_here")}</label>
+        <button type="button" onClick={clear} style={{ background: "none", border: "none", color: "#2563eb", fontWeight: 700, fontSize: "0.8125rem", cursor: "pointer" }}>{t(locale, "doc.clear")}</button>
       </div>
       <canvas ref={canvasRef} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerLeave={up}
         style={{ width: "100%", height: 150, border: "1px dashed #b9c8e6", borderRadius: 10, touchAction: "none", background: "#fbfdff" }} />
 
-      {error && <div style={{ color: "#dc2626", fontSize: 13, marginTop: 8 }}>{error}</div>}
-      <button onClick={approve} disabled={busy} style={{ width: "100%", background: "#15803d", color: "#fff", border: "none", borderRadius: 12, padding: 15, fontSize: 16, fontWeight: 800, cursor: "pointer", marginTop: 12 }}>
+      {error && <div style={{ color: "#dc2626", fontSize: "0.8125rem", marginTop: 8 }}>{error}</div>}
+      <button onClick={approve} disabled={busy} style={{ width: "100%", background: "#15803d", color: "#fff", border: "none", borderRadius: 12, padding: 15, fontSize: "1rem", fontWeight: 800, cursor: "pointer", marginTop: 12 }}>
         {busy ? "…" : `✓ ${t(locale, "doc.approve")}`}
       </button>
     </div>

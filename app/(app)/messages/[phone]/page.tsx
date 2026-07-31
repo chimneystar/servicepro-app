@@ -61,13 +61,13 @@ export default async function ThreadPage({ params, searchParams }: {
 
   return (
     <div style={{ maxWidth: 620, display: "flex", flexDirection: "column", minHeight: "70vh" }}>
-      <Link href="/messages" style={{ color: "#2563eb", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>‹ Messages</Link>
-      <h1 style={{ fontSize: 20, fontWeight: 800, margin: "8px 0 2px" }}>{name}</h1>
-      <p style={{ color: "#5c6675", fontSize: 12.5, marginBottom: 12 }}>{phone}</p>
+      <Link href="/messages" style={{ color: "#2563eb", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none" }}>‹ Messages</Link>
+      <h1 style={{ fontSize: "1.25rem", fontWeight: 800, margin: "8px 0 2px" }}>{name}</h1>
+      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 12 }}>{phone}</p>
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, paddingBottom: 12 }}>
         {truncated && (
-          <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", color: "#9a3412", borderRadius: 12, padding: "9px 13px", fontSize: 12.5, textAlign: "center" }}>
+          <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", color: "#9a3412", borderRadius: 12, padding: "9px 13px", fontSize: "0.8125rem", textAlign: "center" }}>
             Showing the most recent {pageSize} messages.{" "}
             {pageSize < MAX_THREAD_PAGE && (
               <Link href={`/messages/${encodeURIComponent(phone)}?show=${Math.min(pageSize * 2, MAX_THREAD_PAGE)}`} style={{ color: "#9a3412", fontWeight: 800 }}>
@@ -78,8 +78,8 @@ export default async function ThreadPage({ params, searchParams }: {
         )}
         {thread.map((m: any, i: number) => (
           <div key={i} style={{ alignSelf: m.direction === "inbound" ? "flex-start" : "flex-end", maxWidth: "80%" }}>
-            <div style={{ background: m.direction === "inbound" ? "#fff" : "#2563eb", color: m.direction === "inbound" ? "#0b1524" : "#fff", border: m.direction === "inbound" ? "1px solid #e2e8f0" : "none", borderRadius: 16, padding: "9px 13px", fontSize: 14 }}>{m.body}</div>
-            <div style={{ fontSize: 10.5, color: "#94a3b8", marginTop: 2, textAlign: m.direction === "inbound" ? "start" : "end" }}>{new Date(m.created_at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
+            <div style={{ background: m.direction === "inbound" ? "#fff" : "#2563eb", color: m.direction === "inbound" ? "#0b1524" : "#fff", border: m.direction === "inbound" ? "1px solid #e2e8f0" : "none", borderRadius: 16, padding: "9px 13px", fontSize: "0.875rem" }}>{m.body}</div>
+            <div style={{ fontSize: "0.8125rem", color: "#94a3b8", marginTop: 2, textAlign: m.direction === "inbound" ? "start" : "end" }}>{new Date(m.created_at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
           </div>
         ))}
         {thread.length === 0 && <div className="rempty">No messages yet — say hello 👋</div>}

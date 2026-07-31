@@ -41,10 +41,10 @@ export default async function TeamPage() {
 
   return (
     <div>
-      <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 16 }}>{t(locale, "team.title")}</h1>
+      <h1 style={{ fontSize: "1.5rem", fontWeight: 800, marginBottom: 16 }}>{t(locale, "team.title")}</h1>
       {/* Permission changes are now recorded (migration 038 §3). This is where
           somebody who has just changed a role goes to check what was recorded. */}
-      <p style={{ marginBottom: 16, fontSize: 12.5 }}>
+      <p style={{ marginBottom: 16, fontSize: "0.8125rem" }}>
         <Link href="/settings/security">{locale === "he" ? "יומן שינויי הרשאות ואבטחת חשבון →" : "Permission history & account security →"}</Link>
       </p>
       <TeamClient locale={locale} members={members ?? []} invites={invites ?? []} paymentPermissions={paymentPermissions ?? []} capabilities={capabilities ?? []} myId={profile.id} />

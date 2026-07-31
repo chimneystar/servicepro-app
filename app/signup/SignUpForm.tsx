@@ -11,7 +11,7 @@ import { evaluatePassword, describePasswordFailures, MIN_LENGTH } from "@/lib/co
 import { createAccount, type SignUpState } from "./actions";
 
 const initial: SignUpState = { ok: false };
-const problemListStyle = { margin: "6px 0 0", paddingInlineStart: 18, fontSize: 12.5, lineHeight: 1.5 } as const;
+const problemListStyle = { margin: "6px 0 0", paddingInlineStart: 18, fontSize: "0.7812rem", lineHeight: 1.5 } as const;
 
 export default function SignUpForm({ locale }: { locale: Locale }) {
   const router = useRouter();

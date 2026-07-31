@@ -25,7 +25,7 @@ export default function JobTypesEditor({ locale, types, currency }: { locale: Lo
   return (
     <div className="settings-section">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <h3 style={{ fontSize: 15, fontWeight: 800 }}>{he ? "סוגי עבודות" : "Job types"}</h3>
+        <h3 style={{ fontSize: "0.9375rem", fontWeight: 800 }}>{he ? "סוגי עבודות" : "Job types"}</h3>
         <button onClick={() => open(null)} style={btn}>{he ? "הוספה" : "Add"}</button>
       </div>
       {types.map((tp) => (
@@ -33,18 +33,18 @@ export default function JobTypesEditor({ locale, types, currency }: { locale: Lo
           <span style={{ width: 14, height: 14, borderRadius: 4, background: tp.color, flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <b>{tp.name}</b>
-            <div style={{ fontSize: 12, color: "#5c6675" }}>{tp.duration_min} {he ? "דק׳" : "min"}{tp.default_price_minor ? ` · ${cur}${(tp.default_price_minor / 100).toFixed(2)}` : ""}</div>
+            <div style={{ fontSize: "0.75rem", color: "#5c6675" }}>{tp.duration_min} {he ? "דק׳" : "min"}{tp.default_price_minor ? ` · ${cur}${(tp.default_price_minor / 100).toFixed(2)}` : ""}</div>
           </div>
           <button onClick={() => open(tp)} style={mini} aria-label={he ? "עריכה" : "Edit"}>✎</button>
           <button onClick={() => del(tp.id)} style={{ ...mini, background: "#fff0f0", color: "#b93545" }} aria-label={he ? "מחיקה" : "Delete"}>×</button>
         </div>
       ))}
-      {types.length === 0 && <div style={{ color: "#5c6675", fontSize: 13, padding: 8 }}>{he ? "עוד לא הוגדרו סוגי עבודה." : "No job types yet."}</div>}
+      {types.length === 0 && <div style={{ color: "#5c6675", fontSize: "0.8125rem", padding: 8 }}>{he ? "עוד לא הוגדרו סוגי עבודה." : "No job types yet."}</div>}
 
       {editing !== undefined && (
         <div style={overlay} onClick={(e) => e.target === e.currentTarget && setEditing(undefined)}>
           <form action={formAction} style={modal}>
-            <h3 style={{ fontSize: 17, fontWeight: 800, marginBottom: 12 }}>{editing ? (he ? "עריכת סוג עבודה" : "Edit job type") : (he ? "סוג עבודה חדש" : "New job type")}</h3>
+            <h3 style={{ fontSize: "1.0625rem", fontWeight: 800, marginBottom: 12 }}>{editing ? (he ? "עריכת סוג עבודה" : "Edit job type") : (he ? "סוג עבודה חדש" : "New job type")}</h3>
             {editing && <input type="hidden" name="id" value={editing.id} />}
             <input type="hidden" name="color" value={color} />
             <L>{he ? "שם" : "Name"}</L><input name="name" defaultValue={editing?.name ?? ""} style={inp} required />
@@ -70,10 +70,10 @@ export default function JobTypesEditor({ locale, types, currency }: { locale: Lo
 function Save({ locale }: { locale: Locale }) { const { pending } = useFormStatus(); return <button type="submit" disabled={pending} style={btn}>{pending ? (locale === "he" ? "שומרים…" : "Saving…") : (locale === "he" ? "שמירה" : "Save")}</button>; }
 function L({ children }: { children: React.ReactNode }) { return <label style={lbl}>{children}</label>; }
 const btn: React.CSSProperties = { background: "#2b66f6", color: "#fff", border: "none", padding: "9px 15px", borderRadius: 10, fontWeight: 700, cursor: "pointer" };
-const mini: React.CSSProperties = { background: "#eef2f8", border: "none", borderRadius: 8, padding: "5px 8px", cursor: "pointer", fontSize: 13 };
+const mini: React.CSSProperties = { background: "#eef2f8", border: "none", borderRadius: 8, padding: "5px 8px", cursor: "pointer", fontSize: "0.8125rem" };
 const overlay: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,30,61,.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 24, zIndex: 100, overflowY: "auto" };
 const modal: React.CSSProperties = { background: "#fff", borderRadius: 18, width: "100%", maxWidth: 420, padding: 22 };
 const two: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 };
-const lbl: React.CSSProperties = { fontSize: 12.5, fontWeight: 700, color: "#334155", display: "block", margin: "10px 0 6px" };
-const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 14, outline: "none" };
-const err: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "9px 12px", borderRadius: 10, fontSize: 13, marginTop: 10 };
+const lbl: React.CSSProperties = { fontSize: "0.8125rem", fontWeight: 700, color: "#334155", display: "block", margin: "10px 0 6px" };
+const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: "0.875rem", outline: "none" };
+const err: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "9px 12px", borderRadius: 10, fontSize: "0.8125rem", marginTop: 10 };

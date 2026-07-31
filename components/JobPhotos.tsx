@@ -69,11 +69,11 @@ export default function JobPhotos({ jobId, orgId, photos }: { jobId: string; org
         <input type="file" accept="image/*,video/*" multiple onChange={onFiles} disabled={busy} style={{ display: "none" }} />
         {busy ? (he ? "מעלים…" : "Uploading…") : (he ? "העלאת תמונות או וידאו" : "Upload photos or video")}
       </label>
-      {error && <div style={{ color: "#dc2626", fontSize: 13, marginTop: 8 }}>{error}</div>}
+      {error && <div style={{ color: "#dc2626", fontSize: "0.8125rem", marginTop: 8 }}>{error}</div>}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(120px,1fr))", gap: 10, marginTop: 12 }}>
         {photos.map((p) => (
           <div key={p.id} style={{ position: "relative", aspectRatio: "1", borderRadius: 12, overflow: "hidden", border: "1px solid #e2e8f0", background: "#eef2f8" }}>
-            {p.url ? (p.mediaType === "video" ? <video src={p.url} controls playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <img src={p.url} alt={p.label ?? ""} style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <div style={{ padding: 8, fontSize: 11, color: "#5c6675" }}>{p.mediaType}</div>}
+            {p.url ? (p.mediaType === "video" ? <video src={p.url} controls playsInline style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <img src={p.url} alt={p.label ?? ""} style={{ width: "100%", height: "100%", objectFit: "cover" }} />) : <div style={{ padding: 8, fontSize: "0.8125rem", color: "#5c6675" }}>{p.mediaType}</div>}
             {p.mediaType === "image" && p.url && <button type="button" onClick={() => setEditing(p)} style={annotateBtn}>{he ? "סימון" : "Mark up"}</button>}
             {/* The customer's job report only shows photos marked visible. Every
                 photo defaults to visible, so this is how an internal shot —
@@ -94,7 +94,7 @@ export default function JobPhotos({ jobId, orgId, photos }: { jobId: string; org
             <button onClick={() => remove(p)} style={delBtn} title="Delete">✕</button>
           </div>
         ))}
-        {photos.length === 0 && <div style={{ color: "#5c6675", fontSize: 13, padding: 8 }}>{he ? "עדיין אין תמונות או סרטונים." : "No photos or videos yet."}</div>}
+        {photos.length === 0 && <div style={{ color: "#5c6675", fontSize: "0.8125rem", padding: 8 }}>{he ? "עדיין אין תמונות או סרטונים." : "No photos or videos yet."}</div>}
       </div>
       {editing && editing.url && <PhotoAnnotator photo={editing} he={he} onCancel={() => setEditing(null)} onSave={saveAnnotation} />}
     </div>
@@ -111,12 +111,12 @@ function PhotoAnnotator({ photo, he, onCancel, onSave }: { photo: Photo; he: boo
   return <div className="photo-annotator" role="dialog" aria-modal="true"><div><header><strong>{he ? "סימון על התמונה" : "Mark up photo"}</strong><small>{he ? "ציירו באדום על האזור שחשוב להראות." : "Draw in red over the area you want to call out."}</small></header><canvas ref={canvasRef} onPointerDown={start} onPointerMove={move} onPointerUp={() => drawing.current=false} onPointerCancel={() => drawing.current=false} /><footer><button type="button" onClick={save}>{he ? "שמירת עותק" : "Save copy"}</button><button type="button" onClick={onCancel}>{he ? "ביטול" : "Cancel"}</button></footer></div></div>;
 }
 
-const upload: React.CSSProperties = { display: "inline-block", border: "2px dashed #b9c8e6", color: "#2563eb", background: "#f8fbff", borderRadius: 12, padding: "12px 18px", fontWeight: 700, fontSize: 14, cursor: "pointer" };
-const delBtn: React.CSSProperties = { position: "absolute", top: 5, right: 5, background: "rgba(220,38,38,.92)", color: "#fff", border: "none", width: 24, height: 24, borderRadius: 7, fontSize: 12, cursor: "pointer" };
-const annotateBtn: React.CSSProperties = { position: "absolute", left: 5, bottom: 5, minHeight: 26, padding: "0 7px", border: 0, borderRadius: 7, background: "rgba(16,26,46,.88)", color: "#fff", fontSize: 9, fontWeight: 800, cursor: "pointer" };
+const upload: React.CSSProperties = { display: "inline-block", border: "2px dashed #b9c8e6", color: "#2563eb", background: "#f8fbff", borderRadius: 12, padding: "12px 18px", fontWeight: 700, fontSize: "0.875rem", cursor: "pointer" };
+const delBtn: React.CSSProperties = { position: "absolute", top: 5, right: 5, background: "rgba(220,38,38,.92)", color: "#fff", border: "none", width: 24, height: 24, borderRadius: 7, fontSize: "0.75rem", cursor: "pointer" };
+const annotateBtn: React.CSSProperties = { position: "absolute", left: 5, bottom: 5, minHeight: 26, padding: "0 7px", border: 0, borderRadius: 7, background: "rgba(16,26,46,.88)", color: "#fff", fontSize: "0.75rem", fontWeight: 800, cursor: "pointer" };
 
 const visibilityBtn = (visible: boolean): React.CSSProperties => ({
   position: "absolute", top: 6, insetInlineStart: 6, width: 26, height: 26,
-  borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, lineHeight: 1,
+  borderRadius: 8, border: "none", cursor: "pointer", fontSize: "0.8125rem", lineHeight: 1,
   background: visible ? "rgba(21,128,61,.85)" : "rgba(100,116,139,.9)", color: "#fff",
 });

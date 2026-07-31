@@ -50,7 +50,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
   return (
     <div style={{ maxWidth: 900 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800 }}>Jobs</h1>
+        <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>Jobs</h1>
         {canEdit && <JobForm locale={locale} customers={(custs ?? []).map((c) => ({ id: c.id, label: c.name }))} techs={(techs ?? []).map((p) => ({ id: p.id, label: p.full_name || "—" }))} jobTypes={jobTypes ?? undefined} />}
       </div>
       <JobsList

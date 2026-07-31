@@ -27,7 +27,7 @@ export default function JobEquipment({ jobId, equipment }: { jobId: string; equi
       <div className="rlist">
         {equipment.map((e) => (
           <div className="ritem" key={e.id}>
-            <span style={{ fontSize: 20 }}>🔧</span>
+            <span style={{ fontSize: "1.25rem" }}>🔧</span>
             <div className="rmain">
               <div className="rtitle">{e.name}</div>
               <div className="rsub">{[e.serial ? `S/N ${e.serial}` : null, e.notes].filter(Boolean).join(" · ") || "—"}</div>
@@ -59,5 +59,5 @@ export default function JobEquipment({ jobId, equipment }: { jobId: string; equi
 
 const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", padding: "9px 15px", borderRadius: 10, fontWeight: 700, cursor: "pointer" };
 const xBtn: React.CSSProperties = { background: "#fdeaea", border: "none", borderRadius: 8, padding: "5px 8px", cursor: "pointer", marginInlineStart: 8 };
-const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 16, outline: "none" };
-const errBox: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "8px 12px", borderRadius: 10, fontSize: 13, marginTop: 8 };
+const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: "1rem", outline: "none" };
+const errBox: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "8px 12px", borderRadius: 10, fontSize: "0.8125rem", marginTop: 8 };

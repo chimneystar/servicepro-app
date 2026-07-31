@@ -36,22 +36,22 @@ export default function ScheduleRow({ schedule, names }: { schedule: Schedule; n
     <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, marginBottom: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "baseline" }}>
         <b>{schedule.name}</b>
-        <span style={{ fontSize: 12.5, color: schedule.enabled ? "#15803d" : "#5c6675", fontWeight: 700 }}>
+        <span style={{ fontSize: "0.8125rem", color: schedule.enabled ? "#15803d" : "#5c6675", fontWeight: 700 }}>
           {schedule.enabled ? `● ${schedule.frequency}` : "paused"}
         </span>
       </div>
 
-      <div style={{ fontSize: 12.5, color: "#5c6675", marginTop: 4 }}>
+      <div style={{ fontSize: "0.8125rem", color: "#5c6675", marginTop: 4 }}>
         To: {recipients.length ? recipients.join(", ") : <b style={{ color: "#b45309" }}>nobody — this will send nothing</b>}
       </div>
-      <div style={{ fontSize: 12.5, color: "#5c6675" }}>
+      <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>
         {schedule.last_run_at
           ? `Last run ${schedule.last_run_at.slice(0, 10)}${schedule.last_period_key ? ` · covered ${schedule.last_period_key}` : ""}`
           : "Has not run yet"}
       </div>
 
       {schedule.last_error && (
-        <div role="alert" style={{ marginTop: 8, background: "#fdeaea", border: "1px solid #f5b5b5", color: "#b91c1c", borderRadius: 9, padding: "8px 10px", fontSize: 12.5 }}>
+        <div role="alert" style={{ marginTop: 8, background: "#fdeaea", border: "1px solid #f5b5b5", color: "#b91c1c", borderRadius: 9, padding: "8px 10px", fontSize: "0.8125rem" }}>
           Last run reported: {schedule.last_error}
         </div>
       )}
@@ -68,12 +68,12 @@ export default function ScheduleRow({ schedule, names }: { schedule: Schedule; n
         </button>
       </div>
 
-      {error && <div role="alert" style={{ marginTop: 8, color: "#b91c1c", fontSize: 13, fontWeight: 700 }}>{error}</div>}
+      {error && <div role="alert" style={{ marginTop: 8, color: "#b91c1c", fontSize: "0.8125rem", fontWeight: 700 }}>{error}</div>}
     </div>
   );
 }
 
 const button: React.CSSProperties = {
   background: "#eef2f8", color: "#0b1524", border: "none", borderRadius: 8,
-  padding: "7px 12px", fontWeight: 700, fontSize: 12.5, cursor: "pointer",
+  padding: "7px 12px", fontWeight: 700, fontSize: "0.8125rem", cursor: "pointer",
 };

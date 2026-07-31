@@ -54,10 +54,10 @@ export default async function MessagesPage({ searchParams }: { searchParams: Pro
 
   return (
     <div style={{ maxWidth: 720 }}>
-      <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>{he ? "הודעות" : "Messages"}</h1>
-      <p style={{ color: "#5c6675", fontSize: 13, marginBottom: 8 }}>{he ? "כל ההתכתבויות עם הלקוחות במקום אחד." : "All customer text conversations in one place."}</p>
+      <h1 style={{ fontSize: "1.5rem", fontWeight: 800, marginBottom: 4 }}>{he ? "הודעות" : "Messages"}</h1>
+      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 8 }}>{he ? "כל ההתכתבויות עם הלקוחות במקום אחד." : "All customer text conversations in one place."}</p>
       {!providers.sms() && (
-        <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", color: "#9a3412", borderRadius: 12, padding: "10px 14px", fontSize: 12.5, marginBottom: 14 }}>
+        <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", color: "#9a3412", borderRadius: 12, padding: "10px 14px", fontSize: "0.8125rem", marginBottom: 14 }}>
           {he ? "כדי לשלוח ולקבל הודעות מתוך המערכת, מחברים מספר Twilio. עד אז אפשר לפתוח שיחה ולשלוח הודעה מהטלפון." : "Connect a Twilio number to send and receive messages here. Until then, open a conversation to text from your phone."}
         </div>
       )}
@@ -67,7 +67,7 @@ export default async function MessagesPage({ searchParams }: { searchParams: Pro
             <div style={{ width: 42, height: 42, borderRadius: "50%", background: "#e0ebff", color: "#2563eb", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800 }}>{(th.name[0] ?? "?").toUpperCase()}</div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 700 }}>{th.name}</div>
-              <div style={{ fontSize: 13, color: "#5c6675", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{th.last}</div>
+              <div style={{ fontSize: "0.8125rem", color: "#5c6675", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{th.last}</div>
             </div>
             <span style={{ color: "#b6bfcc" }}>›</span>
           </Link>
@@ -75,7 +75,7 @@ export default async function MessagesPage({ searchParams }: { searchParams: Pro
         {list.length === 0 && <div className="rempty">{he ? "עוד אין שיחות. אפשר להתחיל שיחה מתוך כרטיס הלקוח." : "No conversations yet. Start one from a customer record."}</div>}
       </div>
       {truncated && (
-        <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", color: "#9a3412", borderRadius: 12, padding: "10px 14px", fontSize: 12.5, marginTop: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", color: "#9a3412", borderRadius: 12, padding: "10px 14px", fontSize: "0.8125rem", marginTop: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <span>{he ? `מוצגות השיחות מתוך ${pageSize} ההודעות האחרונות. ייתכן שיש שיחות ישנות יותר.` : `Showing conversations from the latest ${pageSize} messages. Older conversations may not appear.`}</span>
           {pageSize < MAX_MESSAGE_PAGE && (
             <Link href={`/messages?show=${nextPage}`} style={{ color: "#9a3412", fontWeight: 800, whiteSpace: "nowrap" }}>
