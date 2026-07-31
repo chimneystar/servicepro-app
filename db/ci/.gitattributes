@@ -1,0 +1,4 @@
+# run.sh is authored on Windows and executed by bash on an Ubuntu runner.
+# A CRLF checkout would fail with a bare "bad interpreter" and cost an hour.
+*.sh  text eol=lf
+*.sql text eol=lf
