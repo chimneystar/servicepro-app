@@ -1005,7 +1005,22 @@ written.
 
 ## Session continuity
 
-There is no self-wake watchdog on this work. If a session ends mid-flight, recovery is:
+**The watchdog is not reliable and must not be trusted as the wake signal.** It has died twice, both
+times the same way: `ScheduleWakeup` ENDS the turn when called, so "keep working, arm it at the end"
+never reaches the end — the turn is ended instead by a report or an incoming task notification, and
+nothing re-arms. Agent-completion notifications look like a heartbeat but are a side effect of work
+that happens to be in flight; when the last agent lands, they stop.
+
+The rule that actually holds: **arm it as the last action of EVERY turn**, and accept that this ends
+the turn. A turn ending with the net armed resumes on the next fire; a turn ending without it goes
+silent indefinitely.
+
+This is the same defect class the audit flagged in the daily cron (§2.13) and wrote into
+`docs/RUNBOOK.md`: a monitor that only runs while something else happens to be alive is not
+monitoring. Recorded here because it recurred after being written down, which means writing it down
+was not enough.
+
+If a session ends mid-flight, recovery is:
 1. `git checkout fix/production-hardening`
 2. Read this file's ledger — the first `WIP` or `TODO` row is the next action.
 3. Re-run `npm run typecheck && npm run lint && npm test` to establish where reality actually is
