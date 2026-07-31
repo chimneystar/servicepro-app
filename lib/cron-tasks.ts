@@ -1,23 +1,38 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { providers, sendSms } from "@/lib/providers";
 import { fillTemplate } from "@/lib/notify";
+// @ts-ignore -- shared JS module: the "Generate due" button uses the identical maths
+import { RECURRING_JOB_SOURCE, nextDueAfter, recurringJobKey } from "@/lib/core/recurring.mjs";
+// @ts-ignore -- shared JS module
+import { isUniqueViolation } from "@/lib/core/db-errors.mjs";
 
-function addMonths(iso: string, m: number) { const d = new Date(iso + "T00:00:00"); d.setMonth(d.getMonth() + m); return d.toISOString().slice(0, 10); }
 const dayISO = (offset = 0) => { const d = new Date(); d.setDate(d.getDate() + offset); return d.toISOString().slice(0, 10); };
 
-/** Create jobs for every maintenance plan that's due today (all orgs). */
+/**
+ * Create jobs for every maintenance plan that's due (all orgs), and roll each
+ * plan PAST today. Advancing by one interval left an overdue plan overdue, so
+ * the nightly run kept minting another back-dated job for it every night.
+ */
 export async function runRecurringGeneration(): Promise<number> {
   const admin = createAdminClient();
   const today = dayISO(0);
   const { data: due } = await admin.from("recurring_plans").select("*").eq("active", true).lte("next_due", today);
   let created = 0;
   for (const p of due ?? []) {
+    const dueDate = String(p.next_due);
     const { error } = await admin.from("jobs").insert({
       organization_id: p.organization_id, created_by: p.created_by, customer_id: p.customer_id,
       assigned_to: p.assigned_to, service: p.service, price_minor: p.price_minor,
-      scheduled_date: p.next_due, end_date: p.next_due, source: "Maintenance plan",
+      scheduled_date: dueDate, end_date: dueDate, source: "Maintenance plan",
+      external_source: RECURRING_JOB_SOURCE, external_id: recurringJobKey(p.id, dueDate),
     });
-    if (!error) { created++; await admin.from("recurring_plans").update({ next_due: addMonths(p.next_due, p.interval_months) }).eq("id", p.id); }
+    // 23505 = uq_jobs_external_source: the button already generated this
+    // occurrence. Roll the plan forward regardless, or it never stops being due.
+    if (error && !isUniqueViolation(error)) continue;
+    if (!error) created++;
+    await admin.from("recurring_plans")
+      .update({ next_due: nextDueAfter(dueDate, p.interval_months, today) })
+      .eq("id", p.id);
   }
   return created;
 }

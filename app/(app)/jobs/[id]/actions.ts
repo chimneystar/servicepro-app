@@ -6,6 +6,8 @@ import { requireProfile, assertRole } from "@/lib/auth";
 import { getLocale } from "@/lib/locale-server";
 // @ts-ignore
 import { computeDocument, parseAmountToMinor, parseQtyToMilli } from "@/lib/core/money.mjs";
+// @ts-ignore -- shared JS module
+import { isUniqueViolation } from "@/lib/core/db-errors.mjs";
 
 export type PhotoResult = { ok: boolean; error?: string };
 
@@ -312,17 +314,25 @@ export async function setOnMyWay(jobId: string): Promise<PhotoResult> {
   return { ok: true };
 }
 
-/** Clock in: open a time entry and start the job. */
+/**
+ * Clock in: open a time entry and start the job.
+ *
+ * This used to read the open entries and then insert — a race that a
+ * double-tap, or a phone and a tablet, would both win, leaving two open entries
+ * and a job page double-counting elapsed hours. The insert is now the only
+ * check: `uq_job_time_entries_one_open` (migration 023) is unique on
+ * (job_id, user_id) where ended_at is null, so the second writer loses at the
+ * database and is told, correctly, that they are already clocked in.
+ */
 export async function clockIn(jobId: string): Promise<PhotoResult> {
   const profile = await requireProfile();
   const supabase = await createClient();
-  const { data: open } = await supabase.from("job_time_entries")
-    .select("id").eq("job_id", jobId).eq("user_id", profile.id).is("ended_at", null).limit(1);
-  if (open && open.length) return { ok: true }; // already clocked in
   const { error } = await supabase.from("job_time_entries").insert({
     organization_id: profile.organization_id, job_id: jobId, user_id: profile.id,
   });
-  if (error) return { ok: false, error: error.message };
+  // 23505 = the open-entry unique index: already clocked in, which is what the
+  // technician wanted. Anything else is a real failure and must surface.
+  if (error && !isUniqueViolation(error)) return { ok: false, error: error.message };
   await supabase.from("jobs").update({ status: "in_progress", started_at: new Date().toISOString() }).eq("id", jobId).is("started_at", null);
   revalidatePath(`/jobs/${jobId}`);
   return { ok: true };

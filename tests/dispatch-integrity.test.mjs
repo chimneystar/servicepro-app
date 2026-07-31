@@ -43,8 +43,10 @@ test("a genuine multi-day job still spans its range", () => {
 test("every job-creating path sets end_date", () => {
   const paths = [
     ["app/(app)/schedule/actions.ts", /end_date/],
-    ["app/(app)/recurring/actions.ts", /end_date: p\.next_due/],
-    ["lib/cron-tasks.ts", /end_date: p\.next_due/],
+    // Both generators now bind the occurrence date to a local `dueDate` first,
+    // because the catch-up fix (ledger 4.2) needs it in three places.
+    ["app/(app)/recurring/actions.ts", /scheduled_date: dueDate, end_date: dueDate/],
+    ["lib/cron-tasks.ts", /scheduled_date: dueDate, end_date: dueDate/],
     ["app/api/booking/[org]/submit/route.ts", /end_date:\s*date/],
   ];
   for (const [file, pattern] of paths) {

@@ -93,16 +93,16 @@ Status: `TODO` / `WIP` / `DONE` / `BLOCKED`. Keep this honest — a status doc t
 | # | Task | Status |
 |---|---|---|
 | 4.1 | `end_date` NOT NULL + default; fix both recurring generators (dispatch pollution) | DONE |
-| 4.2 | Recurring `next_due` catch-up; prevent duplicate generation | TODO |
+| 4.2 | Recurring `next_due` catch-up; prevent duplicate generation | DONE |
 | 4.3 | Offline sync: close time entries, drop rejected events | DONE |
-| 4.4 | `clockIn` race — DB uniqueness on open entries | TODO |
-| 4.5 | Dispatch reassignment: remove stale lead assignment; surface double-book conflict | TODO |
+| 4.4 | `clockIn` race — DB uniqueness on open entries | DONE |
+| 4.5 | Dispatch reassignment: remove stale lead assignment; surface double-book conflict | DONE |
 | 4.6 | Search: parameterise the PostgREST `.or()` filter injection | DONE |
 | 4.7 | Pagination on `/jobs`, `/schedule`, `/messages`, dashboard, reports | TODO |
 | 4.8 | Booking: timezone support; polygon service areas | TODO |
 | 4.9 | Reminders: mark sent AFTER send; allow retry | DONE |
 | 4.10 | Surface swallowed errors (26 discarding call sites, 21 void actions) | TODO |
-| 4.11 | Crew assignment must respect the no-double-book constraint | TODO |
+| 4.11 | Crew assignment must respect the no-double-book constraint | DONE (migration `028_crew_double_book.sql` must be RUN — code assumes it) |
 
 ### Phase 5 — finish the half-built screens
 **SCOPE DECIDED 2026-07-31: every screen stays. Nothing is deleted; the unfinished third gets

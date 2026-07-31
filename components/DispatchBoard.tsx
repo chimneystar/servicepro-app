@@ -17,27 +17,40 @@ export default function DispatchBoard({ locale, date, jobs: initialJobs, techs, 
   const [notice, setNotice] = useState<string | null>(null);
   const columns = useMemo(() => [{ id: "", full_name: he ? "לא משובצות" : "Unassigned", role: "" }, ...techs], [he, techs]);
 
+  const failed = he ? "לא הצלחנו לעדכן את השיבוץ." : "We couldn't update that assignment.";
+
   function move(jobId: string, profileId: string | null) {
     const before = jobs;
+    const beforeAssignments = assignments;
     setJobs((rows) => rows.map((job) => job.id === jobId ? { ...job, assigned_to: profileId } : job));
+    // The outgoing lead's row goes with the job; leaving it made the board show
+    // the previous technician as extra crew on a job they no longer had.
+    setAssignments((rows) => rows.filter((row) => !(row.job_id === jobId && row.is_lead && row.profile_id !== profileId)));
+    setNotice(null);
     startTransition(async () => {
       const result = await moveDispatchJob(jobId, profileId);
-      if (!result.ok) { setJobs(before); setNotice(he ? "לא הצלחנו לעדכן את השיבוץ." : "We couldn't update that assignment."); }
+      if (!result.ok) { setJobs(before); setAssignments(beforeAssignments); setNotice(result.error || failed); }
     });
   }
 
   function add(jobId: string, profileId: string) {
     if (!profileId || assignments.some((row) => row.job_id === jobId && row.profile_id === profileId)) return;
+    setNotice(null);
     startTransition(async () => {
       const result = await addJobTechnician(jobId, profileId);
+      // A crew double-book is refused by the database; the dispatcher has to be
+      // told why, not left looking at a select box that quietly did nothing.
       if (result.ok) setAssignments((rows) => [...rows, { job_id: jobId, profile_id: profileId, is_lead: false }]);
+      else setNotice(result.error || failed);
     });
   }
 
   function remove(jobId: string, profileId: string) {
+    setNotice(null);
     startTransition(async () => {
       const result = await removeJobTechnician(jobId, profileId);
       if (result.ok) setAssignments((rows) => rows.filter((row) => !(row.job_id === jobId && row.profile_id === profileId)));
+      else setNotice(result.error || failed);
     });
   }
 
