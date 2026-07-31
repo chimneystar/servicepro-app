@@ -55,18 +55,32 @@ create index if not exists idx_payment_refunds_org
   on public.payment_refunds (organization_id, created_at desc);
 
 -- Tenant safety by construction, matching migration 014's pattern.
+--
+-- ORDER MATTERS, and it was wrong here until this migration was executed for the
+-- first time. A composite foreign key requires a unique key on the referenced
+-- columns to already exist, so the unique constraint on payments has to be added
+-- BEFORE the FK that depends on it — it used to be added after, and the whole
+-- migration aborted on `there is no unique constraint matching given keys for
+-- referenced table "payments"`. 036 then failed too, because its guard correctly
+-- refuses to run before 030.
+--
+-- The handler below was also wrong: a missing unique key raises
+-- `invalid_foreign_key` (SQLSTATE 42830), not `undefined_object`, so the
+-- "skip gracefully" branch could never have caught it. An exception handler
+-- naming a condition the statement cannot raise is not a fallback; it just
+-- looks like one.
+do $$ begin
+  alter table public.payments add constraint payments_id_org_key unique (id, organization_id);
+exception when duplicate_table then null; when duplicate_object then null; end $$;
+
 do $$ begin
   alter table public.payment_refunds
     add constraint payment_refunds_payment_org_fk
     foreign key (payment_id, organization_id)
     references public.payments(id, organization_id) on delete cascade;
-exception when duplicate_object then null; when undefined_object then
+exception when duplicate_object then null; when invalid_foreign_key then
   raise notice 'payments has no (id, organization_id) unique key; composite FK skipped';
 end $$;
-
-do $$ begin
-  alter table public.payments add constraint payments_id_org_key unique (id, organization_id);
-exception when duplicate_table then null; when duplicate_object then null; end $$;
 
 -- ---------------------------------------------------------------------
 -- 2. Keep payments.refunded_minor derived from the ledger.
@@ -137,16 +151,11 @@ for each row execute function public.guard_refund_amount();
 -- ---------------------------------------------------------------------
 alter table public.payment_refunds enable row level security;
 
-drop policy if exists payment_refunds_select on public.payment_refunds;
-create policy payment_refunds_select on public.payment_refunds for select to authenticated
-  using (organization_id = public.current_org_id()
-         and public.current_user_role() in ('owner','office'));
-
-drop policy if exists payment_refunds_write on public.payment_refunds;
-create policy payment_refunds_write on public.payment_refunds for all to authenticated
-  using (organization_id = public.current_org_id() and public.can_refund_payments())
-  with check (organization_id = public.current_org_id() and public.can_refund_payments());
-
+-- The function must exist before the policy that calls it: Postgres resolves
+-- the expression at CREATE POLICY time, so defining it afterwards (as this
+-- migration originally did) aborts with `function public.can_refund_payments()
+-- does not exist`. This was hidden behind the composite-FK ordering error above
+-- until both were executed for the first time.
 create or replace function public.can_refund_payments()
 returns boolean language sql stable security definer set search_path = public as $$
   select coalesce(
@@ -158,6 +167,16 @@ returns boolean language sql stable security definer set search_path = public as
 $$;
 revoke execute on function public.can_refund_payments() from public, anon;
 grant  execute on function public.can_refund_payments() to authenticated;
+
+drop policy if exists payment_refunds_select on public.payment_refunds;
+create policy payment_refunds_select on public.payment_refunds for select to authenticated
+  using (organization_id = public.current_org_id()
+         and public.current_user_role() in ('owner','office'));
+
+drop policy if exists payment_refunds_write on public.payment_refunds;
+create policy payment_refunds_write on public.payment_refunds for all to authenticated
+  using (organization_id = public.current_org_id() and public.can_refund_payments())
+  with check (organization_id = public.current_org_id() and public.can_refund_payments());
 
 grant select, insert, update on public.payment_refunds to authenticated;
 grant all on public.payment_refunds to service_role;
