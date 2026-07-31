@@ -59,6 +59,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The migrations are applied by the repository's own runner
+      # (scripts/db-migrate.mjs), so this job proves the runner and its ledger
+      # against a real PostgreSQL, not only that the SQL applies. The runner
+      # imports nothing outside node's standard library and shells out to psql,
+      # so there is deliberately no `npm ci` here.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
       - name: Install the psql client
         run: |
           sudo apt-get update

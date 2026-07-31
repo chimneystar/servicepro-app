@@ -24,10 +24,10 @@ const readSql = (p) => read(p).replace(/--[^\n]*/g, "");
 // ---------------------------------------------------------------------------
 
 test("the four soft-deletable tables are exactly the ones that carry deleted_at", () => {
-  // Verified against db/schema.sql: these four declare `deleted_at timestamptz`.
+  // Verified against db/001_schema.sql: these four declare `deleted_at timestamptz`.
   assert.deepEqual([...RECOVERABLE_KINDS].sort(), ["customer", "estimate", "invoice", "job"]);
   assert.deepEqual(KIND_TABLE, { customer: "customers", job: "jobs", estimate: "estimates", invoice: "invoices" });
-  const schema = readSql("db/schema.sql");
+  const schema = readSql("db/001_schema.sql");
   for (const table of Object.values(KIND_TABLE)) {
     const block = schema.slice(schema.indexOf(`create table if not exists public.${table} (`));
     assert.ok(/deleted_at\s+timestamptz/.test(block.slice(0, 2000)), `public.${table} must have deleted_at`);
@@ -98,7 +98,7 @@ test("an invoice also waits for its job and its originating estimate", () => {
 });
 
 test("an invoice with no job and no estimate is not blocked by parents it never had", () => {
-  // invoices.job_id and invoices.estimate_id are both nullable (db/schema.sql,
+  // invoices.job_id and invoices.estimate_id are both nullable (db/001_schema.sql,
   // db/024_deposit_credit.sql). Absent keys must not fabricate a blocker.
   assert.deepEqual(restoreBlockers("invoice", { deleted: true, customer: { deleted: false } }), []);
 });

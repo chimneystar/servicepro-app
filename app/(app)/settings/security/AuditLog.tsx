@@ -16,7 +16,7 @@ type SignatureRow = {
   signature_sha256: string | null; signed_at: string;
 };
 
-/** Tables the generic audit trigger actually writes (db/schema.sql, db/030). */
+/** Tables the generic audit trigger actually writes (db/001_schema.sql, db/030). */
 const AUDITED_TABLES = ["jobs", "customers", "estimates", "invoices", "payments", "payment_refunds"];
 const ACTIONS = ["INSERT", "UPDATE", "DELETE"];
 

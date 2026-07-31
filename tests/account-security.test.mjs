@@ -140,7 +140,7 @@ test("permission changes are recorded by TRIGGER, so PostgREST cannot skip the l
 
 test("the watched columns are exactly the ones that confer authority", () => {
   // Verified against the real column names: db/018 (profile_capabilities),
-  // db/017 (profile_payment_permissions), db/schema.sql + db/012 (profiles).
+  // db/017 (profile_payment_permissions), db/001_schema.sql + db/012 (profiles).
   for (const column of ["role", "active", "commission_pct", "organization_id"]) {
     assert.ok(sql038.includes(`'${column}'`), `profiles.${column} must be watched`);
   }

@@ -365,9 +365,9 @@ test("041 only touches columns and triggers that exist", () => {
   // The trigger amended here is the one 020 created, by its real name.
   assert.match(stripSqlComments(read("db/020_booking_experience.sql")), /create\s+trigger\s+trg_job_type_booking_service\b/);
   // organizations.locale drives which language a seeded job type is named in.
-  assert.match(read("db/schema.sql"), /locale\s+text\s+not\s+null\s+default\s+'en'/);
+  assert.match(read("db/001_schema.sql"), /locale\s+text\s+not\s+null\s+default\s+'en'/);
   // Every function 041 calls is one that exists.
-  const everySql = `${read("db/schema.sql")}\n${ALL_SQL}`;
+  const everySql = `${read("db/001_schema.sql")}\n${ALL_SQL}`;
   for (const called of ["current_org_id", "current_user_role", "resolve_booking_service_names", "repair_booking_service_names"]) {
     assert.ok(new RegExp(`create\\s+or\\s+replace\\s+function\\s+public\\.${called}\\b`).test(everySql), `public.${called}() is called but never created`);
   }

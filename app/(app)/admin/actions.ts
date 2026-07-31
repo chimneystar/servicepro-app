@@ -85,7 +85,7 @@ export async function openBusinessSnapshot(organizationId: string): Promise<Snap
     const { count: total } = await query;
     return total ?? 0;
   };
-  // Column and enum names verified against db/schema.sql: jobs.status is the
+  // Column and enum names verified against db/001_schema.sql: jobs.status is the
   // job_status enum ('scheduled','in_progress','done','cancelled') and invoices
   // carry invoice_status ('unpaid','paid','void'). There is no `documents`
   // table in this schema.

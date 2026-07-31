@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { freshDatabase, migrationFiles, DB_DIR } from "./helpers/pg.mjs";
+import { freshDatabase, migrationFiles, isolationTestSql, DB_DIR } from "./helpers/pg.mjs";
 
 // ---------------------------------------------------------------------------
 // Can the database be built from scratch?
@@ -37,6 +37,25 @@ test("every migration applies to a clean database, in order", async () => {
   const { applied } = await freshDatabase();
   assert.equal(applied.length, migrationFiles().length,
     "every migration in db/ must apply to an empty database");
+});
+
+test("db/016_isolation_tests.sql passes against the fully migrated schema", async () => {
+  // 016 is a TEST, not a migration — which is why the numbering has no 016 and
+  // why the manifest declares it. It used to be swept into the apply sequence by
+  // a `^\d{3}_` glob and executed as if it were DDL; that happened to work, but
+  // it meant the sequence and the proof were the same list, and nothing checked
+  // that it still passed once the later migrations had added their constraints.
+  //
+  // It raises `ISOLATION FAIL: ...` on any cross-tenant leak and cleans up after
+  // itself, so running it here is the proof, not a smoke test.
+  const { db } = await freshDatabase();
+  await db.exec(isolationTestSql());
+
+  // A test that silently did nothing must not be mistaken for one that passed.
+  const { rows } = await db.query(
+    "select count(*)::int as leftovers from public.organizations where name like '__ISO_TEST_%'",
+  );
+  assert.equal(rows[0].leftovers, 0, "016 must clean up its own fixtures, which it only does on success");
 });
 
 test("the result is the schema the application expects", async () => {
