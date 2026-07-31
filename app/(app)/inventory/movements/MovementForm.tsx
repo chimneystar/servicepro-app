@@ -40,35 +40,35 @@ export default function MovementForm({ items }: { items: ItemRow[] }) {
   }
 
   if (!open) {
-    return <button onClick={() => setOpen(true)} style={btn}>➕ Record a stock movement</button>;
+    return <button type="button" onClick={() => setOpen(true)} style={btn}>➕ Record a stock movement</button>;
   }
 
   return (
     <form action={submit} style={{ background: "#f8fbff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14 }}>
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 8 }}>
-        <select name="itemId" style={inp} required>
+        <select name="itemId" style={inp} required aria-label="Choose an item">
           <option value="">Choose an item</option>
           {items.map((i) => (
             <option key={i.id} value={i.id}>{i.name} ({formatQtyMilli(i.quantity_milli)} {i.unit})</option>
           ))}
         </select>
-        <select name="kind" style={inp} value={kind} onChange={(e) => setKind(e.target.value)}>
+        <select name="kind" style={inp} value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Movement type">
           <option value="receipt">Received in</option>
           <option value="consumption">Used</option>
           <option value="adjustment">Correction</option>
         </select>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: kind === "adjustment" ? "1fr 1fr 1fr" : "1fr 1fr", gap: 8, marginTop: 8 }}>
-        <input name="qty" type="number" step="0.001" min="0.001" placeholder="Quantity" style={inp} required />
+        <input name="qty" type="number" step="0.001" min="0.001" placeholder="Quantity" aria-label="Quantity" style={inp} required />
         {kind === "adjustment" && (
-          <select name="direction" style={inp}>
+          <select name="direction" style={inp} aria-label="Direction">
             <option value="in">Add</option>
             <option value="out">Remove</option>
           </select>
         )}
-        <input name="unitCost" type="number" step="0.01" min="0" placeholder="Unit cost (optional)" style={inp} />
+        <input name="unitCost" type="number" step="0.01" min="0" placeholder="Unit cost (optional)" aria-label="Unit cost (optional)" style={inp} />
       </div>
-      <input name="reason" placeholder="Why? (delivery note, stocktake, breakage…)" style={{ ...inp, marginTop: 8 }} required />
+      <input name="reason" placeholder="Why? (delivery note, stocktake, breakage…)" aria-label="Why? (delivery note, stocktake, breakage…)" style={{ ...inp, marginTop: 8 }} required />
       {error && <div role="alert" style={errBox}>{error}</div>}
       {needsOverride && (
         <label style={{ display: "block", fontSize: "0.8125rem", color: "#9a3412", marginTop: 8 }}>

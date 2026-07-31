@@ -49,11 +49,11 @@ export default function LegacyImportClient() {
         name,phone,email,address,city,history{"\n"}Jane Cohen,555-1234,jane@mail.com,12 Oak St,Austin,&quot;3 past jobs; last invoice $450 paid 2024&quot;
       </div>
 
-      <textarea value={text} onChange={(e) => setText(e.target.value)} rows={10} placeholder="Paste CSV here…"
+      <textarea value={text} onChange={(e) => setText(e.target.value)} rows={10} placeholder="Paste CSV here…" aria-label="Paste CSV here…"
         style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, fontSize: "0.875rem", outline: "none", fontFamily: "monospace" }} />
 
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12 }}>
-        <button onClick={run} disabled={pending || rows.length === 0} style={{ background: rows.length ? "#9a3412" : "#94a3b8", color: "#fff", border: "none", borderRadius: 12, padding: "12px 20px", fontWeight: 800, cursor: rows.length ? "pointer" : "not-allowed" }}>
+        <button type="button" onClick={run} disabled={pending || rows.length === 0} style={{ background: rows.length ? "#9a3412" : "#94a3b8", color: "#fff", border: "none", borderRadius: 12, padding: "12px 20px", fontWeight: 800, cursor: rows.length ? "pointer" : "not-allowed" }}>
           {pending ? "Importing…" : `Import ${rows.length} record${rows.length === 1 ? "" : "s"} to archive`}
         </button>
         {result && <span style={{ fontWeight: 700, color: result.startsWith("✓") ? "#15803d" : "#dc2626" }}>{result}</span>}

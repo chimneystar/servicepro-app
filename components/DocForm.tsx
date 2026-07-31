@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFormState, useFormStatus } from "react-dom";
 import { createClient } from "@/lib/supabase/client";
 import { t, type Locale } from "@/lib/i18n";
 import type { ActionResult } from "@/lib/documents";
+import Modal from "@/components/Modal";
 
 type Opt = { id: string; label: string };
 type Action = (prev: ActionResult, formData: FormData) => Promise<ActionResult>;
@@ -20,7 +21,9 @@ export default function DocForm({ locale, customers, action, newKey, catalog = [
 }) {
   const supabase = createClient();
   const router = useRouter();
+  const he = locale === "he";
   const [open, setOpen] = useState(initialOpen);
+  const titleId = useId();
   const [rows, setRows] = useState<Row[]>([blankRow()]);
   const [state, formAction] = useFormState(action, initial);
   if (state.ok && open) setTimeout(() => { setOpen(false); setRows([blankRow()]); router.refresh(); }, 0);
@@ -49,19 +52,21 @@ export default function DocForm({ locale, customers, action, newKey, catalog = [
 
   return (
     <>
-      <button onClick={() => setOpen(true)} style={btn}>➕ {t(locale, newKey)}</button>
+      <button type="button" onClick={() => setOpen(true)} style={btn}><span aria-hidden="true">➕</span> {t(locale, newKey)}</button>
       {open && (
-        <div style={overlay} onClick={(e) => e.target === e.currentTarget && setOpen(false)}>
-          <form action={formAction} style={modal}>
-            <h3 style={{ fontSize: "1.125rem", fontWeight: 800, marginBottom: 14 }}>{t(locale, newKey)}</h3>
-            <label style={lbl}>{t(locale, "doc.customer")}</label>
-            <select name="customer_id" style={inp} required>
-              {customers.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-            </select>
+        <Modal onClose={() => setOpen(false)} labelledBy={titleId} width={580}>
+          <form action={formAction}>
+            <h3 id={titleId} style={{ fontSize: "1.125rem", fontWeight: 800, marginBottom: 14 }}>{t(locale, newKey)}</h3>
+            <label style={{ display: "block" }}>
+              <span style={lbl}>{t(locale, "doc.customer")}</span>
+              <select name="customer_id" style={inp} required>
+                {customers.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+              </select>
+            </label>
 
             <label style={{ ...lbl, marginTop: 14 }}>{t(locale, "doc.items")}</label>
             {catalog.length > 0 && (
-              <select style={{ ...inp, marginBottom: 10 }} defaultValue="" onChange={(e) => { addFromCatalog(e.target.value); e.currentTarget.value = ""; }}>
+              <select style={{ ...inp, marginBottom: 10 }} defaultValue="" onChange={(e) => { addFromCatalog(e.target.value); e.currentTarget.value = ""; }} aria-label={he ? "שימוש חוזר בפריט שמור" : "Reuse a saved item"}>
                 <option value="">📚 Reuse a saved item…</option>
                 {catalog.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
@@ -70,14 +75,14 @@ export default function DocForm({ locale, customers, action, newKey, catalog = [
             {rows.map((r, i) => (
               <div key={i} style={itemCard}>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <input name="title" value={r.title} onChange={(e) => update(i, { title: e.target.value })} style={{ ...cell, fontWeight: 700 }} placeholder="Item title" />
-                  <button type="button" onClick={() => setRows(rows.filter((_, k) => k !== i))} style={xBtn}>✕</button>
+                  <input name="title" value={r.title} onChange={(e) => update(i, { title: e.target.value })} style={{ ...cell, fontWeight: 700 }} placeholder="Item title" aria-label="Item title" />
+                  <button type="button" onClick={() => setRows(rows.filter((_, k) => k !== i))} style={xBtn} aria-label={he ? "הסרת שורה" : "Remove row"}>✕</button>
                 </div>
-                <textarea name="desc" value={r.desc} onChange={(e) => update(i, { desc: e.target.value })} rows={2} style={{ ...cell, marginTop: 6 }} placeholder="Description (optional)" />
+                <textarea name="desc" value={r.desc} onChange={(e) => update(i, { desc: e.target.value })} rows={2} style={{ ...cell, marginTop: 6 }} placeholder="Description (optional)" aria-label="Description (optional)" />
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginTop: 6 }}>
-                  <div><span style={miniLbl}>Qty</span><input name="qty" value={r.qty} onChange={(e) => update(i, { qty: e.target.value })} type="number" step="0.001" style={cell} /></div>
-                  <div><span style={miniLbl}>Unit price</span><input name="price" value={r.price} onChange={(e) => update(i, { price: e.target.value })} type="number" step="0.01" style={cell} placeholder="0.00" /></div>
-                  <div><span style={miniLbl}>Cost</span><input name="cost" value={r.cost} onChange={(e) => update(i, { cost: e.target.value })} type="number" step="0.01" style={cell} placeholder="0.00" /></div>
+                  <div><label style={{ display: "block" }}><span style={miniLbl}>Qty</span><input name="qty" value={r.qty} onChange={(e) => update(i, { qty: e.target.value })} type="number" step="0.001" style={cell} /></label></div>
+                  <div><label style={{ display: "block" }}><span style={miniLbl}>Unit price</span><input name="price" value={r.price} onChange={(e) => update(i, { price: e.target.value })} type="number" step="0.01" style={cell} placeholder="0.00" /></label></div>
+                  <div><label style={{ display: "block" }}><span style={miniLbl}>Cost</span><input name="cost" value={r.cost} onChange={(e) => update(i, { cost: e.target.value })} type="number" step="0.01" style={cell} placeholder="0.00" /></label></div>
                 </div>
                 <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 8, flexWrap: "wrap" }}>
                   <input type="hidden" name="taxable" value={r.taxable ? "1" : "0"} />
@@ -93,14 +98,16 @@ export default function DocForm({ locale, customers, action, newKey, catalog = [
                 </div>
               </div>
             ))}
-            <button type="button" onClick={() => setRows([...rows, blankRow()])} style={{ ...btn, background: "#e2e9f4", color: "#2563eb", padding: "8px 12px", fontSize: "0.8125rem", marginTop: 4 }}>➕ {t(locale, "doc.add_item")}</button>
+            <button type="button" onClick={() => setRows([...rows, blankRow()])} style={{ ...btn, background: "#e2e9f4", color: "#2563eb", padding: "8px 12px", fontSize: "0.8125rem", marginTop: 4 }}><span aria-hidden="true">➕</span> {t(locale, "doc.add_item")}</button>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 14 }}>
-              <div><label style={lbl}>{t(locale, "doc.discount")}</label><input name="discount" type="number" step="0.01" defaultValue="0" style={inp} /></div>
+              <div><label style={{ display: "block" }}><span style={lbl}>{t(locale, "doc.discount")}</span><input name="discount" type="number" step="0.01" defaultValue="0" style={inp} /></label></div>
               <div style={{ alignSelf: "end", textAlign: "end", fontSize: "0.8125rem", color: "#5c6675", paddingBottom: 10 }}>Items subtotal ≈ {sym}{(previewSubtotal / 100).toFixed(2)}</div>
             </div>
-            <label style={lbl}>{t(locale, "form.notes")}</label>
-            <textarea name="notes" rows={2} style={inp} />
+            <label style={{ display: "block" }}>
+              <span style={lbl}>{t(locale, "form.notes")}</span>
+              <textarea name="notes" rows={2} style={inp} />
+            </label>
             <div style={{ fontSize: "0.75rem", color: "#5c6675", marginTop: 8 }}>ℹ️ Tax & total are calculated on save (only taxable items are taxed). New items are saved to your library for reuse.</div>
             {state.error && <div style={err}>{state.error}</div>}
             <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
@@ -108,7 +115,7 @@ export default function DocForm({ locale, customers, action, newKey, catalog = [
               <button type="button" onClick={() => setOpen(false)} style={{ ...btn, background: "#e2e9f4", color: "#2563eb" }}>{t(locale, "common.cancel")}</button>
             </div>
           </form>
-        </div>
+        </Modal>
       )}
     </>
   );
@@ -122,8 +129,6 @@ function Save({ locale }: { locale: Locale }) {
 }
 
 const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", padding: "10px 16px", borderRadius: 10, fontWeight: 700, cursor: "pointer" };
-const overlay: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,30,61,.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 30, zIndex: 100, overflowY: "auto" };
-const modal: React.CSSProperties = { background: "#fff", borderRadius: 18, width: "100%", maxWidth: 580, padding: 22 };
 const itemCard: React.CSSProperties = { background: "#f8fbff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, marginBottom: 10 };
 const lbl: React.CSSProperties = { fontSize: "0.8125rem", fontWeight: 700, color: "#334155", display: "block", margin: "6px 0 6px" };
 const miniLbl: React.CSSProperties = { fontSize: "0.8125rem", color: "#5c6675", fontWeight: 700, display: "block", marginBottom: 3 };

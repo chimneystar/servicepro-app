@@ -39,16 +39,14 @@ export default function TeamClient({ locale, members, invites, paymentPermission
         <h3 style={h3}>{t(locale, "team.invite")}</h3>
         <form action={formAction} style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
           <div style={{ flex: "1 1 200px" }}>
-            <label style={lbl}>{t(locale, "team.email")}</label>
-            <input name="email" type="email" required placeholder="tech@email.com" style={inp} />
+            <label style={{ display: "block" }}><span style={lbl}>{t(locale, "team.email")}</span><input name="email" type="email" required placeholder="tech@email.com" style={inp} /></label>
           </div>
           <div style={{ flex: "0 0 130px" }}>
-            <label style={lbl}>{t(locale, "team.role")}</label>
-            <select name="role" defaultValue="tech" style={inp}>
+            <label style={{ display: "block" }}><span style={lbl}>{t(locale, "team.role")}</span><select name="role" defaultValue="tech" style={inp}>
               <option value="tech">{roleLabel("tech")}</option>
               <option value="office">{roleLabel("office")}</option>
               <option value="owner">{roleLabel("owner")}</option>
-            </select>
+            </select></label>
           </div>
           <SendBtn locale={locale} />
         </form>
@@ -74,12 +72,12 @@ export default function TeamClient({ locale, members, invites, paymentPermission
                 {m.role !== "owner" && m.id !== myId && <CapabilityEditor locale={locale} memberId={m.id} role={m.role} initial={capabilityAccess} onSaved={() => router.refresh()} />}
                 {m.role === "office" && m.id !== myId && <PaymentPermissionEditor locale={locale} memberId={m.id} initial={paymentAccess} onSaved={() => router.refresh()} />}
               </div>
-              <select value={m.role} disabled={m.id === myId || pending} onChange={(e) => run(() => changeRole(m.id, e.target.value))} style={{ ...inp, width: "auto", padding: "7px 10px", fontSize: "0.8125rem" }}>
+              <select value={m.role} disabled={m.id === myId || pending} onChange={(e) => run(() => changeRole(m.id, e.target.value))} style={{ ...inp, width: "auto", padding: "7px 10px", fontSize: "0.8125rem" }} aria-label={he ? "תפקיד" : "Role"}>
                 <option value="tech">{roleLabel("tech")}</option>
                 <option value="office">{roleLabel("office")}</option>
                 <option value="owner">{roleLabel("owner")}</option>
               </select>
-              {m.id !== myId && <button onClick={() => { if (confirm(he ? "להסיר את העובד מהצוות?" : "Remove this team member?")) run(() => removeMember(m.id)); }} disabled={pending} style={rm}>{t(locale, "team.remove")}</button>}
+              {m.id !== myId && <button type="button" onClick={() => { if (confirm(he ? "להסיר את העובד מהצוות?" : "Remove this team member?")) run(() => removeMember(m.id)); }} disabled={pending} style={rm}>{t(locale, "team.remove")}</button>}
             </div>;
         })}
       </div>
@@ -91,8 +89,8 @@ export default function TeamClient({ locale, members, invites, paymentPermission
           {invites.map((iv) => (
             <div key={iv.id} style={row}>
               <div style={{ flex: 1, minWidth: 0 }}><b>{iv.email}</b><div style={{ fontSize: "0.75rem", color: "#5c6675" }}>{roleLabel(iv.role)} · {t(locale, "team.invited")}</div><div style={{ fontSize: "0.75rem", color: deliveryColour(describeInviteDelivery(iv, locale).tone) }}>{describeInviteDelivery(iv, locale).text}</div></div>
-              <button onClick={() => run(() => resendInvite(iv.id))} disabled={pending} style={rm}>{he ? "שליחה מחדש" : "Resend"}</button>
-              <button onClick={() => run(() => cancelInvite(iv.id))} disabled={pending} style={rm}>{t(locale, "team.cancelInvite")}</button>
+              <button type="button" onClick={() => run(() => resendInvite(iv.id))} disabled={pending} style={rm}>{he ? "שליחה מחדש" : "Resend"}</button>
+              <button type="button" onClick={() => run(() => cancelInvite(iv.id))} disabled={pending} style={rm}>{t(locale, "team.cancelInvite")}</button>
             </div>
           ))}
         </div>
@@ -134,7 +132,7 @@ function CapabilityEditor({ locale, memberId, role, initial, onSaved }: { locale
     { key: "manageSettings", en: "Business settings", he: "הגדרות העסק" }, { key: "manageTeam", en: "Team and permissions", he: "צוות והרשאות" },
   ];
   return <div className="team-capability-editor">
-    <button type="button" className="team-capability-toggle" onClick={() => setOpen((current) => !current)} aria-expanded={open}>{he ? "הרשאות באפליקציה" : "App access"}<span>{open ? "−" : "+"}</span></button>
+    <button type="button" className="team-capability-toggle" onClick={() => setOpen((current) => !current)} aria-expanded={open}>{he ? "הרשאות באפליקציה" : "App access"}<span aria-hidden="true">{open ? "−" : "+"}</span></button>
     {open && <div className="team-capability-panel">
       <p>{he ? "בחרו בדיוק מה העובד יכול לראות ולעשות." : "Choose exactly what this team member can see and do."}</p>
       <div className="team-capability-grid">{options.map((option) => <label key={option.key}><input type="checkbox" checked={values[option.key]} onChange={(event) => { setValues((current) => ({ ...current, [option.key]: event.target.checked })); setMessage(null); }} /><span>{he ? option.he : option.en}</span></label>)}</div>
@@ -168,7 +166,7 @@ function PaymentPermissionEditor({ locale, memberId, initial, onSaved }: { local
 
 function SendBtn({ locale }: { locale: Locale }) {
   const { pending } = useFormStatus();
-  return <button type="submit" disabled={pending} style={{ ...btn, flex: "0 0 auto" }}>{pending ? t(locale, "common.saving") : `➕ ${t(locale, "team.send")}`}</button>;
+  return <button type="submit" disabled={pending} style={{ ...btn, flex: "0 0 auto" }}>{pending ? t(locale, "common.saving") : <><span aria-hidden="true">➕</span> {t(locale, "team.send")}</>}</button>;
 }
 
 const card: React.CSSProperties = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 18, marginBottom: 16, boxShadow: "0 6px 18px rgba(15,42,94,.06)" };

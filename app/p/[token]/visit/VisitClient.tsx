@@ -109,6 +109,7 @@ export default function VisitClient({ token, appointment, locale, accent }: {
             {asking && (
               <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={2}
                 placeholder={he ? "מתי כן יתאים לכם? (לא חובה)" : "When would suit you better? (optional)"}
+                aria-label={he ? "מתי כן יתאים לכם? (לא חובה)" : "When would suit you better? (optional)"}
                 style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: "0.875rem", marginTop: 10 }} />
             )}
 

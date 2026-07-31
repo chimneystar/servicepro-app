@@ -25,9 +25,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="shell" dir={dirFor(locale)}>
+      {/* WCAG 2.4.1. Up to 29 navigation links come before the page content in
+          the DOM, so without this a keyboard user tabs through the entire
+          sidebar on every single screen before reaching anything they came for.
+          Invisible until focused — see `.skip-link` in globals.css. */}
+      <a href="#main-content" className="skip-link">{locale === "he" ? "דילוג לתוכן" : "Skip to content"}</a>
       <Nav role={profile.role} businessName={org?.name ?? "ServicePro"} locale={locale} capabilities={[...capabilitySet]} platformAdmin={platformAdmin} />
       {profile.role !== "tech" && <QuickCreate locale={locale} mobile />}
-      <main className="app-content">
+      <main id="main-content" tabIndex={-1} className="app-content">
         <LocaleProvider locale={locale}>
           <TopBar canManage={profile.role !== "tech"} locale={locale} />
           {children}

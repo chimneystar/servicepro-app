@@ -56,7 +56,7 @@ export default function DispatchBoard({ locale, date, jobs: initialJobs, techs, 
 
   const dayLabel = new Intl.DateTimeFormat(he ? "he-IL" : "en-US", { weekday: "long", month: "long", day: "numeric" }).format(new Date(`${date}T12:00:00`));
   return <div className="dispatch-page">
-    <header className="dispatch-heading"><div><span>{he ? "מרכז שיבוץ" : "Dispatch center"}</span><h1>{dayLabel}</h1><p>{he ? "גררו עבודה לטכנאי, או הוסיפו עוד אנשי צוות לעבודה." : "Drag a job to a technician, or add more team members to the job."}</p></div><form><input type="date" name="date" defaultValue={date} aria-label={he ? "תאריך" : "Date"} /><button>{he ? "מעבר" : "Go"}</button></form></header>
+    <header className="dispatch-heading"><div><span>{he ? "מרכז שיבוץ" : "Dispatch center"}</span><h1>{dayLabel}</h1><p>{he ? "גררו עבודה לטכנאי, או הוסיפו עוד אנשי צוות לעבודה." : "Drag a job to a technician, or add more team members to the job."}</p></div><form><input type="date" name="date" defaultValue={date} aria-label={he ? "תאריך" : "Date"} /><button type="submit">{he ? "מעבר" : "Go"}</button></form></header>
     {notice && <div className="dispatch-notice">{notice}</div>}
     <div className={`dispatch-board ${pending ? "is-saving" : ""}`}>
       {columns.map((column) => {
@@ -69,6 +69,11 @@ export default function DispatchBoard({ locale, date, jobs: initialJobs, techs, 
               <div className="dispatch-time">{(job.start_time ?? "").slice(0,5) || "—"}<small>{job.end_date && job.end_date !== job.scheduled_date ? (he ? "מספר ימים" : "Multi-day") : job.status.replaceAll("_", " ")}</small></div>
               <Link href={`/jobs/${job.id}`}><strong>{job.service}</strong><p>{job.customers?.name || (he ? "לקוח" : "Customer")}{job.job_city ? ` · ${job.job_city}` : ""}</p></Link>
               {extra.length > 0 && <div className="dispatch-assignees">{extra.map((row) => <button type="button" key={row.profile_id!} onClick={() => remove(job.id, row.profile_id!)} title={he ? "הסרה" : "Remove"}>{techs.find((tech) => tech.id === row.profile_id)?.full_name || "?"} ×</button>)}</div>}
+              {/* Reassigning the lead was drag-and-drop ONLY, so the board's
+                  primary action could not be performed from a keyboard at all.
+                  This drives the same `move()` and the same server action — the
+                  drag stays, as the faster way for a mouse. */}
+              <select value={job.assigned_to ?? ""} onChange={(event) => move(job.id, event.target.value || null)} aria-label={he ? `שיוך "${job.service}" לטכנאי` : `Assign "${job.service}" to`}><option value="">{he ? "לא משובצת" : "Unassigned"}</option>{techs.map((tech) => <option key={tech.id} value={tech.id}>{tech.full_name}</option>)}</select>
               <select value="" onChange={(event) => add(job.id, event.target.value)} aria-label={he ? "הוספת טכנאי" : "Add technician"}><option value="">{he ? "+ הוספת טכנאי" : "+ Add technician"}</option>{techs.filter((tech) => tech.id !== job.assigned_to && !extra.some((row) => row.profile_id === tech.id)).map((tech) => <option key={tech.id} value={tech.id}>{tech.full_name}</option>)}</select>
             </article>;
           })}{rows.length === 0 && <div className="dispatch-dropzone">{he ? "אפשר לגרור לכאן עבודה" : "Drop a job here"}</div>}</div>

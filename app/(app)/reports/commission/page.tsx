@@ -82,8 +82,8 @@ export default async function CommissionPage({ searchParams }: { searchParams: P
       <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 12 }}>Payroll based on money actually collected on completed jobs, after costs & fees.</p>
 
       <form method="get" style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "end" }}>
-        <div><label style={lbl}>From</label><input type="date" name="from" defaultValue={from} style={inp} /></div>
-        <div><label style={lbl}>To</label><input type="date" name="to" defaultValue={to} style={inp} /></div>
+        <div><label style={{ display: "block" }}><span style={lbl}>From</span><input type="date" name="from" defaultValue={from} style={inp} /></label></div>
+        <div><label style={{ display: "block" }}><span style={lbl}>To</span><input type="date" name="to" defaultValue={to} style={inp} /></label></div>
         <button type="submit" style={{ background: "#eef2f8", color: "#2563eb", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" }}>Apply</button>
       </form>
 

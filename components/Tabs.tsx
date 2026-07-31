@@ -8,7 +8,7 @@ export default function Tabs({ tabs }: { tabs: { label: string; badge?: string; 
     <div>
       <div className="scroll-x" style={{ display: "flex", gap: 2, borderBottom: "1px solid #e2e8f0", marginBottom: 18 }}>
         {tabs.map((t, idx) => (
-          <button key={idx} onClick={() => setI(idx)}
+          <button type="button" key={idx} onClick={() => setI(idx)}
             style={{
               border: "none", background: "transparent", padding: "10px 14px 12px", cursor: "pointer",
               fontSize: "0.875rem", fontWeight: 700, whiteSpace: "nowrap",

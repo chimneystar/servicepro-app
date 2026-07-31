@@ -55,7 +55,7 @@ export default async function ReportSchedulePage() {
       <ActionForm action={createReportSchedule} successLabel="Report scheduled" className="ops-form">
         <div style={{ display: "grid", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, marginBottom: 18 }}>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <input name="name" placeholder="Name (e.g. Weekly summary)" maxLength={80} style={input} />
+            <input name="name" placeholder="Name (e.g. Weekly summary)" aria-label="Name (e.g. Weekly summary)" maxLength={80} style={input} />
             <select name="frequency" defaultValue="weekly" style={input} aria-label="How often">
               <option value="daily">Daily (yesterday)</option>
               <option value="weekly">Weekly (last 7 days)</option>

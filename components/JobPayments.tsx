@@ -65,22 +65,24 @@ export default function JobPayments({ jobId, invoices, currency, canRecord }: { 
                   ))}
                 </div>
               )}
-              {canRecord && bal > 0 && openId !== inv.id && <button onClick={() => { setOpenId(inv.id); setMethod("Cash"); setErr(null); }} style={{ ...btn, marginTop: 10 }}>➕ Record payment</button>}
+              {canRecord && bal > 0 && openId !== inv.id && <button type="button" onClick={() => { setOpenId(inv.id); setMethod("Cash"); setErr(null); }} style={{ ...btn, marginTop: 10 }}><span aria-hidden="true">➕</span> Record payment</button>}
               {openId === inv.id && (
                 <form action={(fd) => submit(inv.id, fd)} style={{ marginTop: 10, borderTop: "1px solid #eef1f6", paddingTop: 10 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                    <div><label style={lbl}>Amount</label><input name="amount" type="number" step="0.01" defaultValue={(bal / 100).toFixed(2)} style={inp} /></div>
-                    <div><label style={lbl}>Method</label><select name="method" value={method} onChange={(e) => setMethod(e.target.value)} style={inp}>{METHODS.map((m) => <option key={m}>{m}</option>)}</select></div>
+                    <label style={{ display: "block" }}><span style={lbl}>Amount</span><input name="amount" type="number" step="0.01" defaultValue={(bal / 100).toFixed(2)} style={inp} /></label>
+                    <label style={{ display: "block" }}><span style={lbl}>Method</span><select name="method" value={method} onChange={(e) => setMethod(e.target.value)} style={inp}>{METHODS.map((m) => <option key={m}>{m}</option>)}</select></label>
                   </div>
                   {NEEDS_REF.includes(method) && (
                     <div style={{ marginTop: 8 }}>
-                      <label style={lbl}>{REF_LABEL[method]}</label>
-                      <input name="reference" style={inp} placeholder={`Enter ${method.toLowerCase()} reference`} />
+                      <label style={{ display: "block" }}>
+                        <span style={lbl}>{REF_LABEL[method]}</span>
+                        <input name="reference" style={inp} placeholder={`Enter ${method.toLowerCase()} reference`} />
+                      </label>
                     </div>
                   )}
                   {err && <div style={errBox}>{err}</div>}
                   <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                    <button type="submit" disabled={pending} style={btn}>{pending ? "Saving…" : "💾 Save payment"}</button>
+                    <button type="submit" disabled={pending} style={btn}>{pending ? "Saving…" : <><span aria-hidden="true">💾</span> Save payment</>}</button>
                     <button type="button" onClick={() => setOpenId(null)} style={{ ...btn, background: "#e2e9f4", color: "#2563eb" }}>Cancel</button>
                   </div>
                 </form>

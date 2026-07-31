@@ -46,8 +46,8 @@ export default function LeadsBoard({ leads, orgId }: { leads: Lead[]; orgId: str
         <div style={{ fontWeight: 800, fontSize: "0.9375rem", marginBottom: 4 }}>🔗 Your online booking link</div>
         <div style={{ fontSize: "0.8125rem", opacity: .85, marginBottom: 10 }}>Share this so clients can request appointments. Each request shows up here as a lead.</div>
         <div style={{ display: "flex", gap: 8 }}>
-          <input readOnly value={typeof window !== "undefined" ? bookingLink() : ""} style={{ flex: 1, border: "none", borderRadius: 9, padding: "9px 11px", fontSize: "0.8125rem", color: "#0b1524" }} />
-          <button onClick={copyLink} style={{ background: "#fff", color: "#2563eb", border: "none", borderRadius: 9, padding: "9px 14px", fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>{copied ? "✓ Copied" : "Copy"}</button>
+          <input readOnly aria-label="Your online booking link" value={typeof window !== "undefined" ? bookingLink() : ""} style={{ flex: 1, border: "none", borderRadius: 9, padding: "9px 11px", fontSize: "0.8125rem", color: "#0b1524" }} />
+          <button type="button" onClick={copyLink} style={{ background: "#fff", color: "#2563eb", border: "none", borderRadius: 9, padding: "9px 14px", fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>{copied ? "✓ Copied" : "Copy"}</button>
         </div>
       </div>
 
@@ -80,11 +80,11 @@ export default function LeadsBoard({ leads, orgId }: { leads: Lead[]; orgId: str
                 {l.email && <a href={"mailto:" + l.email} style={clink}>✉️ Email</a>}
               </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                <select value={l.status} onChange={(e) => setStatus(l.id, e.target.value)} disabled={pending} style={sel}>
+                <select value={l.status} onChange={(e) => setStatus(l.id, e.target.value)} disabled={pending} style={sel} aria-label={`Status for ${l.name}`}>
                   {STATUSES.map(([s, label]) => <option key={s} value={s}>{label}</option>)}
                 </select>
-                {l.status !== "won" && <button onClick={() => convert(l)} disabled={pending} style={{ ...btn, background: "#e6f6ec", color: "#15803d" }}>➕ Add as customer</button>}
-                <button onClick={() => remove(l.id)} disabled={pending} style={{ ...btn, background: "#fdeaea", color: "#dc2626" }}>🗑️</button>
+                {l.status !== "won" && <button type="button" onClick={() => convert(l)} disabled={pending} style={{ ...btn, background: "#e6f6ec", color: "#15803d" }}>➕ Add as customer</button>}
+                <button type="button" onClick={() => remove(l.id)} disabled={pending} aria-label={`Delete ${l.name}`} style={{ ...btn, background: "#fdeaea", color: "#dc2626" }}>🗑️</button>
               </div>
             </div>
           );
@@ -97,7 +97,7 @@ export default function LeadsBoard({ leads, orgId }: { leads: Lead[]; orgId: str
 
 function Tab({ k, label, filter, setFilter }: { k: string; label: string; filter: string; setFilter: (s: string) => void }) {
   const on = filter === k;
-  return <button onClick={() => setFilter(k)} style={{ border: "none", borderRadius: 9, padding: "7px 12px", fontWeight: 700, fontSize: "0.8125rem", whiteSpace: "nowrap", cursor: "pointer", background: on ? "#2563eb" : "#eef2f8", color: on ? "#fff" : "#5c6675" }}>{label}</button>;
+  return <button type="button" onClick={() => setFilter(k)} style={{ border: "none", borderRadius: 9, padding: "7px 12px", fontWeight: 700, fontSize: "0.8125rem", whiteSpace: "nowrap", cursor: "pointer", background: on ? "#2563eb" : "#eef2f8", color: on ? "#fff" : "#5c6675" }}>{label}</button>;
 }
 const clink: React.CSSProperties = { color: "#2563eb", textDecoration: "none", fontWeight: 700, fontSize: "0.8125rem" };
 const btn: React.CSSProperties = { border: "none", borderRadius: 9, padding: "8px 12px", fontWeight: 700, fontSize: "0.8125rem", cursor: "pointer" };

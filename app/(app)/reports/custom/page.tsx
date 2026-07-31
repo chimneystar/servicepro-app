@@ -71,10 +71,10 @@ export default async function CustomReportPage({ searchParams }: { searchParams:
       {/* Builder */}
       <form method="get" className="no-print" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16, marginBottom: 18, boxShadow: "0 6px 18px rgba(15,42,94,.06)" }}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-          <div><label style={lbl}>From</label><input type="date" name="from" defaultValue={from} style={inp} /></div>
-          <div><label style={lbl}>To</label><input type="date" name="to" defaultValue={to} style={inp} /></div>
+          <div><label style={{ display: "block" }}><span style={lbl}>From</span><input type="date" name="from" defaultValue={from} style={inp} /></label></div>
+          <div><label style={{ display: "block" }}><span style={lbl}>To</span><input type="date" name="to" defaultValue={to} style={inp} /></label></div>
         </div>
-        <label style={lbl}>Include sections</label>
+        <div style={lbl}>Include sections</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, margin: "6px 0 12px" }}>
           {ALL.map(([k, label]) => (
             <label key={k} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.875rem" }}>

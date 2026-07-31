@@ -30,6 +30,11 @@
   --shadow: 0 8px 28px rgba(17, 32, 64, .07);
   --shadow-lg: 0 24px 70px rgba(17, 32, 64, .16);
   --ease: cubic-bezier(.2, .8, .2, 1);
+  /* Keyboard focus ring. Opaque on purpose: the previous ring was
+     rgba(43,102,246,.28), which over a white card is a ~15% wash and is not
+     visible on a laptop screen in daylight. */
+  --focus-ring: #1246d8;
+  --focus-ring-halo: rgba(43, 102, 246, .28);
 }
 
 html[data-theme="dark"] {
@@ -54,6 +59,8 @@ html[data-theme="dark"] {
   --coral-soft: #3c1d24;
   --shadow: 0 10px 30px rgba(0,0,0,.2);
   --shadow-lg: 0 28px 75px rgba(0,0,0,.4);
+  --focus-ring: #8fb2ff;
+  --focus-ring-halo: rgba(143, 178, 255, .34);
 }
 @media (prefers-color-scheme: dark) {
   html[data-theme="system"] {
@@ -63,6 +70,7 @@ html[data-theme="dark"] {
     --accent: #5f8cff; --accent-dark: #7aa0ff; --accent-soft: #182b50;
     --mint: #f8c928; --mint-dark: #ffdf66; --mint-soft: #3b3212; --amber-soft: #3c2b13; --gold-soft: #382f12; --coral-soft: #3c1d24;
     --shadow: 0 10px 30px rgba(0,0,0,.2); --shadow-lg: 0 28px 75px rgba(0,0,0,.4);
+    --focus-ring: #8fb2ff; --focus-ring-halo: rgba(143, 178, 255, .34);
   }
 }
 html[data-contrast="high"] { --muted: var(--ink-soft); --line: color-mix(in srgb,var(--ink) 48%,transparent); }
@@ -125,14 +133,29 @@ input, select, textarea {
 }
 input:focus, select:focus, textarea:focus {
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 4px rgba(43, 102, 246, .11) !important;
-  outline: none;
+  box-shadow: 0 0 0 4px var(--focus-ring-halo) !important;
 }
 button, a { -webkit-tap-highlight-color: transparent; transition: transform .12s var(--ease), box-shadow .18s var(--ease), background-color .18s ease, color .18s ease, opacity .18s ease; }
 button { cursor: pointer; }
 button:not(:disabled):active { transform: translateY(1px) scale(.995); }
 button:disabled { cursor: not-allowed; opacity: .58; }
-:focus-visible { outline: 3px solid rgba(43, 102, 246, .28); outline-offset: 3px; }
+/* KEYBOARD FOCUS.
+   `!important` is not decoration here: ~60 inline style objects across the app
+   set `outline: "none"` on their inputs, and an inline style beats a stylesheet.
+   Without it the ring below is silently discarded on the primary input style,
+   which is exactly the defect being fixed. `outline` (not only box-shadow) is
+   used because Windows forced-colours mode drops box-shadow entirely. */
+:focus-visible {
+  outline: 3px solid var(--focus-ring) !important;
+  outline-offset: 2px !important;
+}
+/* The sidebar is dark; the light-mode ring would disappear into it. */
+.desk-side :focus-visible, .mobile-top :focus-visible, .mobile-tabs :focus-visible {
+  outline-color: #ffffff !important;
+}
+@media (forced-colors: active) {
+  :focus-visible { outline: 3px solid Highlight !important; }
+}
 ::selection { background: rgba(43, 102, 246, .18); }
 
 * { scrollbar-width: thin; scrollbar-color: #c3cee0 transparent; }
@@ -141,6 +164,24 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 
 /* Application shell */
 .shell { min-height: 100vh; padding-inline-start: 246px; }
+/* Skip link — see app/(app)/layout.tsx. Off-screen until it takes focus, then
+   it is the first thing on the page. Logical insets so RTL parks it correctly. */
+.skip-link {
+  position: fixed;
+  inset-block-start: 8px;
+  inset-inline-start: 8px;
+  z-index: 400;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-160%);
+}
+.skip-link:focus, .skip-link:focus-visible { transform: none; }
+main:focus { outline: none; }
 .app-content {
   flex: 1;
   min-width: 0;
@@ -156,7 +197,12 @@ button:disabled { cursor: not-allowed; opacity: .58; }
   width: 246px;
   flex: 0 0 246px;
   height: 100dvh;
+  max-height: 100dvh;
   min-height: 0;
+  /* Nothing may spill past the viewport: the only region allowed to overflow is
+     .side-nav, which scrolls. Without this the Tools group pushed the utilities
+     and the sign-out button below the fold (audit A3). */
+  overflow: hidden;
   position: fixed;
   inset-block: 0;
   inset-inline-start: 0;
@@ -174,7 +220,45 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .brand-copy { min-width: 0; display: grid; }
 .brand-copy strong { overflow: hidden; color: #fff; font-size: 0.9375rem; text-overflow: ellipsis; white-space: nowrap; }
 .brand-copy small { margin-top: 2px; color: #91a2c3; font-size: 0.8125rem; }
-.side-nav { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 13px 12px; }
+/* The scroll port and its cue — see components/SideNavScroller.tsx. */
+.side-nav-wrap { position: relative; flex: 1 1 auto; min-height: 0; display: flex; }
+.side-nav-fade {
+  position: absolute;
+  /* Logical, so RTL puts the gutter gap on the correct side. */
+  inset-inline-start: 0;
+  inset-inline-end: 10px;
+  height: 30px;
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s ease;
+}
+.side-nav-fade-top { top: 0; background: linear-gradient(to bottom, #101a2e 12%, rgba(16, 26, 46, 0)); }
+.side-nav-fade-bottom { bottom: 0; background: linear-gradient(to top, #101a2e 24%, rgba(16, 26, 46, 0)); }
+.side-nav-wrap.can-scroll-up .side-nav-fade-top,
+.side-nav-wrap.can-scroll-down .side-nav-fade-bottom { opacity: 1; }
+.side-nav-inner { display: flex; flex-direction: column; }
+
+.side-nav {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 13px 12px;
+  /* AUDIT A3 — the scroll affordance. The list has always been scrollable, but
+     macOS/iOS draw OVERLAY scrollbars that are invisible until something
+     scrolls, so expanding Tools looked like eleven destinations had simply
+     vanished. Declaring scrollbar-color / ::-webkit-scrollbar opts this one
+     element out of overlay scrollbars, and scrollbar-gutter keeps the track
+     drawn so the sidebar does not reflow when the group opens. */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, .34) rgba(255, 255, 255, .06);
+  scrollbar-gutter: stable;
+}
+.side-nav::-webkit-scrollbar { width: 10px; }
+.side-nav::-webkit-scrollbar-track { background: rgba(255, 255, 255, .06); }
+.side-nav::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 8px; background: rgba(255, 255, 255, .34); background-clip: content-box; }
+.side-nav::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, .5); background-clip: content-box; }
 .side-link, .tools-trigger, .tool-link {
   position: relative;
   width: 100%;
@@ -207,9 +291,65 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 .side-appearance { min-height:40px; display:flex; align-items:center; justify-content:center; gap:8px; margin:0 13px; border-radius:11px; color:#c2cee4; font-size:0.75rem; font-weight:750; text-decoration:none; }
 .side-appearance:hover { background:rgba(255,255,255,.07); color:#fff; }
 .side-appearance svg { width:17px; height:17px; color:var(--mint); }
-.side-footer { padding: 13px; border-top: 1px solid rgba(255,255,255,.08); }
+.side-footer { flex: 0 0 auto; padding: 13px; border-top: 1px solid rgba(255,255,255,.08); }
 .sign-out-btn { width: 100%; min-height: 42px; border: 0; border-radius: 12px; background: rgba(255,255,255,.07); color: #dce5f7; font-weight: 700; }
 .sign-out-btn:hover { background: rgba(255,255,255,.12); color: #fff; }
+
+/* A laptop is 700-820px tall, not 1080. At that height 29 navigation rows at
+   full desktop spacing need 1245px of a ~576px well. Tightening the SPACING
+   (not the type — the type scale is owned elsewhere) buys back ~190px, and what
+   is still over the edge now scrolls with a visible bar. */
+@media (max-height: 900px) {
+  .side-brand { min-height: 62px; padding: 10px 18px; }
+  .brand-mark { width: 36px; height: 36px; }
+  .side-nav { padding: 8px 10px; }
+  .side-link, .tools-trigger { min-height: 38px; }
+  .tool-link { min-height: 34px; }
+  .side-appearance { min-height: 34px; }
+  .side-locale { padding: 5px 14px; }
+  .side-footer { padding: 9px; }
+  .sign-out-btn { min-height: 36px; }
+}
+/* 1280x700 and 1366x768 are the two commonest laptop screens in the field. */
+@media (max-height: 780px) {
+  .side-brand { min-height: 54px; padding: 7px 16px; }
+  .brand-mark { width: 32px; height: 32px; }
+  .side-nav { padding: 6px 9px; }
+  .side-link, .tools-trigger { min-height: 34px; }
+  .tool-link { min-height: 30px; }
+  .side-appearance { min-height: 32px; }
+  .side-locale { padding: 3px 14px; }
+  .side-footer { padding: 7px; }
+  .sign-out-btn { min-height: 34px; }
+}
+
+/* Dialogs — see components/Modal.tsx. These two rules replace thirteen
+   byte-identical inline `overlay` / `modal` style objects. */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px;
+  overflow-y: auto;
+  background: rgba(15, 30, 61, .5);
+}
+.modal-surface {
+  width: 100%;
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  padding: 22px;
+  border-radius: 18px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-lg);
+}
+@media (max-width: 640px) {
+  .modal-overlay { padding: 12px; align-items: flex-end; }
+  .modal-surface { max-height: calc(100dvh - 24px); }
+}
 
 /* Public account entry */
 .auth-page { min-height: 100dvh; display: grid; grid-template-columns: minmax(390px,.93fr) minmax(520px,1.07fr); background: #fff; }

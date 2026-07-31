@@ -82,8 +82,8 @@ export default function DocList({ rows, locale, currency, kind, emptyKey, status
       )}
       {rows.length > 0 && (
         <div style={{ position: "relative" }}>
-          <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}>🔍</span>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by number, customer, or status…" style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 12, padding: "11px 38px", fontSize: "1rem", outline: "none" }} />
+          <span aria-hidden="true" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}>🔍</span>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by number, customer, or status…" aria-label="Search by number, customer, or status…" style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 12, padding: "11px 38px", fontSize: "1rem", outline: "none" }} />
         </div>
       )}
       {visible.map((r) => {
@@ -103,11 +103,11 @@ export default function DocList({ rows, locale, currency, kind, emptyKey, status
               </div>
             </Link>
             <div style={{ display: "flex", gap: 8, width: "100%", marginTop: 8, flexWrap: "wrap" }}>
-              {!r.voided_at && <button onClick={() => { setShare({ kind, number: r.number, token: r.public_token, customerName: r.customer_name, customerEmail: r.customer_email ?? null, customerPhone: r.customer_phone ?? null, orgName }); recordSent(r); }} style={{ ...actBtn, background: "#2563eb", color: "#fff" }}>📤 Send</button>}
-              {!r.voided_at && <button onClick={() => copyLink(r)} style={actBtn}>{copied === r.public_token ? t(locale, "doc.copied") : `🔗 ${t(locale, "doc.link")}`}</button>}
-              {kind === "estimate" && !r.voided_at && <button onClick={() => convert(r)} disabled={pending} style={{ ...actBtn, background: "#e6f6ec", color: "#15803d" }}>🧾 {t(locale, "doc.to_invoice")}</button>}
-              {kind === "invoice" && r.status === "unpaid" && !r.voided_at && <button onClick={() => togglePaid(r.id, true)} disabled={pending} style={{ ...actBtn, background: "#e6f6ec", color: "#15803d" }}>✓ Mark paid</button>}
-              {kind === "invoice" && r.status === "paid" && <button onClick={() => togglePaid(r.id, false)} disabled={pending} style={actBtn}>↩ Mark due</button>}
+              {!r.voided_at && <button type="button" onClick={() => { setShare({ kind, number: r.number, token: r.public_token, customerName: r.customer_name, customerEmail: r.customer_email ?? null, customerPhone: r.customer_phone ?? null, orgName }); recordSent(r); }} style={{ ...actBtn, background: "#2563eb", color: "#fff" }}><span aria-hidden="true">📤</span> Send</button>}
+              {!r.voided_at && <button type="button" onClick={() => copyLink(r)} style={actBtn}>{copied === r.public_token ? t(locale, "doc.copied") : <><span aria-hidden="true">🔗</span> {t(locale, "doc.link")}</>}</button>}
+              {kind === "estimate" && !r.voided_at && <button type="button" onClick={() => convert(r)} disabled={pending} style={{ ...actBtn, background: "#e6f6ec", color: "#15803d" }}><span aria-hidden="true">🧾</span> {t(locale, "doc.to_invoice")}</button>}
+              {kind === "invoice" && r.status === "unpaid" && !r.voided_at && <button type="button" onClick={() => togglePaid(r.id, true)} disabled={pending} style={{ ...actBtn, background: "#e6f6ec", color: "#15803d" }}><span aria-hidden="true">✓</span> Mark paid</button>}
+              {kind === "invoice" && r.status === "paid" && <button type="button" onClick={() => togglePaid(r.id, false)} disabled={pending} style={actBtn}><span aria-hidden="true">↩</span> Mark due</button>}
             </div>
           </div>
         );

@@ -53,8 +53,8 @@ export default function AddressAutocomplete({ value, city, onChange, onCity, add
 
   return (
     <div>
-      <input ref={ref} name={addressName} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} autoComplete="off" style={inp} />
-      <input name={cityName} value={city} onChange={(e) => onCity(e.target.value)} placeholder="City" style={{ ...inp, marginTop: 8 }} />
+      <input ref={ref} name={addressName} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} aria-label={placeholder} autoComplete="off" style={inp} />
+      <input name={cityName} value={city} onChange={(e) => onCity(e.target.value)} placeholder="City" aria-label="City" style={{ ...inp, marginTop: 8 }} />
       {key && ready && <div style={{ fontSize: "0.8125rem", color: "#94a3b8", marginTop: 4 }}>📍 Powered by Google — pick a suggestion to auto-fill.</div>}
     </div>
   );

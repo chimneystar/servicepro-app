@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useId, useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { setOnMyWay, clockIn, clockOut, completeJob } from "@/app/(app)/jobs/[id]/actions";
 import { ActionError, useActionStatus } from "@/components/ActionStatus";
+import Modal from "@/components/Modal";
 
 export default function JobFieldTools({ jobId, onMyWayAt, startedAt, completedAt, clockedIn, totalMinutes, signedBy }: {
   jobId: string; onMyWayAt: string | null; startedAt: string | null; completedAt: string | null;
@@ -24,12 +25,12 @@ export default function JobFieldTools({ jobId, onMyWayAt, startedAt, completedAt
       <div style={{ fontWeight: 800, fontSize: "0.875rem", marginBottom: 10 }}>🚚 Field tools</div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
-        <button onClick={() => run(() => setOnMyWay(jobId))} disabled={pending || done} style={{ ...b, background: onMyWayAt ? "#1e40af" : "#2563eb" }}>
+        <button type="button" onClick={() => run(() => setOnMyWay(jobId))} disabled={pending || done} style={{ ...b, background: onMyWayAt ? "#1e40af" : "#2563eb" }}>
           {onMyWayAt ? `✓ On the way ${fmtTime(onMyWayAt)}` : "🚗 On my way"}
         </button>
         {!clockedIn
-          ? <button onClick={() => run(() => clockIn(jobId))} disabled={pending || done} style={{ ...b, background: "#15803d" }}>▶️ Clock in</button>
-          : <button onClick={() => run(() => clockOut(jobId))} disabled={pending} style={{ ...b, background: "#b45309" }}>⏸️ Clock out</button>}
+          ? <button type="button" onClick={() => run(() => clockIn(jobId))} disabled={pending || done} style={{ ...b, background: "#15803d" }}>▶️ Clock in</button>
+          : <button type="button" onClick={() => run(() => clockOut(jobId))} disabled={pending} style={{ ...b, background: "#b45309" }}>⏸️ Clock out</button>}
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem", opacity: .9, marginBottom: 10 }}>
@@ -38,7 +39,7 @@ export default function JobFieldTools({ jobId, onMyWayAt, startedAt, completedAt
       </div>
 
       {!done
-        ? <button onClick={() => setSignOpen(true)} disabled={pending} style={{ ...b, width: "100%", background: "#fff", color: "#15803d" }}>✅ Complete job {startedAt ? "" : ""}</button>
+        ? <button type="button" onClick={() => setSignOpen(true)} disabled={pending} style={{ ...b, width: "100%", background: "#fff", color: "#15803d" }}>✅ Complete job {startedAt ? "" : ""}</button>
         : <div style={{ background: "rgba(255,255,255,.12)", borderRadius: 10, padding: "10px 12px", fontSize: "0.8125rem" }}>✓ Completed {fmtTime(completedAt)}{signedBy ? ` · signed by ${signedBy}` : ""}</div>}
 
       <ActionError error={error} />
@@ -52,6 +53,7 @@ function SignModal({ jobId, onClose }: { jobId: string; onClose: () => void }) {
   const router = useRouter();
   const { pending, error, run } = useActionStatus();
   const [name, setName] = useState("");
+  const titleId = useId();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawing = useRef(false);
   const hasInk = useRef(false);
@@ -80,30 +82,29 @@ function SignModal({ jobId, onClose }: { jobId: string; onClose: () => void }) {
   }
 
   return (
-    <div style={overlay} onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div style={modal}>
-        <h3 style={{ fontSize: "1.125rem", fontWeight: 800, marginBottom: 4, color: "#0b1524" }}>Complete job</h3>
-        <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 12 }}>Have the customer sign to confirm the work is done (optional).</p>
-        <label style={lbl}>Customer name</label>
+    <Modal onClose={onClose} labelledBy={titleId} width={560}>
+      <h3 id={titleId} style={{ fontSize: "1.125rem", fontWeight: 800, marginBottom: 4, color: "#0b1524" }}>Complete job</h3>
+      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 12 }}>Have the customer sign to confirm the work is done (optional).</p>
+      <label style={{ display: "block" }}>
+        <span style={lbl}>Customer name</span>
         <input value={name} onChange={(e) => setName(e.target.value)} style={inp} placeholder="Name" />
-        <label style={{ ...lbl, marginTop: 10 }}>Signature</label>
-        <canvas ref={canvasRef} width={520} height={180}
-          onMouseDown={down} onMouseMove={move} onMouseUp={up} onMouseLeave={up}
-          onTouchStart={down} onTouchMove={move} onTouchEnd={up}
-          style={{ width: "100%", height: 160, border: "1px dashed #b9c8e6", borderRadius: 12, background: "#f8fbff", touchAction: "none" }} />
-        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-          <button onClick={save} disabled={pending} style={{ ...b, background: "#15803d", color: "#fff", flex: 1 }}>{pending ? "Saving…" : "✅ Mark complete"}</button>
-          <button onClick={clear} type="button" style={{ ...b, background: "#eef2f8", color: "#2563eb" }}>Clear</button>
-          <button onClick={onClose} type="button" style={{ ...b, background: "#e2e9f4", color: "#2563eb" }}>Cancel</button>
-        </div>
-        <ActionError error={error} />
+      </label>
+      <div style={{ ...lbl, marginTop: 10 }} id={`${titleId}-sig`}>Signature</div>
+      <canvas ref={canvasRef} width={520} height={180}
+        onMouseDown={down} onMouseMove={move} onMouseUp={up} onMouseLeave={up}
+        onTouchStart={down} onTouchMove={move} onTouchEnd={up}
+        role="img" aria-labelledby={`${titleId}-sig`}
+        style={{ width: "100%", height: 160, border: "1px dashed #b9c8e6", borderRadius: 12, background: "#f8fbff", touchAction: "none" }} />
+      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+        <button type="button" onClick={save} disabled={pending} style={{ ...b, background: "#15803d", color: "#fff", flex: 1 }}>{pending ? "Saving…" : "✅ Mark complete"}</button>
+        <button onClick={clear} type="button" style={{ ...b, background: "#eef2f8", color: "#2563eb" }}>Clear</button>
+        <button onClick={onClose} type="button" style={{ ...b, background: "#e2e9f4", color: "#2563eb" }}>Cancel</button>
       </div>
-    </div>
+      <ActionError error={error} />
+    </Modal>
   );
 }
 
 const b: React.CSSProperties = { border: "none", borderRadius: 10, padding: "11px 12px", fontWeight: 700, fontSize: "0.875rem", color: "#fff", cursor: "pointer" };
-const overlay: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,30,61,.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 24, zIndex: 120, overflowY: "auto" };
-const modal: React.CSSProperties = { background: "#fff", borderRadius: 18, width: "100%", maxWidth: 560, padding: 22 };
 const lbl: React.CSSProperties = { fontSize: "0.8125rem", fontWeight: 700, color: "#334155", display: "block", marginBottom: 6 };
 const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "11px 12px", fontSize: "1rem", outline: "none" };

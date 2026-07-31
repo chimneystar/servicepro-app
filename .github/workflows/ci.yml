@@ -41,6 +41,13 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # `tests/nav-reachability.test.mjs` measures the sidebar in a real browser
+      # — audit A3 is a layout defect and reading CSS cannot prove it fixed. The
+      # probe FAILS rather than skips when the browser is missing, so this step
+      # is what keeps it from being a permanently-skipped test.
+      - name: Install Chromium (layout probes)
+        run: npx playwright install --with-deps chromium
+
       - name: Unit tests
         run: npm test
 

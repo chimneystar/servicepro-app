@@ -85,14 +85,14 @@ export default function Calendar({ jobs, he = false, typeColors = {}, rangeFrom 
     <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, boxShadow: "0 6px 18px rgba(15,42,94,.06)", overflow: "hidden" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #eef1f6", flexWrap: "wrap", gap: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button onClick={() => setCursor(new Date())} style={btnGhost}>{he ? "היום" : "Today"}</button>
-          <button onClick={() => move(-1)} style={navBtn}>‹</button>
-          <button onClick={() => move(1)} style={navBtn}>›</button>
+          <button type="button" onClick={() => setCursor(new Date())} style={btnGhost}>{he ? "היום" : "Today"}</button>
+          <button type="button" onClick={() => move(-1)} aria-label={he ? "הקודם" : "Previous"} style={navBtn}>‹</button>
+          <button type="button" onClick={() => move(1)} aria-label={he ? "הבא" : "Next"} style={navBtn}>›</button>
           <b style={{ fontSize: "1rem", marginInlineStart: 6 }}>{label}</b>
         </div>
         <div style={{ display: "flex", background: "#eef2f8", borderRadius: 10, padding: 3 }}>
           {(["day", "week", "month"] as const).map((v) => (
-            <button key={v} onClick={() => setView(v)} style={{ ...seg, ...(view === v ? segOn : {}) }}>{he ? ({ day: "יום", week: "שבוע", month: "חודש" }[v]) : cap(v)}</button>
+            <button key={v} type="button" onClick={() => setView(v)} style={{ ...seg, ...(view === v ? segOn : {}) }}>{he ? ({ day: "יום", week: "שבוע", month: "חודש" }[v]) : cap(v)}</button>
           ))}
         </div>
       </div>
