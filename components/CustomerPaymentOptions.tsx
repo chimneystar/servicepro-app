@@ -2,8 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { Locale } from "@/lib/i18n";
-import type { PublicPaymentOptions } from "@/lib/payments/types";
+import type { PublicPaymentOptions, PublicTipOptions } from "@/lib/payments/types";
 import { money } from "@/lib/format";
+// @ts-ignore — pure logic, proven both ways in tests/tips.test.mjs
+import { sanitizeTipPercents, tipMinorFromPercent } from "@/lib/core/tips.mjs";
+// @ts-ignore — money is integer minor units; proven both ways in tests/money.test.mjs
+import { parseAmountToMinor } from "@/lib/core/money.mjs";
 
 declare global {
   interface Window {
@@ -15,9 +19,17 @@ declare global {
 type Method = "helcim" | "zelle" | "check";
 type FlowState = "idle" | "starting" | "processing" | "processing_ach" | "paid" | "manual_pending" | "error";
 
-export default function CustomerPaymentOptions({ token, locale, options, accent }: { token: string; locale: Locale; options: PublicPaymentOptions; accent: string }) {
+export default function CustomerPaymentOptions({ token, locale, options, accent, tips }: { token: string; locale: Locale; options: PublicPaymentOptions; accent: string; tips?: PublicTipOptions | null }) {
   const he = locale === "he";
   const [signed, setSigned] = useState(!!options.signed);
+  // Tips: `payment_settings.tips_enabled` and `suggested_tip_percents` were
+  // stored and editable, `payments.tip_minor` was read when a receipt rendered,
+  // and no customer was ever offered a tip. The control below is where a tip
+  // now starts. It is charged on top of the balance and never reduces it.
+  const tipsEnabled = !!tips?.enabled;
+  const tipPercents = useMemo<number[]>(() => tipsEnabled ? sanitizeTipPercents(tips?.percents) : [], [tipsEnabled, tips?.percents]);
+  const [tipChoice, setTipChoice] = useState<number | "custom" | null>(null);
+  const [tipAmount, setTipAmount] = useState("");
   const paymentMethods = options.methods ?? { helcim: false, card: false, ach: false, zelle: false, check: false };
   const methods = useMemo(() => ([
     paymentMethods.helcim ? "helcim" as const : null,
@@ -41,6 +53,10 @@ export default function CustomerPaymentOptions({ token, locale, options, accent 
   }
   if (!options.available || methods.length === 0 || !options.amount_minor) return null;
   const amount = money(options.amount_minor, options.currency ?? "USD");
+  const currency = options.currency ?? "USD";
+  const balanceMinor = Number(options.amount_minor);
+  const tipMinor = previewTipMinor(balanceMinor, tipChoice, tipAmount);
+  const chargedMinor = balanceMinor + tipMinor;
   const onlineMethodLabel = paymentMethods.card && paymentMethods.ach
     ? (he ? "כרטיס או ACH" : "Card or ACH")
     : paymentMethods.card ? (he ? "כרטיס אשראי" : "Credit card") : "ACH";
@@ -49,7 +65,18 @@ export default function CustomerPaymentOptions({ token, locale, options, accent 
     setState("starting"); setError(null);
     try {
       await loadHelcimScript();
-      const response = await fetch("/api/pay/helcim/initialize", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token }) });
+      const response = await fetch("/api/pay/helcim/initialize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // The tip is sent as the CHOICE, not as a computed total: the server
+        // recomputes it from the real balance, so a customer cannot edit the
+        // amount the card is charged.
+        body: JSON.stringify({
+          token,
+          tipPercent: typeof tipChoice === "number" ? tipChoice : null,
+          tipAmount: tipChoice === "custom" ? tipAmount : null,
+        }),
+      });
       const data = await response.json();
       if (!response.ok || !data.ok) throw new Error(`customer:${customerPaymentError(data.code, he)}`);
 
@@ -112,7 +139,24 @@ export default function CustomerPaymentOptions({ token, locale, options, accent 
         {methods.map((item) => <button type="button" role="tab" aria-selected={method === item} className={method === item ? "active" : ""} onClick={() => { setMethod(item); setError(null); }} key={item}>{item === "helcim" ? onlineMethodLabel : item === "zelle" ? "Zelle" : (he ? "צ׳ק בדואר" : "Mail a check")}</button>)}
       </div>
 
-      {method === "helcim" && <div className="customer-payment-method-body pop-in"><div className="customer-pay-explainer"><span>H</span><div><strong>{he ? "תשלום מאובטח דרך Helcim" : "Secure payment through Helcim"}</strong><small>{options.fee_saver ? (he ? "עמלת כרטיס זכאית תוצג לפני האישור. תשלום ACH ללא עמלת כרטיס." : "Any eligible card fee appears before confirmation. ACH has no card fee.") : (he ? "פרטי הכרטיס או הבנק אינם נשמרים ב־ServicePro." : "ServicePro never stores your card or bank credentials.")}</small></div></div><button type="button" className="customer-pay-button" onClick={startHelcim} disabled={state === "starting" || state === "processing"}>{state === "starting" ? (he ? "פותחים תשלום…" : "Opening secure checkout…") : (he ? `לתשלום ${amount}` : `Pay ${amount}`)}</button></div>}
+      {method === "helcim" && <div className="customer-payment-method-body pop-in"><div className="customer-pay-explainer"><span>H</span><div><strong>{he ? "תשלום מאובטח דרך Helcim" : "Secure payment through Helcim"}</strong><small>{options.fee_saver ? (he ? "עמלת כרטיס זכאית תוצג לפני האישור. תשלום ACH ללא עמלת כרטיס." : "Any eligible card fee appears before confirmation. ACH has no card fee.") : (he ? "פרטי הכרטיס או הבנק אינם נשמרים ב־ServicePro." : "ServicePro never stores your card or bank credentials.")}</small></div></div>
+
+        {tipsEnabled && tipPercents.length > 0 && <div className="customer-tip-block">
+          <span className="customer-tip-label">{he ? "להוסיף טיפ לצוות?" : "Add a tip for the crew?"}</span>
+          <div className="customer-tip-choices" role="group" aria-label={he ? "בחירת טיפ" : "Choose a tip"}>
+            <button type="button" className={tipChoice === null ? "active" : ""} aria-pressed={tipChoice === null} onClick={() => { setTipChoice(null); setTipAmount(""); }}>{he ? "ללא" : "No tip"}</button>
+            {tipPercents.map((percent) => <button type="button" key={percent} className={tipChoice === percent ? "active" : ""} aria-pressed={tipChoice === percent} onClick={() => { setTipChoice(percent); setTipAmount(""); }}>{percent}%</button>)}
+            <button type="button" className={tipChoice === "custom" ? "active" : ""} aria-pressed={tipChoice === "custom"} onClick={() => setTipChoice("custom")}>{he ? "סכום אחר" : "Other"}</button>
+          </div>
+          {tipChoice === "custom" && <label className="customer-reference-field"><span>{he ? `סכום הטיפ (${currency})` : `Tip amount (${currency})`}</span><input inputMode="decimal" value={tipAmount} onChange={(event) => setTipAmount(event.target.value)} placeholder="10.00" /></label>}
+          {/* The tip is added to the bill, never taken out of it — so the
+              business is paid in full and the crew's tip is the crew's. */}
+          <small className="customer-tip-note">{tipMinor > 0
+            ? (he ? `${money(balanceMinor, currency)} + ${money(tipMinor, currency)} טיפ = ${money(chargedMinor, currency)}` : `${money(balanceMinor, currency)} + ${money(tipMinor, currency)} tip = ${money(chargedMinor, currency)}`)
+            : (he ? "הטיפ מתווסף לחשבון ואינו מקטין את היתרה." : "A tip is added to the bill and never reduces the balance.")}</small>
+        </div>}
+
+        <button type="button" className="customer-pay-button" onClick={startHelcim} disabled={state === "starting" || state === "processing"}>{state === "starting" ? (he ? "פותחים תשלום…" : "Opening secure checkout…") : (he ? `לתשלום ${money(chargedMinor, currency)}` : `Pay ${money(chargedMinor, currency)}`)}</button></div>}
 
       {method === "zelle" && options.zelle && <div className="customer-payment-method-body pop-in"><PaymentLine label={he ? "לשלוח אל" : "Send to"} value={options.zelle.recipient_name || options.zelle.email || options.zelle.phone || ""} copyLabel={he ? "העתקה" : "Copy"} /><PaymentLine label={he ? "אימייל / טלפון" : "Email / mobile"} value={[options.zelle.email, options.zelle.phone].filter(Boolean).join(" · ")} copyLabel={he ? "העתקה" : "Copy"} /><PaymentLine label={he ? "הערה לתשלום" : "Payment memo"} value={options.zelle.memo ?? ""} copyLabel={he ? "העתקה" : "Copy"} />{options.zelle.qr_url && <img className="zelle-qr" src={options.zelle.qr_url} alt={he ? "קוד QR לתשלום ב־Zelle" : "Zelle payment QR code"} />}{options.zelle.instructions && <p className="customer-payment-note">{options.zelle.instructions}</p>}<label className="customer-reference-field"><span>{he ? "מספר אישור, אם יש" : "Confirmation number, if available"}</span><input value={reference} onChange={(event) => setReference(event.target.value)} /></label><button type="button" className="customer-pay-button" onClick={() => submitManual("zelle")} disabled={state === "processing"}>{he ? "שלחתי את התשלום" : "I sent the payment"}</button></div>}
 
@@ -120,6 +164,25 @@ export default function CustomerPaymentOptions({ token, locale, options, accent 
     </>}
     {error && <div className="customer-payment-error" role="alert">{error}</div>}
   </section>;
+}
+
+/**
+ * What the tip will be, for display only.
+ *
+ * The server recomputes this from the stored balance before charging anything,
+ * so a wrong number here is a cosmetic bug, never a wrong charge. A typed
+ * amount goes through parseAmountToMinor so "12.345" is exact and "abc" shows
+ * no tip rather than NaN.
+ */
+function previewTipMinor(balanceMinor: number, choice: number | "custom" | null, typed: string): number {
+  if (choice === null || !Number.isInteger(balanceMinor) || balanceMinor <= 0) return 0;
+  try {
+    if (choice === "custom") {
+      const minor = typed.trim() === "" ? 0 : Number(parseAmountToMinor(typed));
+      return Number.isInteger(minor) && minor > 0 && minor <= balanceMinor ? minor : 0;
+    }
+    return Number(tipMinorFromPercent(balanceMinor, choice));
+  } catch { return 0; }
 }
 
 function PaymentLine({ label, value, copyLabel }: { label: string; value: string; copyLabel?: string }) {
@@ -155,6 +218,7 @@ function customerPaymentError(code: unknown, he: boolean) {
     method_disabled: ["אמצעי התשלום שבחרת אינו זמין כרגע.", "That payment method is not available right now."],
     session_expired: ["חלון התשלום פג. אפשר לפתוח אותו מחדש.", "The payment session expired. Open it again to continue."],
     session_busy: ["חלון התשלום כבר נפתח. המתינו רגע ונסו שוב.", "The payment window is already opening. Wait a moment and try again."],
+    invalid_tip: ["סכום הטיפ אינו תקין. אפשר לבחור אחוז או להזין סכום, למשל 10.00.", "That tip amount isn't valid. Pick a percentage or enter an amount, for example 10.00."],
     payment_pending: ["תשלום ה־ACH עדיין בבדיקה. אין צורך לשלם שוב.", "The ACH payment is still processing. Do not pay again."],
     amount_mismatch: ["לא הצלחנו לאמת את סכום התשלום. העסק יעזור להשלים אותו.", "We couldn't verify the payment amount. The business can help complete it."],
     provider_unavailable: ["שירות התשלום אינו זמין כרגע. נסו שוב בעוד רגע.", "Payment service is temporarily unavailable. Please try again shortly."],

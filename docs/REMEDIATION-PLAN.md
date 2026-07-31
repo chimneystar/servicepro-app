@@ -191,12 +191,12 @@ that exist with nothing behind them.
 | # | Stub to finish | Status |
 |---|---|---|
 | 5.1 | Refunds — write `refunded_minor`, wire `can_refund_payments`, provider refund call | PARTIAL — record + ledger + permission + audit trail DONE and tested; the Helcim provider call is implemented but has NEVER run (no sandbox credentials). Manual refunds are complete and exact. |
-| 5.2 | Tips — collect at checkout, not just read in receipts | TODO |
-| 5.3 | Saved payment methods | TODO |
-| 5.4 | ACH hold-until-settled — make the toggle do something | TODO |
-| 5.5 | Payment schedules / milestones — tables exist, zero app references | TODO |
-| 5.6 | Org default deposit — saved but never read by document code | TODO |
-| 5.7 | Booking deposit — actually charge it | TODO |
+| 5.2 | Tips — collect at checkout, not just read in receipts | DONE — offered on `/p/[token]`, charged on top of the balance, recorded in `payments.tip_minor`. See note. |
+| 5.3 | Saved payment methods | **PARTIAL — deliberately not built.** No Helcim card-tokenisation (vault) credentials exist in this environment and there is no table to hold a token, so a card cannot be stored. The switch is now presented as unavailable, says why, and the stored preference is preserved rather than silently rewritten. Nothing fakes a saved card. See note. |
+| 5.4 | ACH hold-until-settled — make the toggle do something | DONE — governs release of deposit-gated work; `can_override_ach_holds` releases early, on the record. See note. |
+| 5.5 | Payment schedules / milestones — tables exist, zero app references | **PARTIAL — minimum coherent slice.** A deposit now creates a real schedule with milestones that advance from the payments recorded. No milestone editor, no arbitrary N-step builder, no per-milestone customer checkout. See note. |
+| 5.6 | Org default deposit — saved but never read by document code | DONE — applied at estimate insert by `apply_default_estimate_deposit()` (migration 031). See note. |
+| 5.7 | Booking deposit — actually charge it | DONE — computed from `booking_settings`, raised as a real estimate, paid through the existing `/p/[token]` screen; the job is not created until the money is in. See note. |
 | 5.8 | Automation rules — build the executor | DONE (see note) |
 | 5.9 | Campaigns + referral programmes — build the sender | PARTIAL — sending works; referral **redemption** unbuilt (see note) |
 | 5.10 | Custom fields — definitions and values have no UI at all | DONE — defined on `/settings/custom-fields`, filled in and shown on customers and jobs, F21 closed at the database and mirrored in the action. See note. |
@@ -459,6 +459,79 @@ dates and exemption validity only — never a certificate number, document URL o
 `app/(app)/finance/actions.ts` also stopped writing `rate_bps` with `Math.round(rate * 100)`; a rate
 is not money but it multiplies money, and that is the same float trap (`8.365%` was stored as
 `8.36%`) with the same NaN-becomes-null failure. It uses `parsePercentToBps`.
+
+**Notes on 5.2–5.7 (migration `db/031_payment_features.sql` — additive, drops nothing).**
+
+*5.2 Tips.* `tips_enabled` and `suggested_tip_percents` were stored and editable; `payments.tip_minor`
+was read when a receipt rendered and **written by nothing**. A customer now picks a percentage or types
+an amount on `/p/[token]`. The rule, decided in `lib/core/tips.mjs` and enforced by the split in
+`confirmHelcimCheckout`: **the tip is charged ON TOP of the balance and is not the business's money.**
+`base_amount_minor` stays at the balance and `tip_minor` holds the tip, so the tip is automatically
+outside every collected-money reader — revenue, margin, commission, invoice balance — and outside the
+refundable ceiling `guard_refund_amount()` enforces (it caps at `base_amount_minor`, exactly as it
+already excluded the Fee Saver surcharge). Returning a tip is a conversation, not a button. The tip is
+carried on `payment_requests.tip_minor` so the client sends a *choice*, never a total; the server
+recomputes it from the real balance. Zelle and cheque submissions do **not** offer a tip — the amount
+there is the balance and the business verifies receipt by hand. One pre-existing wart fixed on the way:
+an open checkout for a different amount used to block payment for a full hour with `session_busy`
+(reachable whenever the balance changed, and constant once tips existed); it is now cancelled and
+replaced.
+
+*5.3 Saved payment methods — why PARTIAL and not DONE.* Storing a reusable card needs Helcim
+tokenisation against a merchant vault. There are no such credentials in this environment (the same
+reason 5.1's provider refund call has never been exercised), no table to hold a token, and no way to
+prove a stored token would ever charge. Building it would mean shipping a switch that tells a business
+their customers' cards are on file when nothing is stored — the exact failure mode this branch exists
+to remove. The switch is therefore disabled, labelled *"not available yet"* with the reason, and
+`updatePaymentSettings` preserves the stored value instead of reading a control the browser does not
+submit (which would have silently written `false` on every save). To close it: Helcim vault
+credentials, a `payment_methods` table with the token encrypted the way `merchant_secrets` is, an
+explicit consent record, and a charge-with-token path proven against Helcim's test mode.
+
+*5.4 ACH hold.* `ach_hold_until_settled` and the `can_override_ach_holds` permission were both read by
+nothing, while the customer's screen promised "the job remains on hold until the bank confirms
+settlement". The hold governs **release of deposit-gated work** — hold on (default): the work is
+released when the deposit *settles*; hold off: released as soon as it is *submitted*, the business
+accepting the return risk. It deliberately does **not** block a technician from completing a job in the
+field: work already done is done, and refusing to record it because a customer's bank is slow would
+corrupt the timesheet to no purpose. Release happens where the product actually learns a transfer
+cleared — `reconcileHelcimTransaction`, which the daily cron and the provider webhook both call.
+`/settings/payments` shows deposits awaiting clearance to anyone holding `can_override_ach_holds`, with
+a Release button that writes `released_by` / `released_at` / `release_reason` and an `audit_log` entry.
+
+*5.5 Schedules and milestones — what is built and what is not.* Built: a deposit creates a real
+`payment_schedules` row with `payment_milestones` (deposit, then `remaining` balance so an edited total
+cannot leave the schedule adding up wrong); the milestones advance `due → processing → paid` from the
+payments actually recorded, which is what finally uses the `processing` status the table always had;
+allocation is exact integer arithmetic with the rounding remainder placed rather than lost, and an
+over- or under-allocation is reported rather than swallowed. **Not built:** no milestone editor, no
+arbitrary N-step builder, no per-milestone customer checkout screen (`payment_requests.milestone_id`
+and `document_type = 'milestone'` still have no writer), and no invoice-side schedules. Those are a
+feature, not a repair.
+
+*5.6 Organisation default deposit.* Applied by a `before insert` trigger on `estimates`, not by
+application code, because `lib/documents.ts` is the single insert path for both estimates and invoices
+and returns no id — an after-the-fact update would have to guess which estimate it had just made. The
+rule fires only when `deposit_minor` is 0 (the column default, and the only available signal for "the
+caller did not ask"), and clamps to the document total. `lib/core/deposits.mjs` holds the same
+arithmetic, is unit-tested, and drives the worked example now shown under the setting so the owner can
+see what it will do. **Untested against a live Postgres** — there is none on this machine; the SQL is
+verified by inspection and by structural assertion only.
+
+*5.7 Booking deposit.* `payment_mode` / `deposit_value` were echoed to the customer as "a secure
+payment link will be sent after confirmation" and no link was ever produced. A booking that owes a
+deposit now mints a real estimate for the service and returns its `/p/<token>` link, so the deposit is
+paid through the checkout that already exists and already works — card, ACH, Zelle, cheque, Fee Saver,
+receipts, reconciliation. No second payment path was invented. `deposit_value`'s units were undefined
+in the schema; they are now stated: whole percent for `percentage`, whole currency units for `fixed`
+(the settings input is `step=1` and cannot express cents), the whole price for `full`. The booking is
+held in Leads until the money is in, which is where a booking already lands when `approval_required` is
+on — and a business that requires approval still gets to approve, because only a booking that would
+have auto-confirmed releases itself. A service with no price collects no deposit.
+
+**Known gap, reported not fixed:** `lib/documents.ts:211` (`duplicateDocument`) omits `deposit_minor`,
+so duplicating an estimate silently drops its deposit. Out of scope for this pass — `documents.ts` is
+owned by another workstream on this branch.
 
 ### Phase 6 — new capabilities (from the gap analysis)
 | # | Capability | Status |

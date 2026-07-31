@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { addMinutes, buildBookingSlots, createBookingReference, evaluateServiceArea, type BookingHours, type ServiceArea } from "@/lib/booking";
+import { raiseBookingDeposit } from "@/lib/payments/booking-deposit";
 // @ts-ignore — proven both ways in tests/rate-limit.test.mjs
 import { consume, clientKey } from "@/lib/core/rate-limit.mjs";
+// @ts-ignore — proven both ways in tests/deposits.test.mjs
+import { bookingDepositMinor } from "@/lib/core/deposits.mjs";
 
 export const dynamic = "force-dynamic";
 const clean = (value: unknown, max: number) => String(value ?? "").trim().slice(0,max);
@@ -62,16 +65,51 @@ export async function POST(request: Request, { params }: { params: Promise<{ org
     const answers=typeof body.answers==="object"&&body.answers?body.answers:{};
     // The marker rides on booking_answers (jsonb, already on the row) so the
     // office can see WHY this request needs a look instead of guessing.
-    const bookingAnswers=areaUnverified?{...answers,service_area_unverified:true}:answers;
-    const leadPayload={organization_id:org,name,phone,email:email||null,address:address||null,city:city||null,postal_code:postalCode||null,service:service.name_en,notes:notes||null,status:"new",source,preferred_date:date,preferred_start_time:start,preferred_window_min:settings.arrival_window_min,booking_service_id:service.id,booking_answers:bookingAnswers,booking_reference:reference,booking_status:needsReview?"requested":"confirmed",campaign:campaign||null,contact_preference:contactPreference,urgency};
+    // The booking deposit. booking_settings.payment_mode and deposit_value were
+    // stored, echoed to the customer as "a secure payment link will be sent
+    // after confirmation", and CHARGED NOTHING — no link was ever produced. A
+    // deposit now makes the booking deposit-gated: it is taken as a real
+    // estimate on the existing /p/<token> payment screen, and the job is not
+    // created until the money is in (or, if the business turned
+    // ach_hold_until_settled off, as soon as an ACH transfer is submitted).
+    const depositMinor=bookingDepositMinor({mode:settings.payment_mode,value:settings.deposit_value,servicePriceMinor:service.price_minor});
+    const depositDue=depositMinor>0;
+    // Whether this booking would have been auto-confirmed but for the deposit.
+    // Carried on booking_answers rather than as a new booking_status value, so
+    // no existing screen meets a status string it does not know, and so a
+    // business that requires approval still gets to approve.
+    const autoRelease=!needsReview&&service.book_as==="job";
+    const bookingAnswers={...(areaUnverified?{...answers,service_area_unverified:true}:answers),...(depositDue?{deposit_required_minor:depositMinor,auto_release_on_deposit:autoRelease}:{})};
+    const leadPayload={organization_id:org,name,phone,email:email||null,address:address||null,city:city||null,postal_code:postalCode||null,service:service.name_en,notes:notes||null,status:"new",source,preferred_date:date,preferred_start_time:start,preferred_window_min:settings.arrival_window_min,booking_service_id:service.id,booking_answers:bookingAnswers,booking_reference:reference,booking_status:(needsReview||depositDue)?"requested":"confirmed",campaign:campaign||null,contact_preference:contactPreference,urgency};
     const {data:lead,error:leadError}=await admin.from("leads").insert(leadPayload).select("id").single();
     if(leadError) throw leadError;
-    let status="requested";
-    if(!needsReview&&service.book_as==="job"){
+
+    // A customer record is needed both to schedule the job and to raise the
+    // deposit estimate against, so resolving it is shared rather than copied.
+    const resolveCustomer=async()=>{
       let customer=null;
       if(email){const {data}=await admin.from("customers").select("id").eq("organization_id",org).ilike("email",email).is("deleted_at",null).limit(1).maybeSingle();customer=data;}
       if(!customer){const {data}=await admin.from("customers").select("id").eq("organization_id",org).eq("phone",phone).is("deleted_at",null).limit(1).maybeSingle();customer=data;}
       if(!customer){const {data,error}=await admin.from("customers").insert({organization_id:org,name,phone,email:email||null,address:address||null,city:city||null,source,notes:notes||null}).select("id").single();if(error)throw error;customer=data;}
+      return customer;
+    };
+
+    let status="requested";
+    let deposit:{amountMinor:number;url:string}|null=null;
+
+    if(depositDue){
+      const customer=await resolveCustomer();
+      await admin.from("leads").update({converted_customer_id:customer.id}).eq("id",lead.id);
+      const {data:organization}=await admin.from("organizations").select("tax_rate_bps").eq("id",org).single();
+      const raised=await raiseBookingDeposit(admin,{
+        organizationId:org,customerId:customer.id,leadId:lead.id,customerName:name,
+        serviceName:service.name_en,servicePriceMinor:service.price_minor,
+        paymentMode:settings.payment_mode,depositValue:settings.deposit_value,
+        taxRateBps:Number(organization?.tax_rate_bps??0),notes:notes||null,
+      });
+      if(raised) { deposit={amountMinor:raised.amountMinor,url:`/p/${raised.publicToken}`}; status="deposit_due"; }
+    } else if(autoRelease){
+      const customer=await resolveCustomer();
       // end_date must be set. It is nullable with no default, and the dispatch
       // board matches `scheduled_date <= day AND (end_date >= day OR end_date IS
       // NULL)` — so a job left with a null end_date reappears on EVERY future
@@ -81,6 +119,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ org
       await admin.from("leads").update({status:"won",converted_customer_id:customer.id,booking_status:"confirmed"}).eq("id",lead.id);
       status="confirmed";
     }
-    return NextResponse.json({ok:true,reference,status,paymentMode:settings.payment_mode,depositValue:settings.deposit_value},{headers:{"cache-control":"no-store"}});
+    return NextResponse.json({ok:true,reference,status,paymentMode:settings.payment_mode,depositValue:settings.deposit_value,deposit},{headers:{"cache-control":"no-store"}});
   } catch { return NextResponse.json({ok:false,error:"server_error"},{status:500}); }
 }

@@ -6,7 +6,7 @@ import SignApprove from "@/components/SignApprove";
 import PrintButton from "@/components/PrintButton";
 import { providers } from "@/lib/providers";
 import CustomerPaymentOptions from "@/components/CustomerPaymentOptions";
-import type { PublicPaymentOptions } from "@/lib/payments/types";
+import type { PublicPaymentOptions, PublicTipOptions } from "@/lib/payments/types";
 // @ts-ignore
 import { computeDocument, lineSubtotalMinor } from "@/lib/core/money.mjs";
 
@@ -23,9 +23,13 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
   const { token } = await params;
   const locale = (await getLocale());
   const supabase = await createClient();
-  const [{ data }, { data: paymentData }] = await Promise.all([
+  // Tip settings come from their own narrow RPC: payment_settings is
+  // owner/office-only (it holds the Zelle and cheque payout details), and this
+  // page is served to an anonymous customer.
+  const [{ data }, { data: paymentData }, { data: tipData }] = await Promise.all([
     supabase.rpc("public_document", { p_token: token }),
     supabase.rpc("public_payment_options", { p_token: token }),
+    supabase.rpc("public_tip_options", { p_token: token }),
   ]);
   const doc: any = data;
   if (!doc) return <Center accent="#0f2a5e"><p style={{ color: "#5c6675" }}>This link is invalid or has expired.</p></Center>;
@@ -38,6 +42,7 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
   const title = doc.kind === "invoice" ? "Invoice" : "Estimate";
   const signed = !!doc.signed_at;
   const paymentOptions = paymentData as PublicPaymentOptions | null;
+  const tipOptions = tipData as PublicTipOptions | null;
   const hasNewPayments = !!paymentOptions?.methods;
   const canPayOnline = !hasNewPayments && doc.kind === "invoice" && doc.status !== "paid" && providers.stripe();
   const depositMinor = doc.deposit_minor ?? 0;
@@ -152,7 +157,7 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
               <div className="no-print"><SignApprove token={token} locale={locale} /></div>
             )}
           </div>
-          {paymentOptions && <div className="no-print" style={{ marginTop: 18 }}><CustomerPaymentOptions token={token} locale={locale} options={paymentOptions} accent={accent} /></div>}
+          {paymentOptions && <div className="no-print" style={{ marginTop: 18 }}><CustomerPaymentOptions token={token} locale={locale} options={paymentOptions} accent={accent} tips={tipOptions} /></div>}
         </div>
 
         {/* Footer */}

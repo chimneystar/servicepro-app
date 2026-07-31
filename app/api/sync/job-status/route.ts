@@ -81,8 +81,18 @@ export async function POST(request: NextRequest) {
       ? { status: "in_progress", stage: progressStage, started_at: now }
       : { status: "done", stage: doneStage, completed_at: now };
 
-    const { error } = await supabase.from("jobs").update(values).eq("id", jobId);
+    // The transition rules apply to the offline path too. A queued "start" for a
+    // job that was completed while the device was offline must not reopen it.
+    const allowedFrom = action === "start" ? ["scheduled", "in_progress"] : ["scheduled", "in_progress"];
+    const { data: updated, error } = await supabase.from("jobs")
+      .update(values).eq("id", jobId).in("status", allowedFrom).select("id");
     if (error) continue; // transient — allow a retry
+    if (!updated || updated.length === 0) {
+      // The job is already done or cancelled: this event can never apply, so the
+      // client must drop it rather than retry it for ever.
+      rejected.push(clientEventId);
+      continue;
+    }
 
     // Close any clock this technician left running, matching completeJob.
     if (action === "complete") {

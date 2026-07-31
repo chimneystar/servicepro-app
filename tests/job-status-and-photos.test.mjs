@@ -91,3 +91,40 @@ test("a failed toggle is surfaced, not swallowed", () => {
   assert.ok(/if \(!result\.ok\) setError/.test(ui),
     "a silently-failed toggle leaves a private photo on the customer's document");
 });
+
+// ---------------------------------------------------------------------------
+// The guard has to cover the LIVE paths, not only the two dead endpoints.
+//
+// Found by a parallel agent reviewing its own out-of-scope surroundings: I had
+// routed setJobStatus and updateJobStatus (neither referenced by any component)
+// through the guard, and left setJobStage — which IS what the stage dropdown
+// calls — writing a derived status straight to the column. Moving a completed
+// job back to an earlier stage silently reopened it.
+//
+// Securing the unused door and leaving the used one open is worse than not
+// having built the guard, because the ledger then claims the rule is enforced.
+// ---------------------------------------------------------------------------
+
+test("the live stage-change path enforces the transition rules", () => {
+  const src = readCode("app/(app)/jobs/[id]/actions.ts");
+  const fn = src.slice(src.indexOf("export async function setJobStage"));
+  assert.ok(/canTransition\(/.test(fn.slice(0, 2000)),
+    "setJobStage derives the enum status from the stage — it must check the transition is legal");
+  assert.ok(/assigned_to !== profile\.id/.test(fn.slice(0, 2000)),
+    "a technician must only move a job assigned to them");
+});
+
+test("clocking in cannot restart a finished job", () => {
+  const src = readCode("app/(app)/jobs/[id]/actions.ts");
+  const fn = src.slice(src.indexOf("export async function clockIn"));
+  assert.ok(/\.in\("status", \["scheduled", "in_progress"\]\)/.test(fn.slice(0, 1200)),
+    "`is(started_at, null)` alone would restart a job completed without ever being clocked");
+});
+
+test("the offline path refuses events that can never apply", () => {
+  const src = readCode("app/api/sync/job-status/route.ts");
+  assert.ok(/\.in\("status", allowedFrom\)/.test(src),
+    "a queued start for a job completed while offline must not reopen it");
+  assert.ok(/updated\.length === 0[\s\S]{0,200}rejected\.push/.test(src),
+    "an event that can never apply must be REJECTED so the client drops it, not retried for ever");
+});

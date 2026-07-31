@@ -50,18 +50,28 @@ export async function sendPaymentReceipt(paymentId: string) {
 
   const he = organization?.locale === "he";
   const business = organization?.name ?? "ServicePro";
-  const totalMinor = Number(payment.base_amount_minor) + Number(payment.surcharge_minor ?? 0) + Number(payment.tip_minor ?? 0);
-  const amount = new Intl.NumberFormat(he ? "he-IL" : "en-US", { style: "currency", currency: payment.currency ?? "USD" }).format(totalMinor / 100);
+  const tipMinor = Number(payment.tip_minor ?? 0);
+  const totalMinor = Number(payment.base_amount_minor) + Number(payment.surcharge_minor ?? 0) + tipMinor;
+  const format = (minor: number) => new Intl.NumberFormat(he ? "he-IL" : "en-US", { style: "currency", currency: payment.currency ?? "USD" }).format(minor / 100);
+  const amount = format(totalMinor);
+  // Until tips could be collected, tip_minor was always zero and the receipt
+  // could show a single figure. Now that a customer can add one, the receipt has
+  // to say what part of the charge was the tip — otherwise the total looks like
+  // an overcharge against the invoice they were shown.
+  const tipLine = tipMinor > 0
+    ? (he ? `<p>כולל טיפ בסך ${html(format(tipMinor))}.</p>` : `<p>Includes a ${html(format(tipMinor))} tip.</p>`)
+    : "";
+  const tipSms = tipMinor > 0 ? (he ? ` כולל טיפ ${format(tipMinor)}.` : ` Includes a ${format(tipMinor)} tip.`) : "";
   const label = he ? (documentType === "invoice" ? "חשבונית" : "הצעת מחיר") : documentType;
   const firstName = String(customer.name ?? "").trim().split(/\s+/)[0] || (he ? "שלום" : "there");
   const link = document.public_token && appUrl() ? `${appUrl().replace(/\/$/, "")}/p/${document.public_token}` : "";
   const subject = he ? `קבלה מ־${business} — ${label} #${document.number}` : `Receipt from ${business} — ${label} #${document.number}`;
   const emailBody = he
-    ? `<div dir="rtl"><p>${html(firstName)}, שלום</p><p>קיבלנו את התשלום שלך בסך <strong>${html(amount)}</strong> עבור ${html(label)} #${html(document.number)}.</p><p>אמצעי תשלום: ${html(payment.method)}</p>${link ? `<p><a href="${html(link)}">צפייה במסמך ובסטטוס התשלום</a></p>` : ""}<p>תודה,<br>${html(business)}</p></div>`
-    : `<p>Hi ${html(firstName)},</p><p>We received your <strong>${html(amount)}</strong> payment for ${html(label)} #${html(document.number)}.</p><p>Payment method: ${html(payment.method)}</p>${link ? `<p><a href="${html(link)}">View your document and payment status</a></p>` : ""}<p>Thank you,<br>${html(business)}</p>`;
+    ? `<div dir="rtl"><p>${html(firstName)}, שלום</p><p>קיבלנו את התשלום שלך בסך <strong>${html(amount)}</strong> עבור ${html(label)} #${html(document.number)}.</p>${tipLine}<p>אמצעי תשלום: ${html(payment.method)}</p>${link ? `<p><a href="${html(link)}">צפייה במסמך ובסטטוס התשלום</a></p>` : ""}<p>תודה,<br>${html(business)}</p></div>`
+    : `<p>Hi ${html(firstName)},</p><p>We received your <strong>${html(amount)}</strong> payment for ${html(label)} #${html(document.number)}.</p>${tipLine}<p>Payment method: ${html(payment.method)}</p>${link ? `<p><a href="${html(link)}">View your document and payment status</a></p>` : ""}<p>Thank you,<br>${html(business)}</p>`;
   const smsBody = he
-    ? `${business}: התשלום בסך ${amount} עבור ${label} #${document.number} התקבל.${link ? ` ${link}` : ""}`
-    : `${business}: We received your ${amount} payment for ${label} #${document.number}.${link ? ` ${link}` : ""}`;
+    ? `${business}: התשלום בסך ${amount} עבור ${label} #${document.number} התקבל.${tipSms}${link ? ` ${link}` : ""}`
+    : `${business}: We received your ${amount} payment for ${label} #${document.number}.${tipSms}${link ? ` ${link}` : ""}`;
 
   let emailSent = false; let smsSent = false;
   if (settings?.receipt_email_enabled && customer.email && providers.email()) {

@@ -8,8 +8,12 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { helcimRegistrationUrl } from "@/lib/payments/helcim";
 import { sendPaymentReceipt } from "@/lib/payments/receipts";
 import { getLocale } from "@/lib/locale-server";
+import { mayOverrideAchHold } from "@/lib/payments/deposits";
+import { applyPaymentToDeposits, releaseBookingDeposit } from "@/lib/payments/booking-deposit";
 // @ts-ignore — this shared money module is plain ESM with runtime tests.
 import { parseAmountToMinor } from "@/lib/core/money.mjs";
+// @ts-ignore — pure logic, proven both ways in tests/tips.test.mjs
+import { sanitizeTipPercents } from "@/lib/core/tips.mjs";
 
 export type PaymentSettingsResult = { ok: boolean; error?: string };
 
@@ -44,12 +48,22 @@ export async function updatePaymentSettings(_previous: PaymentSettingsResult, fo
   const checkAddress = text(formData, "check_address", 240);
   if (checkEnabled && (!checkPayee || !checkAddress)) return { ok: false, error: he ? "יש להזין שם מוטב וכתובת למשלוח הצ׳ק." : "Add the check payee and mailing address." };
 
-  const tips = String(formData.get("tip_options") ?? "15,20,25")
-    .split(",").map((value) => Number.parseInt(value.trim(), 10))
-    .filter((value) => Number.isInteger(value) && value >= 0 && value <= 100)
-    .slice(0, 4);
+  // Suggested tip percentages now reach a customer, so they are cleaned by the
+  // same function the payment screen uses: integers 1..100, de-duplicated, at
+  // most four. The previous filter accepted 0 as a "tip", which renders as a
+  // 0% button that charges nothing and looks broken.
+  const tips = sanitizeTipPercents(String(formData.get("tip_options") ?? "15,20,25")) as number[];
 
   const supabase = await createClient();
+
+  // Saved payment methods: the switch is presented as unavailable and its
+  // control is disabled, so the browser does not submit it. Reading the form
+  // here would silently rewrite the stored preference to false on every save.
+  // The value is preserved untouched until card tokenisation actually exists.
+  // See docs/REMEDIATION-PLAN.md item 5.3.
+  const { data: current } = await supabase.from("payment_settings")
+    .select("save_methods_enabled").eq("organization_id", profile.organization_id!).maybeSingle();
+
   const { error } = await supabase.from("payment_settings").upsert({
     organization_id: profile.organization_id,
     card_enabled: enabled(formData, "card_enabled"),
@@ -58,9 +72,9 @@ export async function updatePaymentSettings(_previous: PaymentSettingsResult, fo
     check_enabled: checkEnabled,
     fee_saver_enabled: enabled(formData, "fee_saver_enabled"),
     ach_hold_until_settled: enabled(formData, "ach_hold_until_settled"),
-    save_methods_enabled: enabled(formData, "save_methods_enabled"),
+    save_methods_enabled: current?.save_methods_enabled ?? true,
     tips_enabled: enabled(formData, "tips_enabled"),
-    suggested_tip_percents: tips.length ? tips : [15, 20, 25],
+    suggested_tip_percents: tips,
     default_deposit_type: depositType,
     default_deposit_bps: Math.round(depositPercent * 100),
     default_deposit_minor: depositFixedMinor,
@@ -168,7 +182,56 @@ export async function reviewManualPayment(formData: FormData) {
       await admin.from("invoices").update({ status: "paid", paid_at: now }).eq("id", request.invoice_id);
     }
   }
+  // A Zelle or cheque deposit is money in the door just as much as a card is:
+  // it must advance the deposit milestone and release deposit-gated work.
+  await applyPaymentToDeposits(admin, { organization_id: profile.organization_id!, estimate_id: request.estimate_id });
+
   try { await sendPaymentReceipt(recordedPayment.id); } catch { /* confirmation stays successful if a provider is unavailable */ }
   revalidatePath("/settings/payments");
   revalidatePath("/invoices");
+}
+
+/**
+ * Release work that is waiting on an ACH transfer to clear.
+ *
+ * `can_override_ach_holds` has been assignable on the team screen since
+ * migration 017 and granted nothing, because nothing held anything. It grants
+ * this: a named person deciding, on the record, that a submitted-but-uncleared
+ * bank transfer is good enough to start the work. The transfer can still be
+ * returned, which is exactly why the decision has an author and a reason.
+ */
+export async function releaseAchHold(formData: FormData): Promise<void> {
+  const profile = await requireProfile();
+  const milestoneId = String(formData.get("milestone_id") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim().slice(0, 500) || null;
+  if (!milestoneId) return;
+  if (!(await mayOverrideAchHold(profile.id, profile.role))) return;
+
+  const admin = createAdminClient();
+  const { data: milestone } = await admin.from("payment_milestones")
+    .select("id, organization_id, schedule_id, status, released_at")
+    .eq("id", milestoneId).eq("organization_id", profile.organization_id!).maybeSingle();
+  if (!milestone || milestone.released_at) return;
+  // Only an in-flight deposit can be released early. A milestone nobody has
+  // paid at all has nothing to override.
+  if (milestone.status !== "processing") return;
+
+  const now = new Date().toISOString();
+  await admin.from("payment_milestones")
+    .update({ released_by: profile.id, released_at: now, release_reason: reason })
+    .eq("id", milestone.id);
+  await admin.from("audit_log").insert({
+    organization_id: profile.organization_id,
+    table_name: "payment_milestones",
+    row_id: milestone.id,
+    action: "ach_hold_released",
+    actor: profile.id,
+    new_data: { reason },
+  });
+
+  const { data: schedule } = await admin.from("payment_schedules")
+    .select("estimate_id").eq("id", milestone.schedule_id).eq("organization_id", profile.organization_id!).maybeSingle();
+  if (schedule?.estimate_id) await releaseBookingDeposit(admin, schedule.estimate_id as string);
+
+  revalidatePath("/settings/payments");
 }

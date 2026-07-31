@@ -9,6 +9,8 @@ import { computeDocument, parseAmountToMinor, parseQtyToMilli } from "@/lib/core
 // @ts-ignore -- shared JS module
 import { isUniqueViolation } from "@/lib/core/db-errors.mjs";
 import { changeJobStatus } from "@/lib/job-status";
+// @ts-ignore — transition rules, unit-tested in tests/scheduling.test.mjs
+import { canTransition } from "@/lib/core/scheduling.mjs";
 import { recordInventoryMovement } from "@/lib/inventory";
 import { resolveDocumentTax } from "@/lib/documents";
 
@@ -457,7 +459,12 @@ export async function clockIn(jobId: string): Promise<PhotoResult> {
   // 23505 = the open-entry unique index: already clocked in, which is what the
   // technician wanted. Anything else is a real failure and must surface.
   if (error && !isUniqueViolation(error)) return { ok: false, error: error.message };
-  await supabase.from("jobs").update({ status: "in_progress", started_at: new Date().toISOString() }).eq("id", jobId).is("started_at", null);
+  // Only move the job forward if that is a legal transition. `.is("started_at",
+  // null)` alone would restart a job that was completed and never clocked.
+  await supabase.from("jobs")
+    .update({ status: "in_progress", started_at: new Date().toISOString() })
+    .eq("id", jobId).is("started_at", null)
+    .in("status", ["scheduled", "in_progress"]);
   revalidatePath(`/jobs/${jobId}`);
   return { ok: true };
 }
@@ -496,10 +503,32 @@ export async function completeJob(jobId: string, signature: string, signedBy: st
 /** Set a job's custom pipeline stage; keeps the legacy enum status in sync for
  *  the double-book constraint & reports, and records when the stage changed. */
 export async function setJobStage(jobId: string, stage: string): Promise<PhotoResult> {
-  await requireProfile();
+  const profile = await requireProfile();
   const supabase = await createClient();
   const { data: st } = await supabase.from("job_statuses").select("is_done, is_cancelled").eq("name", stage).maybeSingle();
   const enumStatus = st?.is_cancelled ? "cancelled" : st?.is_done ? "done" : /progress/i.test(stage) ? "in_progress" : "scheduled";
+
+  // The transition guard has to apply HERE, not only on the two status actions.
+  // This is the live path — it is what the stage dropdown calls — and it derives
+  // the enum status from the stage and wrote it straight to the column. Moving a
+  // completed job back to an earlier stage silently REOPENED it, defeating the
+  // terminal-status rule that lib/core/scheduling.mjs has always defined.
+  const { data: current } = await supabase
+    .from("jobs").select("status, assigned_to").eq("id", jobId).is("deleted_at", null).maybeSingle();
+  if (!current) return { ok: false, error: "Job not found." };
+  if (profile.role === "tech" && current.assigned_to !== profile.id) {
+    return { ok: false, error: "This job is not assigned to you." };
+  }
+  const from = String(current.status ?? "scheduled");
+  if (from !== enumStatus && !canTransition(from, enumStatus)) {
+    return {
+      ok: false,
+      error: from === "done" || from === "cancelled"
+        ? `This job is already ${from} and cannot be moved back. Create a new job instead.`
+        : `A job cannot go from ${from} to ${enumStatus}.`,
+    };
+  }
+
   const { error } = await supabase.from("jobs").update({ stage, status: enumStatus, stage_changed_at: new Date().toISOString() }).eq("id", jobId);
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/jobs/${jobId}`); revalidatePath("/jobs"); revalidatePath("/schedule");

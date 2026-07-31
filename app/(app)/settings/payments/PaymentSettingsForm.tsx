@@ -5,8 +5,16 @@ import { useFormStatus } from "react-dom";
 import { updatePaymentSettings, type PaymentSettingsResult } from "./actions";
 import type { Locale } from "@/lib/i18n";
 import type { PaymentSettings } from "@/lib/payments/types";
+import { money } from "@/lib/format";
+// @ts-ignore — pure logic, proven both ways in tests/deposits.test.mjs
+import { defaultDepositMinor } from "@/lib/core/deposits.mjs";
+// @ts-ignore — money is integer minor units; never Math.round(Number(x) * 100)
+import { parseAmountToMinor } from "@/lib/core/money.mjs";
 
 const initial: PaymentSettingsResult = { ok: false };
+
+/** The worked example under the deposit control. $1,000 is a legible job. */
+const SAMPLE_TOTAL_MINOR = 100000;
 
 export default function PaymentSettingsForm({ locale, settings, currency }: { locale: Locale; settings: PaymentSettings; currency: string }) {
   const he = locale === "he";
@@ -14,6 +22,22 @@ export default function PaymentSettingsForm({ locale, settings, currency }: { lo
   const [zelle, setZelle] = useState(settings.zelle_enabled);
   const [checks, setChecks] = useState(settings.check_enabled);
   const [deposit, setDeposit] = useState(settings.default_deposit_type);
+  const [depositPercent, setDepositPercent] = useState(String(settings.default_deposit_bps / 100));
+  const [depositFixed, setDepositFixed] = useState((settings.default_deposit_minor / 100).toFixed(2));
+
+  // The same function the database rule mirrors, run on the owner's numbers, so
+  // the setting stops being an act of faith. Until this branch, this deposit was
+  // saved and read by nothing at all: every estimate was created with zero.
+  let fixedMinor = 0;
+  // parseAmountToMinor, never Math.round(Number(x) * 100): the latter mis-rounds
+  // and turns a typo into NaN, and this preview must agree exactly with what the
+  // server action stores.
+  try { fixedMinor = Number(parseAmountToMinor(depositFixed || "0")); } catch { fixedMinor = 0; }
+  const previewMinor = Number(defaultDepositMinor({
+    default_deposit_type: deposit,
+    default_deposit_bps: Math.round(Math.max(0, Math.min(100, Number(depositPercent) || 0)) * 100),
+    default_deposit_minor: fixedMinor,
+  }, SAMPLE_TOTAL_MINOR));
 
   return <form action={action} className="payment-settings-form">
     <section className="settings-section payment-method-section">
@@ -38,8 +62,13 @@ export default function PaymentSettingsForm({ locale, settings, currency }: { lo
           <label key={choice.value} className={`deposit-choice ${deposit === choice.value ? "selected" : ""}`}><input type="radio" name="default_deposit_type" value={choice.value} checked={deposit === choice.value} onChange={() => setDeposit(choice.value as PaymentSettings["default_deposit_type"])} /><span>{he ? choice.he : choice.en}</span></label>
         )}
       </div>
-      {deposit === "percent" && <Field name="deposit_percent" label={he ? "אחוז מקדמה" : "Deposit percentage"} defaultValue={String(settings.default_deposit_bps / 100)} suffix="%" type="number" />}
-      {deposit === "fixed" && <Field name="deposit_fixed" label={he ? `סכום מקדמה (${currency})` : `Deposit amount (${currency})`} defaultValue={(settings.default_deposit_minor / 100).toFixed(2)} type="number" />}
+      {deposit === "percent" && <Field name="deposit_percent" label={he ? "אחוז מקדמה" : "Deposit percentage"} value={depositPercent} onChange={setDepositPercent} suffix="%" type="number" />}
+      {deposit === "fixed" && <Field name="deposit_fixed" label={he ? `סכום מקדמה (${currency})` : `Deposit amount (${currency})`} value={depositFixed} onChange={setDepositFixed} type="number" />}
+      <p className="settings-section-note">{deposit === "none"
+        ? (he ? "הצעות מחיר חדשות ייווצרו ללא מקדמה." : "New estimates are created with no deposit.")
+        : previewMinor > 0
+          ? (he ? `לדוגמה: הצעת מחיר על ${money(SAMPLE_TOTAL_MINOR, currency)} תבקש מקדמה של ${money(previewMinor, currency)}.` : `For example: a ${money(SAMPLE_TOTAL_MINOR, currency)} estimate will ask for a ${money(previewMinor, currency)} deposit.`)
+          : (he ? "הערך הנוכחי לא יבקש מקדמה." : "The current value asks for no deposit.")}</p>
     </section>
 
     <section className="settings-section">
@@ -47,8 +76,15 @@ export default function PaymentSettingsForm({ locale, settings, currency }: { lo
       <div className="payment-rule-list">
         <RuleToggle name="fee_saver_enabled" defaultChecked={settings.fee_saver_enabled} title={he ? "הלקוח משלם את עמלת כרטיס האשראי" : "Customer covers eligible credit-card fees"} text={he ? "Helcim Fee Saver יחול רק כשהעסקה זכאית. אין עמלה על דביט או ACH." : "Helcim Fee Saver applies only when eligible. Debit and ACH are never surcharged."} />
         <RuleToggle name="ach_hold_until_settled" defaultChecked={settings.ach_hold_until_settled} title={he ? "להמתין עד ש־ACH נסגר" : "Wait for ACH settlement"} text={he ? "העבודה תישאר בהמתנה עד שהבנק מאשר את התשלום." : "The job remains on hold until the bank confirms settlement."} />
-        <RuleToggle name="save_methods_enabled" defaultChecked={settings.save_methods_enabled} title={he ? "לאפשר שמירת אמצעי תשלום" : "Allow saved payment methods"} text={he ? "רק לאחר אישור ברור מהלקוח." : "Only after clear customer consent."} />
-        <RuleToggle name="tips_enabled" defaultChecked={settings.tips_enabled} title={he ? "לאפשר טיפ" : "Allow tips"} text={he ? "הטיפ מוצג בנפרד ואינו מוריד מיתרת החשבונית." : "Tips stay separate and never reduce the invoice balance."} />
+        {/* Saved payment methods are NOT available. Storing a reusable card
+            token needs Helcim vault credentials that do not exist in this
+            environment, and a switch that claims to save cards while saving
+            nothing is worse than no switch: the business tells customers their
+            card is on file. The control is disabled and says so, and the stored
+            preference is left untouched by the server action. See
+            docs/REMEDIATION-PLAN.md item 5.3. */}
+        <RuleToggle name="save_methods_enabled" defaultChecked={settings.save_methods_enabled} disabled title={he ? "שמירת אמצעי תשלום — עדיין לא זמין" : "Saved payment methods — not available yet"} text={he ? "דורש כספת כרטיסים של Helcim שאינה מחוברת. עד אז אין שמירה של כרטיס, וההגדרה הזו אינה עושה דבר." : "Requires Helcim card tokenisation, which is not connected. No card is stored today and this setting does nothing."} />
+        <RuleToggle name="tips_enabled" defaultChecked={settings.tips_enabled} title={he ? "לאפשר טיפ" : "Allow tips"} text={he ? "הטיפ נוסף על החשבון, מוצג בנפרד ואינו מוריד מיתרת החשבונית." : "A tip is charged on top of the bill, recorded separately, and never reduces the invoice balance."} />
       </div>
       <Field name="tip_options" label={he ? "אפשרויות טיפ באחוזים" : "Suggested tip percentages"} defaultValue={settings.suggested_tip_percents.join(", ")} placeholder="15, 20, 25" />
     </section>
@@ -89,7 +125,7 @@ function MethodToggle({ name, icon, title, text, defaultChecked, checked, onChan
   const controlled = checked !== undefined;
   return <label className={`payment-method-card ${(controlled ? checked : defaultChecked) ? "on" : ""}`}><input type="checkbox" name={name} defaultChecked={controlled ? undefined : defaultChecked} checked={controlled ? checked : undefined} onChange={controlled ? (event) => onChange?.(event.target.checked) : undefined} /><span className="payment-method-icon">{icon}</span><span className="payment-method-copy"><strong>{title}</strong><small>{text}</small></span><span className="payment-switch" /></label>;
 }
-function RuleToggle({ name, title, text, defaultChecked }: { name: string; title: string; text: string; defaultChecked: boolean }) { return <label className="payment-rule"><span><strong>{title}</strong><small>{text}</small></span><input type="checkbox" name={name} defaultChecked={defaultChecked} /><span className="payment-switch" /></label>; }
-function Field({ name, label, defaultValue, type = "text", placeholder, suffix, dir }: { name: string; label: string; defaultValue: string; type?: string; placeholder?: string; suffix?: string; dir?: "ltr" | "rtl" }) { return <label className="payment-field"><span>{label}</span><span className="payment-input-wrap"><input name={name} defaultValue={defaultValue} type={type} step={type === "number" ? "0.01" : undefined} min={type === "number" ? "0" : undefined} placeholder={placeholder} dir={dir} />{suffix && <b>{suffix}</b>}</span></label>; }
+function RuleToggle({ name, title, text, defaultChecked, disabled }: { name: string; title: string; text: string; defaultChecked: boolean; disabled?: boolean }) { return <label className={`payment-rule${disabled ? " is-unavailable" : ""}`}><span><strong>{title}</strong><small>{text}</small></span><input type="checkbox" name={name} defaultChecked={defaultChecked} disabled={disabled} /><span className="payment-switch" /></label>; }
+function Field({ name, label, defaultValue, value, onChange, type = "text", placeholder, suffix, dir }: { name: string; label: string; defaultValue?: string; value?: string; onChange?: (next: string) => void; type?: string; placeholder?: string; suffix?: string; dir?: "ltr" | "rtl" }) { const controlled = value !== undefined; return <label className="payment-field"><span>{label}</span><span className="payment-input-wrap"><input name={name} defaultValue={controlled ? undefined : defaultValue} value={controlled ? value : undefined} onChange={controlled ? (event) => onChange?.(event.target.value) : undefined} type={type} step={type === "number" ? "0.01" : undefined} min={type === "number" ? "0" : undefined} placeholder={placeholder} dir={dir} />{suffix && <b>{suffix}</b>}</span></label>; }
 function TextArea({ name, label, defaultValue, placeholder }: { name: string; label: string; defaultValue: string; placeholder: string }) { return <label className="payment-field"><span>{label}</span><textarea name={name} defaultValue={defaultValue} placeholder={placeholder} rows={3} /></label>; }
 function SaveButton({ locale }: { locale: Locale }) { const { pending } = useFormStatus(); return <button className="settings-save payment-save" disabled={pending}>{pending ? (locale === "he" ? "שומרים…" : "Saving…") : (locale === "he" ? "שמירת הגדרות תשלום" : "Save payment settings")}</button>; }
