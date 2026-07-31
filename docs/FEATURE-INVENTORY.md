@@ -206,8 +206,17 @@ as fixes land. See `docs/REMEDIATION-PLAN.md` for what is still open._
 
 | Capability | Entry point | Users | State |
 |---|---|---|---|
-| Signup with password strength meter and terms gate | `/signup` | anonymous | REAL — surfaces raw provider errors, enabling account enumeration |
-| Login | `/login` | staff | REAL |
+| Signup with SERVER-ENFORCED password policy and terms gate | `/signup` | anonymous | REAL — the rule lives in `lib/core/password-policy.mjs` and runs in a server action; the browser meter imports the same module. A direct POST to GoTrue still bypasses it (project configuration, see ledger 6b.7) |
+| Login | `/login` | staff | REAL — a SERVER action: rate limited per account and per network, every attempt recorded in `auth_login_attempts`, and a second-factor step when one is enrolled |
+| Sign-in throttling and lockout | `/login` | staff | REAL — 5 failures locks an account for 5 min escalating to a 60 min cap; 20 failures from one /24 locks the network. Counted in Postgres, so it holds across instances |
+| Two-factor authentication (TOTP) | `/settings/security` | staff | PARTIAL — enrol, verify, remove and the login challenge are built; never executed against a live Supabase project, and there is no org-wide "require MFA" policy |
+| Sign out every device | `/settings/security` | staff | REAL — `signOut({ scope: "global" })`; per-device revocation is not possible through Supabase’s client API |
+| New-device sign-in alerts | `/settings/security` | staff | REAL — emailed when the device+network signature is new; with no email provider the alert is RECORDED and shown rather than dropped |
+| Change password under the server policy | `/settings/security` | staff | REAL — re-verifies the current password, then applies the same rule signup uses |
+| Business audit log — filter by date, record, action and actor | `/settings/security` | owner | REAL — the first reader of `audit_log` beyond a single record’s 30-row timeline; filters live in the URL and it pages with an exact count |
+| Permission-change history | `/settings/security` | owner | REAL — written by database trigger on profiles, capabilities, payment permissions and invitations, so a change made straight through PostgREST is still recorded |
+| E-signature evidence (IP, device, sha256 of the stored signature) | `/settings/security`, `/p/[token]` | owner/office | REAL — a signature taken without a server context is shown as UNWITNESSED rather than passing for a witnessed one |
+| Provider-token encryption key rotation | `/admin` → Encryption keys | platform super_admin | PARTIAL — keyring, planned rotation and audit record all work; the payment read path still ignores `key_version`, so there is a window during a rotation |
 | Forgot password / set new password | `/forgot-password`, `/reset-password` | anonymous | REAL |
 | Org creation, owner profile, 14-day trial | `/onboarding` | owner | REAL |
 | Auto-join an invited org on first login | `/onboarding` | staff | REAL — now redeemed through the emailed token rather than the email address alone; someone who signs up without the link is told an invitation is waiting (`pending_invitation_hint()`) instead of accidentally creating a second business |

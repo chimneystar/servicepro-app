@@ -7,12 +7,47 @@ import { requireProfile, assertRole, type Role } from "@/lib/auth";
 import { getLocale } from "@/lib/locale-server";
 import { t } from "@/lib/i18n";
 import { appUrl, providers, sendEmail } from "@/lib/providers";
+import { getRequestContext } from "@/lib/request-context";
 // @ts-ignore -- pure logic, proven both ways in tests/invitations.test.mjs
 import { invitationAcceptUrl, invitationEmail } from "@/lib/core/invitations.mjs";
 // @ts-ignore -- integer-safe money math
 import { parseAmountToMinor } from "@/lib/core/money.mjs";
 // @ts-ignore -- pure logic, proven both ways in tests/skills.test.mjs
 import { normalizeSkillCode } from "@/lib/core/skills.mjs";
+
+/**
+ * Attach the request context to the permission changes this call just caused.
+ *
+ * THE DEFECT (ledger 6b.3): this file contained no audit call of any kind.
+ * Granting `can_refund_payments`, handing someone owner rights, or quietly
+ * changing a technician's commission left no trace anywhere in the product.
+ *
+ * The RECORD itself is written by a database trigger (migration 038 §3), not
+ * from here — deliberately. The threat model on this branch is an attacker who
+ * skips the server actions and talks to PostgREST directly, and a log written
+ * in application code would only ever see the polite door. What the trigger
+ * cannot see is an HTTP header, so this stamps the IP and user agent onto the
+ * rows it just produced. `stamp_permission_change_context` only ever touches
+ * rows whose actor is the caller, so it adds provenance without adding a way
+ * to forge any.
+ */
+async function stampPermissionContext(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  subjectId: string | null,
+  since: string,
+) {
+  try {
+    const context = await getRequestContext();
+    await supabase.rpc("stamp_permission_change_context", {
+      p_subject: subjectId,
+      p_since: since,
+      p_ip: context.ip,
+      p_user_agent: context.userAgent,
+    });
+  } catch {
+    // The change is already on the record; only its provenance is missing.
+  }
+}
 
 export type ActionResult = { ok: boolean; error?: string; notice?: string };
 export type CapabilityValues = {
@@ -107,6 +142,7 @@ export async function inviteMember(_prev: ActionResult, formData: FormData): Pro
 
   const supabase = await createClient();
   const token = randomUUID();
+  const since = new Date(Date.now() - 5_000).toISOString();
   const { data: invite, error } = await supabase.from("invitations").insert({
     organization_id: profile.organization_id,
     email,
@@ -120,6 +156,8 @@ export async function inviteMember(_prev: ActionResult, formData: FormData): Pro
     supabase, inviteId: invite.id, organizationId: profile.organization_id!, email, role, token,
     inviterName: profile.full_name, locale,
   });
+  // An invitation is a permission grant in waiting — especially an owner one.
+  await stampPermissionContext(supabase, null, since);
   revalidatePath("/team");
   return delivery.delivered ? { ok: true } : { ok: true, notice: delivery.notice };
 }
@@ -156,6 +194,7 @@ export async function changeRole(memberId: string, role: string): Promise<Action
   try { currentOwner = await guardOwner(); } catch { return { ok: false, error: t(locale, "err.forbidden") }; }
   if (!["owner", "office", "tech"].includes(role)) return { ok: false, error: t(locale, "err.invalid") };
   const supabase = await createClient();
+  const since = new Date(Date.now() - 5_000).toISOString();
   const { error } = await supabase.from("profiles").update({ role }).eq("id", memberId);
   if (error) return { ok: false, error: memberError(locale, error.message) };
   const office = role === "office";
@@ -177,6 +216,7 @@ export async function changeRole(memberId: string, role: string): Promise<Action
     can_manage_team: owner,
   }, { onConflict: "profile_id" });
   if (role !== "office") await supabase.from("profile_payment_permissions").delete().eq("profile_id", memberId);
+  await stampPermissionContext(supabase, memberId, since);
   revalidatePath("/team");
   return { ok: true };
 }
@@ -189,6 +229,7 @@ export async function updateCapabilities(memberId: string, values: CapabilityVal
   const supabase = await createClient();
   const { data: member } = await supabase.from("profiles").select("id, role, organization_id").eq("id", memberId).maybeSingle();
   if (!member || member.organization_id !== owner.organization_id || member.role === "owner") return { ok: false, error: t(locale, "err.invalid") };
+  const since = new Date(Date.now() - 5_000).toISOString();
   const { error } = await supabase.from("profile_capabilities").upsert({
     profile_id: memberId,
     organization_id: owner.organization_id,
@@ -207,6 +248,7 @@ export async function updateCapabilities(memberId: string, values: CapabilityVal
     updated_by: owner.id,
   }, { onConflict: "profile_id" });
   if (error) return { ok: false, error: locale === "he" ? "לא הצלחנו לשמור את הרשאות העובד." : "We couldn't save this team member's access." };
+  await stampPermissionContext(supabase, memberId, since);
   revalidatePath("/team");
   return { ok: true };
 }
@@ -224,6 +266,7 @@ export async function updatePaymentPermissions(
   const { data: member } = await supabase.from("profiles").select("id, role").eq("id", memberId).maybeSingle();
   if (!member || member.role !== "office") return { ok: false, error: t(locale, "err.invalid") };
 
+  const since = new Date(Date.now() - 5_000).toISOString();
   const { error } = await supabase.from("profile_payment_permissions").upsert({
     profile_id: memberId,
     organization_id: owner.organization_id,
@@ -233,6 +276,7 @@ export async function updatePaymentPermissions(
     updated_by: owner.id,
   }, { onConflict: "profile_id" });
   if (error) return { ok: false, error: locale === "he" ? "לא הצלחנו לשמור את הרשאות התשלום." : "We couldn't save the payment permissions." };
+  await stampPermissionContext(supabase, memberId, since);
   revalidatePath("/team");
   return { ok: true };
 }
@@ -381,8 +425,10 @@ export async function removeMember(memberId: string): Promise<ActionResult> {
   try { profile = await guardOwner(); } catch { return { ok: false, error: t(locale, "err.forbidden") }; }
   if (memberId === profile.id) return { ok: false, error: t(locale, "err.invalid") };
   const supabase = await createClient();
+  const since = new Date(Date.now() - 5_000).toISOString();
   const { error } = await supabase.from("profiles").delete().eq("id", memberId);
   if (error) return { ok: false, error: memberError(locale, error.message) };
+  await stampPermissionContext(supabase, memberId, since);
   revalidatePath("/team");
   return { ok: true };
 }
@@ -391,8 +437,10 @@ export async function cancelInvite(id: string): Promise<ActionResult> {
   const locale = (await getLocale());
   try { await guardOwner(); } catch { return { ok: false, error: t(locale, "err.forbidden") }; }
   const supabase = await createClient();
+  const since = new Date(Date.now() - 5_000).toISOString();
   const { error } = await supabase.from("invitations").delete().eq("id", id);
   if (error) return { ok: false, error: saveError(locale) };
+  await stampPermissionContext(supabase, null, since);
   revalidatePath("/team");
   return { ok: true };
 }

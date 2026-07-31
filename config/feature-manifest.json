@@ -414,6 +414,15 @@
       ]
     },
     {
+      "path": "/settings/security",
+      "file": "app/(app)/settings/security/page.tsx",
+      "roles": [
+        "owner",
+        "office",
+        "tech"
+      ]
+    },
+    {
       "path": "/team",
       "file": "app/(app)/team/page.tsx",
       "roles": [

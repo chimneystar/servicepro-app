@@ -1,8 +1,8 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { t, type Locale } from "@/lib/i18n";
+import { approveDocument } from "@/app/p/[token]/actions";
 
 export default function SignApprove({ token, locale }: { token: string; locale: Locale }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -31,15 +31,21 @@ export default function SignApprove({ token, locale }: { token: string; locale: 
   function up() { drawing.current = false; }
   function clear() { const c = canvasRef.current!; c.getContext("2d")!.clearRect(0, 0, c.width, c.height); hasDrawn.current = false; }
 
+  // The RPC used to be called from here, which is exactly why an approved
+  // estimate had no evidence behind it: the server never saw the request, so
+  // there was no IP and no user agent to record. It now posts to a server
+  // action that captures both. See app/p/[token]/actions.ts.
   async function approve() {
     if (!name.trim()) { setError(t(locale, "doc.your_name")); return; }
     setBusy(true); setError(null);
     try {
       const sig = hasDrawn.current ? canvasRef.current!.toDataURL("image/png") : "";
-      const supabase = createClient();
-      const { data, error } = await supabase.rpc("approve_document", { p_token: token, p_name: name.trim(), p_sig: sig });
-      if (error) throw error;
-      if (!data) throw new Error("Could not approve");
+      const payload = new FormData();
+      payload.set("token", token);
+      payload.set("name", name.trim());
+      payload.set("signature", sig);
+      const result = await approveDocument({ ok: false }, payload);
+      if (!result.ok) throw new Error(result.error ?? "Could not approve");
       setDone(true);
       window.dispatchEvent(new Event("servicepro:document-approved"));
     } catch (err: any) {

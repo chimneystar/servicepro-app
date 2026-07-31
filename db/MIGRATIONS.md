@@ -54,8 +54,9 @@ Run these **in this exact order**. Every file, no gaps.
 | 34 | `035_custom_fields_tax.sql` | Guards `custom_field_values.entity_id` (audit F21 — polymorphic, no FK, no org check); adds opt-in `organizations.tax_mode` and `document_tax_context()` so tax jurisdictions and customer exemptions can price a document |
 | 35 | `036_document_integrity.sql` | Credit notes and void (the original document and its NUMBER are kept), safe max-aware document numbering with a release-on-failure compare-and-set, the edit lock on sent/signed/paid documents and their line items, and a `version` column on both document tables. **Requires 030** — it refuses to run without `can_refund_payments()` |
 | 36 | `037_recovery.sql` | `deleted_by` on the four soft-deletable tables (backfilled from `audit_log`), the restore-consistency and privacy-erasure triggers behind `/trash`, and indexes for listing deleted rows |
-| 37 | `039_scheduling_sales.sql` | Technician pay rates and labour costing, time off, skills, estimate options, appointment tokens |
-| 38 | `040_communications.sql` | Staff notification inbox (claim + audit), the dunning ladder's per-rung claim, sent statements, **calendar feed tokens bounded like 023 §10's portal tokens** (NOT NULL expiry, revocation, scope), report schedules with a per-period delivery claim, the bulk-operation failure record, and accounting-export idempotency. Additive: drops nothing |
+| 37 | `038_account_security.sql` | _(describe this migration)_ |
+| 38 | `039_scheduling_sales.sql` | Technician pay rates and labour costing, time off, skills, estimate options, appointment tokens |
+| 39 | `040_communications.sql` | Staff notification inbox (claim + audit), the dunning ladder's per-rung claim, sent statements, **calendar feed tokens bounded like 023 §10's portal tokens** (NOT NULL expiry, revocation, scope), report schedules with a per-period delivery claim, the bulk-operation failure record, and accounting-export idempotency. Additive: drops nothing |
 
 There is **no file numbered 016**: `016_isolation_tests.sql` is a *test*, not a
 migration. Run it after step 15 (and again at the end) and confirm you see

@@ -2,12 +2,59 @@
 
 import { useActionState, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
-import { createRelease, createSupportCase, createSupportSession, openBusinessSnapshot, revokeSupportSession, saveFeatureFlag, updateReleaseStatus, updateSupportCase, type AdminResult, type BusinessSnapshot } from "./actions";
+import { useEffect } from "react";
+import { createRelease, createSupportCase, createSupportSession, getKeyStatus, openBusinessSnapshot, revokeSupportSession, rotatePaymentSecretsKey, saveFeatureFlag, updateReleaseStatus, updateSupportCase, type AdminResult, type BusinessSnapshot, type KeyStatus } from "./actions";
 import type { Locale } from "@/lib/i18n";
 
 type Org={id:string;name:string;locale:string;created_at:string;members:number;privacyReady:boolean;merchantStatus:string};type Case={id:string;case_number:number;organization_id:string|null;subject:string;status:string;severity:string;created_at:string;organizations?:{name:string}|null};type Session={id:string;case_id:string;organization_id:string;reason:string;access_level:string;expires_at:string;revoked_at:string|null;organizations?:{name:string}|null};type Flag={id:string;key:string;description:string|null;enabled:boolean;rollout_percent:number};type Release={id:string;version:string;title:string;status:string;risk_level:string;git_sha:string|null;deployment_url:string|null;regression_checklist:Record<string,boolean>;created_at:string};const initial:AdminResult={ok:false};
 
-export default function AdminConsole({locale,role,organizations,cases,sessions,flags,releases}:{locale:Locale;role:string;organizations:Org[];cases:Case[];sessions:Session[];flags:Flag[];releases:Release[]}){const he=locale==="he",[tab,setTab]=useState<"support"|"releases"|"health">("support");const activeSessions=sessions.filter(s=>!s.revoked_at&&new Date(s.expires_at)>new Date());return <><section className="ops-summary"><article className="ops-stat"><small>{he?"עסקים פעילים":"Businesses"}</small><strong>{organizations.length}</strong><span>{he?"סביבות עבודה במערכת":"Workspaces on the platform"}</span></article><article className="ops-stat"><small>{he?"פניות פתוחות":"Open cases"}</small><strong>{cases.filter(c=>!["resolved","closed"].includes(c.status)).length}</strong><span>{he?"דורשות טיפול של התמיכה":"Need support attention"}</span></article><article className={`ops-stat ${activeSessions.length?"attention":""}`}><small>{he?"גישות תמיכה פעילות":"Active support access"}</small><strong>{activeSessions.length}</strong><span>{he?"גישה מוגבלת בזמן ומתועדת":"Time-limited and audited"}</span></article><article className="ops-stat"><small>{he?"גרסה חיה":"Live release"}</small><strong>{releases.find(r=>r.status==="live")?.version||"—"}</strong><span>{he?`הרשאת מערכת: ${role}`:`Platform role: ${role}`}</span></article></section><nav className="ops-tabs"><button className={tab==="support"?"active":""} onClick={()=>setTab("support")}>{he?"תמיכה וגישה":"Support & access"}</button><button className={tab==="releases"?"active":""} onClick={()=>setTab("releases")}>{he?"גרסאות ותכונות":"Releases & flags"}</button><button className={tab==="health"?"active":""} onClick={()=>setTab("health")}>{he?"מצב עסקים":"Business health"}</button></nav>{tab==="support"&&<Support he={he} organizations={organizations} cases={cases} sessions={sessions}/>} {tab==="releases"&&<Releases he={he} role={role} flags={flags} releases={releases}/>} {tab==="health"&&<Health he={he} rows={organizations}/>}</>}
+export default function AdminConsole({locale,role,organizations,cases,sessions,flags,releases}:{locale:Locale;role:string;organizations:Org[];cases:Case[];sessions:Session[];flags:Flag[];releases:Release[]}){const he=locale==="he",[tab,setTab]=useState<"support"|"releases"|"health"|"keys">("support");const activeSessions=sessions.filter(s=>!s.revoked_at&&new Date(s.expires_at)>new Date());return <><section className="ops-summary"><article className="ops-stat"><small>{he?"עסקים פעילים":"Businesses"}</small><strong>{organizations.length}</strong><span>{he?"סביבות עבודה במערכת":"Workspaces on the platform"}</span></article><article className="ops-stat"><small>{he?"פניות פתוחות":"Open cases"}</small><strong>{cases.filter(c=>!["resolved","closed"].includes(c.status)).length}</strong><span>{he?"דורשות טיפול של התמיכה":"Need support attention"}</span></article><article className={`ops-stat ${activeSessions.length?"attention":""}`}><small>{he?"גישות תמיכה פעילות":"Active support access"}</small><strong>{activeSessions.length}</strong><span>{he?"גישה מוגבלת בזמן ומתועדת":"Time-limited and audited"}</span></article><article className="ops-stat"><small>{he?"גרסה חיה":"Live release"}</small><strong>{releases.find(r=>r.status==="live")?.version||"—"}</strong><span>{he?`הרשאת מערכת: ${role}`:`Platform role: ${role}`}</span></article></section><nav className="ops-tabs"><button className={tab==="support"?"active":""} onClick={()=>setTab("support")}>{he?"תמיכה וגישה":"Support & access"}</button><button className={tab==="releases"?"active":""} onClick={()=>setTab("releases")}>{he?"גרסאות ותכונות":"Releases & flags"}</button><button className={tab==="health"?"active":""} onClick={()=>setTab("health")}>{he?"מצב עסקים":"Business health"}</button><button className={tab==="keys"?"active":""} onClick={()=>setTab("keys")}>{he?"מפתחות הצפנה":"Encryption keys"}</button></nav>{tab==="support"&&<Support he={he} organizations={organizations} cases={cases} sessions={sessions}/>} {tab==="releases"&&<Releases he={he} role={role} flags={flags} releases={releases}/>} {tab==="health"&&<Health he={he} rows={organizations}/>} {tab==="keys"&&<Keys he={he} role={role}/>}</>}
+
+/**
+ * Encryption-key rotation (ledger 6b.9).
+ *
+ * The status is fetched on open rather than passed down from the page, because
+ * it is derived from server-side environment variables and belongs nowhere
+ * near a serialised prop. Nothing here ever handles a decrypted token: the
+ * rotation happens entirely inside the server action.
+ */
+function Keys({he,role}:{he:boolean;role:string}){
+  const [status,setStatus]=useState<KeyStatus|null>(null);
+  const [error,setError]=useState<string|null>(null);
+  const [message,setMessage]=useState<string|null>(null);
+  const [pending,start]=useTransition();
+
+  const load=()=>start(async()=>{const result=await getKeyStatus();if(result.ok&&result.status){setStatus(result.status);setError(null);}else{setStatus(null);setError(result.error??null);}});
+  useEffect(load,[]);
+
+  return <div className="ops-card"><header><div><h2>{he?"מפתח ההצפנה של אסימוני הסולק":"Provider token encryption key"}</h2>
+    <p>{he?"PAYMENT_SECRETS_KEY לא ניתן היה להחלפה: כל אסימון שמור היה הופך לבלתי קריא.":"PAYMENT_SECRETS_KEY could not be changed: every stored token would have become unreadable."}</p></div></header>
+    <div className="ops-card-body" style={{display:"grid",gap:10}}>
+      {error&&<p className="form-error" role="alert">{error}</p>}
+      {status&&<>
+        <div><strong>{he?"מפתח פעיל":"Active key"}: v{status.activeVersion}</strong>
+          <small style={{display:"block",color:"var(--muted)"}}>{he?"מפתחות זמינים":"Keys held"}: {status.heldVersions.length?status.heldVersions.map(v=>`v${v}`).join(", "):(he?"אין":"none")}</small></div>
+        {status.problems.map(problem=><p className="form-error" key={problem}>{problem}</p>)}
+        <ul className="ops-list">{status.rows.length===0&&<li className="ops-empty">{he?"אין אסימונים שמורים.":"No stored tokens."}</li>}
+          {status.rows.map(row=><li key={row.keyVersion}><div><strong>v{row.keyVersion}</strong><small>{row.count} {he?"רשומות":"record(s)"}</small></div>{row.keyVersion===status.activeVersion?<span className="ops-pill">{he?"מעודכן":"current"}</span>:<span className="ops-pill warn">{he?"ממתין":"pending"}</span>}</li>)}
+        </ul>
+        <p className="ops-message">{status.plan}</p>
+        {status.lastRun&&<small style={{color:"var(--muted)"}}>{he?"ריצה אחרונה":"Last run"}: {status.lastRun.status} → v{status.lastRun.toVersion} · {status.lastRun.rotated} {he?"הוצפנו מחדש":"re-encrypted"} · {new Date(status.lastRun.at).toLocaleString(he?"he-IL":"en-US")}{status.lastRun.error?` · ${status.lastRun.error}`:""}</small>}
+        <div className="ops-actions">
+          <button type="button" className="ops-primary" disabled={pending||!status.canRotate||role!=="super_admin"}
+            onClick={()=>start(async()=>{const result=await rotatePaymentSecretsKey({ok:false});setMessage(result.error??result.summary??null);load();})}>
+            {he?"הרצת רוטציה":"Run rotation"}
+          </button>
+          <button type="button" className="ops-secondary" disabled={pending} onClick={load}>{he?"רענון":"Refresh"}</button>
+        </div>
+        {role!=="super_admin"&&<small style={{color:"var(--muted)"}}>{he?"רק super_admin יכול להריץ רוטציה.":"Only a super_admin can run a rotation."}</small>}
+        {message&&<p className="ops-message" role="status">{message}</p>}
+        <p style={{margin:0,fontSize:10.5,color:"var(--muted)"}}>{he
+          ?"בין הפריסה לסיום הרוטציה, שורה שטרם הוצפנה מחדש אינה קריאה למסלול התשלומים — הוא אינו קורא key_version. זו הסיבה ש-6b.9 מסומן PARTIAL."
+          :"Between deploying a new key and finishing the rotation, a not-yet-rotated row cannot be read by the payment path, which does not consult key_version. That window is why ledger 6b.9 is PARTIAL."}</p>
+      </>}
+    </div></div>;
+}
 
 function Support({he,organizations,cases,sessions}:{he:boolean;organizations:Org[];cases:Case[];sessions:Session[]}){const[caseState,caseAction]=useActionState(createSupportCase,initial),[sessionState,sessionAction]=useActionState(createSupportSession,initial),[pending,start]=useTransition(),[message,setMessage]=useState("");const[snapshot,setSnapshot]=useState<BusinessSnapshot|null>(null);
   // Opening a business is the call the session actually governs. It is refused,

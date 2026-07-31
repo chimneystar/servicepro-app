@@ -638,15 +638,152 @@ because it is outside this pass's file list, so a send that goes only through th
 the document. (c) `setInvoicePaid(false)` still leaves the payment row behind, already noted as
 PARTIAL in `docs/FEATURE-INVENTORY.md`; with the lock in place that row is now what keeps the invoice
 locked, which is the right outcome but is coincidental rather than designed.
-| 6b.1 | Capture IP + user-agent (currently **zero** occurrences repo-wide) — e-sign evidence, login forensics | TODO |
-| 6b.2 | Brute-force protection + login attempt log | TODO |
-| 6b.3 | Permission-change history | TODO |
-| 6b.4 | Admin-visible audit log UI | TODO |
-| 6b.5 | Two-factor authentication | TODO |
-| 6b.6 | Session management / device revocation / login alerts | TODO |
-| 6b.7 | Server-side password policy | TODO |
+| 6b.1 | Capture IP + user-agent (currently **zero** occurrences repo-wide) — e-sign evidence, login forensics | DONE — captured where it is evidence, refused where it is surveillance. See note. |
+| 6b.2 | Brute-force protection + login attempt log | DONE — sign-in moved server-side; two gates, the durable one counted in Postgres. See note. |
+| 6b.3 | Permission-change history | DONE — recorded by database TRIGGER, so PostgREST cannot skip it. See note. |
+| 6b.4 | Admin-visible audit log UI | DONE — `/settings/security`, filterable and paginated, plus three streams that did not exist. See note. |
+| 6b.5 | Two-factor authentication | PARTIAL — enrolment, verification, removal and the login challenge are built and never executed against a live Supabase project; org-wide "require MFA" is NOT built. See note. |
+| 6b.6 | Session management / device revocation / login alerts | PARTIAL — global sign-out and new-device alerts are real; per-device revocation is impossible through Supabase's client API. See note. |
+| 6b.7 | Server-side password policy | PARTIAL — enforced on every path this product offers; a direct POST to GoTrue still bypasses it and needs project configuration. See note. |
 | 6b.8 | SMS STOP handling — **DONE** in Phase 1 (opt-out now honoured by both reminder loops) | DONE |
-| 6b.9 | Encryption-key rotation for provider tokens | TODO |
+| 6b.9 | Encryption-key rotation for provider tokens | PARTIAL — a keyring, a planned rotation and its audit record all work; the payment read path still ignores `key_version`, so there is a window. See note. |
+
+**Note on 6b.1 — where the request context is captured, and where it is deliberately not.**
+
+`db/038_account_security.sql`, `lib/core/request-context.mjs`, `lib/request-context.ts`.
+`grep -rn "x-forwarded-for" app lib` returned exactly one hit before this: a comment in the rate
+limiter. Now the server derives `{ ip, ipSource, ipTrusted, userAgent, device, signature }` and
+records it in **four** places only — signature approval, sign-in, permission change, and account
+security events (password change, MFA, session revocation). It is **not** captured in the proxy, the
+app layout or the Supabase middleware, and `tests/account-security.test.mjs` asserts their absence:
+an IP address is personal data, and a page-view log is surveillance, not evidence.
+
+*The trusted/untrusted distinction is the honest part.* Only a header the hosting edge overwrites
+(`x-vercel-forwarded-for`, `cf-connecting-ip`, `true-client-ip`) is stored as `ip_trusted = true`. A
+value from `x-forwarded-for` is still recorded — it is the best information available — but flagged,
+and the screen says "unverified", so nobody later mistakes it for proof.
+
+*Signature evidence.* `components/SignApprove.tsx` called `supabase.rpc("approve_document")` straight
+from the browser, so the server never saw the request and an approved estimate carried a typed name
+and a PNG. It now posts to a server action which calls `approve_document_with_evidence` — granted to
+the **service role only**, precisely so the browser cannot dictate its own IP address; forged
+evidence is worse than none. `estimates`/`invoices` gain `signature_ip` and `signature_user_agent`,
+and every signature writes an append-only `document_signature_events` row carrying a **sha256 of
+exactly what was stored**. `approve_document` keeps its signature, return type and anon grant (004
+created it, 013 granted it, 023 §6 guarded it, `db/ci/40_document_assertions.sql` calls it as anon);
+it now delegates, so 023's `signed_at is null` guard exists in one place and a signature taken
+without a server context writes `capture = 'none'` and is displayed as **unwitnessed** rather than
+passing for the real thing.
+
+**Note on 6b.2 — sign-in is a server action now, and that is the whole fix.**
+
+A browser cannot throttle, record or alert on itself. `app/login/actions.ts` runs two gates: the
+in-process limiter (cheap, absorbs a flood, honest about being per-instance) and then
+`login_throttle_counts()` in Postgres, which holds across serverless instances. Five failures locks
+the account for 5 minutes, escalating to a 60-minute cap — never permanent, because a permanent lock
+is a denial-of-service anyone can trigger on a rival. Twenty failures from one /24 locks the network,
+which is the gate that catches a spray the account gate would never see. Failures are counted only
+since the last **successful** sign-in. No message distinguishes a wrong password from an unknown
+address. Every attempt lands in `auth_login_attempts`, including attempts against addresses that do
+not exist — which is exactly what an attack looks like.
+
+**Note on 6b.3 — the history is written by a trigger, not by the app.**
+
+`app/(app)/team/actions.ts` had no audit call at all: granting `can_refund_payments`, handing out
+owner rights or changing a technician's `commission_pct` left no trace anywhere. The record is now
+written by `record_permission_change()` on `profiles` (role, active, commission_pct,
+organization_id), `profile_capabilities` (all twelve), `profile_payment_permissions` (all three) and
+`invitations` — because the threat model on this branch is somebody who skips the server actions
+entirely, and a log written in application code would only ever see the polite door. What a trigger
+cannot see is an HTTP header, so the actions call `stamp_permission_change_context()`, which can only
+touch rows whose actor is the caller and never overwrites a context already recorded. A change made
+straight through PostgREST is still logged, with a null IP — and the screen says so in words.
+
+**Note on 6b.4 — `audit_log` finally has a reader.**
+
+It has been populated by a trigger since the first schema and had exactly one reader:
+`loadActivity()`, thirty rows for one record. "What changed in my business last week, and who did
+it?" was unanswerable. `/settings/security` answers it: date range, record type, action and actor
+filters held **in the URL** (so a query can be bookmarked or handed to an accountant), `count: exact`
+pagination, plus the three streams that did not exist at all — permission changes, sign-in attempts
+and signature evidence. Business data is owner-only, which is exactly what 038 §8's policies allow,
+so the screen and the database agree. `lib/activity.ts` is untouched and asserted to be.
+
+**Note on 6b.5 — what is built, and why it is not DONE.**
+
+Supabase has supported MFA for years and this app had never called it once. `/settings/security` now
+enrols a TOTP factor (`auth.mfa.enroll` → QR + secret, `challengeAndVerify` to confirm), removes one,
+and `app/login/actions.ts` refuses to complete a sign-in at aal1 when a verified factor exists,
+showing a six-digit code step that is itself rate limited. Enrolment and removal are both mirrored
+into `account_security_events`, because turning MFA **off** must be as auditable as turning it on.
+
+*Not claimed:* none of it has run against a live Supabase project — there is none on this machine —
+and MFA must additionally be enabled in the project's Authentication settings; when it is not, the
+panel says so with the provider's own reason instead of failing silently. There is also **no
+organisation-wide "require two-factor for owners" policy**: enforcing that needs a middleware-level
+AAL check on every request, which is a change to the session path that no probe here could prove.
+
+**Note on 6b.6 — a lost phone can be signed out; one device cannot be picked off.**
+
+"Sign out everywhere" calls `signOut({ scope: "global" })`, which revokes every refresh token
+Supabase holds for the user. It is the real thing, and it signs the current browser out too, which
+the screen says before you press it. New-device sign-in is detected from a coarse signature — device
+label plus /24 (or /48) network prefix, so a commute does not alert every morning and a new machine
+in another country does — and emails the account holder; a first-ever sign-in deliberately does not
+alert on itself, because an alert people learn to ignore is worse than none. **When no email provider
+is connected the alert is still RECORDED** as `login_alert_undelivered` and shown on the screen.
+
+*Not claimed:* Supabase's client API cannot revoke one session while leaving others alive, and it
+cannot enumerate live sessions at all. What is shown is a **sign-in history**, labelled as such, not
+a live session list. Closing that needs GoTrue's admin session endpoints, which supabase-js v2 does
+not expose.
+
+**Note on 6b.7 — the policy is real everywhere this product can reach.**
+
+`lib/core/password-policy.mjs` is the single rule: ≥10 characters, a letter, a number or symbol, no
+top-corpus password (compared after stripping decoration, so "Password123!" is caught), no 4×
+repeats, no keyboard runs, ≥5 distinct characters, and nothing containing the person's name, email
+local part or business name. It runs in `app/signup/actions.ts` **and** in the password-change action
+(which also re-verifies the current password first), and the browser meter imports the same module so
+it cannot disagree with the answer.
+
+*Not claimed:* `/auth/v1/signup` and `/auth/v1/user` are public GoTrue endpoints that take the anon
+key. A determined caller can still set a weak password by talking to Supabase directly. The complete
+fixes are project configuration — Authentication → Policies (minimum length, character classes,
+HaveIBeenPwned) and a `password_verification` Auth Hook running this same rule inside GoTrue — and
+neither can be applied or proven from this repository. `app/reset-password` is outside this pass's
+scope and is the remaining in-repo bypass; see the observations below.
+
+**Note on 6b.9 — rotation is possible; rotation without a window is not, yet.**
+
+`merchant_secrets.key_version` has existed since migration 017 and nothing had ever written anything
+but its default, so PAYMENT_SECRETS_KEY could not be changed without making every stored Helcim token
+unreadable — `.env.example` said exactly that, with no way to re-encrypt. `lib/core/secret-keyring.mjs`
+holds several keys at once (`PAYMENT_SECRETS_KEY` + `PAYMENT_SECRETS_KEY_VERSION` +
+`PAYMENT_SECRETS_KEYS`), decrypts each row with the key its own `key_version` names, and re-encrypts
+under the active one. The wire format is byte-identical to what `lib/payments/crypto.ts` already
+writes, proven by decrypting an independently produced legacy payload, so nothing has to be migrated
+before a rotation can start. `/admin → Encryption keys` shows the per-version row counts, **plans the
+rotation before it moves anything** (a run that meets an unreadable row is refused up front, naming
+the missing key version rather than leaving the estate in two states), runs it as super_admin only,
+and records it in `secret_key_rotations`.
+
+*Why PARTIAL:* `lib/payments/crypto.ts` still reads `PAYMENT_SECRETS_KEY` alone and ignores
+`key_version` — that file belongs to another workstream on this branch and was not touched. So
+between deploying a new key and finishing the rotation, a not-yet-rotated row cannot be decrypted by
+the payment path. Closing it is a four-line change in that file to call `decryptWithKeyring` with the
+row's `key_version`. Nothing here has been executed against a live Postgres or a live Helcim account.
+
+**Probes for 6b.1–6b.9.** `tests/request-context.test.mjs` (10), `tests/password-policy.test.mjs`
+(13), `tests/login-throttle.test.mjs` (14), `tests/secret-keyring.test.mjs` (14),
+`tests/account-security.test.mjs` (24). Suite: **510 → 585**, all green. Every structural assertion
+strips comments first and was verified RED by reverting the corresponding source file to its
+pre-change state: restoring the four original app files fired five assertions; deleting one
+`signed_at is null` from 038 fired the sign-once assertion; granting the evidence function to anon
+fired the service-role assertion; narrowing the watched payment-permission columns fired the
+authority assertion; and removing 023's `invitation_role_not_permitted` guard fired the
+023-preservation assertion. **No SQL in this session has been executed against a live Postgres** —
+same caveat as ledger 0.6.
 | 6c.1 | Parts consumption: job → inventory → job cost | PARTIAL — job → stock → line `cost_minor` shipped with 5.11, and it reaches the margin report through `invoice_items.cost_minor`; the **commission** report still costs a job only from the hand-typed `jobs.job_expenses_minor`, so materials are invisible there until it also sums the line costs |
 | 6c.2 | True job costing including labour | PARTIAL — the wage exists, labour is costed and reaches the gross-margin report through `invoice_items.cost_minor` **when the invoice is raised from the job**; the estimate→invoice route and the commission report still do not carry it. See note. |
 | 6c.3 | Technician time off / non-working days | DONE — one table for absence and closure, wired into the booking slot API, the booking SUBMIT endpoint, the dispatch view and every assignment path. See note. |
