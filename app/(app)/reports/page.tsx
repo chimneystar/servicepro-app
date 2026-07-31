@@ -125,6 +125,10 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         <Link href="/reports/export" style={{ background: "#e6f6ec", color: "#15803d", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>⬇ Accounting export</Link>
         <Link href="/reports/timesheets" style={{ background: "#fdf1dc", color: "#b45309", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>⏱️ Timesheets</Link>
         <Link href="/reports/commission" style={{ background: "#ede9fe", color: "#7c3aed", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>💵 Commission</Link>
+        {/* Ledger 6c.9 and 6c.7 — the numbers come to you, and the schedule
+            goes to your calendar. */}
+        <Link href="/reports/schedule" style={{ background: "#e0f2fe", color: "#0369a1", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>📧 Emailed reports</Link>
+        <Link href="/reports/calendar" style={{ background: "#f1f5f9", color: "#334155", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>📅 Calendar feed</Link>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 14, marginBottom: 20 }}>

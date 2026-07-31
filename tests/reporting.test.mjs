@@ -151,3 +151,45 @@ test("commission no longer pays on quoted price", () => {
   assert.ok(!/revenue \+= j\.price_minor/.test(src),
     "paying commission on jobs.price_minor pays for work that was never collected");
 });
+
+// ---------------------------------------------------------------------------
+// A HOLE IN THIS FILE, found by a parallel agent's digest test rather than by
+// this one.
+//
+// Every periodTotals case above passed ONLY settled payments, so replacing
+// `collectedMinor(payments)` with a naive sum — dropping both the status filter
+// and the refund netting — produced identical numbers and this suite stayed
+// green. The unit tests for collectedMinor were thorough; what was never tested
+// was that periodTotals actually USES it.
+//
+// Testing a helper in isolation proves the helper. It does not prove the caller
+// still calls it. That is the same shape as the scheduling rules that were
+// correct, tested, and invoked by nothing.
+// ---------------------------------------------------------------------------
+
+test("periodTotals nets refunds and excludes unsettled money, not just collectedMinor", () => {
+  const mixed = [
+    settled(500_00),                                                            // real money
+    { base_amount_minor: 900_00, refunded_minor: 0, normalized_status: "processing" }, // ACH in flight
+    { base_amount_minor: 300_00, refunded_minor: 0, normalized_status: "failed" },     // declined card
+    settled(200_00, 150_00),                                                    // refunded down to 50.00
+  ];
+  const totals = periodTotals({ payments: mixed, invoices: [], itemsByInvoice: {} });
+
+  assert.equal(totals.collectedMinor, 550_00, "500.00 settled + 50.00 left after the refund");
+
+  // The mutation this exists to catch: a naive sum over the same rows.
+  const naive = mixed.reduce((s, p) => s + p.base_amount_minor, 0);
+  assert.equal(naive, 1900_00);
+  assert.notEqual(totals.collectedMinor, naive,
+    "if these are ever equal, periodTotals has stopped filtering and netting");
+});
+
+test("periodTotals reports zero when nothing settled, however many payments exist", () => {
+  const none = [
+    { base_amount_minor: 400_00, refunded_minor: 0, normalized_status: "processing" },
+    { base_amount_minor: 600_00, refunded_minor: 0, normalized_status: "failed" },
+  ];
+  const totals = periodTotals({ payments: none, invoices: [], itemsByInvoice: {} });
+  assert.equal(totals.collectedMinor, 0, "a busy but unsettled period collected nothing");
+});

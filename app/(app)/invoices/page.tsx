@@ -6,6 +6,7 @@ import { money } from "@/lib/format";
 import DocForm from "@/components/DocForm";
 import { createInvoice } from "./actions";
 import DocList from "@/components/DocList";
+import InvoiceBulkBar from "./InvoiceBulkBar";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -72,6 +73,12 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
       <div style={{ display: "inline-flex", background: "#eef2f8", borderRadius: 10, padding: 3, marginBottom: 14 }}>
         {tab("all", `All (${all.length})`)}{tab("unpaid", `Due (${dueCount})`)}{tab("paid", `Paid (${paidCount})`)}
       </div>
+
+      {/* Ledger 6c.10 — multi-select. Owner/office only, matching the actions'
+          own guard, so a technician is not shown buttons that would be refused. */}
+      {profile.role !== "tech" && shown.length > 0 && (
+        <InvoiceBulkBar rows={shown.map((i: any) => ({ id: i.id, label: `#${i.number} · ${i.customers?.name ?? "—"}` }))} />
+      )}
 
       <DocList
         rows={shown.map((e: any) => ({ id: e.id, number: e.number, status: e.status, total_minor: e.total_minor, issue_date: e.issue_date, public_token: e.public_token, voided_at: e.voided_at ?? null, customer_name: e.customers?.name ?? "—", customer_email: e.customers?.email ?? null, customer_phone: e.customers?.phone ?? null }))}

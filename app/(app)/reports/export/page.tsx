@@ -4,6 +4,9 @@ import Link from "next/link";
 import ExportClient from "./ExportClient";
 // @ts-ignore — pure, unit-tested manifest (tests/business-export.test.mjs)
 import { exportContract } from "@/lib/core/export-manifest.mjs";
+import AccountingSync from "./AccountingSync";
+// @ts-ignore -- shared JS module, asserted in tests/accounting-sync.test.mjs
+import { ACCOUNTING_SYNC_STATUS } from "@/lib/core/accounting.mjs";
 
 export const dynamic = "force-dynamic";
 
@@ -68,6 +71,9 @@ export default async function ExportPage() {
           </div>
         </div>
       )}
+      {/* Ledger 6c.12 — the mapped, idempotent, reconcilable export. It is
+          PARTIAL and the panel says so before it offers anything. */}
+      <AccountingSync status={ACCOUNTING_SYNC_STATUS} />
     </div>
   );
 }

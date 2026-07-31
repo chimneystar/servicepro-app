@@ -651,14 +651,184 @@ locked, which is the right outcome but is coincidental rather than designed.
 | 6c.2 | True job costing including labour | PARTIAL — the wage exists, labour is costed and reaches the gross-margin report through `invoice_items.cost_minor` **when the invoice is raised from the job**; the estimate→invoice route and the commission report still do not carry it. See note. |
 | 6c.3 | Technician time off / non-working days | DONE — one table for absence and closure, wired into the booking slot API, the booking SUBMIT endpoint, the dispatch view and every assignment path. See note. |
 | 6c.4 | Good/better/best estimate options | DONE — options are bundles of lines on ONE estimate; choosing copies them in, so 024's deposit link and the conversion path are untouched. See note. |
-| 6c.5 | Staff notifications (assignment, booking, payment received) | TODO |
-| 6c.6 | Customer statements + structured dunning | TODO |
-| 6c.7 | Calendar sync / iCal feed | TODO |
+| 6c.5 | Staff notifications (assignment, booking, payment received) | **PARTIAL** — in-app inbox + push + email fallback shipped and triggered by assignment and by manual "mark paid". Provider-settled payments (`lib/payments/**`) and booking receipt do NOT notify yet; see note |
+| 6c.6 | Customer statements + structured dunning | DONE — printable/sendable statement + a four-rung ladder that escalates and **ends**; see note |
+| 6c.7 | Calendar sync / iCal feed | **PARTIAL** — outbound iCal feed shipped, bounded per 023 §10. Nothing is IMPORTED from Google; see note |
 | 6c.8 | Appointment confirm/decline + "tech on the way" tracking page | PARTIAL — the page, the expiring/revocable token, confirm/decline and arrival tracking all ship; the NIGHTLY reminder does not yet carry the link because `lib/cron-tasks.ts` is outside this scope. See note. |
-| 6c.9 | Scheduled/emailed reports | TODO |
-| 6c.10 | Bulk operations on lists | TODO |
+| 6c.9 | Scheduled/emailed reports | DONE — nightly digest on the existing cron, revenue from `lib/core/reporting.mjs`; see note |
+| 6c.10 | Bulk operations on lists | **PARTIAL** — multi-select + partial-failure reporting on invoices and customers. Bulk job re-assignment NOT built: `jobs/**`, `schedule/**` and `dispatch/**` are owned elsewhere on this branch; see note |
 | 6c.11 | Technician skills / certifications + dispatch matching | DONE — certifications with expiry, `jobs.required_skills`, and a refusal on every assignment path. See note. |
-| 6c.12 | Accounting sync (QuickBooks / Xero) | TODO |
+| 6c.12 | Accounting sync (QuickBooks / Xero) | **PARTIAL — no integration ships.** Idempotent keys, QBO/Xero column mapping and two-way reconciliation only. No OAuth app exists in this environment; see note |
+
+**Note on 6c.5 — the technician is told, the owner is told, and "nobody was told" is now impossible to hide.**
+
+5.13 built a push SENDER. Push is one channel on one device: a technician who never enabled
+notifications, or whose browser dropped the subscription, learned nothing — and **no record existed
+that they had not been told.** Three things close that.
+
+*The inbox is the claim.* `staff_notifications` (migration 040) is inserted under
+`unique (organization_id, dedupe_key)` **before** anything is sent, so two concurrent writers cannot
+both notify; the row is UPDATED with the outcome, and **DELETED (released) if the attempt throws**, so
+a transient failure can be retried instead of suppressing the notification for ever. `notificationKey`
+THROWS on a missing part rather than producing a key every row in the business would share.
+
+*The existing trigger was EXTENDED, not replaced.* `notifyJobAssigned` in `lib/push.ts` still sends
+the same push with the same wording, then hands its result to `notifyJobAssignedStaff`. Every existing
+call site — the dispatch board, `/schedule`'s create form, the crew editor — gained an inbox row and an
+email fallback **without one line changing in `dispatch/**` or `schedule/**`**, which this pass does not
+own. The import is dynamic because `lib/notify.ts` imports `sendPushToProfile`; a static one is a cycle.
+
+*The email fallback is a FALLBACK.* `deliveryPlan` sends email only when push reached **zero** devices
+(or push is unconfigured, or the notification is urgent). Emailing on top of a delivered push is spam;
+not emailing when push failed is the silence being removed. `inbox_only` is a distinct, honest status —
+not a failure — for a teammate with no devices and no email provider.
+
+*Consent.* Staff email defers to `contactEligibility`, **the single shared rule**, so the non-boolean
+refusal is inherited rather than re-implemented: a profile row selected without `notify_email_opt_in`
+is refused as `email_opt_in_unknown`, and an INACTIVE teammate is treated exactly as a deleted contact.
+A structural test asserts `staff-notify.mjs` contains no second copy of the flag check.
+
+*One real gap that had to be resolved:* `profiles` **has no email column** — the address is in
+`auth.users`. Without `resolveStaffEmail` every staff email would have been refused as `no_email` and
+the fallback would have silently never fired. `profiles.notify_email` (new, optional) wins for a shared
+inbox; otherwise the login address is read with the service role.
+
+*Why PARTIAL.* A payment notification fires from the **manual** `setInvoicePaid` path only. Card and
+ACH settlement run through `lib/payments/**`, and booking receipt through `app/api/booking/**`, both
+owned by other workstreams this session. Neither notifies yet. Stated rather than papered over.
+
+**Note on 6c.6 — a statement that exists, and collections that stop.**
+
+*The statement.* `buildStatement` produces opening balance, activity lines with a running balance,
+closing balance and a per-invoice aging split, all integer-exact. The cash side is `collectedMinor`
+**imported from `lib/core/reporting.mjs`** — not re-summed — so a statement can never disagree with
+/reports about what a customer has paid, and a failed card, a refund and a surcharge are handled
+identically on both. Draft and voided invoices are never billed; a payment against an invoice that is
+not on the statement cannot reduce its balance. A windowed statement folds earlier activity into the
+OPENING balance rather than dropping it, so a one-month statement still shows the whole truth.
+`/customers/[id]/statement` prints it and sends it.
+
+*The ladder.* Four rungs — reminder (7d, email), overdue (14d, SMS), second notice (30d, email), final
+notice (45d, email) — **and then it stops**. `nextDunningStage` returns the HIGHEST rung the age has
+earned, not the lowest unsent one, so switching this on against a book of year-old invoices sends one
+final notice each rather than a four-night barrage; it never repeats a rung and never goes backwards.
+`dunning_events` is the claim, unique per (invoice, stage). Consent refusal is TERMINAL and recorded
+with its reason; a provider failure is left `failed` with its message and re-claimed by compare-and-set
+up to three attempts. **The existing weekly nudge is untouched** — nothing was removed.
+
+**Note on 6c.7 — how the feed token is bounded, and why this is PARTIAL.**
+
+A subscribable URL is a CREDENTIAL: Google fetches it hourly, for ever, with no login. The rules are
+the ones 023 §10 settled on for portal links after those turned out to be permanent and irrevocable:
+
+- **EXPIRING.** `expires_at` is **NOT NULL** in the schema and enforced at LOOKUP by
+  `calendarFeedAccess`, not only at creation. A NULL or unparseable expiry is REFUSED (`no_expiry`) —
+  the absence of a bound must never read as an unlimited one, which was the original portal defect.
+  90 days, not 180: re-subscribing takes ten seconds. A trigger refuses a token minted already expired.
+- **REVOCABLE.** `revoked_at` is checked **FIRST**, before expiry and before scope, so revoking is
+  immediate and a still-in-window token is refused *for the revocation*. Nothing is cached; the route
+  is `force-dynamic` with `no-store`. Rotate = revoke + re-mint, so a leaked URL dies at once rather
+  than being renewed for another quarter. Max 5 live feeds per person.
+- **SCOPED.** `mine` filters to the holder's own jobs **in SQL**; `organization` is refused to a
+  technician by `canCreateFeed` **and** by a database trigger, so a forged form post cannot do what
+  the screen will not.
+- **NARROW.** `redactEvent` emits service, customer name, time and address only. **No price, no notes,
+  no phone, no email, and no `public_token`** — that last one is what keeps a leaked feed a schedule
+  disclosure rather than a payment link. Asserted by a test that greps the route's own `.select()`.
+- **BOUNDED.** −90/+365 days and 2000 events, so a feed cannot become a full export of the business.
+  Rate-limited by IP. A refusal is always a bodiless 404, so the endpoint is not a token oracle.
+
+The iCal itself is RFC 5545 by hand, no dependency: 75-**octet** folding that never splits a UTF-8
+sequence (Hebrew service names), TEXT escaping, and **floating local time** — stamping `Z` would shift
+every appointment by the office's UTC offset. Cancelled jobs are exported as `STATUS:CANCELLED` so they
+disappear from a subscriber instead of lingering.
+
+*Why PARTIAL:* this is one-way. Nothing is IMPORTED from Google Calendar. Two-way sync needs a Google
+OAuth app, a webhook channel and conflict resolution between two systems that both think they own a
+time slot — none of which can be proven here.
+
+**Note on 6c.9 — the numbers come to you, and there is no fourth copy.**
+
+`runScheduledReports` runs on the **existing** `/api/cron/daily` — no second endpoint and no second
+secret to leak. The rule that mattered: `lib/core/digest.mjs` contains **no revenue arithmetic of its
+own**; `digestTotals` is a pass-through to `periodTotals`, and a structural test (comments stripped)
+asserts the file never touches `tax_rate_bps`, `qty_milli`, `cost_minor`, `/ 100` or `* 100`. A
+behavioural test asserts `digestTotals` is `deepEqual` to `periodTotals`, field for field —
+mutation-checked by returning a diverging `collectedMinor` and watching it fire. `renderDigest` cannot
+format money at all; the caller injects `formatMoney`.
+
+Periods are CLOSED and in the past (a "today so far" figure changes between two runs and can never be
+reconciled). `report_deliveries` is claimed by **period key**, not timestamp, so a cron that fires
+twice sends one digest and a week-long outage produces one catch-up rather than seven. A digest that
+reached NOBODY is written `failed` and the schedule's `last_period_key` is deliberately **not**
+advanced, so it stays due rather than looking sent. Recipients are profile ids, never free-text
+addresses, and each is checked through the same shared opt-out rule.
+
+**Note on 6c.10 — a partial failure names every row.**
+
+`bulkReport`'s `ok` is true **only when nothing failed** — there is no "mostly worked" — and it
+*throws* on a failure with no reason, because "it failed" without a why is the silence being removed.
+A deliberate SKIP (opted out, already paid) is reported separately from a breakage, so consent never
+looks like an outage. `parseSelection` refuses an EMPTY selection rather than treating it as "all",
+rejects a malformed id for the whole request rather than half-processing, collapses duplicate
+checkboxes and caps at 200. `components/BulkActions.tsx` keeps the failure list on screen until
+dismissed and does not clear the selection when anything failed, so a retry is not forty re-ticks.
+Every run is written to `bulk_operations` with its failures, so "which six of the forty" is answerable
+tomorrow. Shipped: invoices (send / mark paid / mark unpaid) and customers (email or text a statement,
+record an SMS or email opt-out). **There is deliberately no bulk opt-IN** — consent is given by the
+person, and a button that could re-subscribe forty people who replied STOP is a legal problem.
+
+*Why PARTIAL:* "re-assigning a day of jobs" is the other half of the item and is **not** built. The
+job list, the schedule and the dispatch board are owned by other workstreams this session, so nothing
+there was touched.
+
+**Note on 6c.12 — the honest assessment. NO INTEGRATION SHIPS.**
+
+A real QuickBooks Online or Xero sync is an OAuth 2 app: a developer account, a registered client id
+and secret, a redirect URI on a real domain, a consent screen, encrypted refresh-token storage, and a
+sandbox company to prove a write actually posts. **None of that exists in this environment, so none of
+it was built.** There is no OAuth flow, no token store and no API client anywhere — a test asserts
+`accounting.mjs` contains no `fetch(`, `access_token`, `refresh_token`, `client_secret`,
+`Authorization:`, `api.xero.com` or `intuit.com`. Shipping a switch that said "connected" would be
+worse than the manual CSV, because bookkeeping that silently fails is discovered at year end.
+
+*What IS real, and it is the part the monthly CSV re-import actually lacked:*
+1. **Idempotency.** `SP-INVOICE-<uuid>` on every exported row, recorded in `accounting_export_rows`
+   under `unique (organization_id, target, source_type, source_id)`. Re-exporting March produces the
+   same keys, so the second import updates instead of booking March twice. The old file had no such
+   column at all.
+2. **Mapping.** The importers' own header names for QBO and Xero, so the file drops straight in.
+   Amounts are integer→string (`decimalFromMinor`), never float division; cells beginning `=`/`+`/`-`/`@`
+   are neutralised so a ledger cell cannot be a formula. Invoice tax is derived from
+   `invoiceRevenueExTaxMinor` — the shared engine — not a second formula.
+3. **Two-way match.** `reconcile` returns three DIFFERENT answers: sent-but-not-in-the-ledger,
+   in-the-ledger-but-not-here, and **present on both sides with different money**. The third is what
+   re-import could never surface and what quietly misstates a tax return. `balanced` is false whenever
+   any list is non-empty.
+
+*What remains* is listed verbatim in `ACCOUNTING_SYNC_STATUS.remaining` and **rendered on
+`/reports/export`**, so the owner reads it before they touch anything. When credentials exist, the
+remote side of `reconcile` comes from the API instead of a pasted file; the comparison does not change.
+
+**Probes for 6c.5–6c.12:** `tests/staff-notifications.test.mjs` (33), `tests/statements.test.mjs` (34),
+`tests/calendar-feed.test.mjs` (34), `tests/scheduled-reports.test.mjs` (24),
+`tests/bulk-operations.test.mjs` (22), `tests/accounting-sync.test.mjs` (22). Suite: 510 → 679, all
+green. Every structural assertion strips comments first and **was verified RED before the code existed**
+(the run before `lib/notify.ts`, `lib/statements.ts`, the cron tasks, the calendar route, the bulk
+actions and `BulkActions.tsx` were written failed exactly those assertions and no others). Four
+behavioural rules were additionally mutation-checked and each fired: taking the lowest dunning rung
+instead of the highest, removing the revocation check, making `bulkReport.ok` unconditional, and
+making the digest diverge from `periodTotals`.
+
+**Out-of-scope observations (reported, not fixed):**
+- `tests/reporting.test.mjs` does **not** catch replacing `periodTotals`' `collectedMinor(payments)`
+  with a naive sum — a mutation that drops the settled-status filter and refund netting was caught only
+  by the new digest test. The revenue engine's own probe needs a case with a failed and a refunded
+  payment inside `periodTotals`, not only inside `collectedMinor`.
+- `db/MIGRATIONS.md` has **no row for `031_payment_features.sql`**, which 5.2–5.7 require to be run.
+- `tests/export-and-currency.test.mjs`'s "every export branch paginates" asserted a fixed count of 3
+  `fetchAllPages` calls: it failed on a legitimate fourth branch and would have PASSED on an unpaged
+  branch that replaced an existing one. It now asserts that every read in the file is paged.
 
 *6a.4 Trash / restore — the rule that was chosen, and why.* Restore is **parent-first and never
 cascades downward**. A job, estimate or invoice comes back only when every parent it points at is
