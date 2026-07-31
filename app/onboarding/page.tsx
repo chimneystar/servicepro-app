@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { t, isLocale, DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 import LanguageToggle from "@/components/LanguageToggle";
-import { INDUSTRY_PACKS, catalogItemsFor } from "@/lib/industry-packs";
+import { INDUSTRY_PACKS, bookableServicesFor, catalogItemsFor } from "@/lib/industry-packs";
 import { randomUUID } from "crypto";
 
 export default async function OnboardingPage() {
@@ -66,9 +66,6 @@ export default async function OnboardingPage() {
 
     if (trades.length > 0) {
       const items = catalogItemsFor(trades, includeParts, packLocale);
-      const selectedServices = INDUSTRY_PACKS.filter((pack) => trades.includes(pack.key)).flatMap((pack) =>
-        pack.items.filter((item) => item.kind === "service").map((item) => ({ pack, item })),
-      );
       const { data: batch } = await supabase.from("catalog_import_batches").insert({
         organization_id: orgId,
         source: "onboarding",
@@ -84,17 +81,31 @@ export default async function OnboardingPage() {
         parts_imported: includeParts,
       })));
       if (items.length > 0) await supabase.from("price_book").insert(items.map((item) => ({ ...item, organization_id: orgId, import_batch_id: batch?.id ?? null })));
-      if (selectedServices.length > 0) {
-        const jobTypes = selectedServices.map(({ item }, sort) => ({
-          id: randomUUID(), organization_id: orgId, name: packLocale === "he" ? item.he : item.en,
-          duration_min: 60, default_price_minor: 0, color: "#2b66f6", sort,
-        }));
-        await supabase.from("job_types").insert(jobTypes);
-        await supabase.from("booking_services").upsert(selectedServices.map(({ item }, sort) => ({
-          organization_id: orgId, job_type_id: jobTypes[sort].id, name_en: item.en, name_he: item.he,
-          duration_min: 60, price_minor: 0, book_as: "job", active: true, sort,
-        })), { onConflict: "organization_id,job_type_id" });
-      }
+    }
+
+    // What this business will actually publish for booking: the trades it just
+    // chose, in BOTH languages — or the neutral fallback list if it chose none,
+    // which is still its own list rather than migration 005's HVAC menu.
+    //
+    // `name` keeps the business's own language for its own screens, while
+    // `name_en` / `name_he` (migration 041) carry the translations the public
+    // page needs. The booking_services upsert below is deliberately explicit
+    // and not left to the 041 sync trigger alone: it also sets `book_as` and
+    // `sort`, which no job type carries.
+    const bookable = bookableServicesFor(trades, packLocale);
+    if (bookable.length > 0) {
+      const jobTypes = bookable.map((service) => ({
+        id: randomUUID(), organization_id: orgId, name: service.name,
+        name_en: service.name_en, name_he: service.name_he,
+        pack_key: service.pack_key, pack_item_key: service.pack_item_key,
+        duration_min: 60, default_price_minor: 0, color: "#2b66f6", sort: service.sort,
+      }));
+      await supabase.from("job_types").insert(jobTypes);
+      await supabase.from("booking_services").upsert(bookable.map((service, index) => ({
+        organization_id: orgId, job_type_id: jobTypes[index].id,
+        name_en: service.name_en, name_he: service.name_he,
+        duration_min: 60, price_minor: 0, book_as: service.book_as, active: true, sort: service.sort,
+      })), { onConflict: "organization_id,job_type_id" });
     }
 
     if (addSampleData) {
@@ -202,7 +213,7 @@ export default async function OnboardingPage() {
 
         <div style={{ margin: "8px 0 18px", paddingTop: 18, borderTop: "1px solid #e2e8f0" }}>
           <h2 style={{ fontSize: 17, fontWeight: 850, marginBottom: 5 }}>{locale === "he" ? "אילו שירותים אתם מציעים?" : "What services do you provide?"}</h2>
-          <p style={{ color: "#64748b", fontSize: 13, marginBottom: 12 }}>{locale === "he" ? "נוסיף לספר המחירים שירותים שימושיים עם מחיר ריק. אפשר לערוך הכול אחר כך." : "We’ll add a ready-to-use catalog with blank prices. You can edit everything later."}</p>
+          <p style={{ color: "#64748b", fontSize: 13, marginBottom: 12 }}>{locale === "he" ? "נוסיף לספר המחירים שירותים שימושיים עם מחיר ריק, ואותם שירותים יופיעו — באנגלית ובעברית — בעמוד ההזמנות לציבור. אם לא תבחרו תחום, נוסיף רשימת ביקורים כללית קצרה כדי שעמוד ההזמנות לא יישאר ריק. אפשר לערוך הכול אחר כך." : "We’ll add a ready-to-use catalog with blank prices, and the same services become your public booking menu in both English and Hebrew. Pick nothing and we add a short general visit list instead, so your booking page is never empty. You can edit everything later."}</p>
           <div className="onboarding-trade-grid">
             {INDUSTRY_PACKS.map((pack) => <label key={pack.key} className="onboarding-trade-choice"><input type="checkbox" name="trades" value={pack.key} /><span>{locale === "he" ? pack.he : pack.en}</span><small>{pack.items.filter((item) => item.kind === "service").length} {locale === "he" ? "שירותים" : "services"}</small></label>)}
           </div>
