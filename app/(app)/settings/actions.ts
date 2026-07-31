@@ -21,7 +21,10 @@ export async function updateSettings(_prev: ActionResult, formData: FormData): P
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { ok: false, error: t(locale, "err.name_required") };
 
-  const currency = String(formData.get("currency") ?? "USD");
+  // USD only, enforced server-side: the form is not the boundary. The payment
+  // layer refuses non-USD (Helcim) or violates a CHECK constraint (manual), so
+  // any other value produces a business that cannot take payment at all.
+  const currency = "USD";
   const lang = String(formData.get("locale") ?? "en");
   const taxLabel = String(formData.get("tax_label") ?? "Sales Tax").trim() || "Sales Tax";
   const taxPct = Number(formData.get("tax_rate") ?? 0);

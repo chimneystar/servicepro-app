@@ -76,8 +76,8 @@ Status: `TODO` / `WIP` / `DONE` / `BLOCKED`. Keep this honest — a status doc t
 | 2.5 | Commission from collected money, not quoted price | DONE |
 | 2.6 | Idempotency: `convertEstimateToInvoice`, manual submissions, Stripe replay window | DONE |
 | 2.7 | Replace float money maths in finance/growth/operations with `parseAmountToMinor` | DONE |
-| 2.8 | Payments export: filter in SQL, remove silent truncation | TODO |
-| 2.9 | **DECIDED: USD only.** Remove ILS/EUR from the onboarding currency choice and the `organizations.currency` check, so nobody can select a currency the payment path rejects. Hebrew UI is unaffected — language and currency are independent. | TODO |
+| 2.8 | Payments export: filter in SQL, remove silent truncation | DONE |
+| 2.9 | **DECIDED: USD only.** Remove ILS/EUR from the onboarding currency choice and the `organizations.currency` check, so nobody can select a currency the payment path rejects. Hebrew UI is unaffected — language and currency are independent. | DONE |
 
 ### Phase 3 — data integrity + operations
 | # | Task | Status |

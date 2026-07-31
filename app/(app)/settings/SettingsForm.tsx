@@ -31,7 +31,7 @@ export default function SettingsForm({ locale, org }: { locale: Locale; org: Org
       </Section>
 
       <Section title={he ? "שפה, מטבע ומס" : "Language, currency & tax"} note={he ? "השפה משנה גם את כיוון הממשק. כל הסכומים והמסמכים יוצגו לפי ההגדרות כאן." : "Language also changes the interface direction. Amounts and documents follow these settings."}>
-        <Row><Select name="locale" label={he ? "שפת המערכת" : "App language"} value={org.locale ?? "en"} options={[["he", "עברית"], ["en", "English"]]} /><Select name="currency" label={he ? "מטבע" : "Currency"} value={org.currency ?? "USD"} options={[["ILS", "ILS (₪)"], ["USD", "USD ($)"], ["EUR", "EUR (€)"]]} /></Row>
+        <Row><Select name="locale" label={he ? "שפת המערכת" : "App language"} value={org.locale ?? "en"} options={[["he", "עברית"], ["en", "English"]]} /><Select name="currency" label={he ? "מטבע" : "Currency"} value={org.currency ?? "USD"} options={[["USD", "USD ($)"]]} /></Row>
         <Row><Field name="tax_label" label={he ? "שם המס" : "Tax label"} value={org.tax_label ?? (he ? "מע״מ" : "Sales Tax")} /><Field name="tax_rate" label={he ? "שיעור המס באחוזים" : "Tax rate (%)"} value={taxPct} type="number" /></Row>
       </Section>
 

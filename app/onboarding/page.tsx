@@ -29,7 +29,8 @@ export default async function OnboardingPage() {
     const orgName = String(formData.get("orgName") ?? "").trim();
     const ownerName = String(formData.get("ownerName") ?? "").trim();
     const lang = String(formData.get("locale") ?? "en");
-    const currency = String(formData.get("currency") ?? "USD");
+    // USD only — see the note on the currency field below.
+    const currency = "USD";
     const taxLabel = String(formData.get("taxLabel") ?? "Sales Tax").trim() || "Sales Tax";
     const taxPct = Number(formData.get("taxRate") ?? 0);
     const taxRateBps = Number.isFinite(taxPct) ? Math.max(0, Math.round(taxPct * 100)) : 0;
@@ -147,11 +148,17 @@ export default async function OnboardingPage() {
             </select>
           </div>
           <div>
+            {/*
+              USD only. The payment layer is USD-only end to end: Helcim card and
+              ACH explicitly refuse a non-USD document, and manual (Zelle/cheque)
+              submission violates a CHECK constraint outright. Offering ILS or EUR
+              here handed the business a working-looking setup with no functioning
+              payment method at all. Language is a separate setting and is
+              unaffected — the Hebrew interface still works with USD billing.
+            */}
             <label style={label}>{t(locale, "onb.currency")}</label>
             <select name="currency" defaultValue="USD" style={field}>
               <option value="USD">USD ($)</option>
-              <option value="ILS">ILS (₪)</option>
-              <option value="EUR">EUR (€)</option>
             </select>
           </div>
           <div>
