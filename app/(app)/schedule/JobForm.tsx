@@ -101,6 +101,10 @@ export default function JobForm({ locale, customers, techs, jobTypes, initialOpe
             </Row>
             <div style={{ fontSize: 12, fontWeight: 700, color: "#5c6675", margin: "12px 0 6px" }}>Job address (leave blank to use client address)</div>
             <AddressAutocomplete value={jobAddr} city={jobCity} onChange={setJobAddr} onCity={setJobCity} addressName="job_address" cityName="job_city" />
+            {/* 6c.11 — what this job legally requires. Empty means no
+                restriction, which is every job that exists today. */}
+            <Label>{locale === "he" ? "הסמכות נדרשות (מופרדות בפסיק)" : "Certifications required (comma separated)"}</Label>
+            <input name="required_skills" placeholder="gas, hvac" style={inp} />
             <Label>{t(locale, "form.notes")}</Label>
             <textarea name="notes" rows={2} style={inp} />
             {state.error && <div style={err}>{state.error}</div>}

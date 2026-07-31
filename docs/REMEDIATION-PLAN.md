@@ -648,16 +648,16 @@ locked, which is the right outcome but is coincidental rather than designed.
 | 6b.8 | SMS STOP handling — **DONE** in Phase 1 (opt-out now honoured by both reminder loops) | DONE |
 | 6b.9 | Encryption-key rotation for provider tokens | TODO |
 | 6c.1 | Parts consumption: job → inventory → job cost | PARTIAL — job → stock → line `cost_minor` shipped with 5.11, and it reaches the margin report through `invoice_items.cost_minor`; the **commission** report still costs a job only from the hand-typed `jobs.job_expenses_minor`, so materials are invisible there until it also sums the line costs |
-| 6c.2 | True job costing including labour | TODO |
-| 6c.3 | Technician time off / non-working days | TODO |
-| 6c.4 | Good/better/best estimate options | TODO |
+| 6c.2 | True job costing including labour | PARTIAL — the wage exists, labour is costed and reaches the gross-margin report through `invoice_items.cost_minor` **when the invoice is raised from the job**; the estimate→invoice route and the commission report still do not carry it. See note. |
+| 6c.3 | Technician time off / non-working days | DONE — one table for absence and closure, wired into the booking slot API, the booking SUBMIT endpoint, the dispatch view and every assignment path. See note. |
+| 6c.4 | Good/better/best estimate options | DONE — options are bundles of lines on ONE estimate; choosing copies them in, so 024's deposit link and the conversion path are untouched. See note. |
 | 6c.5 | Staff notifications (assignment, booking, payment received) | TODO |
 | 6c.6 | Customer statements + structured dunning | TODO |
 | 6c.7 | Calendar sync / iCal feed | TODO |
-| 6c.8 | Appointment confirm/decline + "tech on the way" tracking page | TODO |
+| 6c.8 | Appointment confirm/decline + "tech on the way" tracking page | PARTIAL — the page, the expiring/revocable token, confirm/decline and arrival tracking all ship; the NIGHTLY reminder does not yet carry the link because `lib/cron-tasks.ts` is outside this scope. See note. |
 | 6c.9 | Scheduled/emailed reports | TODO |
 | 6c.10 | Bulk operations on lists | TODO |
-| 6c.11 | Technician skills / certifications + dispatch matching | TODO |
+| 6c.11 | Technician skills / certifications + dispatch matching | DONE — certifications with expiry, `jobs.required_skills`, and a refusal on every assignment path. See note. |
 | 6c.12 | Accounting sync (QuickBooks / Xero) | TODO |
 
 *6a.4 Trash / restore — the rule that was chosen, and why.* Restore is **parent-first and never
@@ -721,6 +721,106 @@ the file does not parse — a backup that fails loudly beats one that ends early
 manifest's 94 table/column pairs are checked by inspection and by structural assertion against `db/*.sql`
 (`tests/business-export.test.mjs` fails if a future migration adds a tenant table that is neither
 exported nor excused).
+**Notes on 6c.2, 6c.3, 6c.4, 6c.8 and 6c.11 — migration `db/039_scheduling_sales.sql` must be RUN;
+the code assumes it.** Additive only: it drops no table, column, constraint or policy that another
+migration created, and every `drop policy if exists` in it names a policy it creates itself (the
+1.18 lesson, written into the file's header so the next reader does not have to rediscover it).
+
+**The no-double-book guarantee is untouched.** `jobs_no_double_book` and both triggers from
+`db/028_crew_double_book.sql` are neither dropped nor weakened; 039 writes nothing to
+`jobs.assigned_to`, `jobs.scheduled_date`, `start_time`, `end_time` or `job_assignments`. Time off is
+an availability FILTER applied before an assignment is attempted — it removes availability and never
+grants it, so it cannot become a route around the constraint. `tests/availability.test.mjs` asserts
+that directly against the migration text and against `assignment-guard.ts`.
+
+*6c.2 — where the wage lives, and why it is PARTIAL.* Clock in/out has been collected since migration
+009 and reached **no** profit figure anywhere: `/reports` costs a job from `invoice_items.cost_minor`,
+materials got there in 5.11, labour never did. The rate lives in **`technician_pay_rates`, not on
+`profiles`** — `profiles` is readable by every member of the organisation (dispatch, schedule and the
+job page all need names), so a rate column there would hand the whole payroll to every technician
+through PostgREST whatever the screen showed. The table's RLS is **OWNER ONLY**; office staff cannot
+read it either, and reach the derived figure through `job_labour_cost()`, a security-definer function
+that returns money for ONE job and never a person's rate, and refuses a technician outright. Rates are
+effective-dated, so a June rise does not re-cost March's finished jobs. Only CLOSED time entries are
+costed, and unpriced technicians and still-running timers are **reported** on `/jobs/[id]` rather than
+silently rolled into a number. `guard_job_field_authority` (023 §3) is extended — verbatim plus three
+comparisons — so a technician cannot rewrite `labour_cost_minor`, `labour_minutes` or
+`required_skills` on a job they are merely assigned to.
+
+**Why PARTIAL.** The only channel `/reports` reads is `invoice_items.cost_minor`, and `reports/**` is
+outside this workstream's scope, so labour reaches the owner's margin **only through
+`createInvoiceFromJob`** — as the service line's cost when the job has no item lines, and as an
+explicit ZERO-PRICED cost line when it does (the customer is not charged twice; the labour is already
+inside the service price). An invoice created directly on `/invoices`, or converted from an estimate,
+still carries no labour cost, and `/reports/commission` still costs a job from the hand-typed
+`jobs.job_expenses_minor` alone — the same gap 6c.1 already records. Closing it needs either
+`lib/core/reporting.mjs` to take a labour input and `reports/**` to pass it, or the job's
+`labour_cost_minor` snapshot to be read by the reporting queries. Both are outside this scope.
+
+*6c.3 — time off.* `technician_time_off` covers absence AND business closure in one table:
+`profile_id IS NULL` means the business is shut that day, which is the same question asked of the
+calendar and keeps the booking hot path to one query. Whole-day absence comes off the day's capacity;
+partial-day absence is applied per slot, so somebody at the dentist until 11:00 is still available at
+14:00. `buildBookingSlots` gained two OPTIONAL inputs (`closedWindows`, `awayWindows`), both defaulting
+to empty, and a caller that passes neither gets byte-identical results — asserted. Wired into
+`app/api/booking/[org]/slots` **and** `app/api/booking/[org]/submit`, because a rule enforced in the
+slot list and not in the POST is a rule with a documented bypass. A technician may REQUEST time off
+(RLS pins both the subject and `status='requested'`) but cannot approve it, and only approved rows
+remove availability.
+
+*6c.11 — certifications.* `technician_skills` with a `[a-z0-9_]{2,40}` code constrained in BOTH the
+database and `lib/core/skills.mjs`, so "Gas Safe" and "gas_safe" cannot become two unmatchable
+certifications. **An EXPIRED certification counts as NOT HELD**, not as an amber badge: an expired gas
+ticket is exactly as illegal as none. `jobs.required_skills` defaults to `'{}'`, so every job that
+exists today is unrestricted and nothing that works starts being refused. Enforced on `moveDispatchJob`,
+`addJobTechnician` (crew, not only the lead — 028 had to close that same gap) and `createJob`.
+
+*6c.4 — options.* An option is a bundle of lines on ONE estimate. Choosing it copies those lines into
+`estimate_items` and recomputes the total with the same arithmetic `computeDocument` uses.
+**Nothing about the estimate row moves** — not its id, not its `public_token` — so
+`db/024_deposit_credit.sql`'s `invoices.estimate_id` → `payments.estimate_id` chain is untouched and a
+paid deposit is still credited; `tests/deposit-credit.test.mjs` passes **UNMODIFIED**. An option's own
+deposit wins, otherwise the estimate keeps whatever it had (preserving 5.6's organisation default),
+always clamped to the chosen total so a cheaper option cannot leave a deposit larger than the job.
+Selection is refused once the estimate is SIGNED, because re-pricing under an existing signature would
+defeat 023 §6's sign-once guard as thoroughly as re-signing would. And
+`convertEstimateToInvoice` now REFUSES an estimate that offers options with none chosen — that guard is
+what makes "the chosen option is what converts" true rather than merely likely.
+
+*6c.8 — confirm / decline / arrival, and why it is PARTIAL.* `appointment_tokens` is built with 023
+§10's rules from the start rather than retrofitted: `expires_at` is **NOT NULL** (a link cannot be
+minted without a deadline, and `tokenState` treats a missing expiry as INVALID, never eternal),
+`revoked_at` is checked **before** expiry, and one partial unique index keeps exactly one live link per
+job so re-issuing revokes rather than leaving two live links in two text messages.
+`public_appointment` returns the service, date, arrival window, confirmation state, the technician's
+FIRST NAME and the arrival timestamps — and no price, no document token, no address, no phone number
+and no other job. Declining deliberately does **not** cancel the job: that would let a leaked link wipe
+a technician's day. Responses are capped at 10 per job and every one is written to `audit_log`.
+`/p/<token>/visit` renders it; `setOnMyWay` now takes an ETA, mints the link and passes it to
+`notifyOnMyWay`, which fills a `{track}` placeholder or appends the link.
+
+**Why PARTIAL.** The nightly appointment reminder lives in `lib/cron-tasks.ts`, which is owned by the
+automation/outreach workstream and outside this scope, so the reminder SMS does **not** yet carry the
+confirm link. Today the link goes out from the job screen's "Send confirmation request" button
+(consent-checked: an UNSET `sms_opt_in` is refused as well as a false one) and with the "on my way"
+text. Closing it is one line in `runReminders` — add `confirm` to the template variables and mint the
+token — and should be done by whoever owns that file.
+
+*One small edit outside the listed file set,* reported rather than hidden: `lib/notify.ts`
+`notifyOnMyWay` gained an optional second argument. It is additive — an existing caller that passes
+nothing behaves exactly as before — and without it the tracking link had no way to reach the customer.
+
+*Probes:* `tests/job-costing.test.mjs` (19), `tests/availability.test.mjs` (23),
+`tests/skills.test.mjs` (18), `tests/estimate-options.test.mjs` (19), `tests/appointments.test.mjs` (24).
+Suite: 510 → 613, all green. Every structural assertion strips comments first. Proven RED both ways by
+removing the fix and re-running: deleting the `awayWindows`/`closedWindows` handling from
+`buildBookingSlots` fails the partial-day and shared-capacity probes, and removing the
+`option_not_chosen` branch fails both the unit and the wiring probe for conversion.
+
+**Not verified against a live Postgres.** There is none on this machine, so migration 039's RLS, its
+triggers and all four RPCs are verified by inspection and by structural assertion only — the same
+caveat as 0.6, 034 and 035. Every column it references was checked against `db/*.sql` before it was
+written.
 
 ### Phase 7 — architecture + maintainability
 | # | Task | Status |

@@ -61,6 +61,7 @@
     { "path": "/reset-password", "file": "app/reset-password/page.tsx" },
     { "path": "/book/[org]", "file": "app/book/[org]/page.tsx" },
     { "path": "/p/[token]", "file": "app/p/[token]/page.tsx" },
+    { "path": "/p/[token]/visit", "file": "app/p/[token]/visit/page.tsx" },
     { "path": "/portal/[token]", "file": "app/portal/[token]/page.tsx" },
     { "path": "/offline", "file": "app/offline/page.tsx" },
     { "path": "/onboarding", "file": "app/onboarding/page.tsx" }

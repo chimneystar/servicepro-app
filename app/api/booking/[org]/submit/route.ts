@@ -6,6 +6,8 @@ import { raiseBookingDeposit } from "@/lib/payments/booking-deposit";
 import { consume, clientKey } from "@/lib/core/rate-limit.mjs";
 // @ts-ignore — proven both ways in tests/deposits.test.mjs
 import { bookingDepositMinor } from "@/lib/core/deposits.mjs";
+// @ts-ignore — proven both ways in tests/availability.test.mjs
+import { bookingCapacity } from "@/lib/core/availability.mjs";
 
 export const dynamic = "force-dynamic";
 const clean = (value: unknown, max: number) => String(value ?? "").trim().slice(0,max);
@@ -33,13 +35,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ org
 
   try {
     const admin=createAdminClient();
-    const [{data:settings},{data:service},{data:areas},{data:jobs},{count:capacity},{count:recent}] = await Promise.all([
+    const [{data:settings},{data:service},{data:areas},{data:jobs},{count:capacity},{count:recent},{data:timeOff}] = await Promise.all([
       admin.from("booking_settings").select("*").eq("organization_id",org).single(),
       admin.from("booking_services").select("*").eq("organization_id",org).eq("id",serviceId).eq("active",true).single(),
       admin.from("service_areas").select("area_type,values_json,active").eq("organization_id",org).eq("active",true),
       admin.from("jobs").select("start_time,end_time").eq("organization_id",org).eq("scheduled_date",date).is("deleted_at",null).neq("status","cancelled"),
       admin.from("profiles").select("id",{count:"exact",head:true}).eq("organization_id",org).eq("active",true).in("role",["owner","tech"]),
       admin.from("leads").select("id",{count:"exact",head:true}).eq("organization_id",org).not("booking_reference","is",null).gte("created_at",new Date(Date.now()-10*60_000).toISOString()),
+      // 6c.3 — the SAME availability inputs the slots route uses. Without this
+      // the slot list would hide a holiday and this endpoint would still accept
+      // a hand-crafted POST for it, which is the shape of every "the UI checks
+      // it" defect this branch exists to remove.
+      admin.from("technician_time_off").select("profile_id,starts_on,ends_on,start_time,end_time,status")
+        .eq("organization_id",org).eq("status","approved").lte("starts_on",date).gte("ends_on",date),
     ]);
     if (!settings?.enabled || !service) return NextResponse.json({ok:false,error:"booking_unavailable"},{status:404});
     if ((recent??0)>=25) return NextResponse.json({ok:false,error:"try_later"},{status:429});
@@ -59,7 +67,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ org
     const areaUnverified=verdict==="unevaluable";
     if (areaUnverified) console.warn(JSON.stringify({event:"booking.service_area_unevaluable",organizationId:org,reason:"polygon_only_areas_cannot_be_evaluated_without_geocoding"}));
     const needsReview=Boolean(settings.approval_required)||areaUnverified;
-    const available=buildBookingSlots({date,hours:settings.hours_json as BookingHours,intervalMin:settings.slot_interval_min,durationMin:service.duration_min,arrivalWindowMin:settings.arrival_window_min,minNoticeHours:settings.min_notice_hours,maxDaysAhead:settings.max_days_ahead,capacity:settings.use_team_capacity?Math.max(1,capacity??1):1,busy:(jobs??[]).map((row)=>({start:row.start_time,end:row.end_time})),timeZone:settings.timezone});
+    const availability=bookingCapacity({teamSize:settings.use_team_capacity?Math.max(1,capacity??1):1,rows:timeOff??[],day:date});
+    const available=buildBookingSlots({date,hours:settings.hours_json as BookingHours,intervalMin:settings.slot_interval_min,durationMin:service.duration_min,arrivalWindowMin:settings.arrival_window_min,minNoticeHours:settings.min_notice_hours,maxDaysAhead:settings.max_days_ahead,capacity:availability.capacity,busy:(jobs??[]).map((row)=>({start:row.start_time,end:row.end_time})),timeZone:settings.timezone,closedWindows:availability.closedWindows,awayWindows:availability.awayWindows});
     if (!available.some((slot)=>slot.start===start)) return NextResponse.json({ok:false,error:"slot_taken"},{status:409});
     const reference=createBookingReference();
     const answers=typeof body.answers==="object"&&body.answers?body.answers:{};

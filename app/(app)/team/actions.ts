@@ -9,6 +9,10 @@ import { t } from "@/lib/i18n";
 import { appUrl, providers, sendEmail } from "@/lib/providers";
 // @ts-ignore -- pure logic, proven both ways in tests/invitations.test.mjs
 import { invitationAcceptUrl, invitationEmail } from "@/lib/core/invitations.mjs";
+// @ts-ignore -- integer-safe money math
+import { parseAmountToMinor } from "@/lib/core/money.mjs";
+// @ts-ignore -- pure logic, proven both ways in tests/skills.test.mjs
+import { normalizeSkillCode } from "@/lib/core/skills.mjs";
 
 export type ActionResult = { ok: boolean; error?: string; notice?: string };
 export type CapabilityValues = {
@@ -230,6 +234,144 @@ export async function updatePaymentPermissions(
   }, { onConflict: "profile_id" });
   if (error) return { ok: false, error: locale === "he" ? "לא הצלחנו לשמור את הרשאות התשלום." : "We couldn't save the payment permissions." };
   revalidatePath("/team");
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------
+// 6c.2 — the wage rate.
+//
+// WHERE IT LIVES AND WHO CAN SEE IT. `technician_pay_rates`, not `profiles`.
+// Every member of the organisation can read `profiles` — dispatch, the schedule
+// and the job page need names and colours — so a rate column there would hand
+// the whole payroll to every technician through PostgREST whatever the screen
+// showed. The table's RLS is OWNER ONLY: office staff cannot read it either,
+// and reach the derived per-job figure through `job_labour_cost()`, which
+// returns money for one job and never a person's rate.
+//
+// Rates are effective-dated, so a rise in June does not retroactively re-cost
+// March's finished jobs. Setting a rate INSERTS a new dated row; it does not
+// overwrite history.
+// ---------------------------------------------------------------------
+export async function setPayRate(memberId: string, amount: string, effectiveFrom: string): Promise<ActionResult> {
+  const locale = (await getLocale());
+  let owner;
+  try { owner = await guardOwner(); } catch { return { ok: false, error: t(locale, "err.forbidden") }; }
+  const from = /^\d{4}-\d{2}-\d{2}$/.test(effectiveFrom) ? effectiveFrom : new Date().toISOString().slice(0, 10);
+
+  let cost_rate_minor = 0;
+  try { cost_rate_minor = parseAmountToMinor(amount); } catch { return { ok: false, error: t(locale, "err.invalid") }; }
+  if (cost_rate_minor < 0) return { ok: false, error: t(locale, "err.invalid") };
+
+  const supabase = await createClient();
+  const { data: member } = await supabase.from("profiles").select("id, organization_id").eq("id", memberId).maybeSingle();
+  if (!member || member.organization_id !== owner.organization_id) return { ok: false, error: t(locale, "err.invalid") };
+
+  const { error } = await supabase.from("technician_pay_rates").upsert({
+    organization_id: owner.organization_id, profile_id: memberId,
+    cost_rate_minor, effective_from: from, created_by: owner.id,
+  }, { onConflict: "profile_id,effective_from" });
+  if (error) return { ok: false, error: saveError(locale) };
+  revalidatePath("/team");
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------
+// 6c.11 — certifications.
+// ---------------------------------------------------------------------
+export async function addSkill(memberId: string, values: {
+  skill: string; label?: string; certificationNumber?: string; issuedOn?: string; expiresOn?: string;
+}): Promise<ActionResult> {
+  const locale = (await getLocale());
+  let owner;
+  try { owner = await guardOwner(); } catch { return { ok: false, error: t(locale, "err.forbidden") }; }
+
+  // The code is folded to [a-z0-9_] here AND constrained in the database, so
+  // "Gas Safe" and "gas_safe" cannot become two unmatchable certifications.
+  const skill_code = normalizeSkillCode(values.skill) as string | null;
+  if (!skill_code) return { ok: false, error: locale === "he" ? "קוד הסמכה לא תקין." : "That certification name is not usable — use 2–40 letters, digits or underscores." };
+
+  const day = (value?: string) => (/^\d{4}-\d{2}-\d{2}$/.test(value ?? "") ? value! : null);
+  const supabase = await createClient();
+  const { error } = await supabase.from("technician_skills").upsert({
+    organization_id: owner.organization_id, profile_id: memberId, skill_code,
+    label: (values.label ?? "").trim().slice(0, 80) || null,
+    certification_number: (values.certificationNumber ?? "").trim().slice(0, 80) || null,
+    issued_on: day(values.issuedOn), expires_on: day(values.expiresOn),
+    created_by: owner.id,
+  }, { onConflict: "organization_id,profile_id,skill_code" });
+  if (error) return { ok: false, error: saveError(locale) };
+  revalidatePath("/team"); revalidatePath("/dispatch");
+  return { ok: true };
+}
+
+export async function removeSkill(id: string): Promise<ActionResult> {
+  const locale = (await getLocale());
+  try { await guardOwner(); } catch { return { ok: false, error: t(locale, "err.forbidden") }; }
+  const supabase = await createClient();
+  const { error } = await supabase.from("technician_skills").delete().eq("id", id);
+  if (error) return { ok: false, error: saveError(locale) };
+  revalidatePath("/team"); revalidatePath("/dispatch");
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------
+// 6c.3 — time off and non-working days.
+//
+// `memberId` empty means the WHOLE BUSINESS is closed (the public-holiday
+// case), which is why the column is nullable rather than a second table:
+// closure and absence are the same question asked of the calendar.
+//
+// This NEVER touches jobs or job_assignments, so it cannot become a route
+// around `jobs_no_double_book`. It removes availability; the exclusion
+// constraint still refuses overlaps whatever is recorded here.
+// ---------------------------------------------------------------------
+export async function addTimeOff(values: {
+  memberId?: string | null; startsOn: string; endsOn?: string; startTime?: string; endTime?: string;
+  kind?: string; note?: string;
+}): Promise<ActionResult> {
+  const locale = (await getLocale());
+  let owner;
+  try { owner = await guardOwner(); } catch { return { ok: false, error: t(locale, "err.forbidden") }; }
+
+  const day = (value?: string | null) => (/^\d{4}-\d{2}-\d{2}$/.test(value ?? "") ? value! : null);
+  const starts_on = day(values.startsOn);
+  const ends_on = day(values.endsOn) ?? starts_on;
+  if (!starts_on || !ends_on || ends_on < starts_on) {
+    return { ok: false, error: locale === "he" ? "טווח התאריכים אינו תקין." : "That date range is not valid." };
+  }
+  const time = (value?: string) => (/^\d{2}:\d{2}$/.test(value ?? "") ? `${value}:00` : null);
+  const start_time = time(values.startTime);
+  const end_time = time(values.endTime);
+  if ((start_time === null) !== (end_time === null) || (start_time && end_time && end_time <= start_time)) {
+    return { ok: false, error: locale === "he" ? "שעות החופשה אינן תקינות." : "Enter both a start and an end time, or neither." };
+  }
+  const kinds = ["time_off", "vacation", "sick", "personal", "training", "holiday", "other"];
+  const kind = kinds.includes(values.kind ?? "") ? values.kind! : "time_off";
+
+  const supabase = await createClient();
+  if (values.memberId) {
+    const { data: member } = await supabase.from("profiles").select("id, organization_id").eq("id", values.memberId).maybeSingle();
+    if (!member || member.organization_id !== owner.organization_id) return { ok: false, error: t(locale, "err.invalid") };
+  }
+  const { error } = await supabase.from("technician_time_off").insert({
+    organization_id: owner.organization_id,
+    profile_id: values.memberId || null,
+    starts_on, ends_on, start_time, end_time, kind, status: "approved",
+    note: (values.note ?? "").trim().slice(0, 300) || null,
+    created_by: owner.id,
+  });
+  if (error) return { ok: false, error: saveError(locale) };
+  revalidatePath("/team"); revalidatePath("/dispatch"); revalidatePath("/schedule");
+  return { ok: true };
+}
+
+export async function removeTimeOff(id: string): Promise<ActionResult> {
+  const locale = (await getLocale());
+  try { await guardOwner(); } catch { return { ok: false, error: t(locale, "err.forbidden") }; }
+  const supabase = await createClient();
+  const { error } = await supabase.from("technician_time_off").delete().eq("id", id);
+  if (error) return { ok: false, error: saveError(locale) };
+  revalidatePath("/team"); revalidatePath("/dispatch"); revalidatePath("/schedule");
   return { ok: true };
 }
 

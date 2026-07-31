@@ -13,6 +13,57 @@ import { changeJobStatus } from "@/lib/job-status";
 import { canTransition } from "@/lib/core/scheduling.mjs";
 import { recordInventoryMovement } from "@/lib/inventory";
 import { resolveDocumentTax } from "@/lib/documents";
+// @ts-ignore — pure logic, proven both ways in tests/job-costing.test.mjs
+import { labourInvoiceLine } from "@/lib/core/job-costing.mjs";
+// @ts-ignore — pure logic, proven both ways in tests/appointments.test.mjs
+import { tokenExpiryFor, normalizeEtaMinutes, confirmationSms } from "@/lib/core/appointments.mjs";
+import { appUrl, providers, sendSms } from "@/lib/providers";
+
+/**
+ * The job's labour cost, through the security-definer RPC.
+ *
+ * The rate table is OWNER ONLY (it is payroll — see db/039 §1), so office staff
+ * cannot read it directly. `job_labour_cost` returns money for ONE job and
+ * never a person's rate, which is what lets an office user cost a job without
+ * being handed the wage bill. A refusal is not fatal: it returns zeros and the
+ * caller says the figure is incomplete rather than inventing one.
+ */
+async function readJobLabour(supabase: Awaited<ReturnType<typeof createClient>>, jobId: string) {
+  const { data, error } = await supabase.rpc("job_labour_cost", { p_job: jobId });
+  if (error || !data) return { minutes: 0, cost_minor: 0, unpriced_technicians: 0, open_entries: 0, available: false };
+  const row = data as any;
+  return {
+    minutes: Number(row.minutes ?? 0),
+    cost_minor: Number(row.cost_minor ?? 0),
+    unpriced_technicians: Number(row.unpriced_technicians ?? 0),
+    open_entries: Number(row.open_entries ?? 0),
+    available: true,
+  };
+}
+
+/**
+ * Snapshot the job's labour cost onto the job (6c.2).
+ *
+ * Stored rather than derived on every read, for the same reason an invoice
+ * caches its total: a job costed in March must not silently re-cost itself when
+ * the wage changes in June, and the reporting path must not have to re-read
+ * timesheets it is not permitted to see.
+ */
+export async function recomputeJobLabourCost(jobId: string): Promise<PhotoResult> {
+  let profile;
+  try { profile = await requireProfile(); assertRole(profile, ["owner", "office"]); }
+  catch { return { ok: false, error: "forbidden" }; }
+  const supabase = await createClient();
+  const labour = await readJobLabour(supabase, jobId);
+  if (!labour.available) return { ok: false, error: "Job costing is unavailable — run migration 039." };
+  const { error } = await supabase.from("jobs").update({
+    labour_minutes: labour.minutes, labour_cost_minor: labour.cost_minor,
+    labour_costed_at: new Date().toISOString(),
+  }).eq("id", jobId).eq("organization_id", profile.organization_id!);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath(`/jobs/${jobId}`);
+  return { ok: true };
+}
 
 export type PhotoResult = {
   ok: boolean;
@@ -73,9 +124,37 @@ export async function createInvoiceFromJob(jobId: string): Promise<PhotoResult> 
   const { data: jobItems } = await supabase.from("job_items")
     .select("description, qty_milli, unit_price_minor, cost_minor, sort").eq("job_id", jobId).order("sort");
 
-  const lines = (jobItems && jobItems.length)
-    ? jobItems.map((it: any) => ({ description: it.description, qty_milli: it.qty_milli, unit_price_minor: it.unit_price_minor, cost_minor: it.cost_minor ?? 0 }))
-    : [{ description: job.service, qty_milli: 1000, unit_price_minor: job.price_minor, cost_minor: 0 }];
+  const lines: { description: string; qty_milli: number; unit_price_minor: number; cost_minor: number; taxable?: boolean }[] =
+    (jobItems && jobItems.length)
+      ? jobItems.map((it: any) => ({ description: it.description, qty_milli: it.qty_milli, unit_price_minor: it.unit_price_minor, cost_minor: it.cost_minor ?? 0 }))
+      : [{ description: job.service, qty_milli: 1000, unit_price_minor: job.price_minor, cost_minor: 0 }];
+
+  // 6c.2 — THE LABOUR COST FINALLY REACHES A PROFIT FIGURE.
+  //
+  // /reports derives gross profit from `invoice_items.cost_minor` and nothing
+  // else. Materials got there in 5.11; labour never did, so every margin the
+  // owner has ever seen counted the technician's time as free. This is the one
+  // place it can land without inventing a second reporting path.
+  //
+  // The line is priced at ZERO — the labour is already inside the service price
+  // and the customer is not charged twice — and carries the cost, so
+  // qty(1) x cost = the labour cost exactly. When the job has no item lines the
+  // service line carries it instead, so no extra row appears on a simple
+  // invoice at all.
+  const labour = await readJobLabour(supabase, jobId);
+  if (labour.cost_minor > 0) {
+    if (jobItems && jobItems.length) {
+      const line = labourInvoiceLine({ minutes: labour.minutes, costMinor: labour.cost_minor }) as
+        { description: string; qty_milli: number; unit_price_minor: number; cost_minor: number; taxable: boolean } | null;
+      if (line) lines.push(line);
+    } else {
+      lines[0].cost_minor = labour.cost_minor;
+    }
+    await supabase.from("jobs").update({
+      labour_minutes: labour.minutes, labour_cost_minor: labour.cost_minor,
+      labour_costed_at: new Date().toISOString(),
+    }).eq("id", jobId).eq("organization_id", profile.organization_id!);
+  }
 
   const totals = computeDocument({
     items: lines.map((l) => ({ qtyMilli: l.qty_milli, unitPriceMinor: l.unit_price_minor })),
@@ -91,7 +170,8 @@ export async function createInvoiceFromJob(jobId: string): Promise<PhotoResult> 
   if (error) return { ok: false, error: error.message };
   await supabase.from("invoice_items").insert(lines.map((l, idx) => ({
     organization_id: profile.organization_id, invoice_id: inv.id,
-    description: l.description, qty_milli: l.qty_milli, unit_price_minor: l.unit_price_minor, cost_minor: l.cost_minor, sort: idx,
+    description: l.description, qty_milli: l.qty_milli, unit_price_minor: l.unit_price_minor, cost_minor: l.cost_minor,
+    taxable: l.taxable ?? true, sort: idx,
   })));
   revalidatePath("/invoices");
   revalidatePath(`/jobs/${jobId}`);
@@ -424,18 +504,146 @@ export async function updateJobStatus(jobId: string, status: string): Promise<Ph
   return { ok: true };
 }
 
-// ---- Tech field tools ----------------------------------------------
-/** Mark the technician en route (records time; SMS fires if messaging is configured). */
-export async function setOnMyWay(jobId: string): Promise<PhotoResult> {
-  await requireProfile();
+// ---- Appointment confirmation + arrival tracking (6c.8) -------------
+/**
+ * Mint (or re-mint) the customer's appointment link.
+ *
+ * THE TOKEN RULES ARE 023 §10's RULES, applied from the start rather than
+ * retrofitted: it EXPIRES (`expires_at` is NOT NULL, tied to the appointment
+ * rather than to a fixed window from issue), it is REVOCABLE, and it exposes
+ * only this one appointment through `public_appointment` — no price, no
+ * document token, no other job, no address. Re-issuing REVOKES the previous
+ * link rather than leaving two live links in two text messages.
+ */
+async function mintAppointmentToken(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  organizationId: string, jobId: string, scheduledDate: string, actorId: string,
+): Promise<string | null> {
+  const { data: live } = await supabase.from("appointment_tokens")
+    .select("id, token, expires_at").eq("job_id", jobId).is("revoked_at", null).maybeSingle();
+  const expiresAt = tokenExpiryFor(scheduledDate) as string;
+  if (live) {
+    // Same link, refreshed deadline: the customer may already have it in a text.
+    await supabase.from("appointment_tokens").update({ expires_at: expiresAt }).eq("id", live.id);
+    return live.token as string;
+  }
+  const { data: created, error } = await supabase.from("appointment_tokens").insert({
+    organization_id: organizationId, job_id: jobId, expires_at: expiresAt, created_by: actorId,
+  }).select("token").single();
+  if (error || !created) return null;
+  return created.token as string;
+}
+
+export type AppointmentLinkResult = { ok: boolean; error?: string; url?: string; sent?: boolean; notice?: string };
+
+/** Issue the link and, if SMS is connected, text it to the customer. */
+export async function sendAppointmentConfirmation(jobId: string): Promise<AppointmentLinkResult> {
+  let profile;
+  try { profile = await requireProfile(); assertRole(profile, ["owner", "office"]); }
+  catch { return { ok: false, error: "forbidden" }; }
+  const locale = await getLocale();
   const supabase = await createClient();
-  const { error } = await supabase.from("jobs").update({ on_my_way_at: new Date().toISOString() }).eq("id", jobId);
+
+  const { data: job } = await supabase.from("jobs")
+    .select("id, service, scheduled_date, start_time, organization_id, customers(name, phone, sms_opt_in)")
+    .eq("id", jobId).is("deleted_at", null).maybeSingle();
+  if (!job) return { ok: false, error: "not_found" };
+
+  const token = await mintAppointmentToken(supabase, profile.organization_id!, jobId, String(job.scheduled_date), profile.id);
+  if (!token) return { ok: false, error: "Could not create the link — run migration 039." };
+
+  const base = appUrl();
+  const url = base ? `${base.replace(/\/$/, "")}/p/${token}/visit` : `/p/${token}/visit`;
+
+  const customer: any = Array.isArray(job.customers) ? job.customers[0] : job.customers;
+  const phone = customer?.phone && customer.phone !== "—" ? customer.phone : null;
+  // Consent is enforced here exactly as the reminder loops enforce it: an UNSET
+  // opt-in is refused as well as a false one, because a query that forgot the
+  // column would otherwise look like universal consent.
+  if (customer?.sms_opt_in !== true) {
+    return { ok: true, url, sent: false, notice: locale === "he" ? "הקישור נוצר. הלקוח לא אישר קבלת SMS, לכן לא נשלחה הודעה." : "Link created. This customer has not opted in to SMS, so nothing was sent — share the link yourself." };
+  }
+  if (!providers.sms() || !phone || !base) {
+    return { ok: true, url, sent: false, notice: locale === "he" ? "הקישור נוצר אך לא נשלח: שירות ה-SMS או כתובת האפליקציה אינם מוגדרים." : "Link created but NOT sent: SMS or the app URL is not configured. Send the link yourself." };
+  }
+
+  const { data: org } = await supabase.from("organizations").select("name").eq("id", job.organization_id).single();
+  const body = confirmationSms({
+    businessName: org?.name ?? "", service: job.service ?? "",
+    date: job.scheduled_date, time: job.start_time, url, locale,
+  }) as string;
+  try {
+    const sid = await sendSms(phone, body);
+    await supabase.from("sms_messages").insert({
+      organization_id: job.organization_id, job_id: jobId, to_phone: phone, body,
+      provider: "twilio", provider_message_id: sid, status: "sent", sent_at: new Date().toISOString(),
+    });
+    revalidatePath(`/jobs/${jobId}`);
+    return { ok: true, url, sent: true };
+  } catch (cause: any) {
+    await supabase.from("sms_messages").insert({
+      organization_id: job.organization_id, job_id: jobId, to_phone: phone, body,
+      provider: "twilio", status: "failed", error: String(cause?.message ?? cause).slice(0, 500),
+    });
+    return { ok: true, url, sent: false, notice: locale === "he" ? "הקישור נוצר אך שליחת ה-SMS נכשלה." : "Link created but the SMS failed to send. Share the link yourself." };
+  }
+}
+
+/** Revoke the customer's link immediately. Revocation is checked before expiry. */
+export async function revokeAppointmentLink(jobId: string): Promise<PhotoResult> {
+  let profile;
+  try { profile = await requireProfile(); assertRole(profile, ["owner", "office"]); }
+  catch { return { ok: false, error: "forbidden" }; }
+  const supabase = await createClient();
+  const { error } = await supabase.from("appointment_tokens")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("job_id", jobId).eq("organization_id", profile.organization_id!).is("revoked_at", null);
   if (error) return { ok: false, error: error.message };
-  // Best-effort: notify the client if an SMS provider is connected.
+  revalidatePath(`/jobs/${jobId}`);
+  return { ok: true };
+}
+
+// ---- Tech field tools ----------------------------------------------
+/**
+ * Mark the technician en route.
+ *
+ * The "on my way" text used to point at nothing at all — it was the message
+ * every business sends and the one that generates the "where are they?" call it
+ * was supposed to prevent. It now carries an ETA and a live arrival page.
+ */
+export async function setOnMyWay(jobId: string, etaMinutes?: number | string): Promise<PhotoResult> {
+  const profile = await requireProfile();
+  const supabase = await createClient();
+  const eta = normalizeEtaMinutes(etaMinutes) as number | null;
+  const { error } = await supabase.from("jobs")
+    .update({ on_my_way_at: new Date().toISOString(), on_my_way_eta_minutes: eta })
+    .eq("id", jobId);
+  if (error) return { ok: false, error: error.message };
+
+  // The tracking link rides on the existing template SMS rather than becoming a
+  // second text: two messages for one event is how a business trains its
+  // customers to ignore both.
+  let trackUrl: string | null = null;
+  const { data: job } = await supabase.from("jobs").select("scheduled_date, organization_id").eq("id", jobId).maybeSingle();
+  if (job) {
+    const token = await mintAppointmentToken(supabase, job.organization_id, jobId, String(job.scheduled_date), profile.id);
+    const base = appUrl();
+    if (token && base) trackUrl = `${base.replace(/\/$/, "")}/p/${token}/visit`;
+  }
   try {
     const { notifyOnMyWay } = await import("@/lib/notify");
-    await notifyOnMyWay(jobId);
+    await notifyOnMyWay(jobId, { trackUrl, etaMinutes: eta });
   } catch { /* messaging optional */ }
+  revalidatePath(`/jobs/${jobId}`);
+  return { ok: true };
+}
+
+/** Record the arrival, so the customer's page stops saying "on the way". */
+export async function markArrived(jobId: string): Promise<PhotoResult> {
+  await requireProfile();
+  const supabase = await createClient();
+  const { error } = await supabase.from("jobs").update({ arrived_at: new Date().toISOString() }).eq("id", jobId);
+  if (error) return { ok: false, error: error.message };
   revalidatePath(`/jobs/${jobId}`);
   return { ok: true };
 }

@@ -6,6 +6,7 @@ import SignApprove from "@/components/SignApprove";
 import PrintButton from "@/components/PrintButton";
 import { providers } from "@/lib/providers";
 import CustomerPaymentOptions from "@/components/CustomerPaymentOptions";
+import OptionChooser from "./OptionChooser";
 import type { PublicPaymentOptions, PublicTipOptions } from "@/lib/payments/types";
 // @ts-ignore
 import { computeDocument, lineSubtotalMinor } from "@/lib/core/money.mjs";
@@ -123,6 +124,20 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
               <span>Total</span><span>{money(totals.totalMinor, cur)}</span>
             </div>
           </div>
+
+          {/* 6c.4 — good / better / best. The chosen option's lines become the
+              estimate's lines, so the totals above and the invoice that follows
+              are the price the customer actually picked. */}
+          {doc.kind === "estimate" && (doc.options ?? []).length > 0 && (
+            <div className="no-print">
+              <OptionChooser
+                token={token} options={doc.options ?? []} selectedId={doc.selected_option_id ?? null}
+                currency={cur} accent={accent} locale={locale === "he" ? "he" : "en"}
+                discountMinor={doc.discount_minor ?? 0} taxRateBps={doc.tax_rate_bps ?? 0}
+                estimateDeposit={depositMinor} signed={signed}
+              />
+            </div>
+          )}
 
           {depositMinor > 0 && doc.kind === "estimate" && (
             <div style={{ marginTop: 16, background: "#f8fafc", border: `1px solid ${accent}33`, borderRadius: 12, padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
