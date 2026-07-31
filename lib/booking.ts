@@ -27,7 +27,14 @@ export interface BookingSlotInput {
   timeZone?: string | null;
   /** Injectable clock. Instant, not wall clock. */
   now?: Date | number;
+  /** Business-closed windows (6c.3). Any overlap removes the slot at any capacity. */
+  closedWindows?: AvailabilityWindow[];
+  /** One window per absent technician (6c.3). Each overlap costs one unit of capacity. */
+  awayWindows?: AvailabilityWindow[];
 }
+
+/** Wall-clock window, either 'HH:MM' or minutes past midnight. */
+export type AvailabilityWindow = { start: string | number; end: string | number };
 
 export type ServiceAreaEnforcement = {
   total: number;

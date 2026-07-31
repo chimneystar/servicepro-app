@@ -9,6 +9,9 @@ import { t } from "@/lib/i18n";
 import { parseAmountToMinor } from "@/lib/core/money.mjs";
 import { changeJobStatus } from "@/lib/job-status";
 import { notifyJobAssigned } from "@/lib/push";
+import { assertAssignable } from "@/app/(app)/dispatch/assignment-guard";
+// @ts-ignore -- pure logic, proven both ways in tests/skills.test.mjs
+import { normalizeSkillList } from "@/lib/core/skills.mjs";
 
 export type ActionResult = { ok: boolean; error?: string };
 
@@ -52,8 +55,22 @@ export async function createJob(_prev: ActionResult, formData: FormData): Promis
     revalidatePath("/customers");
   }
 
+  // 6c.3 / 6c.11 — the same gate the dispatch board applies. Booking a job
+  // straight onto a technician is an assignment, so it cannot be the one path
+  // that ignores holidays and certifications.
+  const required_skills = normalizeSkillList(String(formData.get("required_skills") ?? "")) as string[];
+  if (assigned_to) {
+    const assignable = await assertAssignable(supabase, {
+      organizationId: profile.organization_id!, profileId: assigned_to,
+      date: scheduled_date, startTime: start, endTime: end,
+      requiredSkills: required_skills, locale,
+    });
+    if (!assignable.ok) return { ok: false, error: assignable.error ?? undefined };
+  }
+
   const { data: created, error } = await supabase.from("jobs").insert({
     organization_id: profile.organization_id,
+    required_skills,
     created_by: profile.id,
     customer_id,
     assigned_to,

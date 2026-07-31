@@ -10,6 +10,7 @@ import { computeDocument } from "@/lib/core/money.mjs";
 import ActivityTimeline from "@/components/ActivityTimeline";
 import { loadActivity } from "@/lib/activity";
 import { getLocale } from "@/lib/locale-server";
+import EstimateOptionsEditor, { type OptionRow, type OptionItemRow } from "./EstimateOptionsEditor";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +20,7 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
   const locale = await getLocale();
   const supabase = await createClient();
   const { data: est } = await supabase.from("estimates")
-    .select("id, number, status, discount_minor, deposit_minor, tax_rate_bps, issue_date, notes, public_token, customers(name, address, city, phone, email)")
+    .select("id, number, status, discount_minor, deposit_minor, tax_rate_bps, issue_date, notes, public_token, signed_at, selected_option_id, customers(name, address, city, phone, email)")
     .eq("id", id).is("deleted_at", null).maybeSingle();
   const { data: org } = await supabase.from("organizations").select("name, logo_url, tagline, phone, email, currency, tax_label, accent_color").single();
   if (!est) return <div><Link href="/estimates" style={back}>‹ Estimates</Link><div style={{ padding: 40, textAlign: "center", color: "#5c6675" }}>Estimate not found.</div></div>;
@@ -33,6 +34,14 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
   const totals = computeDocument({ items: items.map((i) => ({ qtyMilli: i.qty_milli, unitPriceMinor: i.unit_price_minor, taxable: i.taxable })), discountMinor: est.discount_minor, taxRateBps: est.tax_rate_bps });
   const c: any = est.customers;
   const accent = org?.accent_color || "#2563eb";
+
+  // 6c.4 — the good/better/best bundles for this estimate.
+  const [{ data: optionRows }, { data: optionItemRows }] = await Promise.all([
+    supabase.from("estimate_options").select("id, tier, title, description, recommended, deposit_minor, total_minor, sort").eq("estimate_id", id).order("sort"),
+    supabase.from("estimate_option_items").select("id, option_id, title, description, qty_milli, unit_price_minor, cost_minor, taxable").order("sort"),
+  ]);
+  const optionIds = new Set((optionRows ?? []).map((row) => row.id));
+  const optionItems = (optionItemRows ?? []).filter((row) => optionIds.has(row.option_id));
 
   return (
     <div style={{ maxWidth: 680 }}>
@@ -52,6 +61,15 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
           <b style={{ color: accent }}>{money(est.deposit_minor, org?.currency ?? "USD")}</b>
         </div>
       )}
+      <div className="no-print">
+        <EstimateOptionsEditor
+          locale={locale} currency={org?.currency ?? "USD"} estimateId={est.id}
+          options={(optionRows ?? []) as OptionRow[]} items={optionItems as OptionItemRow[]}
+          selectedOptionId={(est as any).selected_option_id ?? null} signed={!!(est as any).signed_at}
+          discountMinor={est.discount_minor ?? 0} taxRateBps={est.tax_rate_bps ?? 0}
+          estimateDeposit={est.deposit_minor ?? 0}
+        />
+      </div>
       <ActivityTimeline entries={activity} locale={locale} />
     </div>
   );

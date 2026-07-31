@@ -8,6 +8,8 @@ import JobActions from "@/components/JobActions";
 import Tabs from "@/components/Tabs";
 import JobItems, { type Item } from "@/components/JobItems";
 import JobParts, { type StockItem } from "./JobParts";
+import JobCosting from "./JobCosting";
+import JobAppointment from "./JobAppointment";
 import JobTasks, { type Task } from "@/components/JobTasks";
 import JobChecklist, { type Check } from "@/components/JobChecklist";
 import JobEquipment, { type Equip } from "@/components/JobEquipment";
@@ -39,7 +41,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
 
   const { data: job } = await supabase
     .from("jobs")
-    .select("id, service, status, stage, tags, job_expenses_minor, price_minor, scheduled_date, start_time, end_time, notes, customer_id, job_address, job_city, on_my_way_at, started_at, completed_at, completion_signed_by, customers(name, phone, address, city, billing_address, billing_city), profiles!jobs_assigned_to_fkey(full_name)")
+    .select("id, service, status, stage, tags, job_expenses_minor, price_minor, scheduled_date, start_time, end_time, notes, customer_id, job_address, job_city, on_my_way_at, arrived_at, started_at, completed_at, completion_signed_by, labour_minutes, labour_cost_minor, labour_costed_at, required_skills, customer_confirmation_status, customer_confirmed_at, customer_declined_at, customer_confirmation_note, customers(name, phone, address, city, billing_address, billing_city), profiles!jobs_assigned_to_fkey(full_name)")
     .eq("id", id).is("deleted_at", null).maybeSingle();
   const [{ data: org }, { data: stageRows }] = await Promise.all([
     supabase.from("organizations").select("currency,phone").single(),
@@ -102,6 +104,36 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   }, 0) / 60000);
   const clockedIn = (timeEntries ?? []).some((e: any) => e.user_id === profile.id && !e.ended_at);
 
+  // 6c.2 — job costing including labour, and 6c.8 — the customer's appointment
+  // link. Both are management information, so they are loaded only for
+  // owner/office: `job_labour_cost` refuses a technician outright (db/039 §1)
+  // and `appointment_tokens` is owner/office by RLS.
+  let labourFigures = { minutes: 0, costMinor: 0, unpriced: 0, openEntries: 0, available: false, costedAt: null as string | null };
+  let appointmentLink: { token: string; expiresAt: string } | null = null;
+  if (canEdit) {
+    const [{ data: labourRow }, { data: tokenRow }] = await Promise.all([
+      supabase.rpc("job_labour_cost", { p_job: id }),
+      supabase.from("appointment_tokens").select("token, expires_at").eq("job_id", id).is("revoked_at", null).maybeSingle(),
+    ]);
+    if (labourRow) {
+      const row: any = labourRow;
+      labourFigures = {
+        minutes: Number(row.minutes ?? 0), costMinor: Number(row.cost_minor ?? 0),
+        unpriced: Number(row.unpriced_technicians ?? 0), openEntries: Number(row.open_entries ?? 0),
+        available: true, costedAt: (job as any).labour_costed_at ?? null,
+      };
+    }
+    if (tokenRow) appointmentLink = { token: tokenRow.token as string, expiresAt: tokenRow.expires_at as string };
+  }
+  // Revenue and materials for the job's own P&L. The job's items are the sale
+  // when it has them; otherwise the quoted price is.
+  const jobItemRows = (items ?? []) as any[];
+  const lineTotal = (qtyMilli: number, minor: number) => Math.floor((Math.max(0, qtyMilli) * Math.max(0, minor) + 500) / 1000);
+  const jobRevenueMinor = jobItemRows.length
+    ? jobItemRows.reduce((sum, row) => sum + lineTotal(row.qty_milli ?? 0, row.unit_price_minor ?? 0), 0)
+    : (job.price_minor ?? 0);
+  const jobMaterialsMinor = jobItemRows.reduce((sum, row) => sum + lineTotal(row.qty_milli ?? 0, row.cost_minor ?? 0), 0);
+
   const c: any = job.customers;
   const techName = (job as any).profiles?.full_name;
   const custOpt = [{ id: job.customer_id, label: c?.name ?? (he ? "לקוח" : "Customer") }];
@@ -137,6 +169,28 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
       <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16, marginTop: 12 }}>
         <JobActions jobId={job.id} stage={(job as any).stage ?? "Scheduled"} stages={stages} canInvoice={canEdit} />
       </div>
+      {canEdit && (
+        <JobAppointment
+          locale={locale} jobId={job.id}
+          confirmation={(job as any).customer_confirmation_status ?? "pending"}
+          confirmedAt={(job as any).customer_confirmed_at ?? null}
+          declinedAt={(job as any).customer_declined_at ?? null}
+          note={(job as any).customer_confirmation_note ?? null}
+          link={appointmentLink} arrivedAt={(job as any).arrived_at ?? null} onMyWayAt={job.on_my_way_at}
+        />
+      )}
+      {((job as any).required_skills ?? []).length > 0 && (
+        <div style={{ background: "#e0ebff", color: "#1d4ed8", borderRadius: 12, padding: "10px 14px", marginTop: 12, fontSize: 12.5 }}>
+          <b>{he ? "הסמכות נדרשות" : "Certifications required"}:</b> {((job as any).required_skills as string[]).join(", ")}
+        </div>
+      )}
+      {canEdit && (
+        <JobCosting
+          locale={locale} currency={cur} jobId={job.id}
+          revenueMinor={jobRevenueMinor} materialsMinor={jobMaterialsMinor}
+          expensesMinor={(job as any).job_expenses_minor ?? 0} labour={labourFigures}
+        />
+      )}
       {canEdit && <JobTagsEditor jobId={job.id} tags={(job as any).tags ?? []} />}
       {canEdit && <JobExpensesField jobId={job.id} value={(job as any).job_expenses_minor ?? 0} />}
       {job.completed_at && canEdit && <ReviewButton jobId={job.id} />}

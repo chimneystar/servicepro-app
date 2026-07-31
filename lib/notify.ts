@@ -10,8 +10,17 @@ export function fillTemplate(body: string, vars: Record<string, string>) {
  * Send the "technician on the way" text to the customer, IF an SMS provider
  * is connected and the template is enabled. Always safe to call — it silently
  * does nothing when SMS isn't configured yet. Every send is logged.
+ *
+ * `options` is ADDITIVE (remediation plan 6c.8): an existing caller that passes
+ * nothing behaves exactly as before. When a tracking link is supplied it fills
+ * a `{track}` placeholder if the business's template has one, and is otherwise
+ * appended — the message was previously a dead end, which is what generated the
+ * "where are they?" call it was meant to prevent.
  */
-export async function notifyOnMyWay(jobId: string): Promise<void> {
+export async function notifyOnMyWay(
+  jobId: string,
+  options?: { trackUrl?: string | null; etaMinutes?: number | null },
+): Promise<void> {
   if (!providers.sms()) return;
   const supabase = await createClient();
   const { data: job } = await supabase.from("jobs")
@@ -27,13 +36,22 @@ export async function notifyOnMyWay(jobId: string): Promise<void> {
   ]);
   if (!tpl || !tpl.enabled || !tpl.body) return;
 
-  const body = fillTemplate(tpl.body, {
+  const trackUrl = options?.trackUrl ?? "";
+  const eta = options?.etaMinutes ?? null;
+  let body = fillTemplate(tpl.body, {
     name: (cust.name ?? "").split(" ")[0] ?? "",
     service: job.service ?? "",
     date: job.scheduled_date ?? "",
     time: (job.start_time ?? "").slice(0, 5),
     business: org?.name ?? "",
+    track: trackUrl,
+    eta: eta ? String(eta) : "",
   });
+  // Appended only when the template did not already place it, so a business
+  // that customised its wording is not given the link twice.
+  if (trackUrl && !body.includes(trackUrl)) {
+    body = `${body} ${eta ? `ETA ~${eta} min. ` : ""}Track: ${trackUrl}`.trim();
+  }
 
   try {
     const sid = await sendSms(cust.phone, body);
