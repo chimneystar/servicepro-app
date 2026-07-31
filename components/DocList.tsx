@@ -52,7 +52,13 @@ export default function DocList({ rows, locale, currency, kind, emptyKey, status
     });
   }
   function togglePaid(id: string, paid: boolean) {
-    start(async () => { await setInvoicePaid(id, paid); router.refresh(); });
+    // Marking an invoice paid is a money change. A refused update used to leave
+    // the row showing its old status with nothing to say the click had failed.
+    start(async () => {
+      const res = await setInvoicePaid(id, paid);
+      if (!res.ok) { setToast({ text: res.error ?? "Could not update this invoice" }); setTimeout(() => setToast(null), 6000); return; }
+      router.refresh();
+    });
   }
 
   return (

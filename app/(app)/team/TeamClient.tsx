@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useFormStatus } from "react-dom";
 import { inviteMember, changeRole, removeMember, cancelInvite, updatePaymentPermissions, updateCapabilities, type ActionResult, type CapabilityValues } from "./actions";
 import { t, type Locale } from "@/lib/i18n";
+import { ActionError, useActionStatus } from "@/components/ActionStatus";
 
 type Member = { id: string; full_name: string; role: string };
 type Invite = { id: string; email: string; role: string };
@@ -21,10 +22,13 @@ export default function TeamClient({ locale, members, invites, paymentPermission
 }) {
   const router = useRouter();
   const [state, formAction] = useActionState(inviteMember, initial);
-  const [pending, start] = useTransition();
-  const roleLabel = (r: string) => t(locale, r === "owner" ? "role.owner" : r === "office" ? "role.office" : "role.tech");
   const he = locale === "he";
-  const run = (fn: () => Promise<ActionResult>) => start(async () => { await fn(); router.refresh(); });
+  const roleLabel = (r: string) => t(locale, r === "owner" ? "role.owner" : r === "office" ? "role.office" : "role.tech");
+  // Role changes, removals and invite cancellations are authorization changes.
+  // Discarding the result meant a refused privilege change looked exactly like
+  // an applied one — the select snapped back and nobody knew why.
+  const { pending, error: runError, run: perform } = useActionStatus(he);
+  const run = (fn: () => Promise<ActionResult>) => perform(fn, () => router.refresh());
 
   return (
     <div style={{ maxWidth: 720 }}>
@@ -53,6 +57,7 @@ export default function TeamClient({ locale, members, invites, paymentPermission
       {/* Members */}
       <div style={card}>
         <h3 style={h3}>{t(locale, "team.members")} ({members.length})</h3>
+        <ActionError error={runError} style={{ marginTop: 0, marginBottom: 8 }} />
         {members.map((m) => {
           const paymentAccess = paymentPermissions.find((entry) => entry.profile_id === m.id);
           const capabilityAccess = capabilities.find((entry) => entry.profile_id === m.id);

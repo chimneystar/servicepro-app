@@ -1,28 +1,36 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ShareDoc, { type ShareTarget } from "@/components/ShareDoc";
 import { duplicateEstimate, deleteEstimate, setEstimateStatus, convertEstimateToInvoice } from "@/app/(app)/estimates/actions";
 import { duplicateInvoice, deleteInvoice, setInvoicePaid } from "@/app/(app)/invoices/actions";
+import { ActionError, useActionStatus } from "@/components/ActionStatus";
 
 export default function DocDetailActions({ kind, id, token, status, number, customerName, customerEmail, customerPhone, orgName }: {
   kind: "estimate" | "invoice"; id: string; token: string; status: string; number: number;
   customerName: string; customerEmail: string | null; customerPhone: string | null; orgName: string;
 }) {
   const router = useRouter();
-  const [pending, start] = useTransition();
+  // Every one of these buttons used to fail silently: the transition ended and
+  // the page simply did not change. Duplicate, delete, convert and mark-paid
+  // are all irreversible-looking operations on money documents.
+  const { pending, error, run } = useActionStatus();
   const [share, setShare] = useState<ShareTarget | null>(null);
   const [copied, setCopied] = useState(false);
   const base = kind === "estimate" ? "/estimates" : "/invoices";
 
   function copyLink() { navigator.clipboard?.writeText(`${window.location.origin}/p/${token}`).catch(() => {}); setCopied(true); setTimeout(() => setCopied(false), 1600); }
-  function dup() { start(async () => { const r: any = kind === "estimate" ? await duplicateEstimate(id) : await duplicateInvoice(id); if (r.ok && r.newId) router.push(`${base}/${r.newId}`); }); }
-  function del() { if (!confirm(`Delete this ${kind}? This cannot be undone.`)) return; start(async () => { const r = kind === "estimate" ? await deleteEstimate(id) : await deleteInvoice(id); if (r.ok) router.push(base); }); }
-  function estStatus(s: string) { start(async () => { await setEstimateStatus(id, s); router.refresh(); }); }
-  function convert() { start(async () => { const r = await convertEstimateToInvoice(id); if (r.ok) router.push("/invoices"); }); }
-  function togglePaid(paid: boolean) { start(async () => { await setInvoicePaid(id, paid); router.refresh(); }); }
+  function dup() {
+    let newId: string | undefined;
+    run(async () => { const r = kind === "estimate" ? await duplicateEstimate(id) : await duplicateInvoice(id); newId = r.newId; return r; },
+      () => { if (newId) router.push(`${base}/${newId}`); else router.refresh(); });
+  }
+  function del() { if (!confirm(`Delete this ${kind}? This cannot be undone.`)) return; run(() => (kind === "estimate" ? deleteEstimate(id) : deleteInvoice(id)), () => router.push(base)); }
+  function estStatus(s: string) { run(() => setEstimateStatus(id, s), () => router.refresh()); }
+  function convert() { run(() => convertEstimateToInvoice(id), () => router.push("/invoices")); }
+  function togglePaid(paid: boolean) { run(() => setInvoicePaid(id, paid), () => router.refresh()); }
 
   return (
     <div>
@@ -45,6 +53,8 @@ export default function DocDetailActions({ kind, id, token, status, number, cust
           </select>
         </div>
       )}
+
+      <ActionError error={error} />
 
       {share && <ShareDoc target={share} onClose={() => setShare(null)} />}
     </div>

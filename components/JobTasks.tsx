@@ -1,23 +1,23 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { addJobTask, toggleJobTask, deleteJobTask } from "@/app/(app)/jobs/[id]/actions";
 import { useAppLocale } from "@/components/LocaleProvider";
+import { ActionError, useActionStatus } from "@/components/ActionStatus";
 
 export type Task = { id: string; title: string; done: boolean };
 
 export default function JobTasks({ jobId, tasks }: { jobId: string; tasks: Task[] }) {
   const router = useRouter();
   const he = useAppLocale() === "he";
-  const [pending, start] = useTransition();
+  const { pending, error, run } = useActionStatus(he);
   const [text, setText] = useState("");
   const doneCount = tasks.filter((t) => t.done).length;
 
   function add() {
     const v = text.trim(); if (!v) return;
-    setText("");
-    start(async () => { await addJobTask(jobId, v); router.refresh(); });
+    run(() => addJobTask(jobId, v), () => { setText(""); router.refresh(); });
   }
 
   return (
@@ -30,13 +30,14 @@ export default function JobTasks({ jobId, tasks }: { jobId: string; tasks: Task[
       <div style={{ display: "grid", gap: 8 }}>
         {tasks.map((t) => (
           <div key={t.id} style={row}>
-            <input type="checkbox" checked={t.done} onChange={() => start(async () => { await toggleJobTask(t.id, !t.done, jobId); router.refresh(); })} style={{ width: 20, height: 20 }} />
+            <input type="checkbox" checked={t.done} disabled={pending} onChange={() => run(() => toggleJobTask(t.id, !t.done, jobId), () => router.refresh())} style={{ width: 20, height: 20 }} />
             <span style={{ flex: 1, textDecoration: t.done ? "line-through" : "none", color: t.done ? "#94a3b8" : "#0b1524" }}>{t.title}</span>
-            <button onClick={() => start(async () => { await deleteJobTask(t.id, jobId); router.refresh(); })} style={xBtn}>🗑️</button>
+            <button onClick={() => run(() => deleteJobTask(t.id, jobId), () => router.refresh())} disabled={pending} style={xBtn}>🗑️</button>
           </div>
         ))}
         {tasks.length === 0 && <div className="rempty">{he ? "עוד אין משימות." : "No tasks yet."}</div>}
       </div>
+      <ActionError error={error} />
     </div>
   );
 }

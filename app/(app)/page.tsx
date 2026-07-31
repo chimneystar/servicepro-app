@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getLocale } from "@/lib/locale-server";
 import { t } from "@/lib/i18n";
 import { money, todayISO, monthBounds, fmtDate } from "@/lib/format";
+// @ts-ignore — pure date arithmetic, unit-tested by node:test.
+import { monthsBack, isTruncated } from "@/lib/core/query-window.mjs";
 import { Donut, Bars, Legend } from "@/components/MiniCharts";
 import SetupChecklist, { type Step } from "@/components/SetupChecklist";
 import Link from "next/link";
@@ -23,24 +25,47 @@ export default async function DashboardPage() {
   past14Date.setUTCDate(past14Date.getUTCDate() - 14);
   const past14 = past14Date.toISOString().slice(0, 10);
 
-  const [{ data: org }, { data: invoices }, { data: estimates }, { data: expenses }, { data: jobs }, { data: leads }, { count: custCount }] = await Promise.all([
+  // THE BUG: this page read EVERY invoice, estimate, expense, job and lead in
+  // the organisation with no date filter, aggregated them in JavaScript, and did
+  // it on every single load because the route is force-dynamic. The screen only
+  // ever shows a rolling window (this month, the last six months, what is on
+  // today, what is coming up) plus the open receivables, so that is what is now
+  // asked for. Anything still open — an unpaid invoice, a live estimate — is
+  // fetched regardless of age, because those must never fall off the edge.
+  const windowStart: string = monthsBack(today, 12);
+  const ROW_CEILING = 2000, JOB_CEILING = 1000;
+
+  const [{ data: org }, { data: invoices }, { data: estimates }, { data: expenses }, { data: jobs }, { count: custCount }, { count: openLeadCount }, { count: newLeadCount }, { count: estimateCount }, { count: jobCount }] = await Promise.all([
     supabase.from("organizations").select("currency, logo_url, tax_rate_bps, review_url, onboarding_dismissed").single(),
-    supabase.from("invoices").select("id, number, status, total_minor, issue_date").is("deleted_at", null),
-    supabase.from("estimates").select("id, number, status, total_minor").is("deleted_at", null),
-    supabase.from("expenses").select("amount_minor, expense_date"),
-    supabase.from("jobs").select("id, assigned_to, service, source, status, price_minor, scheduled_date, start_time, customer_id, customers(name)").is("deleted_at", null),
-    supabase.from("leads").select("id, name, status, created_at"),
+    supabase.from("invoices").select("id, number, status, total_minor, issue_date").is("deleted_at", null)
+      .or(`status.eq.unpaid,issue_date.gte.${windowStart}`)
+      .order("issue_date", { ascending: false }).limit(ROW_CEILING),
+    supabase.from("estimates").select("id, number, status, total_minor, issue_date").is("deleted_at", null)
+      .or(`status.in.(draft,sent),issue_date.gte.${windowStart}`)
+      .order("issue_date", { ascending: false }).limit(ROW_CEILING),
+    // Only this month's expenses are displayed, so only this month is read.
+    supabase.from("expenses").select("amount_minor, expense_date").gte("expense_date", start).lte("expense_date", end).limit(ROW_CEILING),
+    supabase.from("jobs").select("id, assigned_to, service, source, status, price_minor, scheduled_date, start_time, customer_id, customers(name)")
+      .is("deleted_at", null).gte("scheduled_date", windowStart)
+      .order("scheduled_date", { ascending: false }).limit(JOB_CEILING),
     supabase.from("customers").select("id", { count: "exact", head: true }).is("deleted_at", null).eq("archived", false),
+    // Leads were only ever counted here, never listed — so count them in SQL.
+    supabase.from("leads").select("id", { count: "exact", head: true }).not("status", "in", "(won,lost)"),
+    supabase.from("leads").select("id", { count: "exact", head: true }).eq("status", "new"),
+    // Exact, age-independent counts for the setup checklist, which asks "have
+    // you ever…" and must not be answered from a rolling window.
+    supabase.from("estimates").select("id", { count: "exact", head: true }).is("deleted_at", null),
+    supabase.from("jobs").select("id", { count: "exact", head: true }).is("deleted_at", null),
   ]);
-  const openLeads = (leads ?? []).filter((l) => !["won", "lost"].includes(l.status)).length;
+  const openLeads = openLeadCount ?? 0;
 
   // Onboarding checklist (owner only, until dismissed / complete)
   const steps: Step[] = [
     { label: he ? "הוספת לוגו לעסק" : "Add your business logo", done: !!org?.logo_url, href: "/settings" },
     { label: he ? "הגדרת שיעור המס" : "Set your sales-tax rate", done: (org?.tax_rate_bps ?? 0) > 0, href: "/settings" },
     { label: he ? "הוספת הלקוח הראשון" : "Add your first customer", done: (custCount ?? 0) > 0, href: "/customers" },
-    { label: he ? "יצירת הצעת המחיר הראשונה" : "Create your first estimate", done: (estimates ?? []).length > 0, href: "/estimates" },
-    { label: he ? "שיבוץ העבודה הראשונה" : "Schedule your first job", done: (jobs ?? []).length > 0, href: "/schedule" },
+    { label: he ? "יצירת הצעת המחיר הראשונה" : "Create your first estimate", done: (estimateCount ?? 0) > 0, href: "/estimates" },
+    { label: he ? "שיבוץ העבודה הראשונה" : "Schedule your first job", done: (jobCount ?? 0) > 0, href: "/schedule" },
     { label: he ? "הוספת קישור לביקורת" : "Add your review link", done: !!org?.review_url, href: "/settings" },
   ];
   const showChecklist = profile.role === "owner" && !org?.onboarding_dismissed && steps.some((s) => !s.done);
@@ -53,8 +78,13 @@ export default async function DashboardPage() {
   const dueSum = unpaid.reduce((s, i) => s + i.total_minor, 0);
   const pastDue = unpaid.filter((i) => i.issue_date < past14);
   const pastDueSum = pastDue.reduce((s, i) => s + i.total_minor, 0);
-  const collectedAll = paid.reduce((s, i) => s + i.total_minor, 0);
-  const monthExp = exp.filter((e) => e.expense_date >= start && e.expense_date <= end).reduce((s, e) => s + e.amount_minor, 0);
+  // Collected over the loaded window, not for all time. The label below says so
+  // — a rolling figure presented as an all-time one would be a lie, and this
+  // page cannot read every invoice ever issued to produce the latter.
+  const collected12 = paid.reduce((s, i) => s + i.total_minor, 0);
+  const monthExp = exp.reduce((s, e) => s + e.amount_minor, 0);
+  const windowLabel = he ? "ב-12 החודשים האחרונים" : "last 12 months";
+  const truncated: boolean = isTruncated(inv.length, ROW_CEILING) || isTruncated(est.length, ROW_CEILING) || isTruncated(jb.length, JOB_CEILING);
 
   const estBy = (st: string) => est.filter((e) => e.status === st);
   const wonN = estBy("approved").length, lostN = estBy("rejected").length;
@@ -68,7 +98,7 @@ export default async function DashboardPage() {
     const sum = paid.filter((i) => (i.issue_date ?? "").slice(0, 7) === ym).reduce((a, i) => a + i.total_minor, 0);
     return { label: dt.toLocaleString(he ? "he-IL" : "en-US", { month: "short" }), value: Math.round(sum / 100) };
   });
-  const collectRate = collectedAll + dueSum > 0 ? Math.round((collectedAll / (collectedAll + dueSum)) * 100) : 0;
+  const collectRate = collected12 + dueSum > 0 ? Math.round((collected12 / (collected12 + dueSum)) * 100) : 0;
   const todayJobs = jb.filter((j) => j.scheduled_date === today).sort((a, b) => (a.start_time ?? "").localeCompare(b.start_time ?? ""));
   const upcoming = jb.filter((j) => j.scheduled_date >= today && j.status === "scheduled")
     .sort((a, b) => (a.scheduled_date + (a.start_time ?? "")).localeCompare(b.scheduled_date + (b.start_time ?? ""))).slice(0, 5);
@@ -81,7 +111,7 @@ export default async function DashboardPage() {
   const srcMax = Math.max(...topSrc.map((s) => s[1]), 1);
   const unassigned = jb.filter((job: any) => !job.assigned_to && job.status !== "cancelled" && job.scheduled_date >= today);
   const waitingEstimates = est.filter((estimate: any) => estimate.status === "sent");
-  const newLeads = (leads ?? []).filter((lead: any) => lead.status === "new");
+  const newLeadsTotal = newLeadCount ?? 0;
   const nextAssigned = jb.filter((job: any) => job.assigned_to === profile.id && job.status !== "cancelled" && job.status !== "done" && job.scheduled_date >= today).sort((a: any,b: any)=>(a.scheduled_date+(a.start_time??"")).localeCompare(b.scheduled_date+(b.start_time??"")))[0] as any;
   const focus = profile.role === "owner"
     ? { eyebrow: he ? "ממתין לגבייה" : "Waiting to be collected", title: money(dueSum, cur), copy: he ? `${unpaid.length} חשבוניות פתוחות, מהן ${pastDue.length} באיחור.` : `${unpaid.length} open invoices, including ${pastDue.length} past due.`, href: "/invoices?filter=unpaid", action: he ? "לחשבוניות הפתוחות" : "Open invoices" }
@@ -91,7 +121,7 @@ export default async function DashboardPage() {
   const attention = [
     ...(pastDue.length ? [{ tone:"danger", title: he ? `${pastDue.length} חשבוניות באיחור` : `${pastDue.length} past-due invoices`, copy: money(pastDueSum,cur), href:"/invoices?filter=unpaid" }] : []),
     ...(unassigned.length ? [{ tone:"warning", title: he ? `${unassigned.length} עבודות ללא שיבוץ` : `${unassigned.length} jobs need dispatch`, copy: he ? "העבודה הקרובה מחכה לאיש צוות" : "Upcoming work is waiting for a team member", href:"/dispatch" }] : []),
-    ...(newLeads.length ? [{ tone:"blue", title: he ? `${newLeads.length} לידים חדשים` : `${newLeads.length} new leads`, copy: he ? "כדאי לחזור אליהם לפני שימשיכו הלאה" : "Respond before they move on", href:"/leads" }] : []),
+    ...(newLeadsTotal ? [{ tone:"blue", title: he ? `${newLeadsTotal} לידים חדשים` : `${newLeadsTotal} new leads`, copy: he ? "כדאי לחזור אליהם לפני שימשיכו הלאה" : "Respond before they move on", href:"/leads" }] : []),
     ...(waitingEstimates.length ? [{ tone:"blue", title: he ? `${waitingEstimates.length} הצעות מחכות לתשובה` : `${waitingEstimates.length} estimates await a decision`, copy: he ? "אפשר לקבוע מעקב מהיר" : "Schedule a clear follow-up", href:"/growth" }] : []),
   ].slice(0,4);
 
@@ -100,6 +130,14 @@ export default async function DashboardPage() {
       <section className="dashboard-hero"><div><span className="dashboard-live"><i />{new Intl.DateTimeFormat(he?"he-IL":"en-US",{weekday:"long",month:"long",day:"numeric"}).format(new Date())}</span><h1>{t(locale, "dash.greeting", { name: profile.full_name || "👋" })}</h1><p>{profile.role==="owner"?(he?"העסק מול העיניים. מתחילים במה שהכי חשוב.":"Start with what needs your attention, then review the numbers."):profile.role==="office"?(he?"השיבוץ והלקוחות מסודרים לפי מה שצריך לקרות עכשיו.":"Dispatch and customer work are ordered by what happens next."):(he?"כל מה שצריך לעבודה הבאה נמצא כאן.":"Everything for your next stop is ready here.")}</p></div><article className="dashboard-focus"><span>{focus.eyebrow}</span><strong>{focus.title}</strong><p>{focus.copy}</p><Link href={focus.href}>{focus.action}<b>→</b></Link></article></section>
 
       {showChecklist && <SetupChecklist steps={steps} />}
+
+      {truncated && (
+        <div role="status" style={{ background: "#fff7ed", border: "1px solid #fed7aa", color: "#9a3412", borderRadius: 12, padding: "10px 14px", fontSize: 12.5, marginBottom: 12 }}>
+          {he
+            ? "יש יותר רשומות ממה שנטען לעמוד הזה, ולכן חלק מהמספרים כאן חלקיים. הדוחות המלאים נמצאים במסך הדוחות."
+            : "This business has more records than this page loads, so some figures here are partial. Reports has the complete numbers."}
+        </div>
+      )}
 
       <section className="dashboard-now"><JobPulse jobs={todayJobs as any[]} he={he}/><AttentionQueue rows={attention} he={he}/></section>
 
@@ -113,10 +151,10 @@ export default async function DashboardPage() {
         <Card span={8} title={he ? "הכנסות · ששת החודשים האחרונים" : "Revenue · last 6 months"}>
           <Bars data={series} />
         </Card>
-        <Card span={4} title={he ? "גבייה" : "Collections"}>
+        <Card span={4} title={he ? `גבייה · ${windowLabel}` : `Collections · ${windowLabel}`}>
           <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-            <Donut segments={[{ value: collectedAll, color: "#15803d" }, { value: dueSum, color: "#f59e0b" }]} centerTop={`${collectRate}%`} centerSub={he ? "נגבה" : "collected"} />
-            <Legend items={[{ label: he ? "שולם" : "Paid", color: "#15803d", value: money(collectedAll, cur) }, { label: he ? "לתשלום" : "Due", color: "#f59e0b", value: money(dueSum, cur) }]} />
+            <Donut segments={[{ value: collected12, color: "#15803d" }, { value: dueSum, color: "#f59e0b" }]} centerTop={`${collectRate}%`} centerSub={he ? "נגבה" : "collected"} />
+            <Legend items={[{ label: he ? "שולם" : "Paid", color: "#15803d", value: money(collected12, cur) }, { label: he ? "לתשלום" : "Due", color: "#f59e0b", value: money(dueSum, cur) }]} />
           </div>
         </Card>
 
@@ -127,7 +165,7 @@ export default async function DashboardPage() {
         </Card>
         <Card span={4} title={he ? "מכירות · החודש" : "Sales · this month"}>
           <Big>{money(monthSales, cur)}</Big>
-          <Sub>{he ? `${paid.length} חשבוניות שולמו · ${money(collectedAll, cur)} בסך הכול` : `${paid.length} paid invoices · ${money(collectedAll, cur)} all time`}</Sub>
+          <Sub>{he ? `${paid.length} חשבוניות שולמו · ${money(collected12, cur)} ${windowLabel}` : `${paid.length} paid invoices · ${money(collected12, cur)} in the ${windowLabel}`}</Sub>
         </Card>
         <Card span={4} title={he ? "חשבוניות" : "Invoices"}>
           <div style={{ borderInlineStart: "4px solid #b45309", paddingInlineStart: 12, marginBottom: 12 }}>
@@ -178,7 +216,7 @@ export default async function DashboardPage() {
             </div>
           ))}
         </Card>
-        <Card span={4} title={he ? "סוגי עבודות ומקורות מובילים" : "Top job types & sources"}>
+        <Card span={4} title={he ? `סוגי עבודות ומקורות מובילים · ${windowLabel}` : `Top job types & sources · ${windowLabel}`}>
           <Sub>{he ? "סוגי עבודות" : "Job types"}</Sub>
           {topType.map(([k, v]) => <Row key={k} label={k} value={String(v)} />)}
           <div style={{ height: 8 }} />

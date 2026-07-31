@@ -13,14 +13,17 @@ export default function RecurringClient({ plans, customers, techs, currency, tod
   const router = useRouter();
   const [editing, setEditing] = useState<Plan | null | undefined>(undefined);
   const [pending, start] = useTransition();
-  const [msg, setMsg] = useState<string | null>(null);
+  // The banner used to be hard-coded green, so a failure was reported in the
+  // success colour. Tone is now tracked with the message.
+  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [state, formAction] = useFormState(savePlan, { ok: false } as ActionResult);
   const cur = sym[currency] ?? "$";
   if (state.ok && editing !== undefined) setTimeout(() => { setEditing(undefined); router.refresh(); }, 0);
 
   const dueCount = plans.filter((p) => p.next_due <= today).length;
-  function genDue() { start(async () => { const r = await generateDuePlans(); setMsg(r.ok ? `✓ Created ${r.created} job${r.created === 1 ? "" : "s"}` : r.error ?? "Error"); router.refresh(); setTimeout(() => setMsg(null), 4000); }); }
-  function del(id: string) { if (!confirm("Delete this plan?")) return; start(async () => { await deletePlan(id); router.refresh(); }); }
+  function genDue() { start(async () => { const r = await generateDuePlans(); setMsg(r.ok ? { text: `✓ Created ${r.created} job${r.created === 1 ? "" : "s"}`, ok: true } : { text: r.error ?? "Could not generate the due plans", ok: false }); router.refresh(); setTimeout(() => setMsg(null), 4000); }); }
+  // A refused delete used to leave the plan on screen with no message at all.
+  function del(id: string) { if (!confirm("Delete this plan?")) return; start(async () => { const r = await deletePlan(id); if (!r.ok) { setMsg({ text: r.error ?? "Could not delete this plan", ok: false }); setTimeout(() => setMsg(null), 4000); return; } router.refresh(); }); }
 
   return (
     <div>
@@ -31,7 +34,7 @@ export default function RecurringClient({ plans, customers, techs, currency, tod
           <button onClick={() => setEditing(null)} style={btn}>➕ New plan</button>
         </div>
       </div>
-      {msg && <div style={{ background: "#e6f6ec", color: "#15803d", padding: "9px 12px", borderRadius: 10, fontWeight: 700, fontSize: 13, marginBottom: 12 }}>{msg}</div>}
+      {msg && <div role={msg.ok ? "status" : "alert"} style={{ background: msg.ok ? "#e6f6ec" : "#fdeaea", color: msg.ok ? "#15803d" : "#dc2626", padding: "9px 12px", borderRadius: 10, fontWeight: 700, fontSize: 13, marginBottom: 12 }}>{msg.text}</div>}
 
       <div style={{ display: "grid", gap: 8 }}>
         {plans.map((p) => {

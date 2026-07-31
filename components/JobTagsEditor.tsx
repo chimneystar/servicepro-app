@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { setJobTags } from "@/app/(app)/jobs/[id]/actions";
 import { useAppLocale } from "@/components/LocaleProvider";
+import { ActionError, useActionStatus } from "@/components/ActionStatus";
 
 const SUGGESTED = {
   en: ["Follow up", "Waiting for payment", "Waiting on parts", "Urgent", "Warranty", "Callback"],
@@ -13,11 +14,17 @@ const SUGGESTED = {
 export default function JobTagsEditor({ jobId, tags }: { jobId: string; tags: string[] }) {
   const router = useRouter();
   const he = useAppLocale() === "he";
-  const [pending, start] = useTransition();
+  const { pending, error, run } = useActionStatus(he);
   const [list, setList] = useState<string[]>(tags ?? []);
   const [text, setText] = useState("");
 
-  function save(next: string[]) { setList(next); start(async () => { await setJobTags(jobId, next); router.refresh(); }); }
+  // The chips are optimistic. They used to STAY optimistic after a failed
+  // write, so the job looked tagged until the next full page load.
+  function save(next: string[]) {
+    const previous = list;
+    setList(next);
+    run(() => setJobTags(jobId, next), () => router.refresh(), () => setList(previous));
+  }
   function add(tag: string) { const t = tag.trim(); if (!t || list.includes(t)) return; save([...list, t]); setText(""); }
   function remove(tag: string) { save(list.filter((x) => x !== tag)); }
 
@@ -41,6 +48,7 @@ export default function JobTagsEditor({ jobId, tags }: { jobId: string; tags: st
           <button key={s} onClick={() => add(s)} disabled={pending} style={{ background: "#f1f5fb", color: "#5c6675", border: "none", borderRadius: 20, padding: "4px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>+ {s}</button>
         ))}
       </div>
+      <ActionError error={error} />
     </div>
   );
 }

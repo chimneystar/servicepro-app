@@ -12,7 +12,12 @@ export type StageDef = { name: string; color: string; is_done: boolean; is_cance
 
 const SYM: Record<string, string> = { USD: "$", ILS: "₪", EUR: "€" };
 
-export default function JobsList({ jobs, stages, currency, nowMs }: { jobs: JobRow[]; stages: StageDef[]; currency: string; nowMs: number }) {
+export default function JobsList({ jobs, stages, currency, nowMs, truncated = false, loadedCount = 0, totalCount = 0, loadMoreHref = null }: {
+  jobs: JobRow[]; stages: StageDef[]; currency: string; nowMs: number;
+  /** Set when the server capped the query — the tab counts below describe the
+   *  loaded page, not the whole business, and saying so is the whole point. */
+  truncated?: boolean; loadedCount?: number; totalCount?: number; loadMoreHref?: string | null;
+}) {
   const [tab, setTab] = useState("all");
   const [q, setQ] = useState("");
   const [tag, setTag] = useState("");
@@ -37,6 +42,13 @@ export default function JobsList({ jobs, stages, currency, nowMs }: { jobs: JobR
 
   return (
     <div>
+      {truncated && (
+        <div role="status" style={{ background: "#fff7ed", border: "1px solid #fed7aa", color: "#9a3412", borderRadius: 12, padding: "10px 14px", fontSize: 12.5, marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <span>Showing the {loadedCount} most recent of {totalCount} jobs. The counts and search below cover only these.</span>
+          {loadMoreHref && <Link href={loadMoreHref} style={{ color: "#9a3412", fontWeight: 800, whiteSpace: "nowrap" }}>Load more →</Link>}
+        </div>
+      )}
+
       {/* Status tabs */}
       <div className="scroll-x" style={{ display: "flex", gap: 6, borderBottom: "1px solid #e2e8f0", marginBottom: 12, paddingBottom: 2 }}>
         <TabBtn label="All" n={jobs.length} on={tab === "all"} onClick={() => setTab("all")} color="#0b1524" />

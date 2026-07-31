@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateLeadStatus, convertLead, deleteLead } from "./actions";
+import { ActionError, useActionStatus } from "@/components/ActionStatus";
 
 export type Lead = {
   id: string; name: string; phone: string | null; email: string | null; address: string | null; city: string | null;
@@ -16,7 +17,10 @@ const STATUSES: [string, string, string][] = [
 
 export default function LeadsBoard({ leads, orgId }: { leads: Lead[]; orgId: string }) {
   const router = useRouter();
-  const [pending, start] = useTransition();
+  // Pipeline stage, conversion and deletion all used to fail without a word:
+  // the select snapped back on the next refresh and the lead stayed where it
+  // was, which reads as "the app is slow", not "that did not save".
+  const { pending, error, run } = useActionStatus();
   const [filter, setFilter] = useState("open");
   const [copied, setCopied] = useState(false);
 
@@ -26,9 +30,14 @@ export default function LeadsBoard({ leads, orgId }: { leads: Lead[]; orgId: str
 
   function bookingLink() { return `${window.location.origin}/book/${orgId}`; }
   function copyLink() { navigator.clipboard?.writeText(bookingLink()).catch(() => {}); setCopied(true); setTimeout(() => setCopied(false), 1600); }
-  function setStatus(id: string, s: string) { start(async () => { await updateLeadStatus(id, s); router.refresh(); }); }
-  function convert(l: Lead) { if (!confirm(`Add ${l.name} to your customers?`)) return; start(async () => { const r = await convertLead(l.id); if (r.ok && r.customerId) router.push(`/customers/${r.customerId}`); }); }
-  function remove(id: string) { if (!confirm("Delete this lead?")) return; start(async () => { await deleteLead(id); router.refresh(); }); }
+  function setStatus(id: string, s: string) { run(() => updateLeadStatus(id, s), () => router.refresh()); }
+  function convert(l: Lead) {
+    if (!confirm(`Add ${l.name} to your customers?`)) return;
+    let customerId: string | undefined;
+    run(async () => { const r = await convertLead(l.id); customerId = r.customerId; return r; },
+      () => { if (customerId) router.push(`/customers/${customerId}`); else router.refresh(); });
+  }
+  function remove(id: string) { if (!confirm("Delete this lead?")) return; run(() => deleteLead(id), () => router.refresh()); }
 
   return (
     <div>
@@ -47,6 +56,8 @@ export default function LeadsBoard({ leads, orgId }: { leads: Lead[]; orgId: str
         {STATUSES.map(([s, label]) => <Tab key={s} k={s} label={`${label} (${count(s)})`} filter={filter} setFilter={setFilter} />)}
         <Tab k="all" label={`All (${leads.length})`} filter={filter} setFilter={setFilter} />
       </div>
+
+      <ActionError error={error} style={{ marginTop: 0, marginBottom: 10 }} />
 
       <div style={{ display: "grid", gap: 10 }}>
         {shown.map((l) => {

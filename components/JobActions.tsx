@@ -1,24 +1,29 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { setJobStage, createInvoiceFromJob } from "@/app/(app)/jobs/[id]/actions";
 import { useAppLocale } from "@/components/LocaleProvider";
+import { ActionError, useActionStatus } from "@/components/ActionStatus";
 
 export type Stage = { name: string; color: string };
 
 export default function JobActions({ jobId, stage, stages, canInvoice }: { jobId: string; stage: string; stages: Stage[]; canInvoice: boolean }) {
   const router = useRouter();
   const he = useAppLocale() === "he";
-  const [pending, start] = useTransition();
-  const [msg, setMsg] = useState<string | null>(null);
+  const { pending, error, run } = useActionStatus(he);
+  // Success is tracked as its own flag. It used to be inferred from the message
+  // starting with "✓" — which the success string ("Invoice created") never did,
+  // so a created invoice was reported in error red.
+  const [ok, setOk] = useState<string | null>(null);
   const list = stages.length ? stages : [{ name: "Scheduled", color: "#2563eb" }];
   const current = list.find((s) => s.name === stage) ?? list[0];
 
-  function changeStage(s: string) { start(async () => { await setJobStage(jobId, s); router.refresh(); }); }
+  function changeStage(s: string) { setOk(null); run(() => setJobStage(jobId, s), () => router.refresh()); }
   function makeInvoice() {
     if (!confirm(he ? "ליצור חשבונית מהעבודה?" : "Create an invoice from this job?")) return;
-    start(async () => { const r = await createInvoiceFromJob(jobId); setMsg(r.ok ? (he ? "החשבונית נוצרה" : "Invoice created") : r.error || (he ? "לא הצלחנו ליצור חשבונית" : "Could not create invoice")); router.refresh(); });
+    setOk(null);
+    run(() => createInvoiceFromJob(jobId), () => { setOk(he ? "החשבונית נוצרה" : "Invoice created"); router.refresh(); });
   }
 
   return (
@@ -31,7 +36,8 @@ export default function JobActions({ jobId, stage, stages, canInvoice }: { jobId
         </select>
       </div>
       {canInvoice && <button onClick={makeInvoice} disabled={pending} style={{ width: "100%", background: "#15803d", color: "#fff", border: "none", borderRadius: 12, padding: 14, fontWeight: 800, fontSize: 15, cursor: "pointer" }}>{he ? "יצירת חשבונית מהעבודה" : "Create invoice from job"}</button>}
-      {msg && <div style={{ marginTop: 10, color: msg.startsWith("✓") ? "#15803d" : "#dc2626", fontSize: 13, fontWeight: 600 }}>{msg}</div>}
+      {ok && <div role="status" style={{ marginTop: 10, color: "#15803d", fontSize: 13, fontWeight: 600 }}>✓ {ok}</div>}
+      <ActionError error={error} style={{ marginTop: 10 }} />
     </div>
   );
 }
