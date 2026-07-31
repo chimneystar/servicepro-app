@@ -24,8 +24,10 @@ root="$(cd "$db/.." && pwd)"
 
 # If the assertion files ever stop running — a typo, a bad glob, a file renamed
 # away — the suite would go green while proving nothing. This floor is the
-# guard. Raise it whenever assertions are added.
-MIN_ASSERTIONS=85
+# guard. Raise it whenever assertions are added, TOGETHER WITH the identical
+# floor in tests/rls-assertions.test.mjs, which runs these same files under
+# `npm run verify` against PGlite.
+MIN_ASSERTIONS=110
 
 PSQL=(psql -X -q -v ON_ERROR_STOP=1
       -P pager=off -P footer=off -P tuples_only=on

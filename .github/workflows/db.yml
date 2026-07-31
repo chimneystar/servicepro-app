@@ -2,12 +2,19 @@ name: Database
 
 # THE GAP THIS CLOSES
 # -------------------
-# This repository has 29 SQL migrations defining ~150 RLS policies, and
+# This repository has 42 SQL migrations defining ~230 RLS policies, and
 # db/016_isolation_tests.sql — a genuine, runnable proof of tenant isolation.
 # Nothing ever ran it. There was no database in CI at all, so every security
 # assertion in the test suite was static analysis of SQL text: greps that check
 # a policy is WRITTEN a certain way, which cannot prove that the policy REFUSES
 # a query.
+#
+# SINCE LEDGER 0.6 these same db/ci/*.sql files also run locally on every commit,
+# under tests/rls-assertions.test.mjs, against PGlite (Postgres compiled to
+# WebAssembly). This job is not redundant: PGlite is Postgres but not Supabase,
+# and this one runs against a stock postgres:16 server, so the two disagree only
+# where something is genuinely environment-specific. Both execute the SAME files,
+# so neither can drift from the other.
 #
 # This job stands up a real PostgreSQL 16, applies schema.sql and every numbered
 # migration in order, runs 016, and then executes adversarial assertions as

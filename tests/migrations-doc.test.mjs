@@ -104,16 +104,25 @@ test("every migration has a real description — no placeholders", () => {
 // ===========================================================================
 
 test("PLANTED DEFECT: a new migration with no description renders a MISSING marker", () => {
+  // The version is derived, not hardcoded. This test originally planted "042",
+  // which stopped proving anything the moment a real 042 landed: the fake
+  // migration inherited the real one's description and no MISSING marker
+  // rendered, so the both-ways proof failed for a reason that had nothing to do
+  // with what it guards. A planted defect must not collide with real data.
+  const nextVersion = String(Math.max(...migrations.map((m) => Number(m.version))) + 1).padStart(
+    3,
+    "0",
+  );
   const withNew = [
     ...migrations,
-    { version: "042", slug: "new_thing", filename: "042_new_thing.sql" },
+    { version: nextVersion, slug: "new_thing", filename: `${nextVersion}_new_thing.sql` },
   ];
   const block = renderSequenceTable({
     migrations: withNew,
     excluded,
     descriptions: MANIFEST.descriptions ?? {},
   });
-  assert.match(block, /042_new_thing\.sql/, "the new file must appear");
+  assert.match(block, new RegExp(`${nextVersion}_new_thing\\.sql`), "the new file must appear");
   assert.match(block, /\*\*MISSING — add a description/, "an undescribed migration must be marked");
   assert.notEqual(
     block,

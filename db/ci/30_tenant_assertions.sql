@@ -204,6 +204,74 @@ select ci.assert(
      where organization_id = 'aaaa0000-0000-4000-8000-000000000001') = 2,
   'owner CAN still read every technician time entry');
 
+
+-- =====================================================================
+--  Technician location privacy.
+--
+--  WHY THIS BLOCK EXISTS. Migration 023 §5 narrowed technician_locations to
+--  owner/office, then added technician_locations_self so a technician keeps
+--  their own history. Migration 019's technician_locations_manage — `for all`,
+--  owner/office — was never dropped and survives beside both. PERMISSIVE
+--  policies are OR'd and `for all` includes SELECT, so reading either migration
+--  cannot tell you what a technician can actually see; only the running
+--  database can. Nothing had ever asked it.
+--
+--  This is where an employee physically was, minute by minute. A colleague
+--  reading it is a privacy breach whether or not it is also a tenant breach.
+-- =====================================================================
+reset role;
+select set_config('request.jwt.claim.sub', 'aaaa0000-0000-4000-8000-000000000004', false);
+set role authenticated;
+
+select ci.assert(
+  (select count(*) from public.technician_locations where id = 9002) = 0,
+  'tech CANNOT read a colleague location history');
+select ci.assert(
+  (select count(*) from public.technician_locations where id = 9001) = 1,
+  'tech CAN read their own location history');
+select ci.assert(
+  (select count(*) from public.technician_locations where id = 9003) = 0,
+  'tech CANNOT read another tenant location history');
+
+-- Forging a colleague's whereabouts — an alibi, or evidence against them.
+select ci.assert(
+  ci.attempt($q$insert into public.technician_locations (organization_id, profile_id, latitude, longitude)
+              values ('aaaa0000-0000-4000-8000-000000000001',
+                      'aaaa0000-0000-4000-8000-000000000005', 1.0, 1.0)$q$) <= 0,
+  'tech CANNOT record a location ping in a colleague name');
+select ci.assert(
+  ci.attempt($q$insert into public.technician_locations (organization_id, profile_id, latitude, longitude)
+              values ('aaaa0000-0000-4000-8000-000000000001',
+                      'aaaa0000-0000-4000-8000-000000000004', 2.0, 2.0)$q$) = 1,
+  'tech CAN record their own location ping');
+
+-- Consent is per person and revocable, so it must not be editable by anyone else.
+select ci.assert(
+  ci.attempt($q$update public.technician_location_consents set consented = true
+              where profile_id = 'aaaa0000-0000-4000-8000-000000000005'$q$) <= 0,
+  'tech CANNOT grant location consent on a colleague behalf');
+
+reset role;
+select ci.assert(
+  (select count(*) from public.technician_locations
+     where profile_id = 'aaaa0000-0000-4000-8000-000000000005') = 1,
+  'no location ping was forged for the colleague');
+select ci.assert(
+  (select consented = false from public.technician_location_consents
+     where profile_id = 'aaaa0000-0000-4000-8000-000000000005'),
+  'the colleague location consent is still withheld');
+
+-- Management must still see the team, or dispatch is broken.
+select set_config('request.jwt.claim.sub', 'aaaa0000-0000-4000-8000-000000000002', false);
+set role authenticated;
+select ci.assert(
+  (select count(*) from public.technician_locations
+     where organization_id = 'aaaa0000-0000-4000-8000-000000000001') >= 2,
+  'owner CAN still read the whole team location history');
+select ci.assert(
+  (select count(*) from public.technician_locations where id = 9003) = 0,
+  'owner CANNOT read another tenant location history');
+
 reset role;
 select set_config('request.jwt.claim.sub', '', false);
 rollback;

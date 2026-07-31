@@ -54,7 +54,7 @@ Status: `TODO` / `WIP` / `DONE` / `BLOCKED`. Keep this honest — a status doc t
 | 0.3 | Replace tautological RLS greps in `feature-preservation.test.mjs` with real assertions | DONE |
 | 0.4 | Add `test:e2e` script + Playwright `webServer` + auth setup project | DONE |
 | 0.5 | Add CI workflow: typecheck + lint + test on every push | DONE |
-| 0.6 | **A real database in CI.** `.github/workflows/db.yml` stands up `postgres:16`, applies `schema.sql` + all 26 numbered migrations in order, runs `db/016_isolation_tests.sql` (which nothing had ever executed), then runs 85 adversarial assertions in `db/ci/` as impersonated users — tech, office, owner, other-tenant owner, anon. Closes the gap that every security assertion in the suite was static analysis of SQL text, which cannot prove a policy refuses a query. | **WIP — WRITTEN, NEVER EXECUTED.** No Postgres, Docker or psql on the authoring machine. Verified only by inspection: bash syntax, YAML parse, balanced dollar-quoting, and a grep-derived inventory of the Supabase objects the shim must provide. Nobody may call this DONE until a green run exists in Actions. |
+| 0.6 | **A real database, on every commit.** `db/ci/` applies the Supabase shim, `schema.sql`, every numbered migration, `db/016_isolation_tests.sql`, then **110 adversarial assertions** as impersonated users — tech, office, owner, other-tenant owner, anon. Closes the gap that every security assertion in the suite was static analysis of SQL text, which cannot prove a policy refuses a query. | **DONE — EXECUTED.** `tests/rls-assertions.test.mjs` runs the `db/ci/*.sql` files verbatim against PGlite under `npm run verify`; `.github/workflows/db.yml` still runs the same files under `postgres:16`. The first real run failed 4 assertions and found a live security hole. See "What the first real run found" below. |
 
 **UPDATE — the "no Postgres on this machine" constraint was false, and it had been shaping decisions
 for the whole session.** PGlite is Postgres compiled to WebAssembly: it runs under `node --test` with no
@@ -77,11 +77,74 @@ roles, `auth.uid()` backed by a settable `request.jwt.claim.sub` GUC, `auth.user
 migration 023 §8's revoke-from-anon would be a no-op and prove nothing**);
 `10_fixtures.sql` (two tenants, five identities, fixed literal UUIDs); `20_privilege_assertions.sql`
 (§2.1 + §2.12); `30_tenant_assertions.sql` (cross-tenant read/write on customers, jobs, invoices,
-payments, plus timesheet privacy); `40_document_assertions.sql` (`approve_document` signs once);
+payments, timesheet privacy, technician location privacy); `40_document_assertions.sql`
+(`approve_document` signs once, and refuses a voided document);
 `run.sh`. Every assertion proves **both directions** — the forbidden action is refused *and* the
 legitimate equivalent still succeeds — because a suite that only ever refuses would pass against a
-completely broken database. `run.sh` also enforces a minimum assertion count, so a suite that
-silently stops running cannot go green.
+completely broken database. `run.sh` and `tests/rls-assertions.test.mjs` both enforce a minimum
+assertion count (110), so a suite that silently stops running cannot go green.
+
+### What the first real run found
+
+Executing these for the first time cost about a day and found four failing assertions and one live
+security hole. Every one of them had passed inspection.
+
+**LIVE SECURITY HOLE — a voided document could still be signed (fixed by `db/042_void_signing_guard.sql`).**
+Migration 036 §11 rewrote `approve_document()` for the sole purpose of adding `and voided_at is null`
+to both of its updates, so a document the business had voided could not be approved from the
+customer's old public link. Migration 038 then replaced `approve_document()` with a thin wrapper over
+a new `approve_document_with_evidence()` — explicitly so the sign-once guard would "exist in exactly
+one place" — carried `signed_at is null` across with a comment saying "023 §6's guard, preserved
+verbatim", and **did not carry `voided_at is null` across.** From 038 until 042, anyone holding the
+public token of a voided estimate or invoice could sign it: the row came back `status = 'approved'`,
+`signed_at` stamped, signature stored, `voided_at` still set. This was reachable in production on the
+primary signing path (`app/p/[token]/actions.ts`) and on the anon fallback. The 036 edit-lock triggers
+do not cover it — they guard the money columns, and `signed_at`/`signer_name`/`status` are
+deliberately not among them. `tests/rls-assertions-can-fail.test.mjs` removes the restored guard and
+requires the new assertion to go red, so a fourth rewrite of this function cannot drop it silently.
+
+**The §2.12 escalation assertions were aimed at a decommissioned function.** All three invitation
+assertions failed. They called `public.accept_invitation()`, which 023 §2 had given the owner-issuer
+check — but migration 034 §3a moved the whole of acceptance to `accept_invitation(TEXT)` (because
+email alone was the only control and the generated token protected nothing) and 034 §3b deliberately
+gutted the zero-argument form. Nobody updated `db/ci/`. So the assertions had been "verified by
+inspection" against SQL no caller reaches, while the function that actually grants organisation
+membership had never had a single executed assertion pointed at it. Rewritten against the live entry
+point, plus the two attack cases 034 created and nothing covered — a forwarded token, and the
+mailbox-only join 034 exists to refuse — and the token form's single-use property. All of them pass:
+the security property survived the move, but that was luck, not evidence.
+
+**`payments` cannot be inserted using its own column default.** The fixture insert aborted:
+`payments.status` defaults to `'requires_payment'` (`schema.sql:282`), 017's
+`trg_prepare_payment_row` copies that into `normalized_status`, and 017's
+`payments_normalized_status_check` does not list it. Every payment insert in the application passes
+`status:'paid'` explicitly and `'requires_payment'` appears nowhere else in the repository, so
+nothing in production takes that path — it is latent, not live. The fixture now sets `status`
+explicitly and says why.
+
+**What the run also proved, that was previously only claimed.** Ledger 1.18's fix to migration 023 §4
+is confirmed against the real catalogue: `time_entries_select` / `time_entries_write` are gone and
+only the narrow pair remains. Ledger 1.19's "DONE (by inspection only)" is now DONE by execution —
+`tests/rls-assertions.test.mjs` re-derives it by asking `pg_policies` before every migration whether
+each `drop policy if exists` names a policy that exists.
+
+### What is still unproven
+
+* **Supabase itself.** PGlite is Postgres, not Supabase: `auth.uid()`, `auth.users` and
+  `storage.objects` are shims. The `storage.objects` policies in migrations 002 and 023 apply
+  cleanly and are never exercised, because nothing here uploads a file. Whether GoTrue issues the
+  `sub` claim these policies read, and whether Supabase Storage enforces them, still needs a real
+  project.
+* **`service_role` BYPASSRLS.** The shim creates the role with `bypassrls` as Supabase does, but no
+  assertion connects as it, so "no policy at all ⇒ service-role only" remains reasoning.
+* **Whether an older policy that SURVIVES beside a new narrow one is broader.** A scan for this was
+  written and run: it reports 8 survivors across the whole migration set, and all 8 are legitimate
+  (`profiles_owner_write` beside `profiles_self_update`, `technician_locations_manage` beside
+  `technician_locations_self`, and so on). Deciding which is a hole means comparing two arbitrary SQL
+  predicates for strength, which cannot be done reliably, so the check could only ship with an
+  allow-list — and a check that must be silenced to stay green is the failure mode this whole item
+  exists to prevent. It was replaced with behavioural assertions on the tables it flagged; see the
+  note at the end of `tests/helpers/rls-harness.mjs`.
 
 ### Phase 1 — security blockers
 | # | Task | Status |
@@ -104,8 +167,8 @@ silently stops running cannot go green.
 | 1.16 | Security headers (CSP, HSTS, X-Frame-Options, Referrer-Policy) in `next.config.mjs` | DONE |
 | 1.17 | Rate limiting on all unauthenticated endpoints | DONE |
 | 2.1a | **REGRESSION FOUND by executing the migrations for the first time — `db/030_refunds.sql` could not be applied to a clean database.** Three defects in one file, two of them mine, the second hidden behind the first: a composite FK added BEFORE the unique key it references; `create policy` calling `public.can_refund_payments()` BEFORE the function was defined; and an exception handler naming `undefined_object` when a missing unique key raises `invalid_foreign_key`, so the graceful-skip branch could never fire. 036 failed too — correctly, its own guard refuses to run before 030. Both files are valid SQL and wrong only in ORDER, which is observable by exactly one means: running them. | **DONE** — fixed in `d45d56d`; `tests/migrations-apply.test.mjs` guards both classes by name, proven both ways (5 of 5 fail on the pre-fix tree) |
-| 1.18 | **REGRESSION FOUND while writing 0.6 — migration 023 §4 was a no-op.** It dropped `job_time_entries_select/_write/_rw`, but migration 009 created them as `time_entries_select` and `time_entries_write` (`db/009_v11.sql:94-100`). Permissive policies are OR'd, so the old org-only pair survived and still granted what the new pair was written to deny — a technician could read and rewrite a colleague's timesheet, and task 1.4 was not actually done. **FIXED:** 023 now drops both real names (plus the wrong ones defensively, since a previous run may have created them). `tests/policy-replacement.test.mjs` covers the CLASS — it asserts that a migration replacing a table's policy set drops every policy an earlier migration created there, and was proven both ways by removing the fix and watching it fire. The three assertions in `db/ci/30_tenant_assertions.sql` should now pass; that remains UNCONFIRMED until the CI database job actually runs. | DONE |
-| 1.19 | Every other `drop policy if exists` in migration 023 was checked by hand against the migration that created the policy (`profiles_self_update`, `invitations_rw`, `jobs_update`, `subscriptions_rw`, the 019 `<t>_select` loop) and all of them match. `job_time_entries` is the only name mismatch found by inspection — but inspection is exactly what missed it for the whole life of the branch, so treat this row as provisional until the CI job in 0.6 has actually run. | DONE (by inspection only) |
+| 1.18 | **REGRESSION FOUND while writing 0.6 — migration 023 §4 was a no-op.** It dropped `job_time_entries_select/_write/_rw`, but migration 009 created them as `time_entries_select` and `time_entries_write` (`db/009_v11.sql:94-100`). Permissive policies are OR'd, so the old org-only pair survived and still granted what the new pair was written to deny — a technician could read and rewrite a colleague's timesheet, and task 1.4 was not actually done. **FIXED:** 023 now drops both real names (plus the wrong ones defensively, since a previous run may have created them). `tests/policy-replacement.test.mjs` covers the CLASS — it asserts that a migration replacing a table's policy set drops every policy an earlier migration created there, and was proven both ways by removing the fix and watching it fire. **CONFIRMED BY EXECUTION (ledger 0.6):** the three assertions in `db/ci/30_tenant_assertions.sql` pass against a real Postgres, the final catalogue contains only the narrow pair, and `tests/rls-assertions-can-fail.test.mjs` re-creates `time_entries_select` verbatim and requires the colleague-timesheet assertion to go red. | DONE |
+| 1.19 | Every other `drop policy if exists` in migration 023 was checked by hand against the migration that created the policy (`profiles_self_update`, `invitations_rw`, `jobs_update`, `subscriptions_rw`, the 019 `<t>_select` loop) and all of them match. `job_time_entries` is the only name mismatch found by inspection — but inspection is exactly what missed it for the whole life of the branch, so this row was provisional. It is no longer: `tests/rls-assertions.test.mjs` asks `pg_policies` before every migration whether each `drop policy if exists` names a policy that exists, and reports nothing across the whole sequence bar two principled exemptions. Proven both ways on a planted rename mismatch. | DONE (by execution) |
 
 ### Phase 2 — money correctness
 | # | Task | Status |
@@ -555,7 +618,7 @@ of letting them create a second business by mistake.
 
 *Not verified against a live database.* The migration is static-checked — it drops nothing, every
 create is guarded, and every column it reads is asserted to exist in `schema.sql` / `018` / `022` —
-but no Postgres was available here, so the SQL has never been executed. The same caveat as 0.6.
+and since ledger 0.6 it also APPLIES to a real Postgres on every commit (tests/migrations-apply.test.mjs). What is still unasserted is its BEHAVIOUR: no adversarial assertion in db/ci/ exercises it.
 
 **Note on 5.10 — custom fields.** `custom_field_definitions` and `custom_field_values` were created by
 migration 019 and had **zero** references in `app/`, `components/` or `lib/`. Now: definitions are
@@ -764,9 +827,10 @@ assertions were re-run against the pre-change `lib/documents.ts`, `components/Do
 guard cannot satisfy a check for the guard.
 
 *What is NOT done, stated rather than papered over.*
-1. **Nothing here has been executed against a live Postgres.** The same caveat as 0.6 and every
-   migration since: the triggers, the row lock and the compare-and-set are verified by inspection and
-   by the probes above, never run. The row-lock behaviour in particular needs the 0.6 CI database.
+1. **The BEHAVIOUR here has never been executed.** Since ledger 0.6 the migration itself applies to a
+   real Postgres on every commit, but the triggers, the row lock and the compare-and-set are still
+   verified by inspection and by the probes above, never exercised. Adding assertions for them to
+   db/ci/ is now cheap and is the obvious next step — 0.6 no longer blocks it.
 2. **The public `/p/[token]` screen does not yet show a void or a credit note.** `app/p/**` is
    outside this pass's file scope. A voided document cannot be paid or signed (both enforced in the
    database) and an invoice void reaches the screen through `status = 'void'`, but a voided ESTIMATE
@@ -935,8 +999,8 @@ pre-change state: restoring the four original app files fired five assertions; d
 `signed_at is null` from 038 fired the sign-once assertion; granting the evidence function to anon
 fired the service-role assertion; narrowing the watched payment-permission columns fired the
 authority assertion; and removing 023's `invitation_role_not_permitted` guard fired the
-023-preservation assertion. **No SQL in this session has been executed against a live Postgres** —
-same caveat as ledger 0.6.
+023-preservation assertion. **The behaviour of this SQL is still unasserted.** Since ledger 0.6 the migration
+applies to a real Postgres on every commit, but nothing in db/ci/ exercises what it does.
 | 6c.1 | Parts consumption: job → inventory → job cost | PARTIAL — job → stock → line `cost_minor` shipped with 5.11, and it reaches the margin report through `invoice_items.cost_minor`; the **commission** report still costs a job only from the hand-typed `jobs.job_expenses_minor`, so materials are invisible there until it also sums the line costs |
 | 6c.2 | True job costing including labour | PARTIAL — the wage exists, labour is costed and reaches the gross-margin report through `invoice_items.cost_minor` **when the invoice is raised from the job**; the estimate→invoice route and the commission report still do not carry it. See note. |
 | 6c.3 | Technician time off / non-working days | DONE — one table for absence and closure, wired into the booking slot API, the booking SUBMIT endpoint, the dispatch view and every assignment path. See note. |
@@ -1279,7 +1343,8 @@ removing the fix and re-running: deleting the `awayWindows`/`closedWindows` hand
 
 **Not verified against a live Postgres.** There is none on this machine, so migration 039's RLS, its
 triggers and all four RPCs are verified by inspection and by structural assertion only — the same
-caveat as 0.6, 034 and 035. Every column it references was checked against `db/*.sql` before it was
+caveat as 034 and 035. (Since ledger 0.6 the migration APPLIES to a real Postgres on every commit;
+its behaviour is what remains unasserted.) Every column it references was checked against `db/*.sql` before it was
 written.
 
 ### Phase 7 — architecture + maintainability
@@ -1439,7 +1504,7 @@ be tighter than 1.3x the text inside it (0 violations), and the dispatch board a
 `overflow-x: auto`. Raising the floor was partly paid for by pulling display type down, so the net growth
 is smaller than the floor change suggests. **This has still never been rendered in a browser** — there is
 none on this machine — so "does not break the layout" is verified by static geometry and by reasoning
-about which containers scroll, not by looking at it. That is the same caveat as 0.6.
+about which containers scroll, not by looking at it.
 
 *RTL is untouched and asserted so.* Hebrew is driven by logical properties; the count is 53 before and 53
 after, and the test refuses a decrease.
@@ -1573,11 +1638,17 @@ and local mail capture. Scanned before committing — **no credential values**, 
 `process.env` reads and variable names.
 
 **It cannot be run here: Docker and the Supabase CLI are not installed on this
-machine.** That is now the single largest gap on this branch. Until it runs:
-* ledger 0.6 (the Postgres RLS proof) has NEVER executed;
-* every one of the 38 migrations is verified by inspection only;
-* no authenticated browser test has ever run.
-No number of passing unit tests closes any of those.
+machine.** Two of the three gaps this used to describe are now closed by PGlite:
+* ~~ledger 0.6 (the Postgres RLS proof) has NEVER executed~~ — **it executes on
+  every commit now.** See 0.6 below;
+* ~~every one of the 38 migrations is verified by inspection only~~ — all 42 are
+  applied to an empty database by `tests/migrations-apply.test.mjs`;
+* **no authenticated browser test has ever run.** This one still stands, and it
+  is now the single largest gap on this branch.
+And what PGlite still cannot prove stands too: it is Postgres, not Supabase, so
+`auth.uid()`, `auth.users` and `storage.objects` are shims. Nothing here proves
+GoTrue issues the claims these policies read, or that Supabase Storage enforces
+the `storage.objects` policies.
 
 ### Outstanding from the owner's audit (verified real, NOT yet fixed)
 | # | Finding |

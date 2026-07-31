@@ -8,7 +8,7 @@
  the live schema forty migrations ago. This file is the expected schema.
 =====================================================================
 
-migrations applied: 40
+migrations applied: 41
 
 TABLES (124)
 =====================================================================
@@ -4179,7 +4179,7 @@ function accept_invitation(invite_token text) returns uuid security definer conf
 function allocate_document_number(p_org uuid, p_kind text) returns integer security definer config={"search_path=\"\""} body=d8c9d6057fedd730
 function apply_default_estimate_deposit() returns trigger security definer config={"search_path=\"\""} body=d8d1ced435708b5d
 function approve_document(p_token uuid, p_name text, p_sig text) returns boolean security definer config={search_path=public} body=db19d3887a353fb3
-function approve_document_with_evidence(p_token uuid, p_name text, p_sig text, p_ip text, p_ip_source text, p_ip_trusted boolean, p_user_agent text, p_device text, p_sig_sha256 text) returns jsonb security definer config={search_path=public} body=9bc3eb9608810c4a
+function approve_document_with_evidence(p_token uuid, p_name text, p_sig text, p_ip text, p_ip_source text, p_ip_trusted boolean, p_user_agent text, p_device text, p_sig_sha256 text) returns jsonb security definer config={search_path=public} body=74906b2294a9a643
 function armor(bytea) returns text body=e5137c2e1b640a7e
 function armor(bytea, text[], text[]) returns text body=e5137c2e1b640a7e
 function assert_booking_timezone() returns trigger body=869aef9eb382fac8
