@@ -8,7 +8,8 @@
 export const providers = {
   stripe: () => !!process.env.STRIPE_SECRET_KEY,
   email: () => !!process.env.RESEND_API_KEY && !!process.env.EMAIL_FROM,
-  sms: () => !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM),
+  sms: () =>
+    !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM),
 };
 
 export function appUrl() {
@@ -20,7 +21,10 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
   if (!providers.email()) throw new Error("email not configured");
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
-    headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({ from: process.env.EMAIL_FROM, to: [to], subject, html }),
   });
   if (!res.ok) throw new Error(`Resend error ${res.status}: ${await res.text()}`);
@@ -36,7 +40,10 @@ export async function sendSms(to: string, body: string): Promise<string> {
   const form = new URLSearchParams({ To: to, From: process.env.TWILIO_FROM!, Body: body });
   const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
     method: "POST",
-    headers: { Authorization: `Basic ${auth}`, "Content-Type": "application/x-www-form-urlencoded" },
+    headers: {
+      Authorization: `Basic ${auth}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
     body: form.toString(),
   });
   if (!res.ok) throw new Error(`Twilio error ${res.status}: ${await res.text()}`);
@@ -46,7 +53,12 @@ export async function sendSms(to: string, body: string): Promise<string> {
 
 /** Create a Stripe Checkout Session for a single amount. Returns the hosted URL. */
 export async function createCheckoutUrl(opts: {
-  amountMinor: number; currency: string; description: string; successUrl: string; cancelUrl: string; metadata?: Record<string, string>;
+  amountMinor: number;
+  currency: string;
+  description: string;
+  successUrl: string;
+  cancelUrl: string;
+  metadata?: Record<string, string>;
 }): Promise<string> {
   if (!providers.stripe()) throw new Error("stripe not configured");
   const form = new URLSearchParams();
@@ -60,7 +72,10 @@ export async function createCheckoutUrl(opts: {
   for (const [k, v] of Object.entries(opts.metadata ?? {})) form.set(`metadata[${k}]`, v);
   const res = await fetch("https://api.stripe.com/v1/checkout/sessions", {
     method: "POST",
-    headers: { Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}`, "Content-Type": "application/x-www-form-urlencoded" },
+    headers: {
+      Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
     body: form.toString(),
   });
   if (!res.ok) throw new Error(`Stripe error ${res.status}: ${await res.text()}`);

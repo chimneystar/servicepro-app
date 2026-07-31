@@ -1,7 +1,11 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { addMinutes } from "@/lib/booking";
-import { ensureEstimateSchedule, syncEstimateMilestones, estimateDepositRelease } from "@/lib/payments/deposits";
+import {
+  ensureEstimateSchedule,
+  syncEstimateMilestones,
+  estimateDepositRelease,
+} from "@/lib/payments/deposits";
 // @ts-ignore — pure logic, proven both ways in tests/deposits.test.mjs
 import { bookingDepositMinor } from "@/lib/core/deposits.mjs";
 // @ts-ignore — pure logic, proven both ways in tests/money.test.mjs
@@ -36,7 +40,11 @@ import { computeDocument } from "@/lib/core/money.mjs";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
-export type BookingDeposit = { estimateId: string; publicToken: string; amountMinor: number } | null;
+export type BookingDeposit = {
+  estimateId: string;
+  publicToken: string;
+  amountMinor: number;
+} | null;
 
 /**
  * Raise the deposit estimate for a booking, if one is owed.
@@ -44,18 +52,21 @@ export type BookingDeposit = { estimateId: string; publicToken: string; amountMi
  * Returns null when the business asks for no deposit — the caller then follows
  * the unchanged booking path.
  */
-export async function raiseBookingDeposit(admin: Admin, input: {
-  organizationId: string;
-  customerId: string;
-  leadId: string;
-  customerName: string;
-  serviceName: string;
-  servicePriceMinor: number;
-  paymentMode: string;
-  depositValue: number;
-  taxRateBps: number;
-  notes?: string | null;
-}): Promise<BookingDeposit> {
+export async function raiseBookingDeposit(
+  admin: Admin,
+  input: {
+    organizationId: string;
+    customerId: string;
+    leadId: string;
+    customerName: string;
+    serviceName: string;
+    servicePriceMinor: number;
+    paymentMode: string;
+    depositValue: number;
+    taxRateBps: number;
+    notes?: string | null;
+  },
+): Promise<BookingDeposit> {
   const depositMinor = bookingDepositMinor({
     mode: input.paymentMode,
     value: input.depositValue,
@@ -73,7 +84,8 @@ export async function raiseBookingDeposit(admin: Admin, input: {
   });
 
   const { data: number, error: numberError } = await admin.rpc("allocate_document_number", {
-    p_org: input.organizationId, p_kind: "estimate",
+    p_org: input.organizationId,
+    p_kind: "estimate",
   });
   if (numberError || number === null) {
     console.error("[booking-deposit] could not allocate an estimate number:", numberError?.message);
@@ -81,25 +93,29 @@ export async function raiseBookingDeposit(admin: Admin, input: {
   }
 
   const now = new Date().toISOString();
-  const { data: estimate, error } = await admin.from("estimates").insert({
-    organization_id: input.organizationId,
-    number,
-    customer_id: input.customerId,
-    status: "sent",
-    discount_minor: 0,
-    tax_rate_bps: input.taxRateBps,
-    total_minor: totals.totalMinor,
-    // Explicit, so the organisation-default trigger (migration 031) leaves it
-    // alone: the booking deposit is the deposit for this document.
-    deposit_minor: Math.min(depositMinor, totals.totalMinor),
-    notes: input.notes ?? null,
-    // The customer chose this service, this date and this price on the booking
-    // form and pressed submit. That IS the approval, and requiring them to sign
-    // the same thing again before the deposit screen unlocks would strand every
-    // booking deposit behind a signature the customer has already given.
-    signed_at: now,
-    signer_name: input.customerName,
-  }).select("id, public_token, deposit_minor, total_minor").single();
+  const { data: estimate, error } = await admin
+    .from("estimates")
+    .insert({
+      organization_id: input.organizationId,
+      number,
+      customer_id: input.customerId,
+      status: "sent",
+      discount_minor: 0,
+      tax_rate_bps: input.taxRateBps,
+      total_minor: totals.totalMinor,
+      // Explicit, so the organisation-default trigger (migration 031) leaves it
+      // alone: the booking deposit is the deposit for this document.
+      deposit_minor: Math.min(depositMinor, totals.totalMinor),
+      notes: input.notes ?? null,
+      // The customer chose this service, this date and this price on the booking
+      // form and pressed submit. That IS the approval, and requiring them to sign
+      // the same thing again before the deposit screen unlocks would strand every
+      // booking deposit behind a signature the customer has already given.
+      signed_at: now,
+      signer_name: input.customerName,
+    })
+    .select("id, public_token, deposit_minor, total_minor")
+    .single();
   if (error || !estimate) {
     console.error("[booking-deposit] could not create the deposit estimate:", error?.message);
     return null;
@@ -139,20 +155,32 @@ export async function raiseBookingDeposit(admin: Admin, input: {
  * already has a job (`status = 'won'`) is left alone, so a duplicate webhook
  * cannot produce a second job on the calendar.
  */
-export async function releaseBookingDeposit(admin: Admin, estimateId: string): Promise<{ released: boolean; reason: string }> {
-  const { data: lead } = await admin.from("leads")
-    .select("id, organization_id, status, booking_status, booking_answers, converted_customer_id, service, notes, source, preferred_date, preferred_start_time, booking_service_id")
+export async function releaseBookingDeposit(
+  admin: Admin,
+  estimateId: string,
+): Promise<{ released: boolean; reason: string }> {
+  const { data: lead } = await admin
+    .from("leads")
+    .select(
+      "id, organization_id, status, booking_status, booking_answers, converted_customer_id, service, notes, source, preferred_date, preferred_start_time, booking_service_id",
+    )
     .eq("deposit_estimate_id", estimateId)
     .maybeSingle();
   if (!lead) return { released: false, reason: "not_a_booking_deposit" };
   if (lead.status === "won") return { released: true, reason: "already_released" };
 
-  const { data: estimate } = await admin.from("estimates")
-    .select("id, organization_id, deposit_minor").eq("id", estimateId).maybeSingle();
+  const { data: estimate } = await admin
+    .from("estimates")
+    .select("id, organization_id, deposit_minor")
+    .eq("id", estimateId)
+    .maybeSingle();
   if (!estimate) return { released: false, reason: "estimate_missing" };
 
   const decision = await estimateDepositRelease(
-    admin, estimate.organization_id as string, estimateId, Number(estimate.deposit_minor ?? 0),
+    admin,
+    estimate.organization_id as string,
+    estimateId,
+    Number(estimate.deposit_minor ?? 0),
   );
   if (!decision.released) return { released: false, reason: decision.reason };
 
@@ -174,7 +202,11 @@ export async function releaseBookingDeposit(admin: Admin, estimateId: string): P
   }
 
   const { data: service } = lead.booking_service_id
-    ? await admin.from("booking_services").select("duration_min, price_minor, name_en, book_as").eq("id", lead.booking_service_id).maybeSingle()
+    ? await admin
+        .from("booking_services")
+        .select("duration_min, price_minor, name_en, book_as")
+        .eq("id", lead.booking_service_id)
+        .maybeSingle()
     : { data: null };
 
   // book_as = 'estimate' means this service was never meant to become a job.
@@ -203,12 +235,18 @@ export async function releaseBookingDeposit(admin: Admin, estimateId: string): P
     notes: lead.notes,
   });
   if (jobError) {
-    console.error("[booking-deposit] deposit cleared but the job could not be created:", jobError.message);
+    console.error(
+      "[booking-deposit] deposit cleared but the job could not be created:",
+      jobError.message,
+    );
     await admin.from("leads").update({ booking_status: "confirmed" }).eq("id", lead.id);
     return { released: true, reason: "job_creation_failed" };
   }
 
-  await admin.from("leads").update({ status: "won", booking_status: "confirmed" }).eq("id", lead.id);
+  await admin
+    .from("leads")
+    .update({ status: "won", booking_status: "confirmed" })
+    .eq("id", lead.id);
   return { released: true, reason: decision.reason };
 }
 
@@ -216,7 +254,10 @@ export async function releaseBookingDeposit(admin: Admin, estimateId: string): P
  * The single hook every payment path calls once a payment is recorded.
  * Keeps milestones in step and releases deposit-gated work when it may be.
  */
-export async function applyPaymentToDeposits(admin: Admin, payment: { organization_id: string; estimate_id: string | null }) {
+export async function applyPaymentToDeposits(
+  admin: Admin,
+  payment: { organization_id: string; estimate_id: string | null },
+) {
   if (!payment.estimate_id) return;
   try {
     await syncEstimateMilestones(admin, payment.organization_id, payment.estimate_id);
@@ -224,6 +265,9 @@ export async function applyPaymentToDeposits(admin: Admin, payment: { organizati
   } catch (error) {
     // A payment that has been taken must never be lost because the release step
     // failed. The daily ACH reconciliation calls this again.
-    console.error("[booking-deposit] deposit follow-up failed:", error instanceof Error ? error.message : String(error));
+    console.error(
+      "[booking-deposit] deposit follow-up failed:",
+      error instanceof Error ? error.message : String(error),
+    );
   }
 }

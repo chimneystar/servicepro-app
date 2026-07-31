@@ -65,7 +65,10 @@ export async function featureFlagEvaluator(
 }
 
 /** One-shot convenience for a single organisation. */
-export async function isFeatureEnabled(key: FeatureFlagKey, organizationId: string): Promise<boolean> {
+export async function isFeatureEnabled(
+  key: FeatureFlagKey,
+  organizationId: string,
+): Promise<boolean> {
   const evaluator = await featureFlagEvaluator(key);
   return evaluator(organizationId);
 }

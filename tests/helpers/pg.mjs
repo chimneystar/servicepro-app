@@ -161,7 +161,7 @@ export async function freshDatabase({ upTo = null } = {}) {
     } catch (error) {
       throw new Error(
         `migration ${file} failed to apply to a clean database:\n  ${String(error.message).split("\n")[0]}\n` +
-        `  (applied before it: ${applied.length ? applied.join(", ") : "none"})`,
+          `  (applied before it: ${applied.length ? applied.join(", ") : "none"})`,
       );
     }
     if (upTo && file === upTo) break;
@@ -171,7 +171,9 @@ export async function freshDatabase({ upTo = null } = {}) {
 
 /** Run `fn` as a given authenticated user, the way PostgREST would. */
 export async function asUser(db, userId, fn) {
-  await db.exec(`select set_config('request.jwt.claim.sub', ${userId === null ? "''" : `'${userId}'`}, false);`);
+  await db.exec(
+    `select set_config('request.jwt.claim.sub', ${userId === null ? "''" : `'${userId}'`}, false);`,
+  );
   await db.exec(`select set_config('request.jwt.claim.role', 'authenticated', false);`);
   try {
     return await fn();

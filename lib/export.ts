@@ -9,9 +9,17 @@
  */
 
 // @ts-ignore — pure, unit-tested manifest and paging arithmetic (tests/business-export.test.mjs)
-import { EXPORT_PAGE_SIZE, EXPORT_MAX_PAGES, pageRange, isLastPage } from "@/lib/core/export-manifest.mjs";
+import {
+  EXPORT_PAGE_SIZE,
+  EXPORT_MAX_PAGES,
+  pageRange,
+  isLastPage,
+} from "@/lib/core/export-manifest.mjs";
 
-export type PageBuilder<T> = (fromRow: number, toRow: number) => PromiseLike<{ data: T[] | null; error: unknown }>;
+export type PageBuilder<T> = (
+  fromRow: number,
+  toRow: number,
+) => PromiseLike<{ data: T[] | null; error: unknown }>;
 
 /**
  * Yield every page of a query in order, without ever holding more than one page.

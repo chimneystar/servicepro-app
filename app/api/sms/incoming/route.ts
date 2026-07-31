@@ -33,12 +33,23 @@ export async function POST(request: NextRequest) {
 
   const form = await request.formData();
   const params = formRecord(form);
-  if (!validateTwilioSignature(webhookUrl(request.url), params, request.headers.get("x-twilio-signature"), token)) {
+  if (
+    !validateTwilioSignature(
+      webhookUrl(request.url),
+      params,
+      request.headers.get("x-twilio-signature"),
+      token,
+    )
+  ) {
     return twiml(403);
   }
 
   let admin;
-  try { admin = createAdminClient(); } catch { return twiml(503); }
+  try {
+    admin = createAdminClient();
+  } catch {
+    return twiml(503);
+  }
 
   const from = String(params.From ?? "");
   const to = String(params.To ?? "");
@@ -73,16 +84,25 @@ export async function POST(request: NextRequest) {
     .is("deleted_at", null)
     .not("phone", "is", null);
   const customer = (customers ?? []).find(
-    (row: { id: string; phone: string | null }) => normalizeUsPhone(row.phone ?? "") === normalizedFrom,
+    (row: { id: string; phone: string | null }) =>
+      normalizeUsPhone(row.phone ?? "") === normalizedFrom,
   );
 
   // A customer replying STOP must not keep receiving reminders; START re-subscribes.
   // Both matchers are proven in both directions in tests/security.test.mjs.
   if (customer?.id) {
     if (isSmsOptOut(body)) {
-      await admin.from("customers").update({ sms_opt_in: false }).eq("id", customer.id).eq("organization_id", organizationId);
+      await admin
+        .from("customers")
+        .update({ sms_opt_in: false })
+        .eq("id", customer.id)
+        .eq("organization_id", organizationId);
     } else if (isSmsOptIn(body)) {
-      await admin.from("customers").update({ sms_opt_in: true }).eq("id", customer.id).eq("organization_id", organizationId);
+      await admin
+        .from("customers")
+        .update({ sms_opt_in: true })
+        .eq("id", customer.id)
+        .eq("organization_id", organizationId);
     }
   }
 

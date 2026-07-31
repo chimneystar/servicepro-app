@@ -23,7 +23,11 @@ const PAGE_SIZE = 50;
  * owner gets the business half, which is exactly what the RLS policies in
  * migration 038 §8 allow — the screen and the database agree.
  */
-export default async function SecurityPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+export default async function SecurityPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const profile = await requireProfile();
   const locale = await getLocale();
   const he = locale === "he";
@@ -31,7 +35,10 @@ export default async function SecurityPage({ searchParams }: { searchParams: Pro
   const isOwner = profile.role === "owner";
 
   const query = await searchParams;
-  const one = (key: string) => { const value = query[key]; return Array.isArray(value) ? value[0] : value; };
+  const one = (key: string) => {
+    const value = query[key];
+    return Array.isArray(value) ? value[0] : value;
+  };
   const filters: AuditFilters = {
     from: (one("from") ?? "").slice(0, 10),
     to: (one("to") ?? "").slice(0, 10),
@@ -42,12 +49,19 @@ export default async function SecurityPage({ searchParams }: { searchParams: Pro
   };
 
   const [{ data: security }, { data: myEvents }] = await Promise.all([
-    supabase.from("profile_security")
-      .select("login_alerts_enabled, mfa_enrolled_at, mfa_removed_at, sessions_revoked_at, last_password_change_at, last_sign_in_at")
-      .eq("profile_id", profile.id).maybeSingle(),
-    supabase.from("account_security_events")
+    supabase
+      .from("profile_security")
+      .select(
+        "login_alerts_enabled, mfa_enrolled_at, mfa_removed_at, sessions_revoked_at, last_password_change_at, last_sign_in_at",
+      )
+      .eq("profile_id", profile.id)
+      .maybeSingle(),
+    supabase
+      .from("account_security_events")
       .select("id, event_type, ip, ip_trusted, device_label, details, at")
-      .eq("profile_id", profile.id).order("at", { ascending: false }).limit(40),
+      .eq("profile_id", profile.id)
+      .order("at", { ascending: false })
+      .limit(40),
   ]);
 
   let audit: AuditRow[] = [];
@@ -58,7 +72,8 @@ export default async function SecurityPage({ searchParams }: { searchParams: Pro
   let people: { id: string; full_name: string }[] = [];
 
   if (isOwner) {
-    let auditQuery = supabase.from("audit_log")
+    let auditQuery = supabase
+      .from("audit_log")
       .select("id, table_name, row_id, action, actor, at", { count: "exact" })
       .eq("organization_id", profile.organization_id!);
     if (filters.from) auditQuery = auditQuery.gte("at", `${filters.from}T00:00:00Z`);
@@ -70,16 +85,30 @@ export default async function SecurityPage({ searchParams }: { searchParams: Pro
 
     const [auditResult, permissions, attempts, signed, members] = await Promise.all([
       auditQuery.order("at", { ascending: false }).range(offset, offset + PAGE_SIZE - 1),
-      supabase.from("permission_change_log")
-        .select("id, subject_profile_id, actor_profile_id, source_table, operation, changes, ip, at")
-        .order("at", { ascending: false }).limit(60),
-      supabase.from("auth_login_attempts")
+      supabase
+        .from("permission_change_log")
+        .select(
+          "id, subject_profile_id, actor_profile_id, source_table, operation, changes, ip, at",
+        )
+        .order("at", { ascending: false })
+        .limit(60),
+      supabase
+        .from("auth_login_attempts")
         .select("id, email_key, success, reason, ip, ip_trusted, device_label, at")
-        .order("at", { ascending: false }).limit(60),
-      supabase.from("document_signature_events")
-        .select("id, document_type, document_id, signer_name, capture, ip, ip_trusted, device_label, signature_sha256, signed_at")
-        .order("signed_at", { ascending: false }).limit(30),
-      supabase.from("profiles").select("id, full_name").eq("organization_id", profile.organization_id!).order("full_name"),
+        .order("at", { ascending: false })
+        .limit(60),
+      supabase
+        .from("document_signature_events")
+        .select(
+          "id, document_type, document_id, signer_name, capture, ip, ip_trusted, device_label, signature_sha256, signed_at",
+        )
+        .order("signed_at", { ascending: false })
+        .limit(30),
+      supabase
+        .from("profiles")
+        .select("id, full_name")
+        .eq("organization_id", profile.organization_id!)
+        .order("full_name"),
     ]);
 
     audit = (auditResult.data ?? []) as AuditRow[];
@@ -96,11 +125,15 @@ export default async function SecurityPage({ searchParams }: { searchParams: Pro
         <div>
           <span>{he ? "אבטחה" : "Security"}</span>
           <h1>{he ? "אבטחת חשבון ויומן ביקורת" : "Account security & audit log"}</h1>
-          <p>{he
-            ? "סיסמה, אימות דו-שלבי, ניתוק מכשירים — ולבעלים, מה השתנה בעסק ומי עשה זאת."
-            : "Password, two-factor, device sign-out — and, for the owner, what changed in the business and who did it."}</p>
+          <p>
+            {he
+              ? "סיסמה, אימות דו-שלבי, ניתוק מכשירים — ולבעלים, מה השתנה בעסק ומי עשה זאת."
+              : "Password, two-factor, device sign-out — and, for the owner, what changed in the business and who did it."}
+          </p>
         </div>
-        <div className="ops-heading-mark" aria-hidden="true">🔒</div>
+        <div className="ops-heading-mark" aria-hidden="true">
+          🔒
+        </div>
       </header>
 
       <AccountSecurity
@@ -123,13 +156,17 @@ export default async function SecurityPage({ searchParams }: { searchParams: Pro
           signatures={signatures}
         />
       ) : (
-        <p className="ops-empty">{he
-          ? "יומן הביקורת של העסק זמין לבעלים בלבד."
-          : "The business audit log is available to the owner."}</p>
+        <p className="ops-empty">
+          {he
+            ? "יומן הביקורת של העסק זמין לבעלים בלבד."
+            : "The business audit log is available to the owner."}
+        </p>
       )}
 
       <p className="settings-section-note" style={{ marginTop: 16 }}>
-        <Link href="/settings/privacy">{he ? "פרטיות ושמירת מידע" : "Privacy & data retention"}</Link>
+        <Link href="/settings/privacy">
+          {he ? "פרטיות ושמירת מידע" : "Privacy & data retention"}
+        </Link>
         {" · "}
         <Link href="/team">{he ? "צוות והרשאות" : "Team & permissions"}</Link>
       </p>

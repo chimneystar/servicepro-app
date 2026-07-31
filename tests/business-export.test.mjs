@@ -2,14 +2,25 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import {
-  EXPORT_TABLES, EXCLUDED_TABLES, NOT_INCLUDED,
-  SECRET_COLUMNS, REDACTED,
-  isSecretColumn, redactDeep, exportContract,
-  EXPORT_PAGE_SIZE, EXPORT_MAX_PAGES, pageRange, isLastPage,
+  EXPORT_TABLES,
+  EXCLUDED_TABLES,
+  NOT_INCLUDED,
+  SECRET_COLUMNS,
+  REDACTED,
+  isSecretColumn,
+  redactDeep,
+  exportContract,
+  EXPORT_PAGE_SIZE,
+  EXPORT_MAX_PAGES,
+  pageRange,
+  isLastPage,
 } from "../lib/core/export-manifest.mjs";
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
-const readCode = (p) => read(p).replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+const readCode = (p) =>
+  read(p)
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
 
 const dbDir = new URL("../db/", import.meta.url);
 const allSql = readdirSync(dbDir)
@@ -20,7 +31,9 @@ const allSql = readdirSync(dbDir)
 /** Every table declared anywhere in db/*.sql. */
 function declaredTables() {
   const found = new Set();
-  for (const match of allSql.matchAll(/create\s+table\s+(?:if\s+not\s+exists\s+)?public\.([a-z_]+)/gi)) {
+  for (const match of allSql.matchAll(
+    /create\s+table\s+(?:if\s+not\s+exists\s+)?public\.([a-z_]+)/gi,
+  )) {
     found.add(match[1]);
   }
   return found;
@@ -33,7 +46,9 @@ function declaredColumns() {
     if (!columns.has(table)) columns.set(table, new Set());
     columns.get(table).add(column);
   };
-  for (const match of allSql.matchAll(/create\s+table\s+(?:if\s+not\s+exists\s+)?public\.([a-z_]+)\s*\(([\s\S]*?)\n\s*\)\s*;/gi)) {
+  for (const match of allSql.matchAll(
+    /create\s+table\s+(?:if\s+not\s+exists\s+)?public\.([a-z_]+)\s*\(([\s\S]*?)\n\s*\)\s*;/gi,
+  )) {
     const table = match[1];
     // Split on TOP-LEVEL commas only. Several migrations declare four columns on
     // one line and wrap `check (...)` / `references ...(id)` in parentheses, so a
@@ -45,16 +60,24 @@ function declaredColumns() {
     for (const character of match[2]) {
       if (character === "(") depth++;
       else if (character === ")") depth--;
-      if (character === "," && depth === 0) { parts.push(current); current = ""; } else current += character;
+      if (character === "," && depth === 0) {
+        parts.push(current);
+        current = "";
+      } else current += character;
     }
     parts.push(current);
     for (const part of parts) {
       const column = part.trim().match(/^([a-z_][a-z0-9_]*)\s+[a-z"]/i);
-      if (column && !/^(primary|unique|check|constraint|foreign|exclude|like)$/i.test(column[1])) add(table, column[1]);
+      if (column && !/^(primary|unique|check|constraint|foreign|exclude|like)$/i.test(column[1]))
+        add(table, column[1]);
     }
   }
-  for (const match of allSql.matchAll(/alter\s+table\s+(?:if\s+exists\s+)?public\.([a-z_]+)([\s\S]*?);/gi)) {
-    for (const column of match[2].matchAll(/add\s+column\s+(?:if\s+not\s+exists\s+)?([a-z_][a-z0-9_]*)/gi)) {
+  for (const match of allSql.matchAll(
+    /alter\s+table\s+(?:if\s+exists\s+)?public\.([a-z_]+)([\s\S]*?);/gi,
+  )) {
+    for (const column of match[2].matchAll(
+      /add\s+column\s+(?:if\s+not\s+exists\s+)?([a-z_][a-z0-9_]*)/gi,
+    )) {
       add(match[1], column[1]);
     }
   }
@@ -73,9 +96,15 @@ function declaredColumns() {
 test("the manifest is real: every exported table exists in db/*.sql", () => {
   const declared = declaredTables();
   for (const entry of EXPORT_TABLES) {
-    assert.ok(declared.has(entry.table), `${entry.table} is exported but never created in db/*.sql`);
+    assert.ok(
+      declared.has(entry.table),
+      `${entry.table} is exported but never created in db/*.sql`,
+    );
   }
-  assert.ok(EXPORT_TABLES.length >= 90, `expected the whole business, got ${EXPORT_TABLES.length} tables`);
+  assert.ok(
+    EXPORT_TABLES.length >= 90,
+    `expected the whole business, got ${EXPORT_TABLES.length} tables`,
+  );
 });
 
 test("every exported table is scoped by a column it actually has, and paged on one too", () => {
@@ -83,8 +112,14 @@ test("every exported table is scoped by a column it actually has, and paged on o
   for (const entry of EXPORT_TABLES) {
     const owned = columns.get(entry.table);
     assert.ok(owned, `no columns found for ${entry.table}`);
-    assert.ok(owned.has(entry.orgKey), `${entry.table}.${entry.orgKey} does not exist — the export would 400`);
-    assert.ok(owned.has(entry.order), `${entry.table}.${entry.order} does not exist — paging would 400`);
+    assert.ok(
+      owned.has(entry.orgKey),
+      `${entry.table}.${entry.orgKey} does not exist — the export would 400`,
+    );
+    assert.ok(
+      owned.has(entry.order),
+      `${entry.table}.${entry.order} does not exist — paging would 400`,
+    );
   }
 });
 
@@ -100,13 +135,20 @@ test("no table the business owns is silently missing from the export", () => {
     if (exported.has(table) || excused.has(table)) continue;
     missing.push(table);
   }
-  assert.deepEqual(missing, [], `tenant tables neither exported nor excused: ${missing.join(", ")}`);
+  assert.deepEqual(
+    missing,
+    [],
+    `tenant tables neither exported nor excused: ${missing.join(", ")}`,
+  );
 });
 
 test("every exclusion carries a reason, and the reasons are shown to the owner", () => {
   assert.ok(EXCLUDED_TABLES.length > 0);
   for (const entry of EXCLUDED_TABLES) {
-    assert.ok(entry.reason && entry.reason.length > 20, `${entry.table} is excluded with no real reason`);
+    assert.ok(
+      entry.reason && entry.reason.length > 20,
+      `${entry.table} is excluded with no real reason`,
+    );
   }
   // The two tables that hold provider credentials must be excluded outright,
   // not merely column-redacted.
@@ -115,7 +157,8 @@ test("every exclusion carries a reason, and the reasons are shown to the owner",
   assert.ok(excluded.includes("payment_checkout_secrets"));
   // ...and neither may sneak back in through the include list.
   const exported = EXPORT_TABLES.map((e) => e.table);
-  for (const table of excluded) assert.ok(!exported.includes(table), `${table} is both excluded and exported`);
+  for (const table of excluded)
+    assert.ok(!exported.includes(table), `${table} is both excluded and exported`);
 });
 
 // --- Credentials out, business data in -------------------------------------
@@ -124,14 +167,26 @@ test("every bearer token in the schema is recognised as a secret", () => {
   // Enumerated from db/*.sql, not from memory. Each of these authenticates
   // someone: holding the string IS being that customer / that invitee.
   for (const column of [
-    "portal_token", "public_token", "helcim_checkout_token",
-    "token", "auth_secret", "p256dh", "endpoint",
-    "encrypted_api_token", "encrypted_secret_token",
+    "portal_token",
+    "public_token",
+    "helcim_checkout_token",
+    "token",
+    "auth_secret",
+    "p256dh",
+    "endpoint",
+    "encrypted_api_token",
+    "encrypted_secret_token",
   ]) {
     assert.equal(isSecretColumn(column), true, `${column} must never be exported`);
   }
   // The safety net catches names nobody has written yet.
-  for (const column of ["session_token", "refresh_token", "webhook_secret", "api_key", "password_hash"]) {
+  for (const column of [
+    "session_token",
+    "refresh_token",
+    "webhook_secret",
+    "api_key",
+    "password_hash",
+  ]) {
     assert.equal(isSecretColumn(column), true, `${column} must be caught by the pattern net`);
   }
 });
@@ -141,12 +196,30 @@ test("the owner's own business data is NOT withheld — this is the half that ma
   // The opposite mistake — withholding them from the OWNER — would make this
   // export a decoration rather than a copy of the business.
   for (const column of [
-    "cost_minor", "job_expenses_minor", "commission_pct", "total_minor",
-    "amount_minor", "notes", "phone", "email", "address", "signature_data",
-    "reference", "reason_code", "industry_key", "run_key", "pack_item_key",
-    "idempotency_key", "connected_account_id", "stripe_session_id",
+    "cost_minor",
+    "job_expenses_minor",
+    "commission_pct",
+    "total_minor",
+    "amount_minor",
+    "notes",
+    "phone",
+    "email",
+    "address",
+    "signature_data",
+    "reference",
+    "reason_code",
+    "industry_key",
+    "run_key",
+    "pack_item_key",
+    "idempotency_key",
+    "connected_account_id",
+    "stripe_session_id",
   ]) {
-    assert.equal(isSecretColumn(column), false, `${column} is the owner's own data and must be exported`);
+    assert.equal(
+      isSecretColumn(column),
+      false,
+      `${column} is the owner's own data and must be exported`,
+    );
   }
 });
 
@@ -167,7 +240,12 @@ test("redaction reaches inside audit_log's row snapshots", () => {
   const auditRow = {
     table_name: "customers",
     old_data: { id: "c1", portal_token: "old-secret", name: "Ada" },
-    new_data: { id: "c1", portal_token: "new-secret", name: "Ada", nested: [{ public_token: "deep-secret", total_minor: 100 }] },
+    new_data: {
+      id: "c1",
+      portal_token: "new-secret",
+      name: "Ada",
+      nested: [{ public_token: "deep-secret", total_minor: 100 }],
+    },
   };
   const out = redactDeep(auditRow);
   assert.equal(out.old_data.portal_token, REDACTED);
@@ -226,7 +304,11 @@ test("the shared pager stops, refuses runaway reads, and is the one used everywh
   // eventually disagree about what "all of it" means.
   const accounting = readCode("app/(app)/reports/export/actions.ts");
   assert.match(accounting, /from "@\/lib\/export"/, "the accounting export must share the pager");
-  assert.doesNotMatch(accounting, /async function fetchAllPages/, "a second copy of the pager will drift");
+  assert.doesNotMatch(
+    accounting,
+    /async function fetchAllPages/,
+    "a second copy of the pager will drift",
+  );
 });
 
 // --- The route --------------------------------------------------------------
@@ -238,8 +320,16 @@ test("the export route is owner-only and cannot reach another tenant", () => {
   assert.match(route, /status: 403/);
   // The organisation comes from the session profile, never from the request.
   assert.match(route, /profile\.organization_id/);
-  assert.match(route, /\.eq\(entry\.orgKey, orgId\)/, "every table query is tenant-scoped explicitly");
-  assert.doesNotMatch(route, /searchParams|request\.url/, "no tenant identifier may come from the caller");
+  assert.match(
+    route,
+    /\.eq\(entry\.orgKey, orgId\)/,
+    "every table query is tenant-scoped explicitly",
+  );
+  assert.doesNotMatch(
+    route,
+    /searchParams|request\.url/,
+    "no tenant identifier may come from the caller",
+  );
 });
 
 test("the export route pages and redacts — the two ways it could lie", () => {
@@ -247,7 +337,11 @@ test("the export route pages and redacts — the two ways it could lie", () => {
   assert.match(route, /pageThrough/, "a plain select() stops at 1000 rows with no error");
   assert.match(route, /\.range\(from, to\)/);
   assert.match(route, /redactDeep\(row\)/, "every row is redacted on the way out");
-  assert.doesNotMatch(route, /\.select\("\*"\)[^;]*\n[^;]*JSON\.stringify\(row\)/, "rows must not be serialised unredacted");
+  assert.doesNotMatch(
+    route,
+    /\.select\("\*"\)[^;]*\n[^;]*JSON\.stringify\(row\)/,
+    "rows must not be serialised unredacted",
+  );
 });
 
 test("the export states its own completeness rather than hoping", () => {
@@ -255,7 +349,11 @@ test("the export states its own completeness rather than hoping", () => {
   assert.match(route, /problems\.push/, "a table that fails to read must be recorded");
   assert.match(route, /"incomplete"/, "and must mark the whole file incomplete");
   assert.match(route, /rowCounts/, "the owner needs to be able to sanity-check the counts");
-  assert.match(route, /controller\.error/, "a mid-stream failure must break the file, not truncate it quietly");
+  assert.match(
+    route,
+    /controller\.error/,
+    "a mid-stream failure must break the file, not truncate it quietly",
+  );
 });
 
 // --- What the UI promises ---------------------------------------------------
@@ -263,7 +361,10 @@ test("the export states its own completeness rather than hoping", () => {
 test("the screen tells the owner what is NOT in the file", () => {
   assert.ok(NOT_INCLUDED.length >= 3);
   const joined = NOT_INCLUDED.join(" ").toLowerCase();
-  assert.ok(joined.includes("storage"), "files in storage are the omission a reader is most likely to assume away");
+  assert.ok(
+    joined.includes("storage"),
+    "files in storage are the omission a reader is most likely to assume away",
+  );
   assert.ok(joined.includes("password") || joined.includes("credential"));
 
   const page = readCode("app/(app)/reports/export/page.tsx");
@@ -271,7 +372,11 @@ test("the screen tells the owner what is NOT in the file", () => {
   assert.match(page, /excluded/);
   assert.match(page, /meta\.status/, "the reader must be told to verify completeness");
   assert.match(page, /\/api\/export\/business/, "and there must be a way to actually start it");
-  assert.match(page, /role !== "owner"/, "non-owners are told why they cannot, not shown a broken button");
+  assert.match(
+    page,
+    /role !== "owner"/,
+    "non-owners are told why they cannot, not shown a broken button",
+  );
 });
 
 test("the contract shown in the UI is the same one the route enforces", () => {

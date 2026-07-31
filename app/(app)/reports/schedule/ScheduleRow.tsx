@@ -5,9 +5,14 @@ import { useRouter } from "next/navigation";
 import { deleteReportSchedule, setReportScheduleEnabled } from "./actions";
 
 export type Schedule = {
-  id: string; name: string; frequency: string; enabled: boolean;
+  id: string;
+  name: string;
+  frequency: string;
+  enabled: boolean;
   recipient_profile_ids: string[] | null;
-  last_period_key: string | null; last_run_at: string | null; last_error: string | null;
+  last_period_key: string | null;
+  last_run_at: string | null;
+  last_error: string | null;
 };
 
 /**
@@ -17,7 +22,13 @@ export type Schedule = {
  * for a fortnight must not look like a schedule that is working — that silence
  * is the whole class of defect this branch exists to remove.
  */
-export default function ScheduleRow({ schedule, names }: { schedule: Schedule; names: Record<string, string> }) {
+export default function ScheduleRow({
+  schedule,
+  names,
+}: {
+  schedule: Schedule;
+  names: Record<string, string>;
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -25,24 +36,53 @@ export default function ScheduleRow({ schedule, names }: { schedule: Schedule; n
   const act = (fn: () => Promise<{ ok: boolean; error?: string }>) => {
     start(async () => {
       const result = await fn();
-      setError(result.ok ? null : result.error ?? "That did not work.");
+      setError(result.ok ? null : (result.error ?? "That did not work."));
       router.refresh();
     });
   };
 
-  const recipients = (schedule.recipient_profile_ids ?? []).map((id) => names[id] ?? id.slice(0, 8));
+  const recipients = (schedule.recipient_profile_ids ?? []).map(
+    (id) => names[id] ?? id.slice(0, 8),
+  );
 
   return (
-    <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, marginBottom: 10 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "baseline" }}>
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid #e2e8f0",
+        borderRadius: 12,
+        padding: 14,
+        marginBottom: 10,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 10,
+          flexWrap: "wrap",
+          alignItems: "baseline",
+        }}
+      >
         <b>{schedule.name}</b>
-        <span style={{ fontSize: "0.8125rem", color: schedule.enabled ? "#15803d" : "#5c6675", fontWeight: 700 }}>
+        <span
+          style={{
+            fontSize: "0.8125rem",
+            color: schedule.enabled ? "#15803d" : "#5c6675",
+            fontWeight: 700,
+          }}
+        >
           {schedule.enabled ? `● ${schedule.frequency}` : "paused"}
         </span>
       </div>
 
       <div style={{ fontSize: "0.8125rem", color: "#5c6675", marginTop: 4 }}>
-        To: {recipients.length ? recipients.join(", ") : <b style={{ color: "#b45309" }}>nobody — this will send nothing</b>}
+        To:{" "}
+        {recipients.length ? (
+          recipients.join(", ")
+        ) : (
+          <b style={{ color: "#b45309" }}>nobody — this will send nothing</b>
+        )}
       </div>
       <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>
         {schedule.last_run_at
@@ -51,29 +91,63 @@ export default function ScheduleRow({ schedule, names }: { schedule: Schedule; n
       </div>
 
       {schedule.last_error && (
-        <div role="alert" style={{ marginTop: 8, background: "#fdeaea", border: "1px solid #f5b5b5", color: "#b91c1c", borderRadius: 9, padding: "8px 10px", fontSize: "0.8125rem" }}>
+        <div
+          role="alert"
+          style={{
+            marginTop: 8,
+            background: "#fdeaea",
+            border: "1px solid #f5b5b5",
+            color: "#b91c1c",
+            borderRadius: 9,
+            padding: "8px 10px",
+            fontSize: "0.8125rem",
+          }}
+        >
           Last run reported: {schedule.last_error}
         </div>
       )}
 
       <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-        <button type="button" style={button} disabled={pending} onClick={() => act(() => setReportScheduleEnabled(schedule.id, !schedule.enabled))}>
+        <button
+          type="button"
+          style={button}
+          disabled={pending}
+          onClick={() => act(() => setReportScheduleEnabled(schedule.id, !schedule.enabled))}
+        >
           {schedule.enabled ? "Pause" : "Resume"}
         </button>
         <button
-          type="button" style={{ ...button, background: "#fdeaea", color: "#b91c1c" }} disabled={pending}
-          onClick={() => { if (window.confirm(`Delete the "${schedule.name}" schedule?`)) act(() => deleteReportSchedule(schedule.id)); }}
+          type="button"
+          style={{ ...button, background: "#fdeaea", color: "#b91c1c" }}
+          disabled={pending}
+          onClick={() => {
+            if (window.confirm(`Delete the "${schedule.name}" schedule?`))
+              act(() => deleteReportSchedule(schedule.id));
+          }}
         >
           Delete
         </button>
       </div>
 
-      {error && <div role="alert" style={{ marginTop: 8, color: "#b91c1c", fontSize: "0.8125rem", fontWeight: 700 }}>{error}</div>}
+      {error && (
+        <div
+          role="alert"
+          style={{ marginTop: 8, color: "#b91c1c", fontSize: "0.8125rem", fontWeight: 700 }}
+        >
+          {error}
+        </div>
+      )}
     </div>
   );
 }
 
 const button: React.CSSProperties = {
-  background: "#eef2f8", color: "#0b1524", border: "none", borderRadius: 8,
-  padding: "7px 12px", fontWeight: 700, fontSize: "0.8125rem", cursor: "pointer",
+  background: "#eef2f8",
+  color: "#0b1524",
+  border: "none",
+  borderRadius: 8,
+  padding: "7px 12px",
+  fontWeight: 700,
+  fontSize: "0.8125rem",
+  cursor: "pointer",
 };

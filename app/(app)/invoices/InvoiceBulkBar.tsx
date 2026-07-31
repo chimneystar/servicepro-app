@@ -20,13 +20,15 @@ export default function InvoiceBulkBar({ rows }: { rows: BulkRow[] }) {
         {
           key: "send",
           label: "✉ Send selected",
-          confirm: "Send a payment link for every selected invoice? Customers who have opted out will be skipped, and you will be told which.",
+          confirm:
+            "Send a payment link for every selected invoice? Customers who have opted out will be skipped, and you will be told which.",
           run: (ids) => bulkSendInvoices(ids),
         },
         {
           key: "paid",
           label: "✓ Mark paid",
-          confirm: "Mark every selected invoice as paid? A manual payment is recorded for each one that has none.",
+          confirm:
+            "Mark every selected invoice as paid? A manual payment is recorded for each one that has none.",
           run: (ids) => bulkSetInvoicePaid(ids, true),
         },
         {

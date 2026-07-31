@@ -26,28 +26,47 @@ export default async function CustomFieldsPage() {
   const { data } = await supabase
     .from("custom_field_definitions")
     .select("id, label, entity_type, field_type, options_json, required, active, sort")
-    .order("sort").order("label");
+    .order("sort")
+    .order("label");
   const definitions = (data ?? []) as CustomFieldDefinition[];
 
   return (
     <div className="settings-shell">
       <header className="settings-heading">
         <div>
-          <Link href="/settings" style={{ color: "#2563eb", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none" }}>
+          <Link
+            href="/settings"
+            style={{
+              color: "#2563eb",
+              fontWeight: 700,
+              fontSize: "0.875rem",
+              textDecoration: "none",
+            }}
+          >
             {he ? "‹ הגדרות" : "‹ Settings"}
           </Link>
           <h1>{he ? "שדות מותאמים" : "Custom fields"}</h1>
-          <p>{he
-            ? "מידע שהעסק שלכם צריך ולא קיים במסך — קוד שער, מספר יחידה, סוג חוזה. השדות מופיעים בכרטיס הלקוח ובכרטיס העבודה."
-            : "The information your business needs that isn't already on the screen — a gate code, a unit number, a contract type. Fields appear on the customer and job records."}</p>
+          <p>
+            {he
+              ? "מידע שהעסק שלכם צריך ולא קיים במסך — קוד שער, מספר יחידה, סוג חוזה. השדות מופיעים בכרטיס הלקוח ובכרטיס העבודה."
+              : "The information your business needs that isn't already on the screen — a gate code, a unit number, a contract type. Fields appear on the customer and job records."}
+          </p>
         </div>
       </header>
       <div className="settings-grid">
         <div className="settings-main">
-          <CustomFieldsEditor locale={locale} entityType="customer" definitions={definitions.filter((d) => d.entity_type === "customer")} />
+          <CustomFieldsEditor
+            locale={locale}
+            entityType="customer"
+            definitions={definitions.filter((d) => d.entity_type === "customer")}
+          />
         </div>
         <aside className="settings-side">
-          <CustomFieldsEditor locale={locale} entityType="job" definitions={definitions.filter((d) => d.entity_type === "job")} />
+          <CustomFieldsEditor
+            locale={locale}
+            entityType="job"
+            definitions={definitions.filter((d) => d.entity_type === "job")}
+          />
         </aside>
       </div>
     </div>

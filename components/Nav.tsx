@@ -12,7 +12,19 @@ import type { CapabilityKey } from "@/lib/auth";
 import Link from "next/link";
 import AppIcon from "@/components/AppIcon";
 
-export default function Nav({ role, businessName, locale, capabilities, platformAdmin = false }: { role: Role; businessName: string; locale: Locale; capabilities: CapabilityKey[]; platformAdmin?: boolean }) {
+export default function Nav({
+  role,
+  businessName,
+  locale,
+  capabilities,
+  platformAdmin = false,
+}: {
+  role: Role;
+  businessName: string;
+  locale: Locale;
+  capabilities: CapabilityKey[];
+  platformAdmin?: boolean;
+}) {
   async function signOut() {
     "use server";
     const supabase = await createClient();
@@ -22,7 +34,12 @@ export default function Nav({ role, businessName, locale, capabilities, platform
 
   const roleKey = role === "owner" ? "role.owner" : role === "office" ? "role.office" : "role.tech";
   const allowed = new Set(capabilities);
-  const mine = NAV_ITEMS.filter((item) => item.roles.includes(role) && (!item.capability || allowed.has(item.capability)) && (!item.platformOnly || platformAdmin));
+  const mine = NAV_ITEMS.filter(
+    (item) =>
+      item.roles.includes(role) &&
+      (!item.capability || allowed.has(item.capability)) &&
+      (!item.platformOnly || platformAdmin),
+  );
   const primary = mine.filter((item) => item.group !== "tools");
   // `/appearance` is rendered by `.side-utilities` a few lines down, so listing
   // it inside Tools as well printed the same destination twice in one nav —
@@ -36,32 +53,58 @@ export default function Nav({ role, businessName, locale, capabilities, platform
   // One shared split, so the tab bar and /more cannot disagree about who owns an
   // item. They used to, and Invoices fell through the gap on mobile.
   const { tabs, more } = splitNavigation(mine);
-  const bottomItems = tabs.map((item) => ({ href: item.href, label: t(locale, item.key), icon: item.icon }));
-  const tabItems = more.length > 0
-    ? [...bottomItems, { href: "/more", label: t(locale, "nav.more"), icon: "⋯" }]
-    : bottomItems;
+  const bottomItems = tabs.map((item) => ({
+    href: item.href,
+    label: t(locale, item.key),
+    icon: item.icon,
+  }));
+  const tabItems =
+    more.length > 0
+      ? [...bottomItems, { href: "/more", label: t(locale, "nav.more"), icon: "⋯" }]
+      : bottomItems;
 
   return (
     <>
       <aside className="desk-side">
         <div className="side-brand">
           <span className="brand-mark" aria-hidden="true" />
-          <span className="brand-copy"><strong>{businessName}</strong><small>{t(locale, roleKey)}</small></span>
+          <span className="brand-copy">
+            <strong>{businessName}</strong>
+            <small>{t(locale, roleKey)}</small>
+          </span>
         </div>
         <SideNavScroller label={locale === "he" ? "ניווט ראשי" : "Main navigation"}>
-          {primary.map((item) => <NavLink key={item.href} href={item.href} label={t(locale, item.key)} />)}
+          {primary.map((item) => (
+            <NavLink key={item.href} href={item.href} label={t(locale, item.key)} />
+          ))}
           <SidebarTools items={tools} label={t(locale, "nav.tools")} />
         </SideNavScroller>
         <div className="side-utilities">
-          <Link href="/appearance" className="side-appearance"><AppIcon name="appearance" /><span>{t(locale, "nav.appearance")}</span></Link>
-          <div className="side-locale"><LanguageToggle current={locale} dark /></div>
+          <Link href="/appearance" className="side-appearance">
+            <AppIcon name="appearance" />
+            <span>{t(locale, "nav.appearance")}</span>
+          </Link>
+          <div className="side-locale">
+            <LanguageToggle current={locale} dark />
+          </div>
         </div>
-        <form action={signOut} className="side-footer"><button type="submit" className="sign-out-btn">{t(locale, "common.signOut")}</button></form>
+        <form action={signOut} className="side-footer">
+          <button type="submit" className="sign-out-btn">
+            {t(locale, "common.signOut")}
+          </button>
+        </form>
       </aside>
 
       <header className="mobile-top">
-        <div className="mobile-brand"><span className="brand-mark" aria-hidden="true" /><strong>{businessName}</strong></div>
-        <form action={signOut}><button type="submit" className="mobile-sign-out">{t(locale, "common.signOut")}</button></form>
+        <div className="mobile-brand">
+          <span className="brand-mark" aria-hidden="true" />
+          <strong>{businessName}</strong>
+        </div>
+        <form action={signOut}>
+          <button type="submit" className="mobile-sign-out">
+            {t(locale, "common.signOut")}
+          </button>
+        </form>
       </header>
       <MobileTabs items={tabItems} />
     </>

@@ -15,7 +15,11 @@
 import { readFileSync, writeFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
-import { classifyFiles, renderSequenceTable, spliceGeneratedBlock } from "../lib/core/migrations.mjs";
+import {
+  classifyFiles,
+  renderSequenceTable,
+  spliceGeneratedBlock,
+} from "../lib/core/migrations.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DB_DIR = join(ROOT, "db");

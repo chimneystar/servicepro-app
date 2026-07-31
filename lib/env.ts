@@ -34,7 +34,9 @@ export function checkEnv(): EnvReport {
   if (publicKey && privateKey) {
     const keys = checkVapidKeys(publicKey, privateKey) as { ok: boolean; reason: string };
     if (!keys.ok && keys.reason === "key_pair_mismatch") {
-      report.warnings.push("VAPID_PRIVATE_KEY and NEXT_PUBLIC_VAPID_PUBLIC_KEY are not a key pair. Every push notification would be refused.");
+      report.warnings.push(
+        "VAPID_PRIVATE_KEY and NEXT_PUBLIC_VAPID_PUBLIC_KEY are not a key pair. Every push notification would be refused.",
+      );
     }
   }
   return report;

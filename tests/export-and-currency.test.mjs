@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
-const readCode = (p) => read(p).replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+const readCode = (p) =>
+  read(p)
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
 
 // ---------------------------------------------------------------------------
 // Accounting export. PostgREST caps a response at 1000 rows, so a single
@@ -15,7 +18,10 @@ test("every export branch paginates", () => {
   assert.ok(/fetchAllPages/.test(src), "a single request silently stops at the 1000-row cap");
   // Count CALL sites only — `fetchAllPages<` also matches the declaration.
   const calls = src.match(/await fetchAllPages</g) ?? [];
-  assert.ok(calls.length >= 3, `invoices, payments and expenses must all page (found ${calls.length})`);
+  assert.ok(
+    calls.length >= 3,
+    `invoices, payments and expenses must all page (found ${calls.length})`,
+  );
   assert.ok(/\.range\(a, b\)/.test(src), "paging must actually use range()");
 
   // STRONGER THAN A COUNT. A fixed count of 3 passed for the wrong reason the
@@ -26,19 +32,29 @@ test("every export branch paginates", () => {
   const unpaged = [];
   for (const chunk of src.split(/supabase\s*\.\s*from\(/).slice(1)) {
     const statement = chunk.split(";")[0];
-    if (!/\.select\(/.test(statement)) continue;                    // not a read at all
+    if (!/\.select\(/.test(statement)) continue; // not a read at all
     if (/\.(insert|upsert|update|delete)\(/.test(statement)) continue; // a write; its .select() returns the new row
-    if (/count:\s*"exact"/.test(statement)) continue;                // a head count returns no rows
-    if (!/\.range\(a, b\)/.test(statement)) unpaged.push(statement.split("\n")[0].trim().slice(0, 70));
+    if (/count:\s*"exact"/.test(statement)) continue; // a head count returns no rows
+    if (!/\.range\(a, b\)/.test(statement))
+      unpaged.push(statement.split("\n")[0].trim().slice(0, 70));
   }
-  assert.deepEqual(unpaged, [], `these reads are not paged and will silently truncate:\n  ${unpaged.join("\n  ")}`);
+  assert.deepEqual(
+    unpaged,
+    [],
+    `these reads are not paged and will silently truncate:\n  ${unpaged.join("\n  ")}`,
+  );
 });
 
 test("payments are filtered in SQL, not in JavaScript", () => {
   const src = readCode("app/(app)/reports/export/actions.ts");
-  assert.ok(!/\.filter\(\(p: any\) => \{ const d = \(p\.paid_at/.test(src),
-    "filtering after an unbounded fetch lets the row cap decide which payments the accountant sees");
-  assert.ok(/gte\("paid_at"/.test(src) && /lte\("paid_at"/.test(src), "the date range belongs in the query");
+  assert.ok(
+    !/\.filter\(\(p: any\) => \{ const d = \(p\.paid_at/.test(src),
+    "filtering after an unbounded fetch lets the row cap decide which payments the accountant sees",
+  );
+  assert.ok(
+    /gte\("paid_at"/.test(src) && /lte\("paid_at"/.test(src),
+    "the date range belongs in the query",
+  );
 });
 
 test("the payments export distinguishes settled money from failed and refunded", () => {
@@ -75,22 +91,33 @@ test("no screen offers a currency the payment layer cannot serve", () => {
 test("currency is pinned server-side, because the form is not the boundary", () => {
   for (const file of ["app/onboarding/page.tsx", "app/(app)/settings/actions.ts"]) {
     const src = readCode(file);
-    assert.ok(/const currency = "USD"/.test(src),
-      `${file} must not take the currency from the request body — a crafted POST would bypass the UI`);
+    assert.ok(
+      /const currency = "USD"/.test(src),
+      `${file} must not take the currency from the request body — a crafted POST would bypass the UI`,
+    );
   }
 });
 
 test("the database agrees with the payment layer", () => {
   const sql = read("db/026_usd_only.sql").toLowerCase();
-  assert.ok(/check \(currency = 'usd'\)/.test(sql), "the constraint must match what payments can actually process");
-  assert.ok(/update public\.organizations set currency = 'usd'/.test(sql), "existing rows must be reconciled");
+  assert.ok(
+    /check \(currency = 'usd'\)/.test(sql),
+    "the constraint must match what payments can actually process",
+  );
+  assert.ok(
+    /update public\.organizations set currency = 'usd'/.test(sql),
+    "existing rows must be reconciled",
+  );
 });
 
 test("language support is NOT reduced by the currency decision", () => {
   // Guarding against collateral damage: the product is bilingual, and currency
   // and language are independent settings.
   const i18n = read("lib/i18n.ts");
-  assert.ok(/export const LOCALES: Locale\[\] = \["en", "he"\]/.test(i18n), "Hebrew must remain a supported language");
+  assert.ok(
+    /export const LOCALES: Locale\[\] = \["en", "he"\]/.test(i18n),
+    "Hebrew must remain a supported language",
+  );
   const settings = readCode("app/(app)/settings/SettingsForm.tsx");
   assert.ok(/\["he", "עברית"\]/.test(settings), "the Hebrew option must remain in settings");
 });

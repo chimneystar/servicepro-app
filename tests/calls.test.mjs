@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { callNeedsFollowUp, escapeXml, formatUsPhone, mapVoiceStatus, normalizeUsPhone } from "../lib/core/calls.mjs";
+import {
+  callNeedsFollowUp,
+  escapeXml,
+  formatUsPhone,
+  mapVoiceStatus,
+  normalizeUsPhone,
+} from "../lib/core/calls.mjs";
 
 test("United States phone numbers normalize to E.164", () => {
   assert.equal(normalizeUsPhone("(512) 555-0199"), "+15125550199");

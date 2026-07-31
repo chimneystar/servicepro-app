@@ -5,7 +5,13 @@ import { KNOWN_FLAGS, evaluateFlag, flagBucket, flagFallback } from "../lib/core
 
 const ORG = "11111111-1111-1111-1111-111111111111";
 const OTHER = "22222222-2222-2222-2222-222222222222";
-const on = { key: "growth_outreach", enabled: true, rollout_percent: 100, organization_allowlist: [], organization_blocklist: [] };
+const on = {
+  key: "growth_outreach",
+  enabled: true,
+  rollout_percent: 100,
+  organization_allowlist: [],
+  organization_blocklist: [],
+};
 
 // ---------------------------------------------------------------------------
 // The kill switch, proven in BOTH directions. A flag that could only ever say
@@ -43,22 +49,35 @@ test("an allowlisted organisation gets the feature at 0% rollout", () => {
 
 test("0% means nobody and 100% means everybody", () => {
   const orgs = Array.from({ length: 50 }, (_, i) => `org-${i}`);
-  assert.equal(orgs.some((org) => evaluateFlag({ ...on, rollout_percent: 0 }, org, true)), false);
-  assert.equal(orgs.every((org) => evaluateFlag({ ...on, rollout_percent: 100 }, org, false)), true);
+  assert.equal(
+    orgs.some((org) => evaluateFlag({ ...on, rollout_percent: 0 }, org, true)),
+    false,
+  );
+  assert.equal(
+    orgs.every((org) => evaluateFlag({ ...on, rollout_percent: 100 }, org, false)),
+    true,
+  );
 });
 
 test("a partial rollout is deterministic and monotonic", () => {
   // Deterministic: the same business must not flicker between page loads.
   for (const org of [ORG, OTHER, "org-7"]) {
     const first = evaluateFlag({ ...on, rollout_percent: 50 }, org, false);
-    for (let i = 0; i < 5; i++) assert.equal(evaluateFlag({ ...on, rollout_percent: 50 }, org, false), first);
+    for (let i = 0; i < 5; i++)
+      assert.equal(evaluateFlag({ ...on, rollout_percent: 50 }, org, false), first);
   }
   // Monotonic: widening a rollout can only ever add businesses.
   const orgs = Array.from({ length: 200 }, (_, i) => `org-${i}`);
-  const at = (pct) => orgs.filter((org) => evaluateFlag({ ...on, rollout_percent: pct }, org, false));
-  const ten = at(10), fifty = at(50);
-  for (const org of ten) assert.ok(fifty.includes(org), "a business inside 10% must stay inside 50%");
-  assert.ok(ten.length > 0 && ten.length < orgs.length, `10% selected ${ten.length}/200 — neither nobody nor everybody`);
+  const at = (pct) =>
+    orgs.filter((org) => evaluateFlag({ ...on, rollout_percent: pct }, org, false));
+  const ten = at(10),
+    fifty = at(50);
+  for (const org of ten)
+    assert.ok(fifty.includes(org), "a business inside 10% must stay inside 50%");
+  assert.ok(
+    ten.length > 0 && ten.length < orgs.length,
+    `10% selected ${ten.length}/200 — neither nobody nor everybody`,
+  );
   assert.ok(fifty.length > ten.length);
 });
 
@@ -66,11 +85,16 @@ test("buckets are stable, in range, and differ between flags", () => {
   assert.equal(flagBucket("a", ORG), flagBucket("a", ORG));
   for (const org of ["", ORG, OTHER, "x".repeat(200)]) {
     const bucket = flagBucket("automation_rules", org);
-    assert.ok(Number.isInteger(bucket) && bucket >= 0 && bucket < 100, `bucket ${bucket} out of range`);
+    assert.ok(
+      Number.isInteger(bucket) && bucket >= 0 && bucket < 100,
+      `bucket ${bucket} out of range`,
+    );
   }
   // Two flags must not roll out to exactly the same slice of customers.
   const orgs = Array.from({ length: 100 }, (_, i) => `org-${i}`);
-  const differing = orgs.filter((org) => flagBucket("automation_rules", org) !== flagBucket("growth_outreach", org));
+  const differing = orgs.filter(
+    (org) => flagBucket("automation_rules", org) !== flagBucket("growth_outreach", org),
+  );
   assert.ok(differing.length > 50, "flags must bucket independently");
 });
 
@@ -85,10 +109,21 @@ test("a missing row uses the caller's explicit default, never a silent off", () 
 });
 
 test("a malformed row cannot accidentally enable a feature", () => {
-  assert.equal(evaluateFlag({ enabled: "true", rollout_percent: 100 }, ORG, false), false, "enabled must be a real boolean");
+  assert.equal(
+    evaluateFlag({ enabled: "true", rollout_percent: 100 }, ORG, false),
+    false,
+    "enabled must be a real boolean",
+  );
   assert.equal(evaluateFlag({ enabled: true, rollout_percent: "lots" }, ORG, false), false);
-  assert.equal(evaluateFlag({ enabled: true, rollout_percent: 50 }, "", false), false, "no organisation to bucket");
-  assert.equal(evaluateFlag({ enabled: true, rollout_percent: 100, organization_blocklist: null }, ORG, false), true);
+  assert.equal(
+    evaluateFlag({ enabled: true, rollout_percent: 50 }, "", false),
+    false,
+    "no organisation to bucket",
+  );
+  assert.equal(
+    evaluateFlag({ enabled: true, rollout_percent: 100, organization_blocklist: null }, ORG, false),
+    true,
+  );
 });
 
 test("only flags this codebase actually reads are declared known", () => {
@@ -103,9 +138,10 @@ test("only flags this codebase actually reads are declared known", () => {
 // they close in prose.
 // ---------------------------------------------------------------------------
 
-const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8")
-  .replace(/\/\*[\s\S]*?\*\//g, "")
-  .replace(/(^|[^:])\/\/.*$/gm, "$1");
+const read = (p) =>
+  readFileSync(new URL(`../${p}`, import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
 const readRaw = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
 test("comment stripping works before anything is asserted on it", () => {
@@ -142,5 +178,8 @@ test("the two flags that gate code are seeded enabled, not off", () => {
   assert.ok(/insert into public\.feature_flags/.test(sql));
   assert.ok(/\('automation_rules',[^;]*?,true,100\)/.test(sql));
   assert.ok(/\('growth_outreach',[^;]*?,true,100\)/.test(sql));
-  assert.ok(/on conflict \(key\) do nothing/.test(sql), "re-running must not reset an operator's choice");
+  assert.ok(
+    /on conflict \(key\) do nothing/.test(sql),
+    "re-running must not reset an operator's choice",
+  );
 });

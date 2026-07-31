@@ -5,6 +5,88 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getPlatformAdmin } from "@/lib/platform-admin";
 import AdminConsole from "./AdminConsole";
 
-export const dynamic="force-dynamic";
-export default async function AdminPage(){const profile=await requireProfile(),platform=await getPlatformAdmin(profile.id);if(!platform)redirect("/");const locale=await getLocale(),he=locale==="he",admin=createAdminClient();const[{data:orgRows},{data:memberRows},{data:privacyRows},{data:merchantRows},{data:cases},{data:sessions},{data:flags},{data:releases}]=await Promise.all([admin.from("organizations").select("id,name,locale,created_at").order("created_at",{ascending:false}),admin.from("profiles").select("organization_id,id").eq("active",true),admin.from("organization_privacy_settings").select("organization_id,privacy_email"),admin.from("merchant_connections").select("organization_id,status"),admin.from("support_cases").select("id,case_number,organization_id,subject,status,severity,created_at,organizations(name)").order("created_at",{ascending:false}).limit(100),admin.from("support_sessions").select("id,case_id,organization_id,reason,access_level,expires_at,revoked_at,organizations(name)").order("created_at",{ascending:false}).limit(100),admin.from("feature_flags").select("id,key,description,enabled,rollout_percent").order("key"),admin.from("release_records").select("id,version,title,status,risk_level,git_sha,deployment_url,regression_checklist,created_at").order("created_at",{ascending:false})]);const orgs=(orgRows??[]).map(row=>({ ...row,members:(memberRows??[]).filter(member=>member.organization_id===row.id).length,privacyReady:Boolean((privacyRows??[]).find(item=>item.organization_id===row.id)?.privacy_email),merchantStatus:(merchantRows??[]).find(item=>item.organization_id===row.id)?.status||"not connected" }));return <div className="ops-page"><header className="ops-heading"><div><span>{he?"תפעול ServicePro":"ServicePro operations"}</span><h1>{he?"תמיכה וגרסאות מבוקרות":"Support & controlled releases"}</h1><p>{he?"מטפלים בתקלות, מגבילים גישת תמיכה ושומרים על כל תכונה לפני פרסום.":"Resolve issues, constrain support access and protect every product capability before release."}</p></div><div className="ops-heading-mark" aria-hidden="true">SP</div></header><AdminConsole locale={locale} role={platform.role} organizations={orgs} cases={(cases??[]) as any} sessions={(sessions??[]) as any} flags={flags??[]} releases={(releases??[]) as any}/></div>}
-
+export const dynamic = "force-dynamic";
+export default async function AdminPage() {
+  const profile = await requireProfile(),
+    platform = await getPlatformAdmin(profile.id);
+  if (!platform) redirect("/");
+  const locale = await getLocale(),
+    he = locale === "he",
+    admin = createAdminClient();
+  const [
+    { data: orgRows },
+    { data: memberRows },
+    { data: privacyRows },
+    { data: merchantRows },
+    { data: cases },
+    { data: sessions },
+    { data: flags },
+    { data: releases },
+  ] = await Promise.all([
+    admin
+      .from("organizations")
+      .select("id,name,locale,created_at")
+      .order("created_at", { ascending: false }),
+    admin.from("profiles").select("organization_id,id").eq("active", true),
+    admin.from("organization_privacy_settings").select("organization_id,privacy_email"),
+    admin.from("merchant_connections").select("organization_id,status"),
+    admin
+      .from("support_cases")
+      .select(
+        "id,case_number,organization_id,subject,status,severity,created_at,organizations(name)",
+      )
+      .order("created_at", { ascending: false })
+      .limit(100),
+    admin
+      .from("support_sessions")
+      .select(
+        "id,case_id,organization_id,reason,access_level,expires_at,revoked_at,organizations(name)",
+      )
+      .order("created_at", { ascending: false })
+      .limit(100),
+    admin.from("feature_flags").select("id,key,description,enabled,rollout_percent").order("key"),
+    admin
+      .from("release_records")
+      .select(
+        "id,version,title,status,risk_level,git_sha,deployment_url,regression_checklist,created_at",
+      )
+      .order("created_at", { ascending: false }),
+  ]);
+  const orgs = (orgRows ?? []).map((row) => ({
+    ...row,
+    members: (memberRows ?? []).filter((member) => member.organization_id === row.id).length,
+    privacyReady: Boolean(
+      (privacyRows ?? []).find((item) => item.organization_id === row.id)?.privacy_email,
+    ),
+    merchantStatus:
+      (merchantRows ?? []).find((item) => item.organization_id === row.id)?.status ||
+      "not connected",
+  }));
+  return (
+    <div className="ops-page">
+      <header className="ops-heading">
+        <div>
+          <span>{he ? "תפעול ServicePro" : "ServicePro operations"}</span>
+          <h1>{he ? "תמיכה וגרסאות מבוקרות" : "Support & controlled releases"}</h1>
+          <p>
+            {he
+              ? "מטפלים בתקלות, מגבילים גישת תמיכה ושומרים על כל תכונה לפני פרסום."
+              : "Resolve issues, constrain support access and protect every product capability before release."}
+          </p>
+        </div>
+        <div className="ops-heading-mark" aria-hidden="true">
+          SP
+        </div>
+      </header>
+      <AdminConsole
+        locale={locale}
+        role={platform.role}
+        organizations={orgs}
+        cases={(cases ?? []) as any}
+        sessions={(sessions ?? []) as any}
+        flags={flags ?? []}
+        releases={(releases ?? []) as any}
+      />
+    </div>
+  );
+}

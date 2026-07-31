@@ -34,24 +34,38 @@ const MAX_SIGNATURE = 400_000; // matches the column truncation in migration 004
  * `capture = 'none'`, so it is visible as unwitnessed rather than passing for
  * the real thing.
  */
-export async function approveDocument(_previous: ApproveState, formData: FormData): Promise<ApproveState> {
+export async function approveDocument(
+  _previous: ApproveState,
+  formData: FormData,
+): Promise<ApproveState> {
   const locale = (await getLocale()) === "he" ? "he" : "en";
   const he = locale === "he";
   const token = String(formData.get("token") ?? "").trim();
   const name = String(formData.get("name") ?? "").trim();
   const signature = String(formData.get("signature") ?? "");
 
-  if (!UUID.test(token)) return { ok: false, error: he ? "הקישור אינו תקין." : "This link is not valid." };
+  if (!UUID.test(token))
+    return { ok: false, error: he ? "הקישור אינו תקין." : "This link is not valid." };
   if (!name) return { ok: false, error: he ? "הזינו את שמכם." : "Enter your name." };
   if (signature.length > MAX_SIGNATURE) {
-    return { ok: false, error: he ? "החתימה גדולה מדי. נסו לצייר אותה שוב." : "That signature is too large. Please draw it again." };
+    return {
+      ok: false,
+      error: he
+        ? "החתימה גדולה מדי. נסו לצייר אותה שוב."
+        : "That signature is too large. Please draw it again.",
+    };
   }
 
   const context = await getRequestContext();
   // Signing is anonymous and reachable by anyone holding the link.
   const limit = consume(`sign:${context.ip ?? "unknown"}:${token}`, 5, 600_000);
   if (!limit.allowed) {
-    return { ok: false, error: he ? "יותר מדי ניסיונות. נסו שוב בעוד כמה דקות." : "Too many attempts. Try again in a few minutes." };
+    return {
+      ok: false,
+      error: he
+        ? "יותר מדי ניסיונות. נסו שוב בעוד כמה דקות."
+        : "Too many attempts. Try again in a few minutes.",
+    };
   }
 
   let admin;
@@ -63,7 +77,11 @@ export async function approveDocument(_previous: ApproveState, formData: FormDat
     // signature recorded without evidence must not look like one recorded with
     // it. `approve_document` still writes the evidence row (capture = 'none').
     const supabase = await createClient();
-    const { data, error } = await supabase.rpc("approve_document", { p_token: token, p_name: name, p_sig: signature });
+    const { data, error } = await supabase.rpc("approve_document", {
+      p_token: token,
+      p_name: name,
+      p_sig: signature,
+    });
     if (error || !data) return { ok: false, error: approvalFailure(he) };
     return { ok: true, witnessed: false };
   }

@@ -10,19 +10,29 @@ import { parseAmountToMinor } from "@/lib/core/money.mjs";
 
 export type ActionResult = { ok: boolean; error?: string };
 
-export async function savePriceItem(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
-  const locale = (await getLocale());
+export async function savePriceItem(
+  _prev: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  const locale = await getLocale();
   let profile;
-  try { profile = await requireProfile(); assertRole(profile, ["owner", "office"]); }
-  catch { return { ok: false, error: t(locale, "err.forbidden") }; }
+  try {
+    profile = await requireProfile();
+    assertRole(profile, ["owner", "office"]);
+  } catch {
+    return { ok: false, error: t(locale, "err.forbidden") };
+  }
 
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { ok: false, error: t(locale, "err.name_required") };
-  let price_minor = 0, cost_minor = 0;
+  let price_minor = 0,
+    cost_minor = 0;
   try {
     price_minor = parseAmountToMinor(String(formData.get("price") ?? "0"));
     cost_minor = parseAmountToMinor(String(formData.get("cost") ?? "0"));
-  } catch { return { ok: false, error: t(locale, "err.invalid") }; }
+  } catch {
+    return { ok: false, error: t(locale, "err.invalid") };
+  }
 
   const row = {
     organization_id: profile.organization_id,
@@ -43,9 +53,13 @@ export async function savePriceItem(_prev: ActionResult, formData: FormData): Pr
 }
 
 export async function deletePriceItem(id: string): Promise<ActionResult> {
-  const locale = (await getLocale());
-  try { const p = await requireProfile(); assertRole(p, ["owner", "office"]); }
-  catch { return { ok: false, error: t(locale, "err.forbidden") }; }
+  const locale = await getLocale();
+  try {
+    const p = await requireProfile();
+    assertRole(p, ["owner", "office"]);
+  } catch {
+    return { ok: false, error: t(locale, "err.forbidden") };
+  }
   const supabase = await createClient();
   const { error } = await supabase.from("price_book").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };

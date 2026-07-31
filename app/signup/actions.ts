@@ -32,14 +32,19 @@ export type SignUpState = {
  * the note at the bottom of lib/core/password-policy.mjs for the ONE path this
  * still cannot reach, and why 6b.7 is PARTIAL rather than DONE.
  */
-export async function createAccount(_previous: SignUpState, formData: FormData): Promise<SignUpState> {
+export async function createAccount(
+  _previous: SignUpState,
+  formData: FormData,
+): Promise<SignUpState> {
   const locale = (await getLocale()) === "he" ? "he" : "en";
   const he = locale === "he";
 
   const ownerName = String(formData.get("ownerName") ?? "").trim();
   const businessName = String(formData.get("businessName") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const email = String(formData.get("email") ?? "")
+    .trim()
+    .toLowerCase();
   const password = String(formData.get("password") ?? "");
   const confirm = String(formData.get("confirm") ?? "");
   const accepted = formData.get("accepted") === "on";
@@ -54,7 +59,10 @@ export async function createAccount(_previous: SignUpState, formData: FormData):
     return { ok: false, error: he ? "הסיסמאות אינן תואמות." : "The passwords do not match." };
   }
 
-  const verdict = evaluatePassword(password, { email, fullName: ownerName, businessName }) as { ok: boolean; failures: string[] };
+  const verdict = evaluatePassword(password, { email, fullName: ownerName, businessName }) as {
+    ok: boolean;
+    failures: string[];
+  };
   if (!verdict.ok) {
     return {
       ok: false,
@@ -67,7 +75,12 @@ export async function createAccount(_previous: SignUpState, formData: FormData):
   const context = await getRequestContext();
   const limit = consume(`signup:${context.ip ?? "unknown"}`, 5, 600_000);
   if (!limit.allowed) {
-    return { ok: false, error: he ? "יותר מדי ניסיונות. נסו שוב בעוד כמה דקות." : "Too many attempts. Try again in a few minutes." };
+    return {
+      ok: false,
+      error: he
+        ? "יותר מדי ניסיונות. נסו שוב בעוד כמה דקות."
+        : "Too many attempts. Try again in a few minutes.",
+    };
   }
 
   // The redirect target is derived from server configuration, never from a

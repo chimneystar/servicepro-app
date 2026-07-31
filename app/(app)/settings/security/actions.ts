@@ -14,15 +14,26 @@ import { consume } from "@/lib/core/rate-limit.mjs";
 export type SecurityResult = { ok: boolean; error?: string; notice?: string; problems?: string[] };
 
 /** Write a security event with the request context. Never throws at the caller. */
-async function logEvent(profileId: string, organizationId: string | null, eventType: string, details: Record<string, unknown> | null) {
+async function logEvent(
+  profileId: string,
+  organizationId: string | null,
+  eventType: string,
+  details: Record<string, unknown> | null,
+) {
   try {
     const context = await getRequestContext();
     // The table has a SELECT policy and no write policy, so only the service
     // role can append to it. That is the point: an audit trail a member can
     // write is an audit trail a member can forge.
-    await createAdminClient().from("account_security_events").insert({
-      organization_id: organizationId, profile_id: profileId, event_type: eventType, details, ...contextColumns(context),
-    });
+    await createAdminClient()
+      .from("account_security_events")
+      .insert({
+        organization_id: organizationId,
+        profile_id: profileId,
+        event_type: eventType,
+        details,
+        ...contextColumns(context),
+      });
   } catch {
     /* the action's own outcome must not depend on the audit write */
   }
@@ -47,11 +58,22 @@ export async function signOutEverywhere(): Promise<SecurityResult> {
   const supabase = await createClient();
 
   const { error } = await supabase.auth.signOut({ scope: "global" });
-  if (error) return { ok: false, error: he ? "לא הצלחנו לנתק את המכשירים. נסו שוב." : "We could not sign the devices out. Try again." };
+  if (error)
+    return {
+      ok: false,
+      error: he
+        ? "לא הצלחנו לנתק את המכשירים. נסו שוב."
+        : "We could not sign the devices out. Try again.",
+    };
 
-  await supabase.from("profile_security").upsert({
-    profile_id: profile.id, organization_id: profile.organization_id, sessions_revoked_at: new Date().toISOString(),
-  }, { onConflict: "profile_id" });
+  await supabase.from("profile_security").upsert(
+    {
+      profile_id: profile.id,
+      organization_id: profile.organization_id,
+      sessions_revoked_at: new Date().toISOString(),
+    },
+    { onConflict: "profile_id" },
+  );
   await logEvent(profile.id, profile.organization_id, "sessions_revoked", { scope: "global" });
 
   revalidatePath("/settings/security");
@@ -62,14 +84,27 @@ export async function signOutEverywhere(): Promise<SecurityResult> {
 export async function setLoginAlerts(enabled: boolean): Promise<SecurityResult> {
   const profile = await requireProfile();
   const supabase = await createClient();
-  const { error } = await supabase.from("profile_security").upsert({
-    profile_id: profile.id, organization_id: profile.organization_id, login_alerts_enabled: enabled,
-  }, { onConflict: "profile_id" });
+  const { error } = await supabase.from("profile_security").upsert(
+    {
+      profile_id: profile.id,
+      organization_id: profile.organization_id,
+      login_alerts_enabled: enabled,
+    },
+    { onConflict: "profile_id" },
+  );
   if (error) {
     const he = (await getLocale()) === "he";
-    return { ok: false, error: he ? "לא הצלחנו לשמור את ההגדרה." : "We could not save that setting." };
+    return {
+      ok: false,
+      error: he ? "לא הצלחנו לשמור את ההגדרה." : "We could not save that setting.",
+    };
   }
-  await logEvent(profile.id, profile.organization_id, enabled ? "login_alerts_enabled" : "login_alerts_disabled", null);
+  await logEvent(
+    profile.id,
+    profile.organization_id,
+    enabled ? "login_alerts_enabled" : "login_alerts_disabled",
+    null,
+  );
   revalidatePath("/settings/security");
   return { ok: true };
 }
@@ -86,12 +121,20 @@ export async function recordTwoFactorChange(enrolled: boolean): Promise<Security
   const profile = await requireProfile();
   const supabase = await createClient();
   const now = new Date().toISOString();
-  await supabase.from("profile_security").upsert({
-    profile_id: profile.id,
-    organization_id: profile.organization_id,
-    ...(enrolled ? { mfa_enrolled_at: now } : { mfa_removed_at: now }),
-  }, { onConflict: "profile_id" });
-  await logEvent(profile.id, profile.organization_id, enrolled ? "mfa_enrolled" : "mfa_removed", null);
+  await supabase.from("profile_security").upsert(
+    {
+      profile_id: profile.id,
+      organization_id: profile.organization_id,
+      ...(enrolled ? { mfa_enrolled_at: now } : { mfa_removed_at: now }),
+    },
+    { onConflict: "profile_id" },
+  );
+  await logEvent(
+    profile.id,
+    profile.organization_id,
+    enrolled ? "mfa_enrolled" : "mfa_removed",
+    null,
+  );
   revalidatePath("/settings/security");
   return { ok: true };
 }
@@ -104,7 +147,10 @@ export async function recordTwoFactorChange(enrolled: boolean): Promise<Security
  * downgraded to "1234" a minute later. The current password is re-verified
  * first, because a stolen session should not be able to take the account.
  */
-export async function changePassword(_previous: SecurityResult, formData: FormData): Promise<SecurityResult> {
+export async function changePassword(
+  _previous: SecurityResult,
+  formData: FormData,
+): Promise<SecurityResult> {
   const locale = (await getLocale()) === "he" ? "he" : "en";
   const he = locale === "he";
   const profile = await requireProfile();
@@ -112,36 +158,65 @@ export async function changePassword(_previous: SecurityResult, formData: FormDa
   const next = String(formData.get("next") ?? "");
   const confirm = String(formData.get("confirm") ?? "");
 
-  if (next !== confirm) return { ok: false, error: he ? "הסיסמאות אינן תואמות." : "The passwords do not match." };
+  if (next !== confirm)
+    return { ok: false, error: he ? "הסיסמאות אינן תואמות." : "The passwords do not match." };
 
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user?.email) return { ok: false, error: he ? "לא הצלחנו לאמת את החשבון." : "We could not verify this account." };
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user?.email)
+    return {
+      ok: false,
+      error: he ? "לא הצלחנו לאמת את החשבון." : "We could not verify this account.",
+    };
 
   const gate = consume(`password-change:${user.id}`, 5, 900_000);
-  if (!gate.allowed) return { ok: false, error: he ? "יותר מדי ניסיונות. נסו שוב מאוחר יותר." : "Too many attempts. Try again later." };
+  if (!gate.allowed)
+    return {
+      ok: false,
+      error: he ? "יותר מדי ניסיונות. נסו שוב מאוחר יותר." : "Too many attempts. Try again later.",
+    };
 
-  const verdict = evaluatePassword(next, { email: user.email, fullName: profile.full_name }) as { ok: boolean; failures: string[] };
+  const verdict = evaluatePassword(next, { email: user.email, fullName: profile.full_name }) as {
+    ok: boolean;
+    failures: string[];
+  };
   if (!verdict.ok) {
     return {
       ok: false,
-      error: he ? "הסיסמה החדשה אינה עומדת בדרישות." : "That new password does not meet the policy.",
+      error: he
+        ? "הסיסמה החדשה אינה עומדת בדרישות."
+        : "That new password does not meet the policy.",
       problems: describePasswordFailures(verdict.failures, locale) as string[],
     };
   }
 
-  const { error: reauth } = await supabase.auth.signInWithPassword({ email: user.email, password: current });
+  const { error: reauth } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: current,
+  });
   if (reauth) {
-    await logEvent(profile.id, profile.organization_id, "password_change_refused", { reason: "current_password_wrong" });
-    return { ok: false, error: he ? "הסיסמה הנוכחית אינה נכונה." : "That current password is not correct." };
+    await logEvent(profile.id, profile.organization_id, "password_change_refused", {
+      reason: "current_password_wrong",
+    });
+    return {
+      ok: false,
+      error: he ? "הסיסמה הנוכחית אינה נכונה." : "That current password is not correct.",
+    };
   }
 
   const { error } = await supabase.auth.updateUser({ password: next });
   if (error) return { ok: false, error: error.message };
 
-  await supabase.from("profile_security").upsert({
-    profile_id: profile.id, organization_id: profile.organization_id, last_password_change_at: new Date().toISOString(),
-  }, { onConflict: "profile_id" });
+  await supabase.from("profile_security").upsert(
+    {
+      profile_id: profile.id,
+      organization_id: profile.organization_id,
+      last_password_change_at: new Date().toISOString(),
+    },
+    { onConflict: "profile_id" },
+  );
   await logEvent(profile.id, profile.organization_id, "password_changed", null);
 
   revalidatePath("/settings/security");

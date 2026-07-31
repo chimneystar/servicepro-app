@@ -24,6 +24,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import ts from "typescript";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const navSource = readFileSync(join(root, "lib/nav.ts"), "utf8");
@@ -33,26 +34,56 @@ const css = readFileSync(join(root, "app/globals.css"), "utf8");
 /* ------------------------------------------------------------------ pure */
 
 function loadNavModule() {
-  const stripped = navSource
-    .replace(/^import type .*$/gm, "")
-    .replace(/^export type .*$/gm, "")
-    .replace(/export const NAV_ITEMS\s*:\s*NavItem\[\]/, "export const NAV_ITEMS")
-    .replace(/\(items\s*:\s*NavItem\[\]\)\s*:\s*\{[^}]*\}/, "(items)");
-  // If a type annotation survived, the module would not parse — but a *new*
-  // annotation elsewhere could parse and change meaning. Refuse to run rather
-  // than pass against something that is no longer the real source.
-  assert.equal(/\bNavItem\b/.test(stripped), false, "lib/nav.ts gained a type annotation this loader does not strip — update the loader, do not weaken the test");
-  return import(`data:text/javascript;base64,${Buffer.from(stripped, "utf8").toString("base64")}`);
+  // This used to strip the types with four line-anchored regexes. That worked
+  // only because `export type NavItem = { ... }` happened to be written on ONE
+  // line; ledger 6.4 reformatted it onto ten and the stripper then deleted the
+  // header and left the body, producing a module that would not parse. The
+  // regexes were never guarding anything — they were a hand-rolled compiler —
+  // so they are replaced by the real one rather than repaired. The property
+  // this function protects is unchanged and is asserted below: the module
+  // executed is COMPILED FROM lib/nav.ts, not a copy of its rules.
+  const emitted = ts.transpileModule(navSource, {
+    fileName: "lib/nav.ts",
+    compilerOptions: {
+      target: ts.ScriptTarget.ES2022,
+      module: ts.ModuleKind.ESNext,
+      isolatedModules: true,
+    },
+    reportDiagnostics: true,
+  });
+  assert.deepEqual(
+    (emitted.diagnostics ?? []).map((d) => ts.flattenDiagnosticMessageText(d.messageText, " ")),
+    [],
+    "lib/nav.ts did not compile — fix the source, do not weaken the test",
+  );
+  const js = emitted.outputText;
+  // Refuse to run against something that is no longer the real source: all
+  // three exports must survive the compile, and no type syntax may remain.
+  for (const name of ["NAV_ITEMS", "MOBILE_TAB_SLOTS", "splitNavigation"]) {
+    assert.match(
+      js,
+      new RegExp(`export\\s+(const|function)\\s+${name}\\b`),
+      `lib/nav.ts no longer exports ${name}`,
+    );
+  }
+  assert.equal(
+    /\bNavItem\b/.test(js),
+    false,
+    "a NavItem annotation survived the compile — investigate, do not weaken the test",
+  );
+  return import(`data:text/javascript;base64,${Buffer.from(js, "utf8").toString("base64")}`);
 }
 
 const nav = await loadNavModule();
 const { NAV_ITEMS, MOBILE_TAB_SLOTS, splitNavigation } = nav;
 
 function itemsFor(role, { capabilities = null, platformAdmin = false } = {}) {
-  return NAV_ITEMS.filter((item) =>
-    item.roles.includes(role)
-    && (!item.capability || capabilities === null || capabilities.has(item.capability))
-    && (!item.platformOnly || platformAdmin));
+  return NAV_ITEMS.filter(
+    (item) =>
+      item.roles.includes(role) &&
+      (!item.capability || capabilities === null || capabilities.has(item.capability)) &&
+      (!item.platformOnly || platformAdmin),
+  );
 }
 
 test("splitNavigation drops nothing and duplicates nothing, for every role", () => {
@@ -66,7 +97,11 @@ test("splitNavigation drops nothing and duplicates nothing, for every role", () 
         mine.map((i) => i.href).sort(),
         `${role} (platformAdmin=${platformAdmin}): the mobile split lost or invented a destination`,
       );
-      assert.equal(new Set(reachable).size, reachable.length, `${role}: a destination appears in both the tab bar and More`);
+      assert.equal(
+        new Set(reachable).size,
+        reachable.length,
+        `${role}: a destination appears in both the tab bar and More`,
+      );
       assert.ok(tabs.length <= MOBILE_TAB_SLOTS, `${role}: more tabs than the bar has slots`);
     }
   }
@@ -77,13 +112,24 @@ const code = (src) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/
 
 test("the tab bar and /more both defer to splitNavigation", () => {
   const more = readFileSync(join(root, "app/(app)/more/page.tsx"), "utf8");
-  for (const [name, source] of [["components/Nav.tsx", navComponent], ["app/(app)/more/page.tsx", more]]) {
+  for (const [name, source] of [
+    ["components/Nav.tsx", navComponent],
+    ["app/(app)/more/page.tsx", more],
+  ]) {
     const src = code(source);
     assert.match(src, /splitNavigation\(/, `${name} must use the shared split`);
     // The original defect: each file decided the split for itself, and Invoices
     // fell through the gap. Neither may slice or re-filter on `bottom` again.
-    assert.equal(/\.slice\(0,\s*\d/.test(src), false, `${name} re-implements the tab-bar cut instead of using splitNavigation`);
-    assert.equal(/!\s*\w+\.bottom/.test(src), false, `${name} re-filters on \`bottom\` instead of using splitNavigation`);
+    assert.equal(
+      /\.slice\(0,\s*\d/.test(src),
+      false,
+      `${name} re-implements the tab-bar cut instead of using splitNavigation`,
+    );
+    assert.equal(
+      /!\s*\w+\.bottom/.test(src),
+      false,
+      `${name} re-filters on \`bottom\` instead of using splitNavigation`,
+    );
   }
 });
 
@@ -91,9 +137,17 @@ test("the tab bar and /more both defer to splitNavigation", () => {
 
 test("the layout harness below still models the sidebar Nav.tsx renders", () => {
   for (const cls of ["desk-side", "side-brand", "side-utilities", "side-footer"]) {
-    assert.match(navComponent, new RegExp(`"${cls}"`), `Nav.tsx no longer renders .${cls} — the layout harness is out of date`);
+    assert.match(
+      navComponent,
+      new RegExp(`"${cls}"`),
+      `Nav.tsx no longer renders .${cls} — the layout harness is out of date`,
+    );
   }
-  assert.match(navComponent, /<SideNavScroller/, "Nav.tsx no longer uses SideNavScroller — the layout harness is out of date");
+  assert.match(
+    navComponent,
+    /<SideNavScroller/,
+    "Nav.tsx no longer uses SideNavScroller — the layout harness is out of date",
+  );
   const scroller = code(readFileSync(join(root, "components/SideNavScroller.tsx"), "utf8"));
   for (const cls of ["side-nav-wrap", "side-nav", "side-nav-inner", "side-nav-fade-bottom"]) {
     assert.match(scroller, new RegExp(cls), `SideNavScroller no longer renders .${cls}`);
@@ -101,13 +155,25 @@ test("the layout harness below still models the sidebar Nav.tsx renders", () => 
   // The harness reproduces the component's scroll-edge rule in plain JS (there
   // is no React in a `setContent` page). These two assertions are what stop it
   // becoming a test of itself: the component must still compute the same thing.
-  assert.match(scroller, /scrollTop > 2/, "SideNavScroller changed how it decides there is content above");
-  assert.match(scroller, /scrollTop \+ nav\.clientHeight < nav\.scrollHeight - 2/, "SideNavScroller changed how it decides there is content below");
+  assert.match(
+    scroller,
+    /scrollTop > 2/,
+    "SideNavScroller changed how it decides there is content above",
+  );
+  assert.match(
+    scroller,
+    /scrollTop \+ nav\.clientHeight < nav\.scrollHeight - 2/,
+    "SideNavScroller changed how it decides there is content below",
+  );
   assert.match(scroller, /can-scroll-up/, "SideNavScroller no longer sets .can-scroll-up");
   assert.match(scroller, /can-scroll-down/, "SideNavScroller no longer sets .can-scroll-down");
   // `/appearance` is rendered by .side-utilities; it must not also be listed in
   // the Tools group, or the sidebar prints the same destination twice.
-  assert.match(code(navComponent), /item\.href !== "\/appearance"/, "the duplicate /appearance row is back in Tools");
+  assert.match(
+    code(navComponent),
+    /item\.href !== "\/appearance"/,
+    "the duplicate /appearance row is back in Tools",
+  );
 });
 
 /* ------------------------------------------------------------------ layout */
@@ -116,7 +182,8 @@ function sidebarHtml(role) {
   const mine = itemsFor(role, { platformAdmin: true });
   const primary = mine.filter((i) => i.group !== "tools");
   const tools = mine.filter((i) => i.group === "tools" && i.href !== "/appearance");
-  const row = (i, cls) => `<a class="${cls}" href="${i.href}" data-dest="${i.href}"><svg class="nav-icon"></svg><span>${i.key}</span></a>`;
+  const row = (i, cls) =>
+    `<a class="${cls}" href="${i.href}" data-dest="${i.href}"><svg class="nav-icon"></svg><span>${i.key}</span></a>`;
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><style>${css}</style></head><body>
 <div class="shell">
   <aside class="desk-side">
@@ -170,7 +237,9 @@ async function measure(viewport, dir) {
   try {
     ({ chromium } = await import("@playwright/test"));
   } catch (error) {
-    throw new Error(`@playwright/test is not installed, so the A3 layout probe cannot run: ${error.message}`);
+    throw new Error(
+      `@playwright/test is not installed, so the A3 layout probe cannot run: ${error.message}`,
+    );
   }
   let browser;
   try {
@@ -181,19 +250,26 @@ async function measure(viewport, dir) {
     browser = await chromium.launch({ args: ["--enable-features=OverlayScrollbar"] });
   } catch (error) {
     throw new Error(
-      "Chromium is not available, so the A3 layout probe cannot run. Install it with `npx playwright install chromium`. "
-      + "This check is not optional: A3 is a layout defect and no amount of reading CSS proves it fixed.\n"
-      + String(error),
+      "Chromium is not available, so the A3 layout probe cannot run. Install it with `npx playwright install chromium`. " +
+        "This check is not optional: A3 is a layout defect and no amount of reading CSS proves it fixed.\n" +
+        String(error),
     );
   }
   const page = await browser.newPage({ viewport });
-  await page.setContent(sidebarHtml("owner").replace('<html lang="en">', `<html lang="en" dir="${dir}">`));
+  await page.setContent(
+    sidebarHtml("owner").replace('<html lang="en">', `<html lang="en" dir="${dir}">`),
+  );
   const result = await page.evaluate(async () => {
     // The cue fades over .18s. Wait past that after each change so the value
     // read is the settled one and not a frame of the transition.
-    const settle = () => new Promise((resolve) => setTimeout(() => requestAnimationFrame(resolve), 260));
+    const settle = () =>
+      new Promise((resolve) => setTimeout(() => requestAnimationFrame(resolve), 260));
     const vh = window.innerHeight;
-    const rect = (sel) => { const el = document.querySelector(sel); const b = el.getBoundingClientRect(); return { top: b.top, bottom: b.bottom, height: b.height }; };
+    const rect = (sel) => {
+      const el = document.querySelector(sel);
+      const b = el.getBoundingClientRect();
+      return { top: b.top, bottom: b.bottom, height: b.height };
+    };
     const nav = document.querySelector(".side-nav");
     const wrap = document.querySelector(".side-nav-wrap");
     const fadeDown = document.querySelector(".side-nav-fade-bottom");
@@ -202,12 +278,19 @@ async function measure(viewport, dir) {
     nav.scrollTop = 0;
     window.__measureSideNav();
     await settle();
-    const atRest = { down: getComputedStyle(fadeDown).opacity, up: getComputedStyle(fadeUp).opacity, cls: wrap.className };
+    const atRest = {
+      down: getComputedStyle(fadeDown).opacity,
+      up: getComputedStyle(fadeUp).opacity,
+      cls: wrap.className,
+    };
     // ...and at the bottom of the list.
     nav.scrollTop = nav.scrollHeight;
     window.__measureSideNav();
     await settle();
-    const atEnd = { down: getComputedStyle(fadeDown).opacity, up: getComputedStyle(fadeUp).opacity };
+    const atEnd = {
+      down: getComputedStyle(fadeDown).opacity,
+      up: getComputedStyle(fadeUp).opacity,
+    };
     nav.scrollTop = 0;
     window.__measureSideNav();
     await settle();
@@ -217,11 +300,25 @@ async function measure(viewport, dir) {
     for (const el of dests) {
       el.scrollIntoView({ block: "nearest" });
       const b = el.getBoundingClientRect();
-      if (b.height === 0 || b.width === 0) { unreachable.push(`${el.dataset.dest} has no box`); continue; }
-      if (b.top < -0.5 || b.bottom > vh + 0.5) { unreachable.push(`${el.dataset.dest} still outside the viewport after scrolling: ${Math.round(b.top)}..${Math.round(b.bottom)}`); continue; }
+      if (b.height === 0 || b.width === 0) {
+        unreachable.push(`${el.dataset.dest} has no box`);
+        continue;
+      }
+      if (b.top < -0.5 || b.bottom > vh + 0.5) {
+        unreachable.push(
+          `${el.dataset.dest} still outside the viewport after scrolling: ${Math.round(b.top)}..${Math.round(b.bottom)}`,
+        );
+        continue;
+      }
       // Centre of the row itself — in RTL the sidebar is on the other edge.
-      const hit = document.elementFromPoint(Math.round((b.left + b.right) / 2), Math.round((b.top + b.bottom) / 2));
-      if (!hit || !(el === hit || el.contains(hit) || hit.contains(el))) unreachable.push(`${el.dataset.dest} is covered by ${hit ? hit.className || hit.tagName : "nothing"}`);
+      const hit = document.elementFromPoint(
+        Math.round((b.left + b.right) / 2),
+        Math.round((b.top + b.bottom) / 2),
+      );
+      if (!hit || !(el === hit || el.contains(hit) || hit.contains(el)))
+        unreachable.push(
+          `${el.dataset.dest} is covered by ${hit ? hit.className || hit.tagName : "nothing"}`,
+        );
     }
 
     return {
@@ -250,17 +347,36 @@ for (const viewport of VIEWPORTS) {
 
     // Nothing may be pushed past the bottom of the window. This is what
     // `.desk-side { overflow: hidden }` plus a flex-none footer guarantees.
-    assert.ok(m.aside.bottom <= m.vh + 0.5, `the sidebar itself overflows the viewport by ${Math.round(m.aside.bottom - m.vh)}px`);
-    assert.ok(m.footer.bottom <= m.vh + 0.5 && m.footer.top >= -0.5, `sign out is off screen (${Math.round(m.footer.top)}..${Math.round(m.footer.bottom)} of ${m.vh})`);
-    assert.ok(m.utilities.bottom <= m.vh + 0.5 && m.utilities.top >= -0.5, `the utilities row is off screen (${Math.round(m.utilities.top)}..${Math.round(m.utilities.bottom)} of ${m.vh})`);
+    assert.ok(
+      m.aside.bottom <= m.vh + 0.5,
+      `the sidebar itself overflows the viewport by ${Math.round(m.aside.bottom - m.vh)}px`,
+    );
+    assert.ok(
+      m.footer.bottom <= m.vh + 0.5 && m.footer.top >= -0.5,
+      `sign out is off screen (${Math.round(m.footer.top)}..${Math.round(m.footer.bottom)} of ${m.vh})`,
+    );
+    assert.ok(
+      m.utilities.bottom <= m.vh + 0.5 && m.utilities.top >= -0.5,
+      `the utilities row is off screen (${Math.round(m.utilities.top)}..${Math.round(m.utilities.bottom)} of ${m.vh})`,
+    );
 
     // No destination twice: the same href in two rows is a duplicate link for a
     // screen reader and wasted height in a column that has none to spare.
-    assert.equal(new Set(m.destinations).size, m.destinations.length, `the sidebar renders a destination twice: ${m.destinations.join(", ")}`);
+    assert.equal(
+      new Set(m.destinations).size,
+      m.destinations.length,
+      `the sidebar renders a destination twice: ${m.destinations.join(", ")}`,
+    );
 
     // Every destination the role can see is in the sidebar somewhere.
-    const expected = itemsFor("owner", { platformAdmin: true }).map((i) => i.href).sort();
-    assert.deepEqual([...m.destinations].sort(), expected, "the sidebar and lib/nav.ts disagree about what an owner can reach");
+    const expected = itemsFor("owner", { platformAdmin: true })
+      .map((i) => i.href)
+      .sort();
+    assert.deepEqual(
+      [...m.destinations].sort(),
+      expected,
+      "the sidebar and lib/nav.ts disagree about what an owner can reach",
+    );
   });
 
   test(`A3: the sidebar says it scrolls at ${viewport.width}x${viewport.height}`, async () => {
@@ -272,11 +388,23 @@ for (const viewport of VIEWPORTS) {
     // painted at rest, so a well holding half its content looked like a list
     // that simply ended. There must be a cue, and it must be showing before
     // the user touches anything.
-    assert.match(m.wrapClass, /can-scroll-down/, "the scroll port does not know it has content below");
-    assert.equal(m.atRest.down, "1", "there is no visible cue that the navigation continues below the fold");
+    assert.match(
+      m.wrapClass,
+      /can-scroll-down/,
+      "the scroll port does not know it has content below",
+    );
+    assert.equal(
+      m.atRest.down,
+      "1",
+      "there is no visible cue that the navigation continues below the fold",
+    );
     assert.equal(m.atRest.up, "0", "the top cue is showing when nothing is scrolled past");
     // ...and it must go away at the end, or it is decoration rather than a cue.
-    assert.equal(m.atEnd.down, "0", "the cue still claims there is more below at the end of the list");
+    assert.equal(
+      m.atEnd.down,
+      "0",
+      "the cue still claims there is more below at the end of the list",
+    );
     assert.equal(m.atEnd.up, "1", "no cue that there is content above once scrolled");
 
     // At least half the navigation is on screen without scrolling. The audit
@@ -284,7 +412,10 @@ for (const viewport of VIEWPORTS) {
     // this is the height budget that keeps the sidebar a navigation rather than
     // a peephole.
     const visible = m.nav.clientHeight / m.nav.scrollHeight;
-    assert.ok(visible >= 0.5, `only ${Math.round(visible * 100)}% of the navigation fits on screen at ${viewport.height}px tall`);
+    assert.ok(
+      visible >= 0.5,
+      `only ${Math.round(visible * 100)}% of the navigation fits on screen at ${viewport.height}px tall`,
+    );
   });
 }
 
@@ -293,5 +424,9 @@ test("A3: the scroll cue is mirrored under RTL", async () => {
   assert.deepEqual(m.unreachable, []);
   // The gap that keeps the cue clear of the scrollbar must follow the writing
   // direction, not the left edge.
-  assert.equal(m.fadeInset, "10px", "the fade uses a physical inset and will sit over the scrollbar in RTL");
+  assert.equal(
+    m.fadeInset,
+    "10px",
+    "the fade uses a physical inset and will sit over the scrollbar in RTL",
+  );
 });

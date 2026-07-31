@@ -27,7 +27,11 @@ type Supa = Awaited<ReturnType<typeof createClient>>;
  *
  * Owner/office only, because deleting any of these four is owner/office.
  */
-export default async function TrashPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+export default async function TrashPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const profile = await requireProfile();
   if (profile.role === "tech") redirect("/");
   const search = await searchParams;
@@ -40,9 +44,30 @@ export default async function TrashPage({ searchParams }: { searchParams: Promis
 
   const [customers, jobs, estimates, invoices] = await Promise.all([
     deletedRows(supabase, orgId, "customers", "id, name, phone, email, archived", from, to),
-    deletedRows(supabase, orgId, "jobs", "id, service, status, scheduled_date, customer_id", from, to),
-    deletedRows(supabase, orgId, "estimates", "id, number, status, issue_date, total_minor, customer_id", from, to),
-    deletedRows(supabase, orgId, "invoices", "id, number, status, issue_date, total_minor, customer_id, job_id, estimate_id", from, to),
+    deletedRows(
+      supabase,
+      orgId,
+      "jobs",
+      "id, service, status, scheduled_date, customer_id",
+      from,
+      to,
+    ),
+    deletedRows(
+      supabase,
+      orgId,
+      "estimates",
+      "id, number, status, issue_date, total_minor, customer_id",
+      from,
+      to,
+    ),
+    deletedRows(
+      supabase,
+      orgId,
+      "invoices",
+      "id, number, status, issue_date, total_minor, customer_id, job_id, estimate_id",
+      from,
+      to,
+    ),
   ]);
 
   const children = [...jobs.rows, ...estimates.rows, ...invoices.rows];
@@ -67,7 +92,10 @@ export default async function TrashPage({ searchParams }: { searchParams: Promis
   const parent = (map: Map<string, Record<string, unknown>>, id: unknown, labelKey: string) => {
     const found = map.get(String(id ?? ""));
     if (!found) return null;
-    return { deleted: found.deleted_at != null, name: found[labelKey] == null ? null : String(found[labelKey]) };
+    return {
+      deleted: found.deleted_at != null,
+      name: found[labelKey] == null ? null : String(found[labelKey]),
+    };
   };
 
   const rows: TrashRow[] = [
@@ -77,11 +105,15 @@ export default async function TrashPage({ searchParams }: { searchParams: Promis
         kind: "customer" as const,
         id: String(r.id),
         title: String(r.name ?? "(no name)"),
-        detail: [r.phone, r.email].filter(Boolean).join(" · ") || (r.archived ? "archived legacy record" : ""),
+        detail:
+          [r.phone, r.email].filter(Boolean).join(" · ") ||
+          (r.archived ? "archived legacy record" : ""),
         deletedAt: String(r.deleted_at ?? ""),
         deletedAtLabel: stamp(r.deleted_at),
         deletedBy: actorName(r.deleted_by),
-        blockers: (restoreBlockers("customer", context) as { message: string }[]).map((b) => b.message),
+        blockers: (restoreBlockers("customer", context) as { message: string }[]).map(
+          (b) => b.message,
+        ),
       };
     }),
     ...jobs.rows.map((r) => {
@@ -94,7 +126,9 @@ export default async function TrashPage({ searchParams }: { searchParams: Promis
         deletedAt: String(r.deleted_at ?? ""),
         deletedAtLabel: stamp(r.deleted_at),
         deletedBy: actorName(r.deleted_by),
-        blockers: (restoreBlockers("job", { deleted: true, customer }) as { message: string }[]).map((b) => b.message),
+        blockers: (
+          restoreBlockers("job", { deleted: true, customer }) as { message: string }[]
+        ).map((b) => b.message),
       };
     }),
     ...estimates.rows.map((r) => {
@@ -103,11 +137,15 @@ export default async function TrashPage({ searchParams }: { searchParams: Promis
         kind: "estimate" as const,
         id: String(r.id),
         title: `Estimate #${r.number ?? "—"}`,
-        detail: [customer?.name, r.issue_date, r.status, money(r.total_minor)].filter(Boolean).join(" · "),
+        detail: [customer?.name, r.issue_date, r.status, money(r.total_minor)]
+          .filter(Boolean)
+          .join(" · "),
         deletedAt: String(r.deleted_at ?? ""),
         deletedAtLabel: stamp(r.deleted_at),
         deletedBy: actorName(r.deleted_by),
-        blockers: (restoreBlockers("estimate", { deleted: true, customer }) as { message: string }[]).map((b) => b.message),
+        blockers: (
+          restoreBlockers("estimate", { deleted: true, customer }) as { message: string }[]
+        ).map((b) => b.message),
       };
     }),
     ...invoices.rows.map((r) => {
@@ -119,39 +157,77 @@ export default async function TrashPage({ searchParams }: { searchParams: Promis
         kind: "invoice" as const,
         id: String(r.id),
         title: `Invoice #${r.number ?? "—"}`,
-        detail: [customer?.name, r.issue_date, r.status, money(r.total_minor)].filter(Boolean).join(" · "),
+        detail: [customer?.name, r.issue_date, r.status, money(r.total_minor)]
+          .filter(Boolean)
+          .join(" · "),
         deletedAt: String(r.deleted_at ?? ""),
         deletedAtLabel: stamp(r.deleted_at),
         deletedBy: actorName(r.deleted_by),
-        blockers: (restoreBlockers("invoice", context) as { message: string }[]).map((b) => b.message),
+        blockers: (restoreBlockers("invoice", context) as { message: string }[]).map(
+          (b) => b.message,
+        ),
       };
     }),
   ].sort((a, b) => (a.deletedAt < b.deletedAt ? 1 : a.deletedAt > b.deletedAt ? -1 : 0));
 
   const total = customers.total + jobs.total + estimates.total + invoices.total;
-  const hasMore = [customers, jobs, estimates, invoices].some((r) => r.total > (page + 1) * PAGE_SIZE);
-  const unreadable = [customers, jobs, estimates, invoices].filter((r) => r.error).map((r) => r.table);
+  const hasMore = [customers, jobs, estimates, invoices].some(
+    (r) => r.total > (page + 1) * PAGE_SIZE,
+  );
+  const unreadable = [customers, jobs, estimates, invoices]
+    .filter((r) => r.error)
+    .map((r) => r.table);
 
   return (
     <div style={{ maxWidth: 820 }}>
       <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>Trash</h1>
       <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginTop: 4 }}>
-        {total} deleted {total === 1 ? "record" : "records"} · customers, jobs, estimates and invoices
+        {total} deleted {total === 1 ? "record" : "records"} · customers, jobs, estimates and
+        invoices
       </p>
 
-      <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", color: "#1e3a8a", borderRadius: 12, padding: "11px 14px", fontSize: "0.8125rem", margin: "12px 0 16px", lineHeight: 1.55 }}>
-        🗑️ Deleted records are hidden from every list and report but are never destroyed. Restore brings one back exactly as it
-        was. A record is restored <b>only when everything it belongs to is back first</b> — an invoice cannot return while its
-        customer is still deleted, because it would show up in your ledger attached to a customer no screen can open.
+      <div
+        style={{
+          background: "#eff6ff",
+          border: "1px solid #bfdbfe",
+          color: "#1e3a8a",
+          borderRadius: 12,
+          padding: "11px 14px",
+          fontSize: "0.8125rem",
+          margin: "12px 0 16px",
+          lineHeight: 1.55,
+        }}
+      >
+        🗑️ Deleted records are hidden from every list and report but are never destroyed. Restore
+        brings one back exactly as it was. A record is restored{" "}
+        <b>only when everything it belongs to is back first</b> — an invoice cannot return while its
+        customer is still deleted, because it would show up in your ledger attached to a customer no
+        screen can open.
         <div style={{ marginTop: 6 }}>
-          Looking for old imported clients instead? Those are in <Link href="/archive" style={{ color: "#1d4ed8", fontWeight: 700 }}>Archive</Link> — a different thing, kept separately.
+          Looking for old imported clients instead? Those are in{" "}
+          <Link href="/archive" style={{ color: "#1d4ed8", fontWeight: 700 }}>
+            Archive
+          </Link>{" "}
+          — a different thing, kept separately.
         </div>
       </div>
 
       {unreadable.length > 0 && (
-        <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", borderRadius: 12, padding: "11px 14px", fontSize: "0.8125rem", marginBottom: 14 }}>
-          Could not read deleted {unreadable.join(", ")}. This list is incomplete. If this persists, migration
-          <code style={{ margin: "0 4px" }}>db/037_recovery.sql</code> may not have been applied yet.
+        <div
+          style={{
+            background: "#fef2f2",
+            border: "1px solid #fecaca",
+            color: "#991b1b",
+            borderRadius: 12,
+            padding: "11px 14px",
+            fontSize: "0.8125rem",
+            marginBottom: 14,
+          }}
+        >
+          Could not read deleted {unreadable.join(", ")}. This list is incomplete. If this persists,
+          migration
+          <code style={{ margin: "0 4px" }}>db/037_recovery.sql</code> may not have been applied
+          yet.
         </div>
       )}
 
@@ -159,15 +235,32 @@ export default async function TrashPage({ searchParams }: { searchParams: Promis
 
       {(page > 0 || hasMore) && (
         <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-          {page > 0 && <Link href={`/trash?page=${page - 1}`} style={pageBtn}>‹ Newer</Link>}
-          {hasMore && <Link href={`/trash?page=${page + 1}`} style={pageBtn}>Older ›</Link>}
+          {page > 0 && (
+            <Link href={`/trash?page=${page - 1}`} style={pageBtn}>
+              ‹ Newer
+            </Link>
+          )}
+          {hasMore && (
+            <Link href={`/trash?page=${page + 1}`} style={pageBtn}>
+              Older ›
+            </Link>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-const pageBtn: React.CSSProperties = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: "0.8125rem", color: "#334155", textDecoration: "none" };
+const pageBtn: React.CSSProperties = {
+  background: "#fff",
+  border: "1px solid #e2e8f0",
+  borderRadius: 10,
+  padding: "9px 14px",
+  fontWeight: 700,
+  fontSize: "0.8125rem",
+  color: "#334155",
+  textDecoration: "none",
+};
 
 /**
  * Formatted HERE, on the server, and passed down as a string.
@@ -202,13 +295,22 @@ function unique(values: unknown[]): string[] {
  * blanking the entire screen — a trash list missing one column still restores
  * records; a 500 does not.
  */
-async function deletedRows(supabase: Supa, orgId: string, table: string, columns: string, from: number, to: number) {
-  const run = (cols: string) => supabase
-    .from(table).select(`${cols}, deleted_at`, { count: "exact" })
-    .eq("organization_id", orgId)
-    .not("deleted_at", "is", null)
-    .order("deleted_at", { ascending: false })
-    .range(from, to);
+async function deletedRows(
+  supabase: Supa,
+  orgId: string,
+  table: string,
+  columns: string,
+  from: number,
+  to: number,
+) {
+  const run = (cols: string) =>
+    supabase
+      .from(table)
+      .select(`${cols}, deleted_at`, { count: "exact" })
+      .eq("organization_id", orgId)
+      .not("deleted_at", "is", null)
+      .order("deleted_at", { ascending: false })
+      .range(from, to);
 
   let { data, error, count } = await run(`${columns}, deleted_by`);
   if (error) ({ data, error, count } = await run(columns));
@@ -225,7 +327,8 @@ async function lookup(supabase: Supa, table: string, ids: string[], columns: str
   const map = new Map<string, Record<string, unknown>>();
   if (!ids.length) return map;
   const { data } = await supabase.from(table).select(columns).in("id", ids);
-  for (const row of (data ?? []) as unknown as Record<string, unknown>[]) map.set(String(row.id), row);
+  for (const row of (data ?? []) as unknown as Record<string, unknown>[])
+    map.set(String(row.id), row);
   return map;
 }
 
@@ -237,9 +340,13 @@ async function privacyErasedCustomers(supabase: Supa, orgId: string, customerIds
   const erased = new Set<string>();
   if (!customerIds.length) return erased;
   const { data } = await supabase
-    .from("privacy_requests").select("customer_id")
-    .eq("organization_id", orgId).eq("request_type", "deletion").eq("status", "completed")
+    .from("privacy_requests")
+    .select("customer_id")
+    .eq("organization_id", orgId)
+    .eq("request_type", "deletion")
+    .eq("status", "completed")
     .in("customer_id", customerIds);
-  for (const row of (data ?? []) as { customer_id: string | null }[]) if (row.customer_id) erased.add(row.customer_id);
+  for (const row of (data ?? []) as { customer_id: string | null }[])
+    if (row.customer_id) erased.add(row.customer_id);
   return erased;
 }

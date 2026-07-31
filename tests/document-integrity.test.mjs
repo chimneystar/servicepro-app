@@ -4,14 +4,29 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { stripSqlComments } from "./helpers/sql.mjs";
 import {
-  MATERIAL_FIELDS, LOCK_CODES, MIN_REASON_LENGTH, NUMBERING_POLICY,
-  REOPENABLE_LOCK_CODES, NUMBER_COLLISION_RETRIES, ACTIVE_CREDIT_STATUS,
-  documentLock, isDocumentLocked, assertDocumentEditable,
-  parseVersion, assertVersionMatch,
-  nextAllocationFrom, shouldReleaseDocumentNumber, isUniqueViolation,
-  validateVoid, validateCreditNote, validateCreditNoteCancel,
-  validateReopen, canReopen,
-  issuedCreditsMinor, remainingCreditableMinor, invoiceOutstandingMinor,
+  MATERIAL_FIELDS,
+  LOCK_CODES,
+  MIN_REASON_LENGTH,
+  NUMBERING_POLICY,
+  REOPENABLE_LOCK_CODES,
+  NUMBER_COLLISION_RETRIES,
+  ACTIVE_CREDIT_STATUS,
+  documentLock,
+  isDocumentLocked,
+  assertDocumentEditable,
+  parseVersion,
+  assertVersionMatch,
+  nextAllocationFrom,
+  shouldReleaseDocumentNumber,
+  isUniqueViolation,
+  validateVoid,
+  validateCreditNote,
+  validateCreditNoteCancel,
+  validateReopen,
+  canReopen,
+  issuedCreditsMinor,
+  remainingCreditableMinor,
+  invoiceOutstandingMinor,
 } from "../lib/core/documents.mjs";
 
 // ===========================================================================
@@ -41,7 +56,13 @@ const RAW_MIGRATION = readFileSync(join(root, "db", "036_document_integrity.sql"
 // 6a.5 — locking, proven in BOTH directions.
 // ---------------------------------------------------------------------------
 
-const draftInvoice = { status: "unpaid", signed_at: null, sent_at: null, paid_at: null, voided_at: null };
+const draftInvoice = {
+  status: "unpaid",
+  signed_at: null,
+  sent_at: null,
+  paid_at: null,
+  voided_at: null,
+};
 const draftEstimate = { status: "draft", signed_at: null, sent_at: null, voided_at: null };
 
 test("a draft document is editable — the guard is not a cry-wolf", () => {
@@ -106,19 +127,27 @@ test("the lock message names BOTH what happened and what to do instead", () => {
 
 test("the lock message is available in Hebrew as well as English", () => {
   const he = assertDocumentEditable("invoice", { ...draftInvoice, status: "paid" }, { he: true });
-  assert.notEqual(he.error, assertDocumentEditable("invoice", { ...draftInvoice, status: "paid" }).error);
+  assert.notEqual(
+    he.error,
+    assertDocumentEditable("invoice", { ...draftInvoice, status: "paid" }).error,
+  );
   assert.match(he.error, /[֐-׿]/, "the Hebrew message must actually be Hebrew");
 });
 
 test("void beats paid beats signed beats sent — the precedence is fixed", () => {
   const everything = {
-    status: "paid", signed_at: "x", sent_at: "x", paid_at: "x",
-    voided_at: "2026-01-02T00:00:00Z", collected_minor: 100,
+    status: "paid",
+    signed_at: "x",
+    sent_at: "x",
+    paid_at: "x",
+    voided_at: "2026-01-02T00:00:00Z",
+    collected_minor: 100,
   };
   assert.equal(documentLock("invoice", everything).code, LOCK_CODES.VOIDED);
   assert.equal(documentLock("invoice", { ...everything, voided_at: null }).code, LOCK_CODES.PAID);
   assert.equal(
-    documentLock("invoice", { ...everything, voided_at: null, status: "unpaid", paid_at: null }).code,
+    documentLock("invoice", { ...everything, voided_at: null, status: "unpaid", paid_at: null })
+      .code,
     LOCK_CODES.COLLECTED,
   );
 });
@@ -191,8 +220,16 @@ test("allocation never re-issues a number already in use", () => {
 });
 
 test("a burned number is handed back ONLY if the counter has not moved", () => {
-  assert.equal(shouldReleaseDocumentNumber(5001, 5001), true, "nobody else allocated: give it back");
-  assert.equal(shouldReleaseDocumentNumber(5002, 5001), false, "someone else allocated: keep the gap");
+  assert.equal(
+    shouldReleaseDocumentNumber(5001, 5001),
+    true,
+    "nobody else allocated: give it back",
+  );
+  assert.equal(
+    shouldReleaseDocumentNumber(5002, 5001),
+    false,
+    "someone else allocated: keep the gap",
+  );
   assert.equal(shouldReleaseDocumentNumber(5000, 5001), false);
   for (const bad of [null, undefined, "x", 0, -1]) {
     assert.equal(shouldReleaseDocumentNumber(bad, 5001), false);
@@ -202,8 +239,15 @@ test("a burned number is handed back ONLY if the counter has not moved", () => {
 
 test("a unique violation is recognised so it can be retried, not shown raw", () => {
   assert.equal(isUniqueViolation({ code: "23505" }), true);
-  assert.equal(isUniqueViolation({ message: 'duplicate key value violates unique constraint "x"' }), true);
-  assert.equal(isUniqueViolation({ code: "23503" }), false, "a foreign-key error is not a collision");
+  assert.equal(
+    isUniqueViolation({ message: 'duplicate key value violates unique constraint "x"' }),
+    true,
+  );
+  assert.equal(
+    isUniqueViolation({ code: "23503" }),
+    false,
+    "a foreign-key error is not a collision",
+  );
   assert.equal(isUniqueViolation({ message: "network error" }), false);
   assert.equal(isUniqueViolation(null), false);
   assert.ok(NUMBER_COLLISION_RETRIES >= 1);
@@ -214,7 +258,11 @@ test("a unique violation is recognised so it can be retried, not shown raw", () 
 // ---------------------------------------------------------------------------
 
 test("an unpaid, sent invoice CAN be voided with a reason", () => {
-  const r = validateVoid("invoice", { ...draftInvoice, sent_at: "x" }, { reason: "duplicate of #1043" });
+  const r = validateVoid(
+    "invoice",
+    { ...draftInvoice, sent_at: "x" },
+    { reason: "duplicate of #1043" },
+  );
   assert.equal(r.ok, true, r.error);
   assert.equal(r.reason, "duplicate of #1043");
 });
@@ -233,9 +281,14 @@ test("a document with money collected against it CANNOT be voided", () => {
   // false, and the correct instrument is a credit note. Getting this wrong
   // would leave a payment sitting against a document that claims never to have
   // existed.
-  const r = validateVoid("invoice", { ...draftInvoice, sent_at: "x" }, {
-    reason: "customer changed their mind", collectedMinor: 250_00,
-  });
+  const r = validateVoid(
+    "invoice",
+    { ...draftInvoice, sent_at: "x" },
+    {
+      reason: "customer changed their mind",
+      collectedMinor: 250_00,
+    },
+  );
   assert.equal(r.ok, false);
   assert.equal(r.code, "money_collected");
   assert.match(r.error, /250\.00/);
@@ -243,14 +296,26 @@ test("a document with money collected against it CANNOT be voided", () => {
 });
 
 test("voiding twice is refused, and a deleted document cannot be voided", () => {
-  const already = validateVoid("invoice", { ...draftInvoice, voided_at: "x" }, { reason: "duplicate entry" });
+  const already = validateVoid(
+    "invoice",
+    { ...draftInvoice, voided_at: "x" },
+    { reason: "duplicate entry" },
+  );
   assert.equal(already.ok, false);
   assert.equal(already.code, "already_void");
 
-  const byStatus = validateVoid("invoice", { ...draftInvoice, status: "void" }, { reason: "duplicate entry" });
+  const byStatus = validateVoid(
+    "invoice",
+    { ...draftInvoice, status: "void" },
+    { reason: "duplicate entry" },
+  );
   assert.equal(byStatus.code, "already_void");
 
-  const deleted = validateVoid("estimate", { ...draftEstimate, deleted_at: "x" }, { reason: "duplicate entry" });
+  const deleted = validateVoid(
+    "estimate",
+    { ...draftEstimate, deleted_at: "x" },
+    { reason: "duplicate entry" },
+  );
   assert.equal(deleted.ok, false);
   assert.equal(deleted.code, "deleted");
 });
@@ -259,11 +324,19 @@ test("voiding twice is refused, and a deleted document cannot be voided", () => 
 // 6a.1 — credit notes.
 // ---------------------------------------------------------------------------
 
-const invoice = (total, extra = {}) => ({ id: "i1", status: "unpaid", total_minor: total, ...extra });
+const invoice = (total, extra = {}) => ({
+  id: "i1",
+  status: "unpaid",
+  total_minor: total,
+  ...extra,
+});
 const credit = (amount, status = ACTIVE_CREDIT_STATUS) => ({ amount_minor: amount, status });
 
 test("a credit note within the invoice total is permitted", () => {
-  const r = validateCreditNote(invoice(1000_00), [], { amountMinor: 250_00, reason: "wrong quantity billed" });
+  const r = validateCreditNote(invoice(1000_00), [], {
+    amountMinor: 250_00,
+    reason: "wrong quantity billed",
+  });
   assert.equal(r.ok, true, r.error);
   assert.equal(r.amountMinor, 250_00);
 });
@@ -275,10 +348,16 @@ test("credit notes can never exceed the invoice they correct", () => {
   assert.equal(issuedCreditsMinor(notes), 900_00);
   assert.equal(remainingCreditableMinor(invoice(1000_00), notes), 100_00);
 
-  const ok = validateCreditNote(invoice(1000_00), notes, { amountMinor: 100_00, reason: "final adjustment" });
+  const ok = validateCreditNote(invoice(1000_00), notes, {
+    amountMinor: 100_00,
+    reason: "final adjustment",
+  });
   assert.equal(ok.ok, true, ok.error);
 
-  const over = validateCreditNote(invoice(1000_00), notes, { amountMinor: 100_01, reason: "final adjustment" });
+  const over = validateCreditNote(invoice(1000_00), notes, {
+    amountMinor: 100_01,
+    reason: "final adjustment",
+  });
   assert.equal(over.ok, false);
   assert.equal(over.code, "exceeds_invoice");
   assert.match(over.error, /100\.00/);
@@ -287,21 +366,33 @@ test("credit notes can never exceed the invoice they correct", () => {
 test("a CANCELLED credit note stops counting against the ceiling", () => {
   const notes = [credit(1000_00, "cancelled")];
   assert.equal(issuedCreditsMinor(notes), 0);
-  const r = validateCreditNote(invoice(1000_00), notes, { amountMinor: 1000_00, reason: "reissued correctly" });
+  const r = validateCreditNote(invoice(1000_00), notes, {
+    amountMinor: 1000_00,
+    reason: "reissued correctly",
+  });
   assert.equal(r.ok, true, r.error);
 });
 
 test("a fully credited or voided invoice takes no further credit", () => {
-  const full = validateCreditNote(invoice(500_00), [credit(500_00)], { amountMinor: 1_00, reason: "one more" });
+  const full = validateCreditNote(invoice(500_00), [credit(500_00)], {
+    amountMinor: 1_00,
+    reason: "one more",
+  });
   assert.equal(full.code, "fully_credited");
 
-  const voided = validateCreditNote(invoice(500_00, { voided_at: "x" }), [], { amountMinor: 1_00, reason: "one more" });
+  const voided = validateCreditNote(invoice(500_00, { voided_at: "x" }), [], {
+    amountMinor: 1_00,
+    reason: "one more",
+  });
   assert.equal(voided.code, "voided");
 });
 
 test("a credit note amount must be a positive whole number of minor units", () => {
   for (const bad of [0, -1, 1.5, NaN, Infinity, "50", null, undefined]) {
-    const r = validateCreditNote(invoice(1000_00), [], { amountMinor: bad, reason: "billing correction" });
+    const r = validateCreditNote(invoice(1000_00), [], {
+      amountMinor: bad,
+      reason: "billing correction",
+    });
     assert.equal(r.ok, false, `${JSON.stringify(bad)} must be refused`);
     assert.equal(r.code, "invalid_amount");
   }
@@ -320,17 +411,32 @@ test("the balance nets credits off the bill, not off the money received", () => 
   const inv = invoice(1000_00);
   assert.equal(invoiceOutstandingMinor(inv, { collectedMinor: 0, creditNotes: [] }), 1000_00);
   assert.equal(invoiceOutstandingMinor(inv, { collectedMinor: 400_00, creditNotes: [] }), 600_00);
-  assert.equal(invoiceOutstandingMinor(inv, { collectedMinor: 0, creditNotes: [credit(250_00)] }), 750_00);
-  assert.equal(invoiceOutstandingMinor(inv, { collectedMinor: 400_00, creditNotes: [credit(250_00)] }), 350_00);
+  assert.equal(
+    invoiceOutstandingMinor(inv, { collectedMinor: 0, creditNotes: [credit(250_00)] }),
+    750_00,
+  );
+  assert.equal(
+    invoiceOutstandingMinor(inv, { collectedMinor: 400_00, creditNotes: [credit(250_00)] }),
+    350_00,
+  );
   // Over-credited plus over-paid never goes negative.
-  assert.equal(invoiceOutstandingMinor(inv, { collectedMinor: 900_00, creditNotes: [credit(900_00)] }), 0);
+  assert.equal(
+    invoiceOutstandingMinor(inv, { collectedMinor: 900_00, creditNotes: [credit(900_00)] }),
+    0,
+  );
 });
 
 test("cancelling a credit note is recorded, and only once", () => {
-  const ok = validateCreditNoteCancel({ id: "c1", status: "issued" }, { reason: "issued against the wrong invoice" });
+  const ok = validateCreditNoteCancel(
+    { id: "c1", status: "issued" },
+    { reason: "issued against the wrong invoice" },
+  );
   assert.equal(ok.ok, true, ok.error);
 
-  const twice = validateCreditNoteCancel({ id: "c1", status: "cancelled" }, { reason: "issued in error again" });
+  const twice = validateCreditNoteCancel(
+    { id: "c1", status: "cancelled" },
+    { reason: "issued in error again" },
+  );
   assert.equal(twice.code, "already_cancelled");
 
   const noReason = validateCreditNoteCancel({ id: "c1", status: "issued" }, { reason: "x" });
@@ -370,7 +476,11 @@ test("a SIGNED, part-paid or voided estimate cannot be reopened", () => {
 
 test("an INVOICE can never be reopened — that is what credit notes are for", () => {
   assert.equal(canReopen("invoice", { ...draftInvoice, sent_at: "x" }), false);
-  const r = validateReopen("invoice", { ...draftInvoice, sent_at: "x" }, { reason: "we made a mistake" });
+  const r = validateReopen(
+    "invoice",
+    { ...draftInvoice, sent_at: "x" },
+    { reason: "we made a mistake" },
+  );
   assert.equal(r.ok, false);
   assert.equal(r.code, "not_reopenable");
   assert.match(r.error, /credit note/i);
@@ -401,7 +511,8 @@ test("the migration drops nothing except its own triggers and policies", () => {
   // The branch already shipped one migration that dropped policy names which
   // did not exist, so the "fix" silently did nothing. A migration that drops a
   // TABLE, COLUMN or FUNCTION is the version of that mistake that loses data.
-  const forbidden = MIGRATION.match(/drop\s+(table|column|type|schema|function|index|constraint)\b/gi) ?? [];
+  const forbidden =
+    MIGRATION.match(/drop\s+(table|column|type|schema|function|index|constraint)\b/gi) ?? [];
   assert.deepEqual(forbidden, [], `036 must drop nothing: ${forbidden.join(", ")}`);
 
   // The drops it DOES contain must all be `drop … if exists` on an object it
@@ -409,14 +520,19 @@ test("the migration drops nothing except its own triggers and policies", () => {
   for (const m of MIGRATION.matchAll(/drop\s+(trigger|policy)\s+(if\s+exists\s+)?(\S+)/gi)) {
     assert.ok(m[2], `"${m[0]}" must be guarded with IF EXISTS`);
     assert.ok(
-      new RegExp(`create\\s+${m[1]}\\s+${m[3].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(MIGRATION),
+      new RegExp(
+        `create\\s+${m[1]}\\s+${m[3].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+        "i",
+      ).test(MIGRATION),
       `${m[1]} ${m[3]} is dropped but never recreated`,
     );
   }
 });
 
 test("every column the migration adds is added IF NOT EXISTS (re-runnable)", () => {
-  const adds = [...MIGRATION.matchAll(/alter\s+table\s+\S+\s+add\s+column\s+(if\s+not\s+exists\s+)?(\w+)/gi)];
+  const adds = [
+    ...MIGRATION.matchAll(/alter\s+table\s+\S+\s+add\s+column\s+(if\s+not\s+exists\s+)?(\w+)/gi),
+  ];
   assert.ok(adds.length >= 14, `expected the new integrity columns, found ${adds.length}`);
   for (const m of adds) assert.ok(m[1], `add column ${m[2]} must be IF NOT EXISTS`);
 });
@@ -425,20 +541,33 @@ test("the migration adds the version column to BOTH document tables (6a.6)", () 
   for (const table of ["estimates", "invoices"]) {
     assert.match(
       MIGRATION,
-      new RegExp(`alter\\s+table\\s+public\\.${table}\\s+add\\s+column\\s+if\\s+not\\s+exists\\s+version\\b`, "i"),
+      new RegExp(
+        `alter\\s+table\\s+public\\.${table}\\s+add\\s+column\\s+if\\s+not\\s+exists\\s+version\\b`,
+        "i",
+      ),
       `${table} must gain a version column`,
     );
   }
   assert.match(MIGRATION, /new\.version\s*:=\s*coalesce\(old\.version,\s*0\)\s*\+\s*1/i);
   for (const t of ["estimates", "invoices"]) {
-    assert.match(MIGRATION, new RegExp(`create\\s+trigger\\s+trg_${t}_version\\s+before\\s+update\\s+on\\s+public\\.${t}`, "i"));
+    assert.match(
+      MIGRATION,
+      new RegExp(
+        `create\\s+trigger\\s+trg_${t}_version\\s+before\\s+update\\s+on\\s+public\\.${t}`,
+        "i",
+      ),
+    );
   }
 });
 
 test("the unique constraint on (organization_id, number) is added conditionally", () => {
   // schema.sql declares it inline, so a blind `add constraint` would leave a
   // second redundant unique index on every existing database.
-  assert.match(MIGRATION, /pg_constraint/i, "must look for an existing constraint before adding one");
+  assert.match(
+    MIGRATION,
+    /pg_constraint/i,
+    "must look for an existing constraint before adding one",
+  );
   assert.match(MIGRATION, /contype\s*=\s*'u'/i);
   assert.match(MIGRATION, /unique\s*\(\s*organization_id\s*,\s*number\s*\)/i);
   // The baseline really does have it — asserted here so the claim in the
@@ -465,20 +594,34 @@ test("release_document_number is a compare-and-set, never a blind rollback", () 
   assert.ok(fn, "release_document_number must be defined");
   for (const counter of ["invoice_counter", "estimate_counter", "credit_note_counter"]) {
     assert.match(
-      fn, new RegExp(`${counter}\\s*=\\s*p_number\\b`, "i"),
+      fn,
+      new RegExp(`${counter}\\s*=\\s*p_number\\b`, "i"),
       `the release must only fire when ${counter} still equals the allocated number`,
     );
   }
-  assert.match(fn, /not\s+exists\s*\(\s*select/i, "must refuse to release a number something already holds");
+  assert.match(
+    fn,
+    /not\s+exists\s*\(\s*select/i,
+    "must refuse to release a number something already holds",
+  );
   assert.match(fn, /forbidden/i, "must not let one tenant move another tenant's counter");
 });
 
 test("the credit-note ledger is append-only: no delete policy, no delete grant", () => {
   assert.match(MIGRATION, /create\s+table\s+if\s+not\s+exists\s+public\.credit_notes/i);
-  assert.match(MIGRATION, /alter\s+table\s+public\.credit_notes\s+enable\s+row\s+level\s+security/i);
-  assert.match(MIGRATION, /grant\s+select,\s*insert,\s*update\s+on\s+public\.credit_notes\s+to\s+authenticated/i);
+  assert.match(
+    MIGRATION,
+    /alter\s+table\s+public\.credit_notes\s+enable\s+row\s+level\s+security/i,
+  );
+  assert.match(
+    MIGRATION,
+    /grant\s+select,\s*insert,\s*update\s+on\s+public\.credit_notes\s+to\s+authenticated/i,
+  );
   assert.doesNotMatch(MIGRATION, /grant\s+delete\s+on\s+public\.credit_notes/i);
-  assert.doesNotMatch(MIGRATION, /create\s+policy\s+\w+\s+on\s+public\.credit_notes\s+for\s+delete/i);
+  assert.doesNotMatch(
+    MIGRATION,
+    /create\s+policy\s+\w+\s+on\s+public\.credit_notes\s+for\s+delete/i,
+  );
   assert.match(MIGRATION, /revoke\s+all\s+on\s+public\.credit_notes\s+from\s+anon/i);
 });
 
@@ -490,12 +633,19 @@ test("credit notes are gated on the same authority as refunds", () => {
 });
 
 test("credited_minor is a DERIVED cache, exactly like payments.refunded_minor", () => {
-  assert.match(MIGRATION, /alter\s+table\s+public\.invoices\s+add\s+column\s+if\s+not\s+exists\s+credited_minor/i);
-  const fn = MIGRATION.split("create or replace function public.sync_invoice_credited_total")[1] ?? "";
+  assert.match(
+    MIGRATION,
+    /alter\s+table\s+public\.invoices\s+add\s+column\s+if\s+not\s+exists\s+credited_minor/i,
+  );
+  const fn =
+    MIGRATION.split("create or replace function public.sync_invoice_credited_total")[1] ?? "";
   assert.ok(fn, "the sync function must exist");
   assert.match(fn, /sum\(amount_minor\)/i);
   assert.match(fn, /status\s*=\s*'issued'/i, "a cancelled credit note must not count");
-  assert.match(MIGRATION, /create\s+trigger\s+trg_credit_notes_sync[\s\S]{0,200}?after\s+insert\s+or\s+update\s+or\s+delete/i);
+  assert.match(
+    MIGRATION,
+    /create\s+trigger\s+trg_credit_notes_sync[\s\S]{0,200}?after\s+insert\s+or\s+update\s+or\s+delete/i,
+  );
 });
 
 test("the database refuses an over-credit, not only the action", () => {
@@ -503,8 +653,15 @@ test("the database refuses an over-credit, not only the action", () => {
   assert.ok(fn);
   assert.match(fn, /already\s*\+\s*new\.amount_minor\s*>\s*billed/i);
   assert.match(fn, /credit_exceeds_invoice/);
-  assert.match(fn, /c\.id\s*<>\s*new\.id/i, "must exclude the row being updated from its own ceiling");
-  assert.match(MIGRATION, /create\s+trigger\s+trg_credit_notes_guard\s+before\s+insert\s+or\s+update/i);
+  assert.match(
+    fn,
+    /c\.id\s*<>\s*new\.id/i,
+    "must exclude the row being updated from its own ceiling",
+  );
+  assert.match(
+    MIGRATION,
+    /create\s+trigger\s+trg_credit_notes_guard\s+before\s+insert\s+or\s+update/i,
+  );
 });
 
 test("the lock guard enforces exactly the MATERIAL_FIELDS list (6a.5)", () => {
@@ -518,19 +675,29 @@ test("the lock guard enforces exactly the MATERIAL_FIELDS list (6a.5)", () => {
   const cols = (guard.match(/cols\s+text\[\]\s*:=\s*array\[([\s\S]*?)\]/i) ?? [])[1] ?? "";
   const sqlFields = [...cols.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
   assert.deepEqual(
-    [...sqlFields].sort(), [...MATERIAL_FIELDS].sort(),
+    [...sqlFields].sort(),
+    [...MATERIAL_FIELDS].sort(),
     "the SQL material-field list and MATERIAL_FIELDS must be the same set",
   );
 });
 
 test("the lock guard is attached to the documents AND to their line items", () => {
   for (const t of ["estimates", "invoices"]) {
-    assert.match(MIGRATION, new RegExp(`create\\s+trigger\\s+trg_${t}_lock\\s+before\\s+update\\s+on\\s+public\\.${t}`, "i"));
+    assert.match(
+      MIGRATION,
+      new RegExp(
+        `create\\s+trigger\\s+trg_${t}_lock\\s+before\\s+update\\s+on\\s+public\\.${t}`,
+        "i",
+      ),
+    );
   }
   for (const t of ["estimate_items", "invoice_items"]) {
     assert.match(
       MIGRATION,
-      new RegExp(`create\\s+trigger\\s+trg_${t}_lock\\s+before\\s+insert\\s+or\\s+update\\s+or\\s+delete\\s+on\\s+public\\.${t}`, "i"),
+      new RegExp(
+        `create\\s+trigger\\s+trg_${t}_lock\\s+before\\s+insert\\s+or\\s+update\\s+or\\s+delete\\s+on\\s+public\\.${t}`,
+        "i",
+      ),
       `${t} must be guarded too — locking the total while leaving the items writable is worse than either alone`,
     );
   }
@@ -541,8 +708,11 @@ test("the SQL lock definition matches documentLock() branch for branch", () => {
   assert.ok(fn, "document_lock_code must exist");
   const body = fn.split("$$")[1] ?? "";
   const order = [...body.matchAll(/then\s+'(\w+)'/g)].map((m) => m[1]);
-  assert.deepEqual(order, ["voided", "paid", "signed", "decided", "sent"],
-    "the SQL precedence must match LOCK_CODES precedence in lib/core/documents.mjs");
+  assert.deepEqual(
+    order,
+    ["voided", "paid", "signed", "decided", "sent"],
+    "the SQL precedence must match LOCK_CODES precedence in lib/core/documents.mjs",
+  );
   // 'collected' is deliberately absent from the SQL — a row trigger cannot see
   // settled payments. Asserted so the omission is a decision, not a gap.
   assert.ok(!order.includes("collected"));
@@ -564,8 +734,11 @@ test("coming OUT of a lock is refused except as an audited estimate reopen", () 
   assert.match(guard, /old_code\s+is\s+not\s+null\s+and\s+new_code\s+is\s+null/i);
   assert.match(guard, /document_unlock_refused/);
   assert.match(guard, /reopen_reason/);
-  assert.match(guard, /is\s+not\s+distinct\s+from\s+old\.reopen_reason/i,
-    "a reopen must carry a NEW reason, not repeat the last one");
+  assert.match(
+    guard,
+    /is\s+not\s+distinct\s+from\s+old\.reopen_reason/i,
+    "a reopen must carry a NEW reason, not repeat the last one",
+  );
   // 'paid' is exempt on purpose: Mark due and the refund path both un-pay an
   // invoice, and breaking those would be a regression, not a fix.
   assert.match(guard, /old_code\s*<>\s*'paid'/i);
@@ -575,30 +748,46 @@ test("coming OUT of a lock is refused except as an audited estimate reopen", () 
 
 test("a voided document can no longer be paid or signed", () => {
   // Without this the void would be cosmetic: /p/<token> would still take money.
-  const pay = MIGRATION.split("create or replace function public.guard_payment_request_document")[1] ?? "";
+  const pay =
+    MIGRATION.split("create or replace function public.guard_payment_request_document")[1] ?? "";
   assert.ok(pay, "the payment-request guard must exist");
   assert.match(pay, /document_voided/);
-  assert.match(MIGRATION, /create\s+trigger\s+trg_payment_requests_document_guard\s+before\s+insert\s+on\s+public\.payment_requests/i);
+  assert.match(
+    MIGRATION,
+    /create\s+trigger\s+trg_payment_requests_document_guard\s+before\s+insert\s+on\s+public\.payment_requests/i,
+  );
 
   const approve = MIGRATION.split("create or replace function public.approve_document")[1] ?? "";
   assert.ok(approve, "approve_document must be re-created with the void guard");
-  assert.equal((approve.match(/voided_at\s+is\s+null/gi) ?? []).length, 2,
-    "both the estimate and the invoice update must exclude a voided document");
+  assert.equal(
+    (approve.match(/voided_at\s+is\s+null/gi) ?? []).length,
+    2,
+    "both the estimate and the invoice update must exclude a voided document",
+  );
 });
 
 test("re-creating approve_document does NOT lose migration 023's sign-once guard", () => {
   // 023 fixed re-signing destroying the original evidence. Copying a function
   // body forward is exactly how such a fix gets silently reverted.
   const approve = MIGRATION.split("create or replace function public.approve_document")[1] ?? "";
-  assert.equal((approve.match(/signed_at\s+is\s+null/gi) ?? []).length, 2, "sign-once must survive on both tables");
+  assert.equal(
+    (approve.match(/signed_at\s+is\s+null/gi) ?? []).length,
+    2,
+    "sign-once must survive on both tables",
+  );
   assert.match(approve, /deleted_at\s+is\s+null[\s\S]*?deleted_at\s+is\s+null/i);
   assert.match(approve, /status\s+in\s*\('draft','sent'\)\s+then\s+'approved'::estimate_status/i);
   assert.match(approve, /left\(coalesce\(p_sig,\s*''\),\s*400000\)/i);
-  assert.match(approve, /grant\s+execute\s+on\s+function\s+public\.approve_document\(uuid,\s*text,\s*text\)\s+to\s+anon,\s*authenticated/i);
+  assert.match(
+    approve,
+    /grant\s+execute\s+on\s+function\s+public\.approve_document\(uuid,\s*text,\s*text\)\s+to\s+anon,\s*authenticated/i,
+  );
 });
 
 test("every security-definer function in 036 pins its search_path", () => {
-  const defs = [...MIGRATION.matchAll(/create\s+or\s+replace\s+function\s+public\.(\w+)[\s\S]*?as\s+\$\$/gi)];
+  const defs = [
+    ...MIGRATION.matchAll(/create\s+or\s+replace\s+function\s+public\.(\w+)[\s\S]*?as\s+\$\$/gi),
+  ];
   assert.ok(defs.length >= 8);
   for (const d of defs) {
     assert.match(d[0], /set\s+search_path\s*=/i, `public.${d[1]} must pin search_path`);
@@ -636,42 +825,82 @@ test("updateDocument actually enforces the lock and the version (6a.5 + 6a.6)", 
 
 test("no document insert bypasses the safe numbering path (6a.3)", () => {
   const src = readSrc("lib", "documents.ts");
-  assert.ok(!/next_document_number/.test(src.replace(/allocateNumber[\s\S]{0,200}?rpc\("next_document_number"[^)]*\)/, "")),
-    "next_document_number must only be reached through allocateNumber()");
+  assert.ok(
+    !/next_document_number/.test(
+      src.replace(/allocateNumber[\s\S]{0,200}?rpc\("next_document_number"[^)]*\)/, ""),
+    ),
+    "next_document_number must only be reached through allocateNumber()",
+  );
   for (const fn of ["createDocument", "duplicateDocument"]) {
     const body = src.split(`export async function ${fn}`)[1]?.split("\nexport ")[0] ?? "";
     assert.match(body, /insertNumbered\(/, `${fn} must allocate through insertNumbered`);
   }
   const insert = src.split("async function insertNumbered")[1]?.split("\n/**")[0] ?? "";
-  assert.match(insert, /isUniqueViolation\(/, "a collision must be retried, not shown as a raw 23505");
+  assert.match(
+    insert,
+    /isUniqueViolation\(/,
+    "a collision must be retried, not shown as a raw 23505",
+  );
   assert.match(insert, /releaseNumber\(/, "a non-collision failure must hand the number back");
 });
 
 test("the correction actions are reachable from the invoice and estimate screens", () => {
   const invoiceActions = readSrc("app", "(app)", "invoices", "actions.ts");
   for (const name of ["voidInvoice", "createCreditNote", "voidCreditNote", "markInvoiceSent"]) {
-    assert.match(invoiceActions, new RegExp(`export async function ${name}\\b`), `${name} must be a server action`);
+    assert.match(
+      invoiceActions,
+      new RegExp(`export async function ${name}\\b`),
+      `${name} must be a server action`,
+    );
   }
   const estimateActions = readSrc("app", "(app)", "estimates", "actions.ts");
   for (const name of ["voidEstimate", "reopenEstimate", "markEstimateSent"]) {
-    assert.match(estimateActions, new RegExp(`export async function ${name}\\b`), `${name} must be a server action`);
+    assert.match(
+      estimateActions,
+      new RegExp(`export async function ${name}\\b`),
+      `${name} must be a server action`,
+    );
   }
   const ui = readSrc("components", "DocCorrections.tsx");
-  for (const call of ["voidInvoice", "voidEstimate", "createCreditNote", "voidCreditNote", "reopenEstimate"]) {
+  for (const call of [
+    "voidInvoice",
+    "voidEstimate",
+    "createCreditNote",
+    "voidCreditNote",
+    "reopenEstimate",
+  ]) {
     assert.match(ui, new RegExp(`\\b${call}\\(`), `${call} must be wired to a control`);
   }
-  for (const page of [["app", "(app)", "invoices", "[id]", "page.tsx"], ["app", "(app)", "estimates", "[id]", "page.tsx"]]) {
-    assert.match(readSrc(...page), /<DocCorrections/, `${page.join("/")} must render the corrections panel`);
+  for (const page of [
+    ["app", "(app)", "invoices", "[id]", "page.tsx"],
+    ["app", "(app)", "estimates", "[id]", "page.tsx"],
+  ]) {
+    assert.match(
+      readSrc(...page),
+      /<DocCorrections/,
+      `${page.join("/")} must render the corrections panel`,
+    );
   }
 });
 
 test("the edit form carries the version, and both edit screens supply it", () => {
-  assert.match(readSrc("components", "DocEditor.tsx"), /name="version"/,
-    "without this field every save is a blind last-write-wins again");
+  assert.match(
+    readSrc("components", "DocEditor.tsx"),
+    /name="version"/,
+    "without this field every save is a blind last-write-wins again",
+  );
   for (const kind of ["invoices", "estimates"]) {
     const page = readSrc("app", "(app)", kind, "[id]", "edit", "page.tsx");
-    assert.match(page, /version:\s*(inv|est)\.version/, `${kind} edit page must pass the loaded version`);
-    assert.match(page, /assertDocumentEditable/, `${kind} edit page must not open an editor that cannot save`);
+    assert.match(
+      page,
+      /version:\s*(inv|est)\.version/,
+      `${kind} edit page must pass the loaded version`,
+    );
+    assert.match(
+      page,
+      /assertDocumentEditable/,
+      `${kind} edit page must not open an editor that cannot save`,
+    );
   }
 });
 

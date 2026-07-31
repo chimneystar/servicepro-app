@@ -14,8 +14,11 @@ export type SendResult = { ok: boolean; configured: boolean; error?: string };
 /** Minimal HTML entity escape for values interpolated into the email body. */
 function esc(value: string): string {
   return value
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 /**
@@ -35,11 +38,17 @@ function appOrigin(): string {
  *
  * The `origin` parameter is kept for call-site compatibility and ignored.
  */
-export async function autoSendDocument(token: string, channel: "email" | "text", to: string, _origin?: string): Promise<SendResult> {
+export async function autoSendDocument(
+  token: string,
+  channel: "email" | "text",
+  to: string,
+  _origin?: string,
+): Promise<SendResult> {
   const profile = await requireProfile();
   if (channel === "email" && !providers.email()) return { ok: false, configured: false };
   if (channel === "text" && !providers.sms()) return { ok: false, configured: false };
-  if (!/^[0-9a-f-]{36}$/i.test(token)) return { ok: false, configured: true, error: "Invalid document" };
+  if (!/^[0-9a-f-]{36}$/i.test(token))
+    return { ok: false, configured: true, error: "Invalid document" };
 
   const supabase = await createClient();
 
@@ -48,8 +57,18 @@ export async function autoSendDocument(token: string, channel: "email" | "text",
   // another tenant simply returns nothing. public_document is SECURITY DEFINER
   // and org-agnostic, so it cannot be used for this check.
   const [{ data: est }, { data: inv }] = await Promise.all([
-    supabase.from("estimates").select("id").eq("public_token", token).is("deleted_at", null).maybeSingle(),
-    supabase.from("invoices").select("id").eq("public_token", token).is("deleted_at", null).maybeSingle(),
+    supabase
+      .from("estimates")
+      .select("id")
+      .eq("public_token", token)
+      .is("deleted_at", null)
+      .maybeSingle(),
+    supabase
+      .from("invoices")
+      .select("id")
+      .eq("public_token", token)
+      .is("deleted_at", null)
+      .maybeSingle(),
   ]);
   if (!est && !inv) return { ok: false, configured: true, error: "Document not found" };
 
@@ -68,15 +87,27 @@ export async function autoSendDocument(token: string, channel: "email" | "text",
       const html = `<p>Hi ${esc(who)},</p><p>Please review your ${label} #${esc(String(doc.number))} from ${esc(orgName)}:</p><p><a href="${esc(link)}">${esc(link)}</a></p><p>You can approve and sign it online. Thank you!</p>`;
       const id = await sendEmail(to, subject, html);
       await supabase.from("email_messages").insert({
-        organization_id: profile.organization_id, related_type: label, related_id: null,
-        to_email: to, subject, provider: "resend", provider_message_id: id, status: "sent", sent_at: new Date().toISOString(),
+        organization_id: profile.organization_id,
+        related_type: label,
+        related_id: null,
+        to_email: to,
+        subject,
+        provider: "resend",
+        provider_message_id: id,
+        status: "sent",
+        sent_at: new Date().toISOString(),
       });
     } else {
       const body = `${orgName}: your ${label} #${doc.number} — ${link}`;
       const sid = await sendSms(to, body);
       await supabase.from("sms_messages").insert({
-        organization_id: profile.organization_id, to_phone: to, body,
-        provider: "twilio", provider_message_id: sid, status: "sent", sent_at: new Date().toISOString(),
+        organization_id: profile.organization_id,
+        to_phone: to,
+        body,
+        provider: "twilio",
+        provider_message_id: sid,
+        status: "sent",
+        sent_at: new Date().toISOString(),
       });
     }
     return { ok: true, configured: true };

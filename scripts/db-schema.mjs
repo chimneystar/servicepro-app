@@ -41,7 +41,8 @@ import { freshDatabase } from "../tests/helpers/pg.mjs";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const SNAPSHOT_PATH = join(ROOT, "db", "schema.generated.txt");
 
-const shortHash = (s) => createHash("sha256").update(s.replace(/\s+/g, " ").trim()).digest("hex").slice(0, 16);
+const shortHash = (s) =>
+  createHash("sha256").update(s.replace(/\s+/g, " ").trim()).digest("hex").slice(0, 16);
 
 /** Build the database from the migrations and describe what came out. */
 export async function buildSnapshot() {
@@ -123,7 +124,9 @@ export async function buildSnapshot() {
 
   for (const tbl of tables) {
     const flags = rlsByTable.get(tbl) ?? {};
-    out.push(`table ${tbl}  [rls=${flags.rls ? "on" : "OFF"} force=${flags.forced ? "on" : "off"}]`);
+    out.push(
+      `table ${tbl}  [rls=${flags.rls ? "on" : "OFF"} force=${flags.forced ? "on" : "off"}]`,
+    );
     for (const c of colsBy.get(tbl)) {
       out.push(
         `  ${c.col} ${c.typ}${c.notnull ? " not null" : ""}${c.dflt ? ` default ${c.dflt}` : ""}`,

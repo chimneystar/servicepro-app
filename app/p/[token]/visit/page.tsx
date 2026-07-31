@@ -43,15 +43,39 @@ export default async function AppointmentPage({ params }: { params: Promise<{ to
   const accent = appointment.org?.accent_color || "#2563eb";
   return (
     <Shell accent={accent}>
-      <VisitClient token={token} appointment={appointment} locale={locale === "he" ? "he" : "en"} accent={accent} />
+      <VisitClient
+        token={token}
+        appointment={appointment}
+        locale={locale === "he" ? "he" : "en"}
+        accent={accent}
+      />
     </Shell>
   );
 }
 
 function Shell({ children, accent }: { children: React.ReactNode; accent: string }) {
   return (
-    <div style={{ minHeight: "100vh", background: "#eef3fb", display: "flex", flexDirection: "column", alignItems: "center", padding: "24px 14px", borderTop: `5px solid ${accent}` }}>
-      <div style={{ background: "#fff", borderRadius: 20, boxShadow: "0 24px 70px rgba(15,42,94,.18)", overflow: "hidden", maxWidth: 520, width: "100%" }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#eef3fb",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        padding: "24px 14px",
+        borderTop: `5px solid ${accent}`,
+      }}
+    >
+      <div
+        style={{
+          background: "#fff",
+          borderRadius: 20,
+          boxShadow: "0 24px 70px rgba(15,42,94,.18)",
+          overflow: "hidden",
+          maxWidth: 520,
+          width: "100%",
+        }}
+      >
         {children}
       </div>
     </div>

@@ -36,8 +36,11 @@ import { planMigrations } from "../lib/core/migrations.mjs";
 test("every migration applies to a clean database, in order", async () => {
   // freshDatabase throws naming the first file that fails.
   const { applied } = await freshDatabase();
-  assert.equal(applied.length, migrationFiles().length,
-    "every migration in db/ must apply to an empty database");
+  assert.equal(
+    applied.length,
+    migrationFiles().length,
+    "every migration in db/ must apply to an empty database",
+  );
 });
 
 test("db/016_isolation_tests.sql passes against the fully migrated schema", async () => {
@@ -56,7 +59,11 @@ test("db/016_isolation_tests.sql passes against the fully migrated schema", asyn
   const { rows } = await db.query(
     "select count(*)::int as leftovers from public.organizations where name like '__ISO_TEST_%'",
   );
-  assert.equal(rows[0].leftovers, 0, "016 must clean up its own fixtures, which it only does on success");
+  assert.equal(
+    rows[0].leftovers,
+    0,
+    "016 must clean up its own fixtures, which it only does on success",
+  );
 });
 
 test("the result is the schema the application expects", async () => {
@@ -74,8 +81,11 @@ test("the result is the schema the application expects", async () => {
   // BACKWARDS, or a table appearing without RLS.
   assert.ok(tables >= 120, `expected the full schema, got ${tables} tables`);
   assert.ok(policies >= 200, `expected the full policy set, got ${policies} policies`);
-  assert.equal(rls_enabled, tables,
-    `${tables - rls_enabled} table(s) in public have no row-level security — with PostgREST, that is a public table`);
+  assert.equal(
+    rls_enabled,
+    tables,
+    `${tables - rls_enabled} table(s) in public have no row-level security — with PostgREST, that is a public table`,
+  );
 });
 
 test("a table that denies everyone does so deliberately, not by omission", async () => {
@@ -106,9 +116,12 @@ test("a table that denies everyone does so deliberately, not by omission", async
     order by t.tablename
   `);
   const accidental = rows.filter((r) => r.auth_select || r.anon_select).map((r) => r.tablename);
-  assert.deepEqual(accidental, [],
+  assert.deepEqual(
+    accidental,
+    [],
     "these tables have RLS on, no policy, and still grant access — so every read returns empty " +
-    `instead of failing, and the feature using them is quietly dead:\n  ${accidental.join("\n  ")}`);
+      `instead of failing, and the feature using them is quietly dead:\n  ${accidental.join("\n  ")}`,
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -142,29 +155,39 @@ test("a composite foreign key is never added before the unique key it needs", as
     // the apply test above proves that end to end.
     if (unique >= 0 && unique > fk) offenders.push(file);
   }
-  assert.deepEqual(offenders, [],
-    `these add a composite FK before the unique key it references, which aborts the migration:\n  ${offenders.join("\n  ")}`);
+  assert.deepEqual(
+    offenders,
+    [],
+    `these add a composite FK before the unique key it references, which aborts the migration:\n  ${offenders.join("\n  ")}`,
+  );
 });
 
 test("a policy never calls a function its own migration defines later", async () => {
   const offenders = [];
   for (const file of migrationFiles()) {
     const sql = readMigration(file);
-    for (const created of sql.matchAll(/create\s+(?:or\s+replace\s+)?function\s+public\.(\w+)\s*\(/gi)) {
+    for (const created of sql.matchAll(
+      /create\s+(?:or\s+replace\s+)?function\s+public\.(\w+)\s*\(/gi,
+    )) {
       const name = created[1];
       const definedAt = created.index;
       // The earliest policy in this file that calls it.
       for (const policy of sql.matchAll(/create\s+policy[\s\S]*?;/gi)) {
         if (policy.index > definedAt) continue;
         if (new RegExp(`public\\.${name}\\s*\\(`, "i").test(policy[0])) {
-          offenders.push(`${file}: policy at ${policy.index} calls public.${name}() defined at ${definedAt}`);
+          offenders.push(
+            `${file}: policy at ${policy.index} calls public.${name}() defined at ${definedAt}`,
+          );
           break;
         }
       }
     }
   }
-  assert.deepEqual(offenders, [],
-    `a policy expression is resolved when the policy is created, so the function must already exist:\n  ${offenders.join("\n  ")}`);
+  assert.deepEqual(
+    offenders,
+    [],
+    `a policy expression is resolved when the policy is created, so the function must already exist:\n  ${offenders.join("\n  ")}`,
+  );
 });
 
 test("a migration vanishing from the middle of the sequence fails the suite", () => {
@@ -177,12 +200,13 @@ test("a migration vanishing from the middle of the sequence fails the suite", ()
   // which is precisely the situation this project is already in: production runs
   // DDL from an unmerged branch. It has to fail where people actually look.
   const manifest = JSON.parse(readFileSync(path.join(DB_DIR, "migrations.manifest.json"), "utf8"));
-  const plan = (filenames) => planMigrations({
-    files: filenames.map((filename) => ({ filename, checksum: null })),
-    ledger: [],
-    nonMigrations: manifest.nonMigrations ?? {},
-    allFilenames: filenames,
-  });
+  const plan = (filenames) =>
+    planMigrations({
+      files: filenames.map((filename) => ({ filename, checksum: null })),
+      ledger: [],
+      nonMigrations: manifest.nonMigrations ?? {},
+      allFilenames: filenames,
+    });
 
   // The whole directory, not just the migrations: the manifest declares the
   // non-migration files too, and omitting them is itself a different defect.
@@ -192,13 +216,18 @@ test("a migration vanishing from the middle of the sequence fails the suite", ()
 
   const holed = plan(gapped);
   assert.equal(holed.ok, false, "a missing migration must not be reported as a coherent sequence");
-  assert.ok(holed.problems.some((p) => p.code === "sequence_gap"),
-    `expected sequence_gap, got ${JSON.stringify(holed.problems.map((p) => p.code))}`);
+  assert.ok(
+    holed.problems.some((p) => p.code === "sequence_gap"),
+    `expected sequence_gap, got ${JSON.stringify(holed.problems.map((p) => p.code))}`,
+  );
 
   // The other direction: the real tree must be clean, or the check above proves
   // nothing except that this function always complains.
-  assert.deepEqual(plan(all).problems.map((p) => p.code), [],
-    "the checked-in db/ must itself be coherent");
+  assert.deepEqual(
+    plan(all).problems.map((p) => p.code),
+    [],
+    "the checked-in db/ must itself be coherent",
+  );
 
   // And the harness must be the thing that enforces it, not just this test.
   assert.doesNotThrow(() => migrationFiles(), "migrationFiles must accept the real tree");

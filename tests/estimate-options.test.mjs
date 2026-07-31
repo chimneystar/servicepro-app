@@ -3,8 +3,17 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { stripSqlComments } from "./helpers/sql.mjs";
 import {
-  OPTION_TIERS, isTier, tierRank, sortOptions, optionTotals, optionDepositMinor,
-  canSelectOption, validateSelection, conversionReadiness, tierLabel, describeOptions,
+  OPTION_TIERS,
+  isTier,
+  tierRank,
+  sortOptions,
+  optionTotals,
+  optionDepositMinor,
+  canSelectOption,
+  validateSelection,
+  conversionReadiness,
+  tierLabel,
+  describeOptions,
 } from "../lib/core/estimate-options.mjs";
 import { computeDocument } from "../lib/core/money.mjs";
 
@@ -13,24 +22,53 @@ import { computeDocument } from "../lib/core/money.mjs";
 // deposits (db/024) or conversion.
 // ---------------------------------------------------------------------------
 
-const good = { id: "o1", tier: "good", title: "Repair", deposit_minor: 0, items: [{ qty_milli: 1000, unit_price_minor: 50000, taxable: true }] };
-const better = { id: "o2", tier: "better", title: "Repair + service", deposit_minor: 10000, recommended: true, items: [{ qty_milli: 1000, unit_price_minor: 80000, taxable: true }] };
-const best = { id: "o3", tier: "best", title: "Replace", deposit_minor: 0, items: [{ qty_milli: 1000, unit_price_minor: 250000, taxable: true }, { qty_milli: 2000, unit_price_minor: 7500, taxable: false }] };
+const good = {
+  id: "o1",
+  tier: "good",
+  title: "Repair",
+  deposit_minor: 0,
+  items: [{ qty_milli: 1000, unit_price_minor: 50000, taxable: true }],
+};
+const better = {
+  id: "o2",
+  tier: "better",
+  title: "Repair + service",
+  deposit_minor: 10000,
+  recommended: true,
+  items: [{ qty_milli: 1000, unit_price_minor: 80000, taxable: true }],
+};
+const best = {
+  id: "o3",
+  tier: "best",
+  title: "Replace",
+  deposit_minor: 0,
+  items: [
+    { qty_milli: 1000, unit_price_minor: 250000, taxable: true },
+    { qty_milli: 2000, unit_price_minor: 7500, taxable: false },
+  ],
+};
 
 test("the tiers are fixed and ordered cheapest-first", () => {
   assert.deepEqual(OPTION_TIERS, ["good", "better", "best"]);
   assert.equal(isTier("better"), true);
   assert.equal(isTier("platinum"), false);
   assert.ok(tierRank("good") < tierRank("better") && tierRank("better") < tierRank("best"));
-  assert.deepEqual(sortOptions([best, good, better]).map((o) => o.tier), ["good", "better", "best"]);
+  assert.deepEqual(
+    sortOptions([best, good, better]).map((o) => o.tier),
+    ["good", "better", "best"],
+  );
 });
 
 test("an option is priced through the SAME engine as every other document", () => {
   const context = { discountMinor: 0, taxRateBps: 825 };
   const mine = optionTotals(best, context);
   const engine = computeDocument({
-    items: [{ qtyMilli: 1000, unitPriceMinor: 250000, taxable: true }, { qtyMilli: 2000, unitPriceMinor: 7500, taxable: false }],
-    discountMinor: 0, taxRateBps: 825,
+    items: [
+      { qtyMilli: 1000, unitPriceMinor: 250000, taxable: true },
+      { qtyMilli: 2000, unitPriceMinor: 7500, taxable: false },
+    ],
+    discountMinor: 0,
+    taxRateBps: 825,
   });
   // Two totals computed two ways is how a customer is shown one price and
   // billed another. There is only one engine.
@@ -43,27 +81,45 @@ test("a document-level discount reaches the option's total", () => {
 });
 
 test("an option's own deposit wins", () => {
-  assert.equal(optionDepositMinor({ optionDeposit: 10000, estimateDeposit: 3000, totalMinor: 80000 }), 10000);
+  assert.equal(
+    optionDepositMinor({ optionDeposit: 10000, estimateDeposit: 3000, totalMinor: 80000 }),
+    10000,
+  );
 });
 
 test("an option with no deposit KEEPS the organisation default (5.6 survives)", () => {
   // Migration 031 applies the org default at insert. Choosing an option must
   // not silently cancel a deposit the business configured.
-  assert.equal(optionDepositMinor({ optionDeposit: 0, estimateDeposit: 25000, totalMinor: 80000 }), 25000);
+  assert.equal(
+    optionDepositMinor({ optionDeposit: 0, estimateDeposit: 25000, totalMinor: 80000 }),
+    25000,
+  );
 });
 
 test("a deposit is CLAMPED to the chosen option's total", () => {
   // A cheaper option must never leave a deposit larger than the job: that would
   // ask for money the invoice can never absorb and would break the 024 credit.
-  assert.equal(optionDepositMinor({ optionDeposit: 0, estimateDeposit: 90000, totalMinor: 50000 }), 50000);
-  assert.equal(optionDepositMinor({ optionDeposit: 99999, estimateDeposit: 0, totalMinor: 40000 }), 40000);
+  assert.equal(
+    optionDepositMinor({ optionDeposit: 0, estimateDeposit: 90000, totalMinor: 50000 }),
+    50000,
+  );
+  assert.equal(
+    optionDepositMinor({ optionDeposit: 99999, estimateDeposit: 0, totalMinor: 40000 }),
+    40000,
+  );
 });
 
 test("a SIGNED estimate cannot be re-priced by choosing an option", () => {
   // Re-pricing under an existing signature defeats 023 §6's sign-once guard as
   // thoroughly as re-signing would.
-  assert.deepEqual(canSelectOption({ id: "e1", signed_at: "2026-07-01T10:00:00Z" }), { ok: false, error: "already_signed" });
-  assert.deepEqual(canSelectOption({ id: "e1", deleted_at: "2026-07-01T10:00:00Z" }), { ok: false, error: "not_found" });
+  assert.deepEqual(canSelectOption({ id: "e1", signed_at: "2026-07-01T10:00:00Z" }), {
+    ok: false,
+    error: "already_signed",
+  });
+  assert.deepEqual(canSelectOption({ id: "e1", deleted_at: "2026-07-01T10:00:00Z" }), {
+    ok: false,
+    error: "not_found",
+  });
   assert.deepEqual(canSelectOption(null), { ok: false, error: "not_found" });
   assert.deepEqual(canSelectOption({ id: "e1" }), { ok: true });
 });
@@ -71,25 +127,37 @@ test("a SIGNED estimate cannot be re-priced by choosing an option", () => {
 test("an option from another estimate is refused, not guessed", () => {
   const estimate = { id: "e1" };
   assert.equal(validateSelection({ estimate, options: [good, better], optionId: "o1" }).ok, true);
-  assert.deepEqual(validateSelection({ estimate, options: [good, better], optionId: "o9" }), { ok: false, error: "unknown_option" });
+  assert.deepEqual(validateSelection({ estimate, options: [good, better], optionId: "o9" }), {
+    ok: false,
+    error: "unknown_option",
+  });
 });
 
 test("an estimate WITH options and none chosen must NOT convert", () => {
   // This is what makes "the chosen option is what converts" true rather than
   // likely: estimate_items at that moment is whatever was last written.
   assert.equal(conversionReadiness({ optionCount: 3, selectedOptionId: null }).ok, false);
-  assert.equal(conversionReadiness({ optionCount: 3, selectedOptionId: null }).reason, "option_not_chosen");
+  assert.equal(
+    conversionReadiness({ optionCount: 3, selectedOptionId: null }).reason,
+    "option_not_chosen",
+  );
 });
 
 test("an estimate with a CHOICE converts, and one with no options is unaffected", () => {
   assert.equal(conversionReadiness({ optionCount: 3, selectedOptionId: "o2" }).ok, true);
   // Every estimate that exists today has no options and must keep converting.
-  assert.deepEqual(conversionReadiness({ optionCount: 0, selectedOptionId: null }), { ok: true, reason: "no_options" });
+  assert.deepEqual(conversionReadiness({ optionCount: 0, selectedOptionId: null }), {
+    ok: true,
+    reason: "no_options",
+  });
 });
 
 test("the chooser shows the upgrade from the cheapest, not three loose numbers", () => {
   const rows = describeOptions([best, good, better], { taxRateBps: 0, estimateDeposit: 0 });
-  assert.deepEqual(rows.map((row) => row.tier), ["good", "better", "best"]);
+  assert.deepEqual(
+    rows.map((row) => row.tier),
+    ["good", "better", "best"],
+  );
   assert.equal(rows[0].upgradeMinor, 0);
   assert.equal(rows[1].upgradeMinor, 30000);
   assert.equal(rows[2].upgradeMinor, 215000);
@@ -105,22 +173,35 @@ test("tier labels exist in both languages", () => {
 // ---------------------------------------------------------------------------
 // Structural. Comments stripped first.
 // ---------------------------------------------------------------------------
-const migration = stripSqlComments(readFileSync(new URL("../db/039_scheduling_sales.sql", import.meta.url), "utf8"));
-const estimateActions = stripSqlComments(readFileSync(new URL("../app/(app)/estimates/actions.ts", import.meta.url), "utf8"));
-const publicPage = stripSqlComments(readFileSync(new URL("../app/p/[token]/page.tsx", import.meta.url), "utf8"));
-const chooser = stripSqlComments(readFileSync(new URL("../app/p/[token]/OptionChooser.tsx", import.meta.url), "utf8"));
+const migration = stripSqlComments(
+  readFileSync(new URL("../db/039_scheduling_sales.sql", import.meta.url), "utf8"),
+);
+const estimateActions = stripSqlComments(
+  readFileSync(new URL("../app/(app)/estimates/actions.ts", import.meta.url), "utf8"),
+);
+const publicPage = stripSqlComments(
+  readFileSync(new URL("../app/p/[token]/page.tsx", import.meta.url), "utf8"),
+);
+const chooser = stripSqlComments(
+  readFileSync(new URL("../app/p/[token]/OptionChooser.tsx", import.meta.url), "utf8"),
+);
 
 test("options are bundles of lines on ONE estimate, tenant-safe by FK", () => {
   assert.match(migration, /create table if not exists public\.estimate_options/);
   assert.match(migration, /create table if not exists public\.estimate_option_items/);
-  assert.match(migration, /foreign key \(estimate_id, organization_id\)\s*references public\.estimates\(id, organization_id\)/);
+  assert.match(
+    migration,
+    /foreign key \(estimate_id, organization_id\)\s*references public\.estimates\(id, organization_id\)/,
+  );
   assert.match(migration, /unique \(estimate_id, tier\)/);
 });
 
 test("the estimate row is NOT replaced — the deposit chain in 024 survives", () => {
   // 024 credits a deposit through invoices.estimate_id -> payments.estimate_id.
   // Choosing an option must not mint a new estimate or move the public token.
-  const rpc = /create or replace function public\.select_estimate_option[\s\S]*?\$\$;/.exec(migration);
+  const rpc = /create or replace function public\.select_estimate_option[\s\S]*?\$\$;/.exec(
+    migration,
+  );
   assert.ok(rpc, "select_estimate_option must exist");
   assert.doesNotMatch(rpc[0], /insert into public\.estimates/i);
   assert.doesNotMatch(rpc[0], /public_token\s*=\s*gen_random_uuid/i);
@@ -130,7 +211,9 @@ test("the estimate row is NOT replaced — the deposit chain in 024 survives", (
 });
 
 test("the RPC refuses a signed estimate and an option from elsewhere", () => {
-  const rpc = /create or replace function public\.select_estimate_option[\s\S]*?\$\$;/.exec(migration)[0];
+  const rpc = /create or replace function public\.select_estimate_option[\s\S]*?\$\$;/.exec(
+    migration,
+  )[0];
   assert.match(rpc, /signed_at is not null/);
   assert.match(rpc, /'already_signed'/);
   assert.match(rpc, /estimate_id = e\.id/);
@@ -138,17 +221,41 @@ test("the RPC refuses a signed estimate and an option from elsewhere", () => {
 });
 
 test("the RPC clamps the deposit to the chosen total", () => {
-  const rpc = /create or replace function public\.select_estimate_option[\s\S]*?\$\$;/.exec(migration)[0];
-  assert.match(rpc, /least\(case when opt\.deposit_minor > 0 then opt\.deposit_minor else coalesce\(e\.deposit_minor, 0\) end, v_total\)/);
+  const rpc = /create or replace function public\.select_estimate_option[\s\S]*?\$\$;/.exec(
+    migration,
+  )[0];
+  assert.match(
+    rpc,
+    /least\(case when opt\.deposit_minor > 0 then opt\.deposit_minor else coalesce\(e\.deposit_minor, 0\) end, v_total\)/,
+  );
 });
 
 test("public_document still returns every key it returned before, plus options", () => {
   const fn = /create or replace function public\.public_document[\s\S]*?\$\$;/.exec(migration);
   assert.ok(fn);
-  for (const key of ["'kind'", "'number'", "'status'", "'issue_date'", "'notes'", "'discount_minor'",
-    "'tax_rate_bps'", "'total_minor'", "'deposit_minor'", "'signer_name'", "'signed_at'",
-    "'currency'", "'tax_label'", "'customer'", "'org'", "'items'"]) {
-    assert.match(fn[0], new RegExp(key.replace(/[$]/g, "")), `public_document must still return ${key}`);
+  for (const key of [
+    "'kind'",
+    "'number'",
+    "'status'",
+    "'issue_date'",
+    "'notes'",
+    "'discount_minor'",
+    "'tax_rate_bps'",
+    "'total_minor'",
+    "'deposit_minor'",
+    "'signer_name'",
+    "'signed_at'",
+    "'currency'",
+    "'tax_label'",
+    "'customer'",
+    "'org'",
+    "'items'",
+  ]) {
+    assert.match(
+      fn[0],
+      new RegExp(key.replace(/[$]/g, "")),
+      `public_document must still return ${key}`,
+    );
   }
   assert.match(fn[0], /'options', opts/);
   assert.match(fn[0], /'selected_option_id', sel/);

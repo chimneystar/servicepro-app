@@ -40,10 +40,20 @@ export type PushSendResult = {
 
 const LOG = "[push]";
 
-type SubscriptionRow = { id: string; endpoint: string; p256dh: string; auth_secret: string; locale: string | null };
+type SubscriptionRow = {
+  id: string;
+  endpoint: string;
+  p256dh: string;
+  auth_secret: string;
+  locale: string | null;
+};
 
 /** Is push delivery configured at all? Never throws. */
-export function pushDelivery(locale: "en" | "he" = "en"): { available: boolean; reason: string; message: string } {
+export function pushDelivery(locale: "en" | "he" = "en"): {
+  available: boolean;
+  reason: string;
+  message: string;
+} {
   const status = vapidStatus(process.env) as { available: boolean; reason: string };
   return {
     available: status.available,
@@ -55,8 +65,15 @@ export function pushDelivery(locale: "en" | "he" = "en"): { available: boolean; 
 async function recordEvent(
   admin: ReturnType<typeof createAdminClient>,
   row: {
-    organizationId: string; profileId: string | null; eventType: string; notification: PushNotification;
-    status: string; deviceCount: number; error: string | null; relatedType?: string | null; relatedId?: string | null;
+    organizationId: string;
+    profileId: string | null;
+    eventType: string;
+    notification: PushNotification;
+    status: string;
+    deviceCount: number;
+    error: string | null;
+    relatedType?: string | null;
+    relatedId?: string | null;
   },
 ) {
   const { error } = await admin.from("push_notification_events").insert({
@@ -90,7 +107,13 @@ export async function sendPushToProfile(input: {
   relatedId?: string;
 }): Promise<PushSendResult> {
   const fallback = input.notification("en");
-  const status = vapidStatus(process.env) as { available: boolean; reason: string; publicKey: string; privateKey: string; subject: string };
+  const status = vapidStatus(process.env) as {
+    available: boolean;
+    reason: string;
+    publicKey: string;
+    privateKey: string;
+    subject: string;
+  };
 
   let admin: ReturnType<typeof createAdminClient>;
   try {
@@ -105,14 +128,21 @@ export async function sendPushToProfile(input: {
     const message = pushUnavailableMessage(status.reason, "en") as string;
     console.error(`${LOG} ${message}`);
     await recordEvent(admin, {
-      organizationId: input.organizationId, profileId: input.profileId, eventType: input.eventType,
-      notification: fallback, status: "unavailable", deviceCount: 0, error: message,
-      relatedType: input.relatedType, relatedId: input.relatedId,
+      organizationId: input.organizationId,
+      profileId: input.profileId,
+      eventType: input.eventType,
+      notification: fallback,
+      status: "unavailable",
+      deviceCount: 0,
+      error: message,
+      relatedType: input.relatedType,
+      relatedId: input.relatedId,
     });
     return { ok: false, delivered: 0, removed: 0, failed: 0, reason: status.reason, message };
   }
 
-  const { data, error } = await admin.from("device_subscriptions")
+  const { data, error } = await admin
+    .from("device_subscriptions")
     .select("id, endpoint, p256dh, auth_secret, locale")
     .eq("organization_id", input.organizationId)
     .eq("profile_id", input.profileId)
@@ -127,14 +157,22 @@ export async function sendPushToProfile(input: {
   if (subscriptions.length === 0) {
     const message = pushUnavailableMessage("no_devices", "en") as string;
     await recordEvent(admin, {
-      organizationId: input.organizationId, profileId: input.profileId, eventType: input.eventType,
-      notification: fallback, status: "unavailable", deviceCount: 0, error: message,
-      relatedType: input.relatedType, relatedId: input.relatedId,
+      organizationId: input.organizationId,
+      profileId: input.profileId,
+      eventType: input.eventType,
+      notification: fallback,
+      status: "unavailable",
+      deviceCount: 0,
+      error: message,
+      relatedType: input.relatedType,
+      relatedId: input.relatedId,
     });
     return { ok: false, delivered: 0, removed: 0, failed: 0, reason: "no_devices", message };
   }
 
-  let delivered = 0, removed = 0, failed = 0;
+  let delivered = 0,
+    removed = 0,
+    failed = 0;
   const problems: string[] = [];
 
   for (const subscription of subscriptions) {
@@ -166,18 +204,28 @@ export async function sendPushToProfile(input: {
       });
 
       const verdict = classifyPushResponse(response.status) as string;
-      if (verdict === "sent") { delivered += 1; continue; }
+      if (verdict === "sent") {
+        delivered += 1;
+        continue;
+      }
       if (verdict === "gone") {
         // The browser discarded this subscription. Remove it, or it is retried
         // for ever and the table never stops growing.
-        const { error: deleteError } = await admin.from("device_subscriptions").delete().eq("id", subscription.id);
-        if (deleteError) problems.push(`stale subscription could not be removed: ${deleteError.message}`);
+        const { error: deleteError } = await admin
+          .from("device_subscriptions")
+          .delete()
+          .eq("id", subscription.id);
+        if (deleteError)
+          problems.push(`stale subscription could not be removed: ${deleteError.message}`);
         else removed += 1;
         continue;
       }
       failed += 1;
       problems.push(`${verdict} (${response.status})`);
-      if (verdict === "unauthorized") console.error(`${LOG} the push service refused the VAPID credentials — check VAPID_SUBJECT and the key pair.`);
+      if (verdict === "unauthorized")
+        console.error(
+          `${LOG} the push service refused the VAPID credentials — check VAPID_SUBJECT and the key pair.`,
+        );
     } catch (cause: any) {
       failed += 1;
       problems.push(String(cause?.message ?? cause).slice(0, 120));
@@ -187,14 +235,22 @@ export async function sendPushToProfile(input: {
   const summary = problems.length ? problems.join("; ") : null;
   if (summary) console.error(`${LOG} ${input.eventType}: ${summary}`);
   await recordEvent(admin, {
-    organizationId: input.organizationId, profileId: input.profileId, eventType: input.eventType,
-    notification: fallback, status: delivered > 0 ? "sent" : "failed", deviceCount: delivered, error: summary,
-    relatedType: input.relatedType, relatedId: input.relatedId,
+    organizationId: input.organizationId,
+    profileId: input.profileId,
+    eventType: input.eventType,
+    notification: fallback,
+    status: delivered > 0 ? "sent" : "failed",
+    deviceCount: delivered,
+    error: summary,
+    relatedType: input.relatedType,
+    relatedId: input.relatedId,
   });
 
   return {
     ok: delivered > 0,
-    delivered, removed, failed,
+    delivered,
+    removed,
+    failed,
     reason: delivered > 0 ? "sent" : "failed",
     message: summary ?? "",
   };
@@ -216,11 +272,23 @@ export async function sendPushToProfile(input: {
  * The import is dynamic because lib/notify.ts imports `sendPushToProfile` from
  * this module; a static import here would be a module cycle.
  */
-export async function notifyJobAssigned(input: { organizationId: string; jobId: string; profileId: string }): Promise<PushSendResult> {
-  let pushed: PushSendResult = { ok: false, delivered: 0, removed: 0, failed: 0, reason: "error", message: "" };
+export async function notifyJobAssigned(input: {
+  organizationId: string;
+  jobId: string;
+  profileId: string;
+}): Promise<PushSendResult> {
+  let pushed: PushSendResult = {
+    ok: false,
+    delivered: 0,
+    removed: 0,
+    failed: 0,
+    reason: "error",
+    message: "",
+  };
   try {
     const admin = createAdminClient();
-    const { data: job } = await admin.from("jobs")
+    const { data: job } = await admin
+      .from("jobs")
       .select("id, service, scheduled_date, start_time, organization_id, customers(name)")
       .eq("id", input.jobId)
       .eq("organization_id", input.organizationId)
@@ -232,14 +300,15 @@ export async function notifyJobAssigned(input: { organizationId: string; jobId: 
       eventType: "job_assigned",
       relatedType: "job",
       relatedId: input.jobId,
-      notification: (locale) => jobAssignedNotification({
-        locale,
-        service: job?.service ?? "",
-        customerName: customer?.name ?? "",
-        scheduledDate: job?.scheduled_date ?? "",
-        startTime: job?.start_time ?? "",
-        jobId: input.jobId,
-      }) as PushNotification,
+      notification: (locale) =>
+        jobAssignedNotification({
+          locale,
+          service: job?.service ?? "",
+          customerName: customer?.name ?? "",
+          scheduledDate: job?.scheduled_date ?? "",
+          startTime: job?.start_time ?? "",
+          jobId: input.jobId,
+        }) as PushNotification,
     });
   } catch (cause: any) {
     const message = `Push delivery failed before sending: ${String(cause?.message ?? cause)}`;
@@ -262,7 +331,9 @@ export async function notifyJobAssigned(input: { organizationId: string; jobId: 
       },
     });
   } catch (cause: any) {
-    console.error(`${LOG} the staff notification for job ${input.jobId} could not be recorded: ${String(cause?.message ?? cause)}`);
+    console.error(
+      `${LOG} the staff notification for job ${input.jobId} could not be recorded: ${String(cause?.message ?? cause)}`,
+    );
   }
 
   return pushed;

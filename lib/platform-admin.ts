@@ -6,15 +6,33 @@ import { selectGrantingSession, supportAccessMessage } from "@/lib/core/support-
 export async function isPlatformAdmin(userId: string): Promise<boolean> {
   try {
     const admin = createAdminClient();
-    const { data, error } = await admin.from("platform_admins").select("user_id").eq("user_id", userId).eq("active", true).maybeSingle();
+    const { data, error } = await admin
+      .from("platform_admins")
+      .select("user_id")
+      .eq("user_id", userId)
+      .eq("active", true)
+      .maybeSingle();
     return !error && Boolean(data);
   } catch {
     return false;
   }
 }
 
-export async function getPlatformAdmin(userId:string):Promise<{user_id:string;role:"support"|"operations"|"super_admin"}|null>{
-  try{const admin=createAdminClient();const{data,error}=await admin.from("platform_admins").select("user_id,role").eq("user_id",userId).eq("active",true).maybeSingle();return error||!data?null:data as any;}catch{return null;}
+export async function getPlatformAdmin(
+  userId: string,
+): Promise<{ user_id: string; role: "support" | "operations" | "super_admin" } | null> {
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from("platform_admins")
+      .select("user_id,role")
+      .eq("user_id", userId)
+      .eq("active", true)
+      .maybeSingle();
+    return error || !data ? null : (data as any);
+  } catch {
+    return null;
+  }
 }
 
 // =====================================================================
@@ -48,7 +66,9 @@ function verdictFrom(raw: any, locale: "en" | "he"): SupportAccessVerdict {
   return {
     granted: Boolean(raw?.granted),
     reason: String(raw?.reason ?? "no_session"),
-    message: raw?.granted ? "" : (supportAccessMessage(raw?.reason ?? "no_session", locale) as string),
+    message: raw?.granted
+      ? ""
+      : (supportAccessMessage(raw?.reason ?? "no_session", locale) as string),
     sessionId: raw?.sessionId ?? null,
     caseId: raw?.caseId ?? null,
     accessLevel: (raw?.accessLevel ?? null) as SupportAccessLevel | null,
@@ -74,8 +94,11 @@ export async function getSupportAccess(input: {
   const requiredLevel = input.requiredLevel ?? "read_only";
   try {
     const admin = createAdminClient();
-    const { data, error } = await admin.from("support_sessions")
-      .select("id, case_id, organization_id, admin_user_id, access_level, starts_at, expires_at, revoked_at")
+    const { data, error } = await admin
+      .from("support_sessions")
+      .select(
+        "id, case_id, organization_id, admin_user_id, access_level, starts_at, expires_at, revoked_at",
+      )
       .eq("admin_user_id", input.adminUserId)
       .eq("organization_id", input.organizationId);
     if (error) return verdictFrom({ granted: false, reason: "no_session" }, locale);
@@ -112,9 +135,12 @@ export async function recordSupportAccess(input: {
       refusal_reason: input.verdict.granted ? null : input.verdict.reason,
       details: input.details ?? {},
     });
-    if (error) console.error(`[support] the access attempt could not be recorded: ${error.message}`);
+    if (error)
+      console.error(`[support] the access attempt could not be recorded: ${error.message}`);
   } catch (cause: any) {
-    console.error(`[support] the access attempt could not be recorded: ${String(cause?.message ?? cause)}`);
+    console.error(
+      `[support] the access attempt could not be recorded: ${String(cause?.message ?? cause)}`,
+    );
   }
 }
 
@@ -128,6 +154,12 @@ export async function authorizeSupportAccess(input: {
   details?: Record<string, unknown>;
 }): Promise<SupportAccessVerdict> {
   const verdict = await getSupportAccess(input);
-  await recordSupportAccess({ adminUserId: input.adminUserId, organizationId: input.organizationId, action: input.action, verdict, details: input.details });
+  await recordSupportAccess({
+    adminUserId: input.adminUserId,
+    organizationId: input.organizationId,
+    action: input.action,
+    verdict,
+    details: input.details,
+  });
   return verdict;
 }

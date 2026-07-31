@@ -25,7 +25,11 @@ test("the request past the limit is refused", () => {
 test("the window reopens after it expires", () => {
   _reset();
   for (let i = 0; i < 5; i++) consume("k", 5, 60_000, T0);
-  assert.equal(consume("k", 5, 60_000, T0 + 59_999).allowed, false, "still closed just before expiry");
+  assert.equal(
+    consume("k", 5, 60_000, T0 + 59_999).allowed,
+    false,
+    "still closed just before expiry",
+  );
   assert.equal(consume("k", 5, 60_000, T0 + 60_001).allowed, true, "open again after expiry");
 });
 
@@ -35,8 +39,16 @@ test("one abusive caller cannot exhaust another caller's allowance", () => {
   // customers from booking.
   _reset();
   for (let i = 0; i < 5; i++) consume("booking:org1:1.2.3.4", 5, 60_000, T0);
-  assert.equal(consume("booking:org1:1.2.3.4", 5, 60_000, T0).allowed, false, "the abuser is stopped");
-  assert.equal(consume("booking:org1:9.9.9.9", 5, 60_000, T0).allowed, true, "a different caller is unaffected");
+  assert.equal(
+    consume("booking:org1:1.2.3.4", 5, 60_000, T0).allowed,
+    false,
+    "the abuser is stopped",
+  );
+  assert.equal(
+    consume("booking:org1:9.9.9.9", 5, 60_000, T0).allowed,
+    true,
+    "a different caller is unaffected",
+  );
 });
 
 test("separate resources have separate budgets", () => {

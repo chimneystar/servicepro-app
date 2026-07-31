@@ -22,7 +22,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * It is `aria-hidden` — it is a cue for eyes only. A screen reader was never
  * affected by this bug, because the links were always in the accessibility tree.
  */
-export default function SideNavScroller({ label, children }: { label: string; children: React.ReactNode }) {
+export default function SideNavScroller({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   const navRef = useRef<HTMLElement | null>(null);
   const innerRef = useRef<HTMLDivElement | null>(null);
   const [edges, setEdges] = useState({ up: false, down: false });
@@ -49,9 +55,13 @@ export default function SideNavScroller({ label, children }: { label: string; ch
   }, [measure]);
 
   return (
-    <div className={`side-nav-wrap${edges.up ? " can-scroll-up" : ""}${edges.down ? " can-scroll-down" : ""}`}>
+    <div
+      className={`side-nav-wrap${edges.up ? " can-scroll-up" : ""}${edges.down ? " can-scroll-down" : ""}`}
+    >
       <nav ref={navRef} className="side-nav" aria-label={label} onScroll={measure}>
-        <div ref={innerRef} className="side-nav-inner">{children}</div>
+        <div ref={innerRef} className="side-nav-inner">
+          {children}
+        </div>
       </nav>
       <span className="side-nav-fade side-nav-fade-top" aria-hidden="true" />
       <span className="side-nav-fade side-nav-fade-bottom" aria-hidden="true" />

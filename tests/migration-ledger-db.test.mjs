@@ -37,7 +37,9 @@ const LEDGER_SQL = readFileSync(path.join(DB_DIR, "migrations-ledger.sql"), "utf
 const MANIFEST = JSON.parse(readFileSync(path.join(DB_DIR, "migrations.manifest.json"), "utf8"));
 
 /** EVERY .sql file in db/, not just the migrations — classification needs the lot. */
-const ALL_SQL = readdirSync(DB_DIR).filter((f) => f.endsWith(".sql")).sort();
+const ALL_SQL = readdirSync(DB_DIR)
+  .filter((f) => f.endsWith(".sql"))
+  .sort();
 
 /** The real files on disk, with their real checksums. */
 function realMigrations() {
@@ -163,9 +165,14 @@ test("the ledger REJECTS a checksum that is not a sha256, and an unknown origin"
 test("one version can never have two ledger rows", async () => {
   const db = await clearLedger();
   const row = `('001', 'x', 'x.sql', '${"a".repeat(64)}')`;
-  await db.exec(`insert into public.schema_migrations (version, name, filename, checksum) values ${row};`);
+  await db.exec(
+    `insert into public.schema_migrations (version, name, filename, checksum) values ${row};`,
+  );
   await assert.rejects(
-    () => db.exec(`insert into public.schema_migrations (version, name, filename, checksum) values ${row};`),
+    () =>
+      db.exec(
+        `insert into public.schema_migrations (version, name, filename, checksum) values ${row};`,
+      ),
     /duplicate key|unique/i,
     "the primary key is what makes version the identity",
   );
@@ -230,7 +237,11 @@ test("recordAdoptedSql / recordStartSql / recordFinishSql are SQL Postgres accep
   ledger = await readLedger();
   const started = ledger.find((r) => r.version === MIGRATIONS[3].version);
   assert.equal(started.origin, "applied");
-  assert.equal(started.finished_at, null, "a started migration is unfinished until it reports back");
+  assert.equal(
+    started.finished_at,
+    null,
+    "a started migration is unfinished until it reports back",
+  );
 
   await db.exec(recordFinishSql(MIGRATIONS[3].version));
   ledger = await readLedger();
@@ -362,7 +373,11 @@ test("partially_applied FIRES on a real half-written ledger row, and clears when
   await db.exec(recordStartSql(last, "tester"));
 
   const stuck = await planAgainstDatabase();
-  assert.equal(has(stuck, "partially_applied"), true, "a half-applied migration must stop everything");
+  assert.equal(
+    has(stuck, "partially_applied"),
+    true,
+    "a half-applied migration must stop everything",
+  );
   assert.equal(stuck.ok, false);
   assert.equal(stuck.problems.find((p) => p.code === "partially_applied").version, last.version);
 
@@ -390,7 +405,11 @@ test("applied_file_missing FIRES when the real ledger names a migration this che
   );
 
   const plan = await planAgainstDatabase();
-  assert.equal(has(plan, "applied_file_missing"), true, "deploying over a different history must be caught");
+  assert.equal(
+    has(plan, "applied_file_missing"),
+    true,
+    "deploying over a different history must be caught",
+  );
   assert.equal(plan.ok, false);
 });
 

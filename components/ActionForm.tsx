@@ -33,8 +33,16 @@ export default function ActionForm({
   return (
     <form action={formAction} className={className}>
       {children}
-      {state.error && <span className="form-error" role="alert">{state.error}</span>}
-      {state.ok && <span className="ops-success" role="status">✓ {successLabel}</span>}
+      {state.error && (
+        <span className="form-error" role="alert">
+          {state.error}
+        </span>
+      )}
+      {state.ok && (
+        <span className="ops-success" role="status">
+          ✓ {successLabel}
+        </span>
+      )}
     </form>
   );
 }

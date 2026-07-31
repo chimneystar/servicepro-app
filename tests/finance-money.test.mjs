@@ -86,8 +86,14 @@ test("no money field is parsed with the float shortcut", () => {
     "app/(app)/growth/actions.ts",
     "app/(app)/operations/actions.ts",
   ]) {
-    assert.ok(!FLOAT_MONEY.test(readCode(file)), `${file} must use parseAmountToMinor, not float arithmetic`);
-    assert.ok(/parseAmountToMinor/.test(readCode(file)), `${file} must import the tested money engine`);
+    assert.ok(
+      !FLOAT_MONEY.test(readCode(file)),
+      `${file} must use parseAmountToMinor, not float arithmetic`,
+    );
+    assert.ok(
+      /parseAmountToMinor/.test(readCode(file)),
+      `${file} must import the tested money engine`,
+    );
   }
 });
 
@@ -95,12 +101,17 @@ test("a bad amount is not reported to the user as a permission problem", () => {
   const src = readCode("app/(app)/finance/actions.ts");
   assert.ok(/class AmountError/.test(src), "a malformed amount needs its own error type");
   assert.ok(/failure\(e, he\)/.test(src), "every catch must distinguish the two causes");
-  assert.ok(!/catch \{ return \{ ok: false, error: he \?/.test(src),
-    "the blanket catch reported 'no permission' for a typo in an amount");
+  assert.ok(
+    !/catch \{ return \{ ok: false, error: he \?/.test(src),
+    "the blanket catch reported 'no permission' for a typo in an amount",
+  );
 });
 
 test("settlement arithmetic is validated before it is stored", () => {
   const src = readCode("app/(app)/finance/actions.ts");
-  assert.ok(/net !== derivedNet/.test(src), "a hand-entered net that contradicts its components must be refused");
+  assert.ok(
+    /net !== derivedNet/.test(src),
+    "a hand-entered net that contradicts its components must be refused",
+  );
   assert.ok(/gross < 0/.test(src), "negative gross must be refused");
 });

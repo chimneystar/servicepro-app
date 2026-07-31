@@ -5,55 +5,737 @@ import Image from "next/image";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import type { Locale } from "@/lib/i18n";
 
-type Service={id:string;name_en:string;name_he?:string|null;description_en?:string|null;description_he?:string|null;duration_min:number;price_minor:number;book_as:"job"|"estimate"};
-type Question={id:string;label_en:string;label_he?:string|null;field_type:"text"|"textarea"|"choice"|"checkbox";options?:string[];required:boolean};
-export type BookingOrg={id:string;name:string;tagline?:string|null;logo_url?:string|null;accent_color:string;phone?:string|null;email?:string|null;locale:Locale;currency:string;settings:{approval_required:boolean;enforce_service_area:boolean;min_notice_hours:number;max_days_ahead:number;payment_mode:string;deposit_value:number;success_message_en?:string|null;success_message_he?:string|null;urgent_message_en?:string|null;urgent_message_he?:string|null};services:Service[];questions:Question[]};
-type Slot={start:string;end:string;label:string};
-const STEPS=5;
+type Service = {
+  id: string;
+  name_en: string;
+  name_he?: string | null;
+  description_en?: string | null;
+  description_he?: string | null;
+  duration_min: number;
+  price_minor: number;
+  book_as: "job" | "estimate";
+};
+type Question = {
+  id: string;
+  label_en: string;
+  label_he?: string | null;
+  field_type: "text" | "textarea" | "choice" | "checkbox";
+  options?: string[];
+  required: boolean;
+};
+export type BookingOrg = {
+  id: string;
+  name: string;
+  tagline?: string | null;
+  logo_url?: string | null;
+  accent_color: string;
+  phone?: string | null;
+  email?: string | null;
+  locale: Locale;
+  currency: string;
+  settings: {
+    approval_required: boolean;
+    enforce_service_area: boolean;
+    min_notice_hours: number;
+    max_days_ahead: number;
+    payment_mode: string;
+    deposit_value: number;
+    success_message_en?: string | null;
+    success_message_he?: string | null;
+    urgent_message_en?: string | null;
+    urgent_message_he?: string | null;
+  };
+  services: Service[];
+  questions: Question[];
+};
+type Slot = { start: string; end: string; label: string };
+const STEPS = 5;
 
-export default function BookingForm({org}:{org:BookingOrg}){
-  const [locale,setLocale]=useState<Locale>(org.locale==="he"?"he":"en"); const he=locale==="he";
-  const [step,setStep]=useState(1); const [busy,setBusy]=useState(false); const [loadingSlots,setLoadingSlots]=useState(false); const [error,setError]=useState<string|null>(null); const [result,setResult]=useState<{reference:string;status:string;paymentMode:string;depositValue:number;deposit?:{amountMinor:number;url:string}|null}|null>(null);
-  const [slots,setSlots]=useState<Slot[]>([]); const [answers,setAnswers]=useState<Record<string,string|boolean>>({});
-  const [f,setF]=useState({serviceId:org.services[0]?.id??"",address:"",city:"",postalCode:"",date:"",start:"",name:"",phone:"",email:"",contactPreference:"phone",urgency:"standard",notes:"",consent:false});
-  const set=(key:keyof typeof f,value:string|boolean)=>setF((current)=>({...current,[key]:value}));
-  const selectService=(serviceId:string)=>{setSlots([]);setLoadingSlots(Boolean(f.date));setF((current)=>({...current,serviceId,start:""}));};
-  const selectDate=(date:string)=>{setSlots([]);setLoadingSlots(Boolean(date));setF((current)=>({...current,date,start:""}));};
-  const service=useMemo(()=>org.services.find((item)=>item.id===f.serviceId),[f.serviceId,org.services]);
-  const money=(minor:number)=>new Intl.NumberFormat(he?"he-IL":"en-US",{style:"currency",currency:org.currency||"USD"}).format(minor/100);
-  const serviceName=(item?:Service)=>item?(he?(item.name_he||item.name_en):item.name_en):"";
-  const maxDate=useMemo(()=>{const date=new Date();date.setDate(date.getDate()+org.settings.max_days_ahead);return date.toISOString().slice(0,10);},[org.settings.max_days_ahead]);
-  const minDate=new Date().toISOString().slice(0,10);
+export default function BookingForm({ org }: { org: BookingOrg }) {
+  const [locale, setLocale] = useState<Locale>(org.locale === "he" ? "he" : "en");
+  const he = locale === "he";
+  const [step, setStep] = useState(1);
+  const [busy, setBusy] = useState(false);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<{
+    reference: string;
+    status: string;
+    paymentMode: string;
+    depositValue: number;
+    deposit?: { amountMinor: number; url: string } | null;
+  } | null>(null);
+  const [slots, setSlots] = useState<Slot[]>([]);
+  const [answers, setAnswers] = useState<Record<string, string | boolean>>({});
+  const [f, setF] = useState({
+    serviceId: org.services[0]?.id ?? "",
+    address: "",
+    city: "",
+    postalCode: "",
+    date: "",
+    start: "",
+    name: "",
+    phone: "",
+    email: "",
+    contactPreference: "phone",
+    urgency: "standard",
+    notes: "",
+    consent: false,
+  });
+  const set = (key: keyof typeof f, value: string | boolean) =>
+    setF((current) => ({ ...current, [key]: value }));
+  const selectService = (serviceId: string) => {
+    setSlots([]);
+    setLoadingSlots(Boolean(f.date));
+    setF((current) => ({ ...current, serviceId, start: "" }));
+  };
+  const selectDate = (date: string) => {
+    setSlots([]);
+    setLoadingSlots(Boolean(date));
+    setF((current) => ({ ...current, date, start: "" }));
+  };
+  const service = useMemo(
+    () => org.services.find((item) => item.id === f.serviceId),
+    [f.serviceId, org.services],
+  );
+  const money = (minor: number) =>
+    new Intl.NumberFormat(he ? "he-IL" : "en-US", {
+      style: "currency",
+      currency: org.currency || "USD",
+    }).format(minor / 100);
+  const serviceName = (item?: Service) =>
+    item ? (he ? item.name_he || item.name_en : item.name_en) : "";
+  const maxDate = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() + org.settings.max_days_ahead);
+    return date.toISOString().slice(0, 10);
+  }, [org.settings.max_days_ahead]);
+  const minDate = new Date().toISOString().slice(0, 10);
 
-  useEffect(()=>{if(!f.date||!f.serviceId)return;let active=true;fetch(`/api/booking/${org.id}/slots?date=${encodeURIComponent(f.date)}&service=${encodeURIComponent(f.serviceId)}`,{cache:"no-store"}).then((response)=>response.json()).then((data)=>{if(active){setSlots(data.slots??[]);setF((current)=>({...current,start:(data.slots??[]).some((slot:Slot)=>slot.start===current.start)?current.start:""}));}}).catch(()=>{if(active)setSlots([]);}).finally(()=>{if(active)setLoadingSlots(false);});return()=>{active=false};},[f.date,f.serviceId,org.id]);
+  useEffect(() => {
+    if (!f.date || !f.serviceId) return;
+    let active = true;
+    fetch(
+      `/api/booking/${org.id}/slots?date=${encodeURIComponent(f.date)}&service=${encodeURIComponent(f.serviceId)}`,
+      { cache: "no-store" },
+    )
+      .then((response) => response.json())
+      .then((data) => {
+        if (active) {
+          setSlots(data.slots ?? []);
+          setF((current) => ({
+            ...current,
+            start: (data.slots ?? []).some((slot: Slot) => slot.start === current.start)
+              ? current.start
+              : "",
+          }));
+        }
+      })
+      .catch(() => {
+        if (active) setSlots([]);
+      })
+      .finally(() => {
+        if (active) setLoadingSlots(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [f.date, f.serviceId, org.id]);
 
-  function next(){setError(null);if(step===1&&!f.serviceId)return setError(he?"בחרו שירות כדי להמשיך.":"Choose a service to continue.");if(step===2&&(!f.address.trim()||!f.city.trim()||!f.postalCode.trim()))return setError(he?"צריך למלא כתובת, עיר ומיקוד.":"Enter the service address, city, and ZIP code.");if(step===3&&(!f.date||!f.start))return setError(he?"בחרו יום ושעת הגעה.":"Choose a day and arrival window.");if(step===4&&(!f.name.trim()||!f.phone.trim()||org.questions.some((question)=>question.required&&!answers[question.id])))return setError(he?"מלאו את פרטי החובה לפני שממשיכים.":"Complete the required details before continuing.");setStep((value)=>Math.min(STEPS,value+1));window.scrollTo({top:0,behavior:"smooth"});}
-  function back(){setError(null);setStep((value)=>Math.max(1,value-1));}
-  async function submit(){if(!f.consent){setError(he?"צריך לאשר שהפרטים נכונים.":"Confirm that the details are correct.");return;}setBusy(true);setError(null);const params=new URLSearchParams(window.location.search);const response=await fetch(`/api/booking/${org.id}/submit`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({...f,answers,source:params.get("source")||"Online booking",campaign:params.get("campaign")||params.get("utm_campaign")||""})});const data=await response.json().catch(()=>({}));setBusy(false);if(!response.ok){const errors:Record<string,[string,string]>={outside_area:["הכתובת נמצאת מחוץ לאזור השירות. אפשר להתקשר ונבדוק מה ניתן לעשות.","That address is outside the online service area. Call us and we’ll see what is possible."],slot_taken:["השעה הזאת נתפסה עכשיו. בחרו שעה אחרת.","That time was just booked. Choose another arrival window."],try_later:["התקבלו הרבה פניות. נסו שוב בעוד כמה דקות.","We’re receiving many requests. Try again in a few minutes."]};setError((errors[data.error]??["לא הצלחנו להשלים את הבקשה. אפשר להתקשר אלינו.","We couldn’t complete the request. Please call us instead."])[he?0:1]);if(data.error==="slot_taken")setStep(3);return;}setResult(data);}
-  if(!org.services.length)return <BookingShell org={org} he={he}><div className="booking-empty"><strong>{he?"ההזמנה המקוונת עדיין לא מוכנה":"Online booking is not ready yet"}</strong><p>{he?"העסק עוד לא בחר אילו שירותים אפשר להזמין כאן.":"This business has not selected bookable services yet."}</p>{org.phone&&<a href={`tel:${org.phone}`}>{he?"התקשרו אלינו":"Call us"} · {org.phone}</a>}</div></BookingShell>;
-  if(result)return <BookingShell org={org} he={he}><div className="booking-success"><span aria-hidden="true">✓</span><small>{result.status==="confirmed"?(he?"התור נקבע":"Appointment booked"):(he?"הבקשה התקבלה":"Request received")}</small><h2>{he?`תודה, ${f.name.split(" ")[0]}`:`Thanks, ${f.name.split(" ")[0]}`}</h2><p>{he?(org.settings.success_message_he||(result.status==="confirmed"?"העבודה נוספה ליומן. נשלח אליכם אישור עם כל הפרטים.":"נעבור על הפרטים וניצור אתכם קשר כדי לאשר את השעה.")):(org.settings.success_message_en||(result.status==="confirmed"?"Your appointment is on the schedule. We’ll send confirmation with the details.":"We’ll review the details and contact you to confirm the time."))}</p><div><b>{he?"מספר בקשה":"Reference"}</b><strong>{result.reference}</strong></div>{/* The deposit link is REAL now. It used to say a payment link "will be sent
+  function next() {
+    setError(null);
+    if (step === 1 && !f.serviceId)
+      return setError(he ? "בחרו שירות כדי להמשיך." : "Choose a service to continue.");
+    if (step === 2 && (!f.address.trim() || !f.city.trim() || !f.postalCode.trim()))
+      return setError(
+        he ? "צריך למלא כתובת, עיר ומיקוד." : "Enter the service address, city, and ZIP code.",
+      );
+    if (step === 3 && (!f.date || !f.start))
+      return setError(he ? "בחרו יום ושעת הגעה." : "Choose a day and arrival window.");
+    if (
+      step === 4 &&
+      (!f.name.trim() ||
+        !f.phone.trim() ||
+        org.questions.some((question) => question.required && !answers[question.id]))
+    )
+      return setError(
+        he
+          ? "מלאו את פרטי החובה לפני שממשיכים."
+          : "Complete the required details before continuing.",
+      );
+    setStep((value) => Math.min(STEPS, value + 1));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  function back() {
+    setError(null);
+    setStep((value) => Math.max(1, value - 1));
+  }
+  async function submit() {
+    if (!f.consent) {
+      setError(he ? "צריך לאשר שהפרטים נכונים." : "Confirm that the details are correct.");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    const params = new URLSearchParams(window.location.search);
+    const response = await fetch(`/api/booking/${org.id}/submit`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        ...f,
+        answers,
+        source: params.get("source") || "Online booking",
+        campaign: params.get("campaign") || params.get("utm_campaign") || "",
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    setBusy(false);
+    if (!response.ok) {
+      const errors: Record<string, [string, string]> = {
+        outside_area: [
+          "הכתובת נמצאת מחוץ לאזור השירות. אפשר להתקשר ונבדוק מה ניתן לעשות.",
+          "That address is outside the online service area. Call us and we’ll see what is possible.",
+        ],
+        slot_taken: [
+          "השעה הזאת נתפסה עכשיו. בחרו שעה אחרת.",
+          "That time was just booked. Choose another arrival window.",
+        ],
+        try_later: [
+          "התקבלו הרבה פניות. נסו שוב בעוד כמה דקות.",
+          "We’re receiving many requests. Try again in a few minutes.",
+        ],
+      };
+      setError(
+        (errors[data.error] ?? [
+          "לא הצלחנו להשלים את הבקשה. אפשר להתקשר אלינו.",
+          "We couldn’t complete the request. Please call us instead.",
+        ])[he ? 0 : 1],
+      );
+      if (data.error === "slot_taken") setStep(3);
+      return;
+    }
+    setResult(data);
+  }
+  if (!org.services.length)
+    return (
+      <BookingShell org={org} he={he}>
+        <div className="booking-empty">
+          <strong>
+            {he ? "ההזמנה המקוונת עדיין לא מוכנה" : "Online booking is not ready yet"}
+          </strong>
+          <p>
+            {he
+              ? "העסק עוד לא בחר אילו שירותים אפשר להזמין כאן."
+              : "This business has not selected bookable services yet."}
+          </p>
+          {org.phone && (
+            <a href={`tel:${org.phone}`}>
+              {he ? "התקשרו אלינו" : "Call us"} · {org.phone}
+            </a>
+          )}
+        </div>
+      </BookingShell>
+    );
+  if (result)
+    return (
+      <BookingShell org={org} he={he}>
+        <div className="booking-success">
+          <span aria-hidden="true">✓</span>
+          <small>
+            {result.status === "confirmed"
+              ? he
+                ? "התור נקבע"
+                : "Appointment booked"
+              : he
+                ? "הבקשה התקבלה"
+                : "Request received"}
+          </small>
+          <h2>{he ? `תודה, ${f.name.split(" ")[0]}` : `Thanks, ${f.name.split(" ")[0]}`}</h2>
+          <p>
+            {he
+              ? org.settings.success_message_he ||
+                (result.status === "confirmed"
+                  ? "העבודה נוספה ליומן. נשלח אליכם אישור עם כל הפרטים."
+                  : "נעבור על הפרטים וניצור אתכם קשר כדי לאשר את השעה.")
+              : org.settings.success_message_en ||
+                (result.status === "confirmed"
+                  ? "Your appointment is on the schedule. We’ll send confirmation with the details."
+                  : "We’ll review the details and contact you to confirm the time.")}
+          </p>
+          <div>
+            <b>{he ? "מספר בקשה" : "Reference"}</b>
+            <strong>{result.reference}</strong>
+          </div>
+          {/* The deposit link is REAL now. It used to say a payment link "will be sent
     after confirmation" and none was ever produced, because no deposit was ever
     calculated or charged. */}
-{result.deposit
-  ?<div className="booking-deposit-due"><p>{he?`כדי לתפוס את התור נדרשת מקדמה של ${money(result.deposit.amountMinor)}. המקום נשמר לאחר קליטת התשלום.`:`A ${money(result.deposit.amountMinor)} deposit secures this appointment. The slot is held once the payment is received.`}</p><a className="booking-deposit-link" href={result.deposit.url}>{he?`לתשלום המקדמה — ${money(result.deposit.amountMinor)}`:`Pay the ${money(result.deposit.amountMinor)} deposit`}</a><small>{he?"תשלום בכרטיס אשראי או בהעברה בנקאית. העברה בנקאית עשויה להימשך מספר ימים עד לאישור.":"Pay by card or bank transfer. A bank transfer can take a few days to clear."}</small></div>
-  :result.paymentMode!=="none"&&<p className="booking-deposit-note">{he?"לא נדרשת מקדמה על השירות הזה.":"No deposit is required for this service."}</p>}{org.phone&&<a href={`tel:${org.phone}`}>{he?"צריכים עזרה?":"Need help?"} {org.phone}</a>}</div></BookingShell>;
-  return <BookingShell org={org} he={he}><div className="booking-flow" dir={he?"rtl":"ltr"} style={{"--booking-accent":org.accent_color} as React.CSSProperties}>
-    <header className="booking-flow-head"><div className="booking-language"><button type="button" className={locale==="en"?"on":""} onClick={()=>setLocale("en")}>EN</button><button type="button" className={locale==="he"?"on":""} onClick={()=>setLocale("he")}>עב</button></div><span>{he?`שלב ${step} מתוך ${STEPS}`:`Step ${step} of ${STEPS}`}</span><h1>{[he?"במה אפשר לעזור?":"What can we help with?",he?"איפה העבודה?":"Where is the job?",he?"מתי נוח לכם?":"When works for you?",he?"איך ניצור קשר?":"How can we reach you?",he?"בדיקה ואישור":"Review and confirm"][step-1]}</h1><div className="booking-progress">{Array.from({length:STEPS},(_,index)=><i key={index} className={index<step?"on":""}/>)}</div></header>
-    <section className="booking-step">
-      {step===1&&<div className="booking-services">{org.services.map((item)=><button type="button" key={item.id} className={f.serviceId===item.id?"selected":""} onClick={()=>selectService(item.id)}><span><strong>{serviceName(item)}</strong>{(he?item.description_he:item.description_en)&&<small>{he?(item.description_he||item.description_en):item.description_en}</small>}</span><span><b>{item.price_minor?`${he?"החל מ־":"From "}${money(item.price_minor)}`:(he?"מחיר לאחר בדיקה":"Price after review")}</b><small>{item.duration_min} {he?"דקות":"min"} · {item.book_as==="estimate"?(he?"הצעת מחיר":"Estimate"):(he?"שירות":"Service")}</small></span></button>)}</div>}
-      {step===2&&<div className="booking-fields"><label>{he?"כתובת השירות":"Service address"}<AddressAutocomplete value={f.address} city={f.city} onChange={(value)=>set("address",value)} onCity={(value)=>set("city",value)}/></label><div><label>{he?"עיר":"City"}<input value={f.city} onChange={(event)=>set("city",event.target.value)} autoComplete="address-level2"/></label><label>{he?"מיקוד":"ZIP code"}<input value={f.postalCode} onChange={(event)=>set("postalCode",event.target.value)} inputMode="numeric" autoComplete="postal-code"/></label></div>{org.settings.enforce_service_area&&<p className="booking-hint">{he?"נבדוק שהכתובת נמצאת באזור השירות לפני האישור.":"We’ll verify that the address is inside the service area before confirmation."}</p>}</div>}
-      {step===3&&<div className="booking-time"><label>{he?"יום מועדף":"Preferred day"}<input type="date" min={minDate} max={maxDate} value={f.date} onChange={(event)=>selectDate(event.target.value)}/></label>{f.date&&(loadingSlots?<div className="booking-loading">{he?"בודקים את היומן…":"Checking the calendar…"}</div>:slots.length?<><p>{he?"בחרו חלון הגעה":"Choose an arrival window"}</p><div>{slots.map((slot)=><button type="button" key={slot.start} className={f.start===slot.start?"selected":""} onClick={()=>set("start",slot.start)}>{slot.label}</button>)}</div></>:<div className="booking-empty-slot">{he?"אין שעה פנויה ביום הזה. נסו יום אחר.":"No times are available that day. Try another date."}</div>)}</div>}
-      {step===4&&<div className="booking-fields"><div><label>{he?"שם מלא":"Full name"}<input required autoComplete="name" value={f.name} onChange={(event)=>set("name",event.target.value)}/></label><label>{he?"טלפון":"Phone"}<input required type="tel" inputMode="tel" autoComplete="tel" value={f.phone} onChange={(event)=>set("phone",event.target.value)}/></label></div><label>{he?"אימייל":"Email"}<input type="email" inputMode="email" autoComplete="email" value={f.email} onChange={(event)=>set("email",event.target.value)}/></label><div><label>{he?"איך נוח לקבל עדכון?":"Best way to send updates"}<select value={f.contactPreference} onChange={(event)=>set("contactPreference",event.target.value)}><option value="phone">{he?"שיחת טלפון":"Phone call"}</option><option value="sms">SMS</option><option value="email">{he?"אימייל":"Email"}</option></select></label><label>{he?"דחיפות":"Urgency"}<select value={f.urgency} onChange={(event)=>set("urgency",event.target.value)}><option value="standard">{he?"רגיל":"Standard"}</option><option value="soon">{he?"בהקדם":"As soon as possible"}</option><option value="emergency">{he?"דחוף":"Emergency"}</option></select></label></div>{org.questions.map((question)=><label key={question.id}>{he?(question.label_he||question.label_en):question.label_en}{question.required?" *":""}{question.field_type==="textarea"?<textarea rows={3} value={String(answers[question.id]??"")} onChange={(event)=>setAnswers((current)=>({...current,[question.id]:event.target.value}))}/>:question.field_type==="choice"?<select value={String(answers[question.id]??"")} onChange={(event)=>setAnswers((current)=>({...current,[question.id]:event.target.value}))}><option value="">—</option>{(question.options??[]).map((option)=><option key={option}>{option}</option>)}</select>:question.field_type==="checkbox"?<input type="checkbox" checked={Boolean(answers[question.id])} onChange={(event)=>setAnswers((current)=>({...current,[question.id]:event.target.checked}))}/>:<input value={String(answers[question.id]??"")} onChange={(event)=>setAnswers((current)=>({...current,[question.id]:event.target.value}))}/>}</label>)}<label>{he?"פרטים שיעזרו לנו להתכונן":"Anything that helps us prepare"}<textarea rows={4} value={f.notes} onChange={(event)=>set("notes",event.target.value)} placeholder={he?"מה התקלה? יש קוד כניסה או הוראות חניה?":"What is happening? Any gate code or parking instructions?"}/></label></div>}
-      {step===5&&<div className="booking-review"><article><span>{he?"שירות":"Service"}</span><strong>{serviceName(service)}</strong></article><article><span>{he?"כתובת":"Address"}</span><strong>{f.address}, {f.city} {f.postalCode}</strong></article><article><span>{he?"מועד":"Time"}</span><strong>{new Intl.DateTimeFormat(he?"he-IL":"en-US",{dateStyle:"long"}).format(new Date(`${f.date}T12:00:00`))} · {slots.find((slot)=>slot.start===f.start)?.label}</strong></article><article><span>{he?"פרטי קשר":"Contact"}</span><strong>{f.name} · {f.phone}</strong></article>{service&&<article><span>{he?"מחיר ותשלום":"Price & payment"}</span><strong>{service.price_minor?money(service.price_minor):(he?"מחיר לאחר בדיקה":"Price after review")}</strong><small>{org.settings.payment_mode==="none"?(he?"אין צורך בתשלום עכשיו":"No payment is due now"):(he?"פרטי המקדמה יישלחו לאחר האישור":"Deposit details follow confirmation")}</small></article>}<label className="booking-consent"><input type="checkbox" checked={Boolean(f.consent)} onChange={(event)=>set("consent",event.target.checked)}/><span>{he?"בדקתי את הפרטים והם נכונים. אפשר ליצור איתי קשר בנוגע לבקשה הזאת.":"I reviewed the details and agree to be contacted about this request."}</span></label></div>}
-      {error&&<div className="booking-error" role="alert">{error}{org.phone&&error.includes(he?"להתקשר":"call")&&<a href={`tel:${org.phone}`}>{org.phone}</a>}</div>}
-      <footer className="booking-actions">{step>1?<button type="button" className="back" onClick={back}>{he?"חזרה":"Back"}</button>:<span/>}<button type="button" className="next" disabled={busy} onClick={step===STEPS?submit:next}>{busy?(he?"שולחים…":"Sending…"):step===STEPS?(org.settings.approval_required?(he?"שליחת הבקשה":"Send request"):(he?"קביעת התור":"Book appointment")):(he?"המשך":"Continue")}</button></footer>
-    </section>
-  </div></BookingShell>;
+          {result.deposit ? (
+            <div className="booking-deposit-due">
+              <p>
+                {he
+                  ? `כדי לתפוס את התור נדרשת מקדמה של ${money(result.deposit.amountMinor)}. המקום נשמר לאחר קליטת התשלום.`
+                  : `A ${money(result.deposit.amountMinor)} deposit secures this appointment. The slot is held once the payment is received.`}
+              </p>
+              <a className="booking-deposit-link" href={result.deposit.url}>
+                {he
+                  ? `לתשלום המקדמה — ${money(result.deposit.amountMinor)}`
+                  : `Pay the ${money(result.deposit.amountMinor)} deposit`}
+              </a>
+              <small>
+                {he
+                  ? "תשלום בכרטיס אשראי או בהעברה בנקאית. העברה בנקאית עשויה להימשך מספר ימים עד לאישור."
+                  : "Pay by card or bank transfer. A bank transfer can take a few days to clear."}
+              </small>
+            </div>
+          ) : (
+            result.paymentMode !== "none" && (
+              <p className="booking-deposit-note">
+                {he ? "לא נדרשת מקדמה על השירות הזה." : "No deposit is required for this service."}
+              </p>
+            )
+          )}
+          {org.phone && (
+            <a href={`tel:${org.phone}`}>
+              {he ? "צריכים עזרה?" : "Need help?"} {org.phone}
+            </a>
+          )}
+        </div>
+      </BookingShell>
+    );
+  return (
+    <BookingShell org={org} he={he}>
+      <div
+        className="booking-flow"
+        dir={he ? "rtl" : "ltr"}
+        style={{ "--booking-accent": org.accent_color } as React.CSSProperties}
+      >
+        <header className="booking-flow-head">
+          <div className="booking-language">
+            <button
+              type="button"
+              className={locale === "en" ? "on" : ""}
+              onClick={() => setLocale("en")}
+            >
+              EN
+            </button>
+            <button
+              type="button"
+              className={locale === "he" ? "on" : ""}
+              onClick={() => setLocale("he")}
+            >
+              עב
+            </button>
+          </div>
+          <span>{he ? `שלב ${step} מתוך ${STEPS}` : `Step ${step} of ${STEPS}`}</span>
+          <h1>
+            {
+              [
+                he ? "במה אפשר לעזור?" : "What can we help with?",
+                he ? "איפה העבודה?" : "Where is the job?",
+                he ? "מתי נוח לכם?" : "When works for you?",
+                he ? "איך ניצור קשר?" : "How can we reach you?",
+                he ? "בדיקה ואישור" : "Review and confirm",
+              ][step - 1]
+            }
+          </h1>
+          <div className="booking-progress">
+            {Array.from({ length: STEPS }, (_, index) => (
+              <i key={index} className={index < step ? "on" : ""} />
+            ))}
+          </div>
+        </header>
+        <section className="booking-step">
+          {step === 1 && (
+            <div className="booking-services">
+              {org.services.map((item) => (
+                <button
+                  type="button"
+                  key={item.id}
+                  className={f.serviceId === item.id ? "selected" : ""}
+                  onClick={() => selectService(item.id)}
+                >
+                  <span>
+                    <strong>{serviceName(item)}</strong>
+                    {(he ? item.description_he : item.description_en) && (
+                      <small>
+                        {he ? item.description_he || item.description_en : item.description_en}
+                      </small>
+                    )}
+                  </span>
+                  <span>
+                    <b>
+                      {item.price_minor
+                        ? `${he ? "החל מ־" : "From "}${money(item.price_minor)}`
+                        : he
+                          ? "מחיר לאחר בדיקה"
+                          : "Price after review"}
+                    </b>
+                    <small>
+                      {item.duration_min} {he ? "דקות" : "min"} ·{" "}
+                      {item.book_as === "estimate"
+                        ? he
+                          ? "הצעת מחיר"
+                          : "Estimate"
+                        : he
+                          ? "שירות"
+                          : "Service"}
+                    </small>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+          {step === 2 && (
+            <div className="booking-fields">
+              <label>
+                {he ? "כתובת השירות" : "Service address"}
+                <AddressAutocomplete
+                  value={f.address}
+                  city={f.city}
+                  onChange={(value) => set("address", value)}
+                  onCity={(value) => set("city", value)}
+                />
+              </label>
+              <div>
+                <label>
+                  {he ? "עיר" : "City"}
+                  <input
+                    value={f.city}
+                    onChange={(event) => set("city", event.target.value)}
+                    autoComplete="address-level2"
+                  />
+                </label>
+                <label>
+                  {he ? "מיקוד" : "ZIP code"}
+                  <input
+                    value={f.postalCode}
+                    onChange={(event) => set("postalCode", event.target.value)}
+                    inputMode="numeric"
+                    autoComplete="postal-code"
+                  />
+                </label>
+              </div>
+              {org.settings.enforce_service_area && (
+                <p className="booking-hint">
+                  {he
+                    ? "נבדוק שהכתובת נמצאת באזור השירות לפני האישור."
+                    : "We’ll verify that the address is inside the service area before confirmation."}
+                </p>
+              )}
+            </div>
+          )}
+          {step === 3 && (
+            <div className="booking-time">
+              <label>
+                {he ? "יום מועדף" : "Preferred day"}
+                <input
+                  type="date"
+                  min={minDate}
+                  max={maxDate}
+                  value={f.date}
+                  onChange={(event) => selectDate(event.target.value)}
+                />
+              </label>
+              {f.date &&
+                (loadingSlots ? (
+                  <div className="booking-loading">
+                    {he ? "בודקים את היומן…" : "Checking the calendar…"}
+                  </div>
+                ) : slots.length ? (
+                  <>
+                    <p>{he ? "בחרו חלון הגעה" : "Choose an arrival window"}</p>
+                    <div>
+                      {slots.map((slot) => (
+                        <button
+                          type="button"
+                          key={slot.start}
+                          className={f.start === slot.start ? "selected" : ""}
+                          onClick={() => set("start", slot.start)}
+                        >
+                          {slot.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="booking-empty-slot">
+                    {he
+                      ? "אין שעה פנויה ביום הזה. נסו יום אחר."
+                      : "No times are available that day. Try another date."}
+                  </div>
+                ))}
+            </div>
+          )}
+          {step === 4 && (
+            <div className="booking-fields">
+              <div>
+                <label>
+                  {he ? "שם מלא" : "Full name"}
+                  <input
+                    required
+                    autoComplete="name"
+                    value={f.name}
+                    onChange={(event) => set("name", event.target.value)}
+                  />
+                </label>
+                <label>
+                  {he ? "טלפון" : "Phone"}
+                  <input
+                    required
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    value={f.phone}
+                    onChange={(event) => set("phone", event.target.value)}
+                  />
+                </label>
+              </div>
+              <label>
+                {he ? "אימייל" : "Email"}
+                <input
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  value={f.email}
+                  onChange={(event) => set("email", event.target.value)}
+                />
+              </label>
+              <div>
+                <label>
+                  {he ? "איך נוח לקבל עדכון?" : "Best way to send updates"}
+                  <select
+                    value={f.contactPreference}
+                    onChange={(event) => set("contactPreference", event.target.value)}
+                  >
+                    <option value="phone">{he ? "שיחת טלפון" : "Phone call"}</option>
+                    <option value="sms">SMS</option>
+                    <option value="email">{he ? "אימייל" : "Email"}</option>
+                  </select>
+                </label>
+                <label>
+                  {he ? "דחיפות" : "Urgency"}
+                  <select
+                    value={f.urgency}
+                    onChange={(event) => set("urgency", event.target.value)}
+                  >
+                    <option value="standard">{he ? "רגיל" : "Standard"}</option>
+                    <option value="soon">{he ? "בהקדם" : "As soon as possible"}</option>
+                    <option value="emergency">{he ? "דחוף" : "Emergency"}</option>
+                  </select>
+                </label>
+              </div>
+              {org.questions.map((question) => (
+                <label key={question.id}>
+                  {he ? question.label_he || question.label_en : question.label_en}
+                  {question.required ? " *" : ""}
+                  {question.field_type === "textarea" ? (
+                    <textarea
+                      rows={3}
+                      value={String(answers[question.id] ?? "")}
+                      onChange={(event) =>
+                        setAnswers((current) => ({ ...current, [question.id]: event.target.value }))
+                      }
+                    />
+                  ) : question.field_type === "choice" ? (
+                    <select
+                      value={String(answers[question.id] ?? "")}
+                      onChange={(event) =>
+                        setAnswers((current) => ({ ...current, [question.id]: event.target.value }))
+                      }
+                    >
+                      <option value="">—</option>
+                      {(question.options ?? []).map((option) => (
+                        <option key={option}>{option}</option>
+                      ))}
+                    </select>
+                  ) : question.field_type === "checkbox" ? (
+                    <input
+                      type="checkbox"
+                      checked={Boolean(answers[question.id])}
+                      onChange={(event) =>
+                        setAnswers((current) => ({
+                          ...current,
+                          [question.id]: event.target.checked,
+                        }))
+                      }
+                    />
+                  ) : (
+                    <input
+                      value={String(answers[question.id] ?? "")}
+                      onChange={(event) =>
+                        setAnswers((current) => ({ ...current, [question.id]: event.target.value }))
+                      }
+                    />
+                  )}
+                </label>
+              ))}
+              <label>
+                {he ? "פרטים שיעזרו לנו להתכונן" : "Anything that helps us prepare"}
+                <textarea
+                  rows={4}
+                  value={f.notes}
+                  onChange={(event) => set("notes", event.target.value)}
+                  placeholder={
+                    he
+                      ? "מה התקלה? יש קוד כניסה או הוראות חניה?"
+                      : "What is happening? Any gate code or parking instructions?"
+                  }
+                />
+              </label>
+            </div>
+          )}
+          {step === 5 && (
+            <div className="booking-review">
+              <article>
+                <span>{he ? "שירות" : "Service"}</span>
+                <strong>{serviceName(service)}</strong>
+              </article>
+              <article>
+                <span>{he ? "כתובת" : "Address"}</span>
+                <strong>
+                  {f.address}, {f.city} {f.postalCode}
+                </strong>
+              </article>
+              <article>
+                <span>{he ? "מועד" : "Time"}</span>
+                <strong>
+                  {new Intl.DateTimeFormat(he ? "he-IL" : "en-US", { dateStyle: "long" }).format(
+                    new Date(`${f.date}T12:00:00`),
+                  )}{" "}
+                  · {slots.find((slot) => slot.start === f.start)?.label}
+                </strong>
+              </article>
+              <article>
+                <span>{he ? "פרטי קשר" : "Contact"}</span>
+                <strong>
+                  {f.name} · {f.phone}
+                </strong>
+              </article>
+              {service && (
+                <article>
+                  <span>{he ? "מחיר ותשלום" : "Price & payment"}</span>
+                  <strong>
+                    {service.price_minor
+                      ? money(service.price_minor)
+                      : he
+                        ? "מחיר לאחר בדיקה"
+                        : "Price after review"}
+                  </strong>
+                  <small>
+                    {org.settings.payment_mode === "none"
+                      ? he
+                        ? "אין צורך בתשלום עכשיו"
+                        : "No payment is due now"
+                      : he
+                        ? "פרטי המקדמה יישלחו לאחר האישור"
+                        : "Deposit details follow confirmation"}
+                  </small>
+                </article>
+              )}
+              <label className="booking-consent">
+                <input
+                  type="checkbox"
+                  checked={Boolean(f.consent)}
+                  onChange={(event) => set("consent", event.target.checked)}
+                />
+                <span>
+                  {he
+                    ? "בדקתי את הפרטים והם נכונים. אפשר ליצור איתי קשר בנוגע לבקשה הזאת."
+                    : "I reviewed the details and agree to be contacted about this request."}
+                </span>
+              </label>
+            </div>
+          )}
+          {error && (
+            <div className="booking-error" role="alert">
+              {error}
+              {org.phone && error.includes(he ? "להתקשר" : "call") && (
+                <a href={`tel:${org.phone}`}>{org.phone}</a>
+              )}
+            </div>
+          )}
+          <footer className="booking-actions">
+            {step > 1 ? (
+              <button type="button" className="back" onClick={back}>
+                {he ? "חזרה" : "Back"}
+              </button>
+            ) : (
+              <span />
+            )}
+            <button
+              type="button"
+              className="next"
+              disabled={busy}
+              onClick={step === STEPS ? submit : next}
+            >
+              {busy
+                ? he
+                  ? "שולחים…"
+                  : "Sending…"
+                : step === STEPS
+                  ? org.settings.approval_required
+                    ? he
+                      ? "שליחת הבקשה"
+                      : "Send request"
+                    : he
+                      ? "קביעת התור"
+                      : "Book appointment"
+                  : he
+                    ? "המשך"
+                    : "Continue"}
+            </button>
+          </footer>
+        </section>
+      </div>
+    </BookingShell>
+  );
 }
 
-function BookingShell({org,he,children}:{org:BookingOrg;he:boolean;children:React.ReactNode}){
-  return <main className="booking-page" dir={he?"rtl":"ltr"} style={{"--booking-accent":org.accent_color||"#2b66f6"} as React.CSSProperties}>
-    <aside className="booking-brand"><div className="booking-logo">{org.logo_url?<Image src={org.logo_url} alt="" width={72} height={72} unoptimized/>:<span className="brand-mark"/>}</div><div><strong>{org.name}</strong><small>{org.tagline||(he?"שירות מקצועי, בלי לחכות":"Professional service, without the wait")}</small></div>{org.phone&&<a href={`tel:${org.phone}`}>{he?"מעדיפים לדבר?":"Prefer to call?"}<b>{org.phone}</b></a>}</aside>
-    <section className="booking-card">{children}<p className="booking-powered">{he?"מופעל באמצעות ServicePro · הזמנה מאובטחת":"Powered by ServicePro · Secure booking"}</p></section>
-  </main>;
+function BookingShell({
+  org,
+  he,
+  children,
+}: {
+  org: BookingOrg;
+  he: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <main
+      className="booking-page"
+      dir={he ? "rtl" : "ltr"}
+      style={{ "--booking-accent": org.accent_color || "#2b66f6" } as React.CSSProperties}
+    >
+      <aside className="booking-brand">
+        <div className="booking-logo">
+          {org.logo_url ? (
+            <Image src={org.logo_url} alt="" width={72} height={72} unoptimized />
+          ) : (
+            <span className="brand-mark" />
+          )}
+        </div>
+        <div>
+          <strong>{org.name}</strong>
+          <small>
+            {org.tagline ||
+              (he ? "שירות מקצועי, בלי לחכות" : "Professional service, without the wait")}
+          </small>
+        </div>
+        {org.phone && (
+          <a href={`tel:${org.phone}`}>
+            {he ? "מעדיפים לדבר?" : "Prefer to call?"}
+            <b>{org.phone}</b>
+          </a>
+        )}
+      </aside>
+      <section className="booking-card">
+        {children}
+        <p className="booking-powered">
+          {he
+            ? "מופעל באמצעות ServicePro · הזמנה מאובטחת"
+            : "Powered by ServicePro · Secure booking"}
+        </p>
+      </section>
+    </main>
+  );
 }

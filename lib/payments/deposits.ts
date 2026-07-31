@@ -3,7 +3,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 // @ts-ignore — pure logic, proven both ways in tests/schedules.test.mjs
-import { planDepositSchedule, allocateMilestones, milestoneStatusForPayments } from "@/lib/core/schedules.mjs";
+import {
+  planDepositSchedule,
+  allocateMilestones,
+  milestoneStatusForPayments,
+} from "@/lib/core/schedules.mjs";
 // @ts-ignore — pure logic, proven both ways in tests/ach-hold.test.mjs
 import { settledMinor, pendingAchMinor, depositReleaseDecision } from "@/lib/core/ach-hold.mjs";
 
@@ -41,10 +45,12 @@ export type MilestoneRow = {
 };
 
 /** Payment columns every hold and milestone decision reads. Keep in one place. */
-const PAYMENT_FIELDS = "id, base_amount_minor, amount_minor, refunded_minor, normalized_status, method, submitted_at";
+const PAYMENT_FIELDS =
+  "id, base_amount_minor, amount_minor, refunded_minor, normalized_status, method, submitted_at";
 
 async function paymentsForEstimate(admin: Admin, organizationId: string, estimateId: string) {
-  const { data } = await admin.from("payments")
+  const { data } = await admin
+    .from("payments")
     .select(PAYMENT_FIELDS)
     .eq("organization_id", organizationId)
     .eq("estimate_id", estimateId);
@@ -53,8 +59,11 @@ async function paymentsForEstimate(admin: Admin, organizationId: string, estimat
 
 /** Whether this organisation holds work until an ACH transfer clears. */
 export async function achHoldEnabled(admin: Admin, organizationId: string): Promise<boolean> {
-  const { data } = await admin.from("payment_settings")
-    .select("ach_hold_until_settled").eq("organization_id", organizationId).maybeSingle();
+  const { data } = await admin
+    .from("payment_settings")
+    .select("ach_hold_until_settled")
+    .eq("organization_id", organizationId)
+    .maybeSingle();
   // The column is `not null default true`. A missing settings row means the
   // business has never configured payments, and the safe reading of "not
   // configured" is the cautious one: hold.
@@ -67,36 +76,61 @@ export async function achHoldEnabled(admin: Admin, organizationId: string): Prom
  * Idempotent: `uq_payment_schedules_estimate` (migration 031) makes a second
  * schedule impossible, and this returns the existing one instead of failing.
  */
-export async function ensureEstimateSchedule(admin: Admin, input: {
-  organizationId: string;
-  estimateId: string;
-  totalMinor: number;
-  depositMinor: number;
-  createdBy?: string | null;
-}): Promise<string | null> {
-  const plan = planDepositSchedule({ totalMinor: input.totalMinor, depositMinor: input.depositMinor });
+export async function ensureEstimateSchedule(
+  admin: Admin,
+  input: {
+    organizationId: string;
+    estimateId: string;
+    totalMinor: number;
+    depositMinor: number;
+    createdBy?: string | null;
+  },
+): Promise<string | null> {
+  const plan = planDepositSchedule({
+    totalMinor: input.totalMinor,
+    depositMinor: input.depositMinor,
+  });
   if (!plan) return null;
 
-  const { data: existing } = await admin.from("payment_schedules")
-    .select("id").eq("organization_id", input.organizationId).eq("estimate_id", input.estimateId).maybeSingle();
+  const { data: existing } = await admin
+    .from("payment_schedules")
+    .select("id")
+    .eq("organization_id", input.organizationId)
+    .eq("estimate_id", input.estimateId)
+    .maybeSingle();
   if (existing) return existing.id as string;
 
-  const { data: schedule, error } = await admin.from("payment_schedules").insert({
-    organization_id: input.organizationId,
-    estimate_id: input.estimateId,
-    name: plan.name,
-    status: "active",
-    created_by: input.createdBy ?? null,
-  }).select("id").single();
+  const { data: schedule, error } = await admin
+    .from("payment_schedules")
+    .insert({
+      organization_id: input.organizationId,
+      estimate_id: input.estimateId,
+      name: plan.name,
+      status: "active",
+      created_by: input.createdBy ?? null,
+    })
+    .select("id")
+    .single();
   if (error || !schedule) {
     // A concurrent create won the unique index. Use theirs.
-    const { data: raced } = await admin.from("payment_schedules")
-      .select("id").eq("organization_id", input.organizationId).eq("estimate_id", input.estimateId).maybeSingle();
+    const { data: raced } = await admin
+      .from("payment_schedules")
+      .select("id")
+      .eq("organization_id", input.organizationId)
+      .eq("estimate_id", input.estimateId)
+      .maybeSingle();
     return (raced?.id as string) ?? null;
   }
 
   const { amounts } = allocateMilestones(input.totalMinor, plan.milestones);
-  type PlannedMilestone = { label: string; calculation_type: string; amount_minor: number | null; percent_bps: number | null; due_trigger: string; sort: number };
+  type PlannedMilestone = {
+    label: string;
+    calculation_type: string;
+    amount_minor: number | null;
+    percent_bps: number | null;
+    due_trigger: string;
+    sort: number;
+  };
   const rows = (plan.milestones as PlannedMilestone[]).map((milestone, index: number) => ({
     organization_id: input.organizationId,
     schedule_id: schedule.id,
@@ -111,7 +145,8 @@ export async function ensureEstimateSchedule(admin: Admin, input: {
     status: milestone.calculation_type === "fixed" ? "due" : "pending",
   }));
   const { error: milestoneError } = await admin.from("payment_milestones").insert(rows);
-  if (milestoneError) console.error("[deposits] schedule created without milestones:", milestoneError.message);
+  if (milestoneError)
+    console.error("[deposits] schedule created without milestones:", milestoneError.message);
   return schedule.id as string;
 }
 
@@ -122,14 +157,25 @@ export async function ensureEstimateSchedule(admin: Admin, input: {
  * manual confirmation — so `processing` genuinely means "submitted, not
  * cleared" rather than being a status nothing ever set.
  */
-export async function syncEstimateMilestones(admin: Admin, organizationId: string, estimateId: string) {
-  const { data: schedule } = await admin.from("payment_schedules")
-    .select("id").eq("organization_id", organizationId).eq("estimate_id", estimateId).maybeSingle();
+export async function syncEstimateMilestones(
+  admin: Admin,
+  organizationId: string,
+  estimateId: string,
+) {
+  const { data: schedule } = await admin
+    .from("payment_schedules")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .eq("estimate_id", estimateId)
+    .maybeSingle();
   if (!schedule) return;
 
-  const { data: milestones } = await admin.from("payment_milestones")
+  const { data: milestones } = await admin
+    .from("payment_milestones")
     .select("id, label, status, amount_minor, calculation_type, sort")
-    .eq("organization_id", organizationId).eq("schedule_id", schedule.id).order("sort");
+    .eq("organization_id", organizationId)
+    .eq("schedule_id", schedule.id)
+    .order("sort");
   if (!milestones?.length) return;
 
   const payments = await paymentsForEstimate(admin, organizationId, estimateId);
@@ -157,7 +203,8 @@ export async function syncEstimateMilestones(admin: Admin, organizationId: strin
       pendingMinor: appliedPending,
     });
     if (status === String(milestone.status)) continue;
-    await admin.from("payment_milestones")
+    await admin
+      .from("payment_milestones")
       .update({ status, paid_at: status === "paid" ? now : null })
       .eq("id", milestone.id);
   }
@@ -169,19 +216,32 @@ export async function syncEstimateMilestones(admin: Admin, organizationId: strin
  * `overridden` is true when a milestone carries a recorded release by someone
  * holding `can_override_ach_holds`.
  */
-export async function estimateDepositRelease(admin: Admin, organizationId: string, estimateId: string, depositMinor: number) {
+export async function estimateDepositRelease(
+  admin: Admin,
+  organizationId: string,
+  estimateId: string,
+  depositMinor: number,
+) {
   const [payments, holdEnabled, { data: schedule }] = await Promise.all([
     paymentsForEstimate(admin, organizationId, estimateId),
     achHoldEnabled(admin, organizationId),
-    admin.from("payment_schedules")
-      .select("id").eq("organization_id", organizationId).eq("estimate_id", estimateId).maybeSingle(),
+    admin
+      .from("payment_schedules")
+      .select("id")
+      .eq("organization_id", organizationId)
+      .eq("estimate_id", estimateId)
+      .maybeSingle(),
   ]);
 
   let overridden = false;
   if (schedule) {
-    const { data: releases } = await admin.from("payment_milestones")
-      .select("id").eq("organization_id", organizationId).eq("schedule_id", schedule.id)
-      .not("released_at", "is", null).limit(1);
+    const { data: releases } = await admin
+      .from("payment_milestones")
+      .select("id")
+      .eq("organization_id", organizationId)
+      .eq("schedule_id", schedule.id)
+      .not("released_at", "is", null)
+      .limit(1);
     overridden = !!releases?.length;
   }
   return depositReleaseDecision({ holdEnabled, requiredMinor: depositMinor, payments, overridden });
@@ -199,7 +259,8 @@ export type HeldDeposit = {
 /** Deposits whose money has been sent but not cleared — the office review list. */
 export async function heldDeposits(organizationId: string, limit = 20): Promise<HeldDeposit[]> {
   const admin = createAdminClient();
-  const { data } = await admin.from("payment_milestones")
+  const { data } = await admin
+    .from("payment_milestones")
     .select("id, label, amount_minor, schedule_id")
     .eq("organization_id", organizationId)
     .eq("status", "processing")
@@ -212,31 +273,45 @@ export async function heldDeposits(organizationId: string, limit = 20): Promise<
   // at payment_schedules through a COMPOSITE (schedule_id, organization_id)
   // foreign key, and an embed across a composite key is not something to assume
   // resolves the way a single-column one does.
-  const { data: schedules } = await admin.from("payment_schedules")
-    .select("id, estimate_id").eq("organization_id", organizationId)
+  const { data: schedules } = await admin
+    .from("payment_schedules")
+    .select("id, estimate_id")
+    .eq("organization_id", organizationId)
     .in("id", [...new Set(data.map((row) => row.schedule_id as string))]);
-  const estimateByScheduleId = new Map((schedules ?? []).map((row) => [row.id as string, row.estimate_id as string | null]));
+  const estimateByScheduleId = new Map(
+    (schedules ?? []).map((row) => [row.id as string, row.estimate_id as string | null]),
+  );
 
-  const estimateIds = [...new Set([...estimateByScheduleId.values()].filter((value): value is string => !!value))];
+  const estimateIds = [
+    ...new Set([...estimateByScheduleId.values()].filter((value): value is string => !!value)),
+  ];
   if (!estimateIds.length) return [];
 
-  const { data: estimates } = await admin.from("estimates")
-    .select("id, number, customers(name)").in("id", estimateIds).eq("organization_id", organizationId);
+  const { data: estimates } = await admin
+    .from("estimates")
+    .select("id, number, customers(name)")
+    .in("id", estimateIds)
+    .eq("organization_id", organizationId);
   const byId = new Map((estimates ?? []).map((estimate) => [estimate.id as string, estimate]));
 
   return data.flatMap((row) => {
     const estimateId = estimateByScheduleId.get(row.schedule_id as string);
     if (!estimateId) return [];
-    const estimate = byId.get(estimateId) as { number?: number; customers?: { name?: string } | { name?: string }[] } | undefined;
-    const customer = Array.isArray(estimate?.customers) ? estimate?.customers[0] : estimate?.customers;
-    return [{
-      milestoneId: row.id as string,
-      estimateId,
-      estimateNumber: estimate?.number ?? null,
-      customerName: customer?.name ?? null,
-      amountMinor: Number(row.amount_minor ?? 0),
-      label: String(row.label ?? "Deposit"),
-    }];
+    const estimate = byId.get(estimateId) as
+      { number?: number; customers?: { name?: string } | { name?: string }[] } | undefined;
+    const customer = Array.isArray(estimate?.customers)
+      ? estimate?.customers[0]
+      : estimate?.customers;
+    return [
+      {
+        milestoneId: row.id as string,
+        estimateId,
+        estimateNumber: estimate?.number ?? null,
+        customerName: customer?.name ?? null,
+        amountMinor: Number(row.amount_minor ?? 0),
+        label: String(row.label ?? "Deposit"),
+      },
+    ];
   });
 }
 
@@ -244,7 +319,10 @@ export async function heldDeposits(organizationId: string, limit = 20): Promise<
 export async function mayOverrideAchHold(profileId: string, role: string): Promise<boolean> {
   if (role === "owner") return true;
   const supabase = await createClient();
-  const { data } = await supabase.from("profile_payment_permissions")
-    .select("can_override_ach_holds").eq("profile_id", profileId).maybeSingle();
+  const { data } = await supabase
+    .from("profile_payment_permissions")
+    .select("can_override_ach_holds")
+    .eq("profile_id", profileId)
+    .maybeSingle();
   return !!data?.can_override_ach_holds;
 }

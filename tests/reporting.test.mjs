@@ -10,7 +10,11 @@ import {
   COLLECTED_STATUSES,
 } from "../lib/core/reporting.mjs";
 
-const settled = (minor, refunded = 0) => ({ base_amount_minor: minor, refunded_minor: refunded, normalized_status: "settled" });
+const settled = (minor, refunded = 0) => ({
+  base_amount_minor: minor,
+  refunded_minor: refunded,
+  normalized_status: "settled",
+});
 
 // ---------------------------------------------------------------------------
 // "Revenue collected" must mean money RECEIVED, not money BILLED.
@@ -19,8 +23,8 @@ const settled = (minor, refunded = 0) => ({ base_amount_minor: minor, refunded_m
 test("collected counts settled money only", () => {
   const rows = [
     settled(500_00),
-    { base_amount_minor: 900_00, normalized_status: "processing" },   // ACH in flight
-    { base_amount_minor: 300_00, normalized_status: "failed" },       // declined card
+    { base_amount_minor: 900_00, normalized_status: "processing" }, // ACH in flight
+    { base_amount_minor: 300_00, normalized_status: "failed" }, // declined card
   ];
   assert.equal(collectedMinor(rows), 500_00, "in-flight and declined money is not revenue");
 });
@@ -34,7 +38,10 @@ test("collected is not a cry-wolf filter", () => {
   // The other direction: if the filter rejected everything, revenue would read
   // zero and the report would be just as wrong.
   assert.equal(collectedMinor([settled(250_00)]), 250_00);
-  assert.equal(collectedMinor([{ base_amount_minor: 250_00, normalized_status: "partially_refunded" }]), 250_00);
+  assert.equal(
+    collectedMinor([{ base_amount_minor: 250_00, normalized_status: "partially_refunded" }]),
+    250_00,
+  );
   assert.deepEqual(COLLECTED_STATUSES, ["settled", "partially_refunded"]);
 });
 
@@ -50,7 +57,7 @@ test("a hand-marked-paid invoice with no payment contributes no revenue", () => 
 
 const items = [
   { qty_milli: 2000, unit_price_minor: 100_00, cost_minor: 40_00, taxable: true }, // 2 x $100, cost $40
-  { qty_milli: 1000, unit_price_minor: 50_00, cost_minor: 20_00, taxable: true },  // 1 x $50,  cost $20
+  { qty_milli: 1000, unit_price_minor: 50_00, cost_minor: 20_00, taxable: true }, // 1 x $50,  cost $20
 ];
 
 test("revenue excludes tax, because tax is not income", () => {
@@ -69,14 +76,17 @@ test("a discount reduces revenue AND the margin, on both sides", () => {
     invoices: [{ id: "i1", ...invoice }],
     itemsByInvoice: { i1: items },
   });
-  assert.equal(totals.materialsCostMinor, 100_00);     // 2x40 + 1x20
-  assert.equal(totals.grossProfitMinor, 100_00);       // 200.00 revenue - 100.00 cost
+  assert.equal(totals.materialsCostMinor, 100_00); // 2x40 + 1x20
+  assert.equal(totals.grossProfitMinor, 100_00); // 200.00 revenue - 100.00 cost
 
   // THE OLD BUG, reproduced: item revenue ignoring the discount would be
   // 250.00, giving a 150.00 "profit" — 50% overstated on this invoice.
   const overstated = 250_00 - 100_00;
   assert.equal(overstated, 150_00);
-  assert.ok(totals.grossProfitMinor < overstated, "the fix must report less profit than the old maths");
+  assert.ok(
+    totals.grossProfitMinor < overstated,
+    "the fix must report less profit than the old maths",
+  );
 });
 
 test("period totals net expenses off gross profit", () => {
@@ -116,8 +126,8 @@ test("commission is a percentage of money actually collected", () => {
 });
 
 test("commission rounds half-up in integer minor units", () => {
-  assert.equal(commissionMinor(333, 15), 50);   // 49.95 -> 50
-  assert.equal(commissionMinor(1, 50), 1);      // 0.5 -> 1
+  assert.equal(commissionMinor(333, 15), 50); // 49.95 -> 50
+  assert.equal(commissionMinor(1, 50), 1); // 0.5 -> 1
   assert.ok(Number.isInteger(commissionMinor(12345, 7)));
 });
 
@@ -140,16 +150,23 @@ const readCode = (p) =>
 test("report screens derive revenue from payments, not invoice totals", () => {
   for (const file of ["app/(app)/reports/page.tsx", "app/(app)/reports/commission/page.tsx"]) {
     const src = readCode(file);
-    assert.ok(/from "@\/lib\/core\/reporting\.mjs"/.test(src), `${file} must use the shared, tested reporting module`);
-    assert.ok(!/invs\.reduce\(\(s, i\) => s \+ i\.total_minor, 0\)/.test(src),
-      `${file} must not equate billed totals with collected revenue`);
+    assert.ok(
+      /from "@\/lib\/core\/reporting\.mjs"/.test(src),
+      `${file} must use the shared, tested reporting module`,
+    );
+    assert.ok(
+      !/invs\.reduce\(\(s, i\) => s \+ i\.total_minor, 0\)/.test(src),
+      `${file} must not equate billed totals with collected revenue`,
+    );
   }
 });
 
 test("commission no longer pays on quoted price", () => {
   const src = readCode("app/(app)/reports/commission/page.tsx");
-  assert.ok(!/revenue \+= j\.price_minor/.test(src),
-    "paying commission on jobs.price_minor pays for work that was never collected");
+  assert.ok(
+    !/revenue \+= j\.price_minor/.test(src),
+    "paying commission on jobs.price_minor pays for work that was never collected",
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -169,10 +186,10 @@ test("commission no longer pays on quoted price", () => {
 
 test("periodTotals nets refunds and excludes unsettled money, not just collectedMinor", () => {
   const mixed = [
-    settled(500_00),                                                            // real money
+    settled(500_00), // real money
     { base_amount_minor: 900_00, refunded_minor: 0, normalized_status: "processing" }, // ACH in flight
-    { base_amount_minor: 300_00, refunded_minor: 0, normalized_status: "failed" },     // declined card
-    settled(200_00, 150_00),                                                    // refunded down to 50.00
+    { base_amount_minor: 300_00, refunded_minor: 0, normalized_status: "failed" }, // declined card
+    settled(200_00, 150_00), // refunded down to 50.00
   ];
   const totals = periodTotals({ payments: mixed, invoices: [], itemsByInvoice: {} });
 
@@ -181,8 +198,11 @@ test("periodTotals nets refunds and excludes unsettled money, not just collected
   // The mutation this exists to catch: a naive sum over the same rows.
   const naive = mixed.reduce((s, p) => s + p.base_amount_minor, 0);
   assert.equal(naive, 1900_00);
-  assert.notEqual(totals.collectedMinor, naive,
-    "if these are ever equal, periodTotals has stopped filtering and netting");
+  assert.notEqual(
+    totals.collectedMinor,
+    naive,
+    "if these are ever equal, periodTotals has stopped filtering and netting",
+  );
 });
 
 test("periodTotals reports zero when nothing settled, however many payments exist", () => {

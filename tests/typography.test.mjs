@@ -60,8 +60,10 @@ function cssFontSizes(rawCss) {
 
 /** Length tokens in a value, as `{ number, unit }`. */
 const lengths = (value) =>
-  [...value.matchAll(/(-?\d*\.?\d+)\s*(rem|em|px|pt|vw|vh|vmin|vmax|ch|ex|%)/g)]
-    .map((m) => ({ number: Number(m[1]), unit: m[2] }));
+  [...value.matchAll(/(-?\d*\.?\d+)\s*(rem|em|px|pt|vw|vh|vmin|vmax|ch|ex|%)/g)].map((m) => ({
+    number: Number(m[1]),
+    unit: m[2],
+  }));
 
 /**
  * Resolve a font-size value against a root font-size. Returns `null` when the
@@ -114,8 +116,9 @@ const quoted = (expression) =>
 
 /** Unquoted numbers in a React style prop. React renders these verbatim as `px`. */
 const bareNumbers = (expression) =>
-  [...expression.replace(/"[^"]*"|'[^']*'/g, '""').matchAll(/(?:^|[^\w.$])(\d+(?:\.\d+)?)/g)]
-    .map((m) => Number(m[1]));
+  [...expression.replace(/"[^"]*"|'[^']*'/g, '""').matchAll(/(?:^|[^\w.$])(\d+(?:\.\d+)?)/g)].map(
+    (m) => Number(m[1]),
+  );
 
 const hasBareNumber = (expression) => bareNumbers(expression).length > 0;
 
@@ -163,9 +166,19 @@ const PRE_CHANGE_INLINE = [
 
 test("the parser finds the sizes it is supposed to find (cry-wolf guard)", () => {
   const pre = cssFontSizes(PRE_CHANGE_CSS);
-  assert.equal(pre.length, 8, "8 declarations in the pre-change sample, one of them a `font:` shorthand");
-  assert.ok(CSS_SIZES.length > 350, `expected the real stylesheet to yield hundreds of sizes, got ${CSS_SIZES.length}`);
-  assert.ok(INLINE_SIZES.length > 600, `expected hundreds of inline props, got ${INLINE_SIZES.length}`);
+  assert.equal(
+    pre.length,
+    8,
+    "8 declarations in the pre-change sample, one of them a `font:` shorthand",
+  );
+  assert.ok(
+    CSS_SIZES.length > 350,
+    `expected the real stylesheet to yield hundreds of sizes, got ${CSS_SIZES.length}`,
+  );
+  assert.ok(
+    INLINE_SIZES.length > 600,
+    `expected hundreds of inline props, got ${INLINE_SIZES.length}`,
+  );
 });
 
 test("the stylesheet is structurally valid", () => {
@@ -200,9 +213,10 @@ test("a comment cannot satisfy a font-size check", () => {
 // ---------------------------------------------------------------------------
 
 test(`A1: no stylesheet font-size resolves below ${MIN_TEXT_PX}px`, () => {
-  const tooSmall = CSS_SIZES
-    .map((d) => ({ ...d, resolved: resolvePx(d.value, DEFAULT_ROOT_PX) }))
-    .filter((d) => d.resolved && d.resolved.min < MIN_TEXT_PX);
+  const tooSmall = CSS_SIZES.map((d) => ({
+    ...d,
+    resolved: resolvePx(d.value, DEFAULT_ROOT_PX),
+  })).filter((d) => d.resolved && d.resolved.min < MIN_TEXT_PX);
   assert.deepEqual(
     tooSmall.map((d) => `${d.selector} -> ${d.value}`),
     [],
@@ -234,7 +248,10 @@ test("A1: the floor check REJECTS the pre-change stylesheet", () => {
     .map((d) => ({ ...d, resolved: resolvePx(d.value, DEFAULT_ROOT_PX) }))
     .filter((d) => d.resolved && d.resolved.min < MIN_TEXT_PX);
   assert.equal(tooSmall.length, 6, "9.5, 8, 10, 9.5, 29-in-clamp and 7 are all under the floor");
-  assert.ok(tooSmall.some((d) => d.resolved.min === 7), "the 7px rule must be caught");
+  assert.ok(
+    tooSmall.some((d) => d.resolved.min === 7),
+    "the 7px rule must be caught",
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -244,8 +261,14 @@ test("A1: the floor check REJECTS the pre-change stylesheet", () => {
 /** Smallest size the stylesheet gives a selector, in px at the default root. */
 function sizeOf(selector, pick = "min") {
   const matches = CSS_SIZES.filter((d) => d.selector === selector);
-  assert.ok(matches.length > 0, `no rule found for ${selector} — the test has drifted from the CSS`);
-  const values = matches.map((d) => resolvePx(d.value, DEFAULT_ROOT_PX)).filter(Boolean).map((r) => r.max);
+  assert.ok(
+    matches.length > 0,
+    `no rule found for ${selector} — the test has drifted from the CSS`,
+  );
+  const values = matches
+    .map((d) => resolvePx(d.value, DEFAULT_ROOT_PX))
+    .filter(Boolean)
+    .map((r) => r.max);
   return pick === "min" ? Math.min(...values) : Math.max(...values);
 }
 
@@ -259,7 +282,10 @@ test("A1: the text a person is reading is at least body size", () => {
     [".dashboard-hero > div p", 14, "the dashboard lead paragraph (was 12px)"],
   ];
   for (const [selector, min, why] of required) {
-    assert.ok(sizeOf(selector) >= min, `${selector} (${why}) is ${sizeOf(selector)}px, needs >= ${min}px`);
+    assert.ok(
+      sizeOf(selector) >= min,
+      `${selector} (${why}) is ${sizeOf(selector)}px, needs >= ${min}px`,
+    );
   }
 });
 
@@ -344,7 +370,10 @@ test("A2: the same computation shows the PRE-CHANGE product did not move at all"
   assert.equal(changed, 0, "the pre-change stylesheet must be provably inert under the toggle");
 
   for (const item of PRE_CHANGE_INLINE) {
-    assert.ok(hasBareNumber(item.expression), `${item.expression} is a px number React writes verbatim`);
+    assert.ok(
+      hasBareNumber(item.expression),
+      `${item.expression} is a px number React writes verbatim`,
+    );
   }
 });
 
@@ -416,7 +445,9 @@ test("dense screens still scroll rather than overflow", () => {
 
 test("RTL still relies on logical properties, not physical ones", () => {
   const css = stripCssComments(CSS);
-  const logical = (css.match(/(?:padding|margin|border|inset)-inline(?:-(?:start|end))?\s*:/g) ?? []).length;
+  const logical = (
+    css.match(/(?:padding|margin|border|inset)-inline(?:-(?:start|end))?\s*:/g) ?? []
+  ).length;
   // 53 at 1cac6b8, the commit this pass started from. Hebrew/RTL was already
   // correct; this number may only go up.
   assert.ok(logical >= 53, `logical properties dropped to ${logical}; RTL is driven by these`);

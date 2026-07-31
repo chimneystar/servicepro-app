@@ -14,9 +14,7 @@
 
 /** Strip SQL line and block comments so they cannot satisfy a check. */
 export function stripSqlComments(sql) {
-  return sql
-    .replace(/\/\*[\s\S]*?\*\//g, " ")
-    .replace(/--[^\n]*/g, " ");
+  return sql.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/--[^\n]*/g, " ");
 }
 
 /** Every `do $$ ... $$` block body in the file. */
@@ -35,13 +33,19 @@ function arrayLiterals(block) {
   return names;
 }
 
-const clean = (name) => name.replace(/^public\./i, "").replace(/"/g, "").toLowerCase();
+const clean = (name) =>
+  name
+    .replace(/^public\./i, "")
+    .replace(/"/g, "")
+    .toLowerCase();
 
 /** Tables created in this SQL. */
 export function tablesCreated(sql) {
   const s = stripSqlComments(sql);
   return new Set(
-    [...s.matchAll(/create\s+table\s+(?:if\s+not\s+exists\s+)?([a-z0-9_."]+)/gi)].map((m) => clean(m[1])),
+    [...s.matchAll(/create\s+table\s+(?:if\s+not\s+exists\s+)?([a-z0-9_."]+)/gi)].map((m) =>
+      clean(m[1]),
+    ),
   );
 }
 
@@ -52,8 +56,11 @@ export function tablesCreated(sql) {
 export function tablesWithRls(sql) {
   const s = stripSqlComments(sql);
   const out = new Set(
-    [...s.matchAll(/alter\s+table\s+(?:if\s+exists\s+)?([a-z0-9_."]+)\s+enable\s+row\s+level\s+security/gi)]
-      .map((m) => clean(m[1])),
+    [
+      ...s.matchAll(
+        /alter\s+table\s+(?:if\s+exists\s+)?([a-z0-9_."]+)\s+enable\s+row\s+level\s+security/gi,
+      ),
+    ].map((m) => clean(m[1])),
   );
   for (const block of doBlocks(s)) {
     if (!/enable\s+row\s+level\s+security/i.test(block)) continue;
@@ -66,7 +73,9 @@ export function tablesWithRls(sql) {
 export function tablesWithPolicy(sql) {
   const s = stripSqlComments(sql);
   const out = new Set(
-    [...s.matchAll(/create\s+policy\s+[a-z0-9_."]+\s+on\s+([a-z0-9_."]+)/gi)].map((m) => clean(m[1])),
+    [...s.matchAll(/create\s+policy\s+[a-z0-9_."]+\s+on\s+([a-z0-9_."]+)/gi)].map((m) =>
+      clean(m[1]),
+    ),
   );
   for (const block of doBlocks(s)) {
     if (!/create\s+policy/i.test(block)) continue;

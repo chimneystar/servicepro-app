@@ -26,18 +26,30 @@ export type ActionResult = {
  * it that or not — and the old code recorded neither the before, the after, nor
  * who did it.
  */
-export async function saveInventoryItem(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+export async function saveInventoryItem(
+  _prev: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
   let profile;
-  try { profile = await requireProfile(); assertRole(profile, ["owner", "office"]); }
-  catch { return { ok: false, error: "forbidden" }; }
+  try {
+    profile = await requireProfile();
+    assertRole(profile, ["owner", "office"]);
+  } catch {
+    return { ok: false, error: "forbidden" };
+  }
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { ok: false, error: "Name required" };
   let cost_minor = 0;
-  try { cost_minor = parseAmountToMinor(String(formData.get("cost") ?? "0")); } catch { }
+  try {
+    cost_minor = parseAmountToMinor(String(formData.get("cost") ?? "0"));
+  } catch {}
 
   let qtyMilli = 0;
-  try { qtyMilli = parseQtyToMilli(String(formData.get("quantity") ?? "0")); }
-  catch { return { ok: false, error: "Invalid quantity" }; }
+  try {
+    qtyMilli = parseQtyToMilli(String(formData.get("quantity") ?? "0"));
+  } catch {
+    return { ok: false, error: "Invalid quantity" };
+  }
 
   const base = {
     name,
@@ -53,15 +65,22 @@ export async function saveInventoryItem(_prev: ActionResult, formData: FormData)
   if (!id) {
     // quantity is accepted on INSERT: the database turns it into the opening
     // movement, so the ledger still tells the whole story.
-    const { error } = await supabase.from("inventory_items")
-      .insert({ organization_id: profile.organization_id, ...base, quantity: Math.trunc(qtyMilli / 1000), quantity_milli: qtyMilli });
+    const { error } = await supabase.from("inventory_items").insert({
+      organization_id: profile.organization_id,
+      ...base,
+      quantity: Math.trunc(qtyMilli / 1000),
+      quantity_milli: qtyMilli,
+    });
     if (error) return { ok: false, error: error.message };
     revalidatePath("/inventory");
     return { ok: true };
   }
 
   const { data: current } = await supabase
-    .from("inventory_items").select("id, quantity_milli").eq("id", id).maybeSingle();
+    .from("inventory_items")
+    .select("id, quantity_milli")
+    .eq("id", id)
+    .maybeSingle();
   if (!current) return { ok: false, error: "not found" };
 
   const { error } = await supabase.from("inventory_items").update(base).eq("id", id);
@@ -70,12 +89,17 @@ export async function saveInventoryItem(_prev: ActionResult, formData: FormData)
   const delta = qtyMilli - (current.quantity_milli ?? 0);
   if (delta !== 0) {
     const moved = await recordInventoryMovement(profile.organization_id!, profile.id, {
-      itemId: id, kind: "adjustment", qtyMilli: delta,
+      itemId: id,
+      kind: "adjustment",
+      qtyMilli: delta,
       reason: String(formData.get("reason") ?? "").trim() || "Stock corrected on the item form",
       unitCostMinor: cost_minor,
       allowNegative: String(formData.get("allowNegative") ?? "") === "true",
     });
-    if (!moved.ok) { revalidatePath("/inventory"); return moved; }
+    if (!moved.ok) {
+      revalidatePath("/inventory");
+      return moved;
+    }
   }
   revalidatePath("/inventory");
   return { ok: true };
@@ -89,17 +113,28 @@ export async function saveInventoryItem(_prev: ActionResult, formData: FormData)
  * that either of them had. Now each press is a ledger row, and the database
  * refuses to take stock below zero without a deliberate override.
  */
-export async function adjustQuantity(id: string, delta: number, reason?: string, allowNegative = false): Promise<ActionResult> {
+export async function adjustQuantity(
+  id: string,
+  delta: number,
+  reason?: string,
+  allowNegative = false,
+): Promise<ActionResult> {
   let profile;
-  try { profile = await requireProfile(); assertRole(profile, ["owner", "office"]); }
-  catch { return { ok: false, error: "forbidden" }; }
+  try {
+    profile = await requireProfile();
+    assertRole(profile, ["owner", "office"]);
+  } catch {
+    return { ok: false, error: "forbidden" };
+  }
   if (!Number.isInteger(delta) || delta === 0) return { ok: false, error: "Nothing to change" };
 
   const result = await recordInventoryMovement(profile.organization_id!, profile.id, {
     itemId: id,
     kind: "adjustment",
     qtyMilli: delta * 1000,
-    reason: (reason ?? "").trim() || (delta > 0 ? "Counted in on the inventory list" : "Counted out on the inventory list"),
+    reason:
+      (reason ?? "").trim() ||
+      (delta > 0 ? "Counted in on the inventory list" : "Counted out on the inventory list"),
     allowNegative,
   });
   revalidatePath("/inventory");
@@ -108,30 +143,50 @@ export async function adjustQuantity(id: string, delta: number, reason?: string,
 }
 
 /** Record a receipt, consumption or correction with an explicit reason. */
-export async function recordStockMovement(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+export async function recordStockMovement(
+  _prev: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
   let profile;
-  try { profile = await requireProfile(); assertRole(profile, ["owner", "office"]); }
-  catch { return { ok: false, error: "forbidden" }; }
+  try {
+    profile = await requireProfile();
+    assertRole(profile, ["owner", "office"]);
+  } catch {
+    return { ok: false, error: "forbidden" };
+  }
 
   const itemId = String(formData.get("itemId") ?? "");
   const kind = String(formData.get("kind") ?? "adjustment");
   if (!itemId) return { ok: false, error: "Choose an item" };
-  if (!["receipt", "consumption", "adjustment"].includes(kind)) return { ok: false, error: "Unknown movement type" };
+  if (!["receipt", "consumption", "adjustment"].includes(kind))
+    return { ok: false, error: "Unknown movement type" };
 
   let magnitude = 0;
-  try { magnitude = parseQtyToMilli(String(formData.get("qty") ?? "0")); }
-  catch { return { ok: false, error: "Invalid quantity" }; }
+  try {
+    magnitude = parseQtyToMilli(String(formData.get("qty") ?? "0"));
+  } catch {
+    return { ok: false, error: "Invalid quantity" };
+  }
   if (magnitude === 0) return { ok: false, error: "Enter a quantity" };
 
   const direction = String(formData.get("direction") ?? "in") === "out" ? -1 : 1;
-  const signed = kind === "receipt" ? magnitude : kind === "consumption" ? -magnitude : magnitude * direction;
+  const signed =
+    kind === "receipt" ? magnitude : kind === "consumption" ? -magnitude : magnitude * direction;
 
   let unitCostMinor: number | undefined;
   const costRaw = String(formData.get("unitCost") ?? "").trim();
-  if (costRaw) { try { unitCostMinor = parseAmountToMinor(costRaw); } catch { return { ok: false, error: "Invalid cost" }; } }
+  if (costRaw) {
+    try {
+      unitCostMinor = parseAmountToMinor(costRaw);
+    } catch {
+      return { ok: false, error: "Invalid cost" };
+    }
+  }
 
   const result = await recordInventoryMovement(profile.organization_id!, profile.id, {
-    itemId, kind: kind as "receipt" | "consumption" | "adjustment", qtyMilli: signed,
+    itemId,
+    kind: kind as "receipt" | "consumption" | "adjustment",
+    qtyMilli: signed,
     reason: String(formData.get("reason") ?? "").trim(),
     unitCostMinor,
     allowNegative: String(formData.get("allowNegative") ?? "") === "true",
@@ -142,8 +197,12 @@ export async function recordStockMovement(_prev: ActionResult, formData: FormDat
 }
 
 export async function deleteInventoryItem(id: string): Promise<ActionResult> {
-  try { const p = await requireProfile(); assertRole(p, ["owner", "office"]); }
-  catch { return { ok: false, error: "forbidden" }; }
+  try {
+    const p = await requireProfile();
+    assertRole(p, ["owner", "office"]);
+  } catch {
+    return { ok: false, error: "forbidden" };
+  }
   const supabase = await createClient();
   const { error } = await supabase.from("inventory_items").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };

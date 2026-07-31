@@ -3,8 +3,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { stripSqlComments } from "./helpers/sql.mjs";
 import {
-  entryMinutes, minutesByTechnician, resolvePayRate, labourCostForMinutes,
-  jobLabour, jobProfit, labourInvoiceLine,
+  entryMinutes,
+  minutesByTechnician,
+  resolvePayRate,
+  labourCostForMinutes,
+  jobLabour,
+  jobProfit,
+  labourInvoiceLine,
 } from "../lib/core/job-costing.mjs";
 
 // ---------------------------------------------------------------------------
@@ -20,8 +25,14 @@ const rates = [
 ];
 
 test("a closed time entry becomes whole minutes", () => {
-  assert.equal(entryMinutes({ started_at: "2026-07-01T09:00:00Z", ended_at: "2026-07-01T11:30:00Z" }), 150);
-  assert.equal(entryMinutes({ started_at: "2026-07-01T09:00:00Z", ended_at: "2026-07-01T09:00:59Z" }), 0);
+  assert.equal(
+    entryMinutes({ started_at: "2026-07-01T09:00:00Z", ended_at: "2026-07-01T11:30:00Z" }),
+    150,
+  );
+  assert.equal(
+    entryMinutes({ started_at: "2026-07-01T09:00:00Z", ended_at: "2026-07-01T09:00:59Z" }),
+    0,
+  );
 });
 
 test("an OPEN entry contributes nothing, and is counted separately", () => {
@@ -36,7 +47,10 @@ test("an OPEN entry contributes nothing, and is counted separately", () => {
 });
 
 test("an end before the start is discarded rather than going negative", () => {
-  assert.equal(entryMinutes({ started_at: "2026-07-01T11:00:00Z", ended_at: "2026-07-01T09:00:00Z" }), 0);
+  assert.equal(
+    entryMinutes({ started_at: "2026-07-01T11:00:00Z", ended_at: "2026-07-01T09:00:00Z" }),
+    0,
+  );
 });
 
 test("pay rates are effective-dated: a June rise does not re-cost a March job", () => {
@@ -46,7 +60,14 @@ test("pay rates are effective-dated: a June rise does not re-cost a March job", 
 });
 
 test("a rate that has not started yet is NOT applied", () => {
-  assert.equal(resolvePayRate([{ profile_id: "x", cost_rate_minor: 9000, effective_from: "2027-01-01" }], "x", "2026-07-01"), null);
+  assert.equal(
+    resolvePayRate(
+      [{ profile_id: "x", cost_rate_minor: 9000, effective_from: "2027-01-01" }],
+      "x",
+      "2026-07-01",
+    ),
+    null,
+  );
 });
 
 test("no rate is NULL, never zero — zero would report the labour as free", () => {
@@ -59,9 +80,9 @@ test("no rate is NULL, never zero — zero would report the labour as free", () 
 test("cost for minutes is integer half-up, never float", () => {
   assert.equal(labourCostForMinutes(60, 4000), 4000);
   assert.equal(labourCostForMinutes(90, 4000), 6000);
-  assert.equal(labourCostForMinutes(1, 4000), 67);        // 66.66 -> 67
-  assert.equal(labourCostForMinutes(30, 3333), 1667);     // 1666.5 -> 1667, half-UP
-  assert.equal(labourCostForMinutes(7, 555), 65);         // 64.75 -> 65
+  assert.equal(labourCostForMinutes(1, 4000), 67); // 66.66 -> 67
+  assert.equal(labourCostForMinutes(30, 3333), 1667); // 1666.5 -> 1667, half-UP
+  assert.equal(labourCostForMinutes(7, 555), 65); // 64.75 -> 65
 });
 
 test("a whole job's labour: minutes, cost, and who could not be priced", () => {
@@ -71,7 +92,8 @@ test("a whole job's labour: minutes, cost, and who could not be priced", () => {
       { user_id: "tech-b", started_at: "2026-07-01T08:00:00Z", ended_at: "2026-07-01T09:30:00Z" }, // 90
       { user_id: "tech-z", started_at: "2026-07-01T08:00:00Z", ended_at: "2026-07-01T09:00:00Z" }, // 60, no rate
     ],
-    rates, onDate: "2026-07-01",
+    rates,
+    onDate: "2026-07-01",
   });
   assert.equal(result.minutes, 330);
   assert.equal(result.costMinor, 3 * 5000 + Math.round(1.5 * 3000));
@@ -81,32 +103,57 @@ test("a whole job's labour: minutes, cost, and who could not be priced", () => {
 
 test("a fully-priced, fully-closed job reports itself COMPLETE", () => {
   const result = jobLabour({
-    entries: [{ user_id: "tech-b", started_at: "2026-07-01T08:00:00Z", ended_at: "2026-07-01T10:00:00Z" }],
-    rates, onDate: "2026-07-01",
+    entries: [
+      { user_id: "tech-b", started_at: "2026-07-01T08:00:00Z", ended_at: "2026-07-01T10:00:00Z" },
+    ],
+    rates,
+    onDate: "2026-07-01",
   });
   assert.equal(result.costMinor, 6000);
   assert.equal(result.incomplete, false);
 });
 
 test("job profit subtracts LABOUR as well as materials — the defect being fixed", () => {
-  const withLabour = jobProfit({ revenueMinor: 50000, materialsCostMinor: 8000, labourCostMinor: 12000, expensesMinor: 1000 });
+  const withLabour = jobProfit({
+    revenueMinor: 50000,
+    materialsCostMinor: 8000,
+    labourCostMinor: 12000,
+    expensesMinor: 1000,
+  });
   assert.equal(withLabour.totalCostMinor, 21000);
   assert.equal(withLabour.profitMinor, 29000);
   // The old behaviour, reproduced, so the difference is on the record.
-  const labourIgnored = jobProfit({ revenueMinor: 50000, materialsCostMinor: 8000, labourCostMinor: 0, expensesMinor: 1000 });
+  const labourIgnored = jobProfit({
+    revenueMinor: 50000,
+    materialsCostMinor: 8000,
+    labourCostMinor: 0,
+    expensesMinor: 1000,
+  });
   assert.equal(labourIgnored.profitMinor, 41000);
   assert.ok(labourIgnored.profitMinor > withLabour.profitMinor);
 });
 
 test("margin is null with no revenue, not 0% and not Infinity", () => {
-  assert.equal(jobProfit({ revenueMinor: 0, materialsCostMinor: 100, labourCostMinor: 100, expensesMinor: 0 }).marginBps, null);
-  assert.equal(jobProfit({ revenueMinor: 10000, materialsCostMinor: 0, labourCostMinor: 2500, expensesMinor: 0 }).marginBps, 7500);
+  assert.equal(
+    jobProfit({ revenueMinor: 0, materialsCostMinor: 100, labourCostMinor: 100, expensesMinor: 0 })
+      .marginBps,
+    null,
+  );
+  assert.equal(
+    jobProfit({
+      revenueMinor: 10000,
+      materialsCostMinor: 0,
+      labourCostMinor: 2500,
+      expensesMinor: 0,
+    }).marginBps,
+    7500,
+  );
 });
 
 test("the labour invoice line is priced at ZERO and carries the cost", () => {
   const line = labourInvoiceLine({ minutes: 150, costMinor: 12345 });
-  assert.equal(line.unit_price_minor, 0);   // the customer is not charged twice
-  assert.equal(line.qty_milli, 1000);       // qty 1 -> line cost == cost_minor exactly
+  assert.equal(line.unit_price_minor, 0); // the customer is not charged twice
+  assert.equal(line.qty_milli, 1000); // qty 1 -> line cost == cost_minor exactly
   assert.equal(line.cost_minor, 12345);
   assert.equal(line.taxable, false);
   assert.match(line.description, /2\.50/);
@@ -120,19 +167,30 @@ test("no labour cost produces NO line at all", () => {
 // Structural: the wiring, with comments stripped so a comment cannot satisfy a
 // check. Each of these was RED before this change — the strings did not exist.
 // ---------------------------------------------------------------------------
-const migration = stripSqlComments(readFileSync(new URL("../db/039_scheduling_sales.sql", import.meta.url), "utf8"));
-const jobActions = stripSqlComments(readFileSync(new URL("../app/(app)/jobs/[id]/actions.ts", import.meta.url), "utf8"));
-const teamActions = stripSqlComments(readFileSync(new URL("../app/(app)/team/actions.ts", import.meta.url), "utf8"));
+const migration = stripSqlComments(
+  readFileSync(new URL("../db/039_scheduling_sales.sql", import.meta.url), "utf8"),
+);
+const jobActions = stripSqlComments(
+  readFileSync(new URL("../app/(app)/jobs/[id]/actions.ts", import.meta.url), "utf8"),
+);
+const teamActions = stripSqlComments(
+  readFileSync(new URL("../app/(app)/team/actions.ts", import.meta.url), "utf8"),
+);
 
 test("the wage lives in its own table, NOT on profiles", () => {
   assert.match(migration, /create table if not exists public\.technician_pay_rates/);
   // profiles is readable by every member of the org, so a rate column there
   // would hand the payroll to every technician through PostgREST.
-  assert.doesNotMatch(migration, /alter table public\.profiles add column if not exists\s+cost_rate/);
+  assert.doesNotMatch(
+    migration,
+    /alter table public\.profiles add column if not exists\s+cost_rate/,
+  );
 });
 
 test("the pay-rate table is OWNER ONLY and closed to anon", () => {
-  const policy = /create policy technician_pay_rates_owner[\s\S]*?with check[\s\S]*?;/.exec(migration);
+  const policy = /create policy technician_pay_rates_owner[\s\S]*?with check[\s\S]*?;/.exec(
+    migration,
+  );
   assert.ok(policy, "technician_pay_rates_owner policy must exist");
   assert.match(policy[0], /current_user_role\(\)\s*=\s*'owner'/);
   assert.doesNotMatch(policy[0], /'office'/);
@@ -152,12 +210,21 @@ test("job_labour_cost refuses a technician and never returns a rate", () => {
 });
 
 test("a technician cannot rewrite the labour cost on their own job", () => {
-  const guard = /create or replace function public\.guard_job_field_authority[\s\S]*?\$\$;/.exec(migration);
+  const guard = /create or replace function public\.guard_job_field_authority[\s\S]*?\$\$;/.exec(
+    migration,
+  );
   assert.ok(guard);
   assert.match(guard[0], /'labour_cost_minor'/);
   assert.match(guard[0], /'labour_minutes'/);
   // Everything migration 023 already protected is still protected.
-  for (const field of ["price_minor", "customer_id", "assigned_to", "deleted_at", "organization_id", "job_expenses_minor"]) {
+  for (const field of [
+    "price_minor",
+    "customer_id",
+    "assigned_to",
+    "deleted_at",
+    "organization_id",
+    "job_expenses_minor",
+  ]) {
     assert.match(guard[0], new RegExp(field), `023's guard on ${field} must survive`);
   }
 });

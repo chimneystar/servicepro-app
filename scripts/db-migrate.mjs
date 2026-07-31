@@ -168,7 +168,9 @@ function operator() {
 // ---------------------------------------------------------------------
 function reportProblems(problems) {
   if (!problems.length) return;
-  console.error(`\n${paint(RED, `${problems.length} problem(s) — the runner will not touch this database:`)}\n`);
+  console.error(
+    `\n${paint(RED, `${problems.length} problem(s) — the runner will not touch this database:`)}\n`,
+  );
   for (const p of problems) {
     const where = p.version ? `[${p.version}]` : p.filename ? `[${p.filename}]` : "";
     console.error(`  ${paint(RED, "x")} ${paint(YELLOW, p.code)} ${where}`);
@@ -227,7 +229,9 @@ function cmdPlan() {
 
   reportProblems(plan.problems);
   if (plan.problems.length) process.exit(1);
-  console.log(`\n${paint(GREEN, "OK")} — db/ is internally coherent (no gaps, no duplicates, nothing unclassified).\n`);
+  console.log(
+    `\n${paint(GREEN, "OK")} — db/ is internally coherent (no gaps, no duplicates, nothing unclassified).\n`,
+  );
 }
 
 function cmdStatus() {
@@ -248,7 +252,8 @@ function cmdStatus() {
     const state = a.row.finished_at ? a.row.origin : paint(RED, "UNFINISHED");
     console.log(`  ${paint(GREEN, "+")} ${a.version}  ${a.filename}  ${paint(DIM, state)}`);
   }
-  for (const p of plan.pending) console.log(`  ${paint(YELLOW, "-")} ${p.version}  ${p.filename}  ${paint(DIM, "pending")}`);
+  for (const p of plan.pending)
+    console.log(`  ${paint(YELLOW, "-")} ${p.version}  ${p.filename}  ${paint(DIM, "pending")}`);
 
   reportProblems(plan.problems);
   if (!plan.ok) process.exit(1);
@@ -341,7 +346,9 @@ function cmdUp() {
   const through = options.through;
   const take = through ? plan.pending.filter((m) => m.version <= through) : plan.pending;
   if (!take.length) {
-    console.log(`\n${paint(GREEN, "Up to date")} — ${plan.applied.length} migrations applied, none pending.\n`);
+    console.log(
+      `\n${paint(GREEN, "Up to date")} — ${plan.applied.length} migrations applied, none pending.\n`,
+    );
     return;
   }
 
@@ -371,7 +378,8 @@ function cmdUp() {
     // looked. Recording start and finish together would roll the evidence back
     // with the failure and leave exactly the silence this project already had.
     const start = psql(["-q", "-c", recordStartSql(m, by)]);
-    if (start.status !== 0) die(`could not record the start of ${m.version}:\n${start.stderr || start.stdout}`);
+    if (start.status !== 0)
+      die(`could not record the start of ${m.version}:\n${start.stderr || start.stdout}`);
 
     const applied = psql(["-q", "-f", join(DB_DIR, m.filename)]);
     if (applied.status !== 0) {
@@ -388,7 +396,8 @@ function cmdUp() {
     console.log(applied.stdout.trim());
 
     const done = psql(["-q", "-c", recordFinishSql(m.version)]);
-    if (done.status !== 0) die(`applied ${m.filename} but could not mark it finished:\n${done.stderr || done.stdout}`);
+    if (done.status !== 0)
+      die(`applied ${m.filename} but could not mark it finished:\n${done.stderr || done.stdout}`);
     console.log(paint(GREEN, `    recorded ${m.version}`));
   }
 

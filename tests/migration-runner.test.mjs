@@ -78,7 +78,10 @@ test("BOTH WAYS (baseline): an empty database has everything pending and nothing
   const { files } = goodTree();
   const result = plan({ files, ledger: [] });
   assert.deepEqual(result.problems, []);
-  assert.deepEqual(result.pending.map((p) => p.version), ["001", "002", "003"]);
+  assert.deepEqual(
+    result.pending.map((p) => p.version),
+    ["001", "002", "003"],
+  );
 });
 
 // ===========================================================================
@@ -128,7 +131,11 @@ test("normalizeSql leaves real content alone — it only touches line endings an
   const b = "select 2;\n";
   assert.notEqual(checksumOf(a), checksumOf(b));
   assert.equal(normalizeSql("a\r\nb\rc\n"), "a\nb\nc\n");
-  assert.equal(normalizeSql("  select 1;  "), "  select 1;  ", "whitespace is significant, not trimmed");
+  assert.equal(
+    normalizeSql("  select 1;  "),
+    "  select 1;  ",
+    "whitespace is significant, not trimmed",
+  );
 });
 
 // ===========================================================================
@@ -165,16 +172,22 @@ test("sequence_gap is SILENT at 016, because a declared non-migration file is th
 
   // ...and remove the file while keeping the declaration: the gap comes back,
   // AND the empty declaration is itself reported.
-  const loud = planMigrations({ files, ledger: [], allFilenames: files.map((f) => f.filename), nonMigrations });
-  assert.equal(has(loud, "sequence_gap"), true, "declaring a name with no file must not hide the gap");
+  const loud = planMigrations({
+    files,
+    ledger: [],
+    allFilenames: files.map((f) => f.filename),
+    nonMigrations,
+  });
+  assert.equal(
+    has(loud, "sequence_gap"),
+    true,
+    "declaring a name with no file must not hide the gap",
+  );
   assert.equal(has(loud, "declared_file_missing"), true);
 });
 
 test("findGaps reports every hole, not just the first", () => {
-  const gaps = findGaps([
-    { version: "001" },
-    { version: "005" },
-  ]);
+  const gaps = findGaps([{ version: "001" }, { version: "005" }]);
   assert.deepEqual(gaps, ["002", "003", "004"]);
 });
 
@@ -183,10 +196,7 @@ test("findGaps reports every hole, not just the first", () => {
 // ===========================================================================
 
 test("duplicate_version FIRES when two files claim the same migration number", () => {
-  const result = classifyFiles(
-    ["001_schema.sql", "002_team.sql", "002_teams.sql"],
-    {},
-  );
+  const result = classifyFiles(["001_schema.sql", "002_team.sql", "002_teams.sql"], {});
   assert.equal(result.problems.length, 1);
   assert.equal(result.problems[0].code, "duplicate_version");
   assert.equal(result.problems[0].version, "002");
@@ -207,7 +217,12 @@ test("duplicate_version FIRES when a migration takes a declared non-migration's 
   // go missing in silence.
   const nonMigrations = { "016_isolation_tests.sql": "a test, not a migration" };
   const result = classifyFiles(
-    ["015_indexes.sql", "016_booking_locale_packs.sql", "016_isolation_tests.sql", "017_helcim.sql"],
+    [
+      "015_indexes.sql",
+      "016_booking_locale_packs.sql",
+      "016_isolation_tests.sql",
+      "017_helcim.sql",
+    ],
     nonMigrations,
   );
   assert.equal(
@@ -218,11 +233,14 @@ test("duplicate_version FIRES when a migration takes a declared non-migration's 
 });
 
 test("duplicate_version is SILENT for the real tree's 016 — the declared file alone is fine", () => {
-  const result = classifyFiles(
-    ["015_indexes.sql", "016_isolation_tests.sql", "017_helcim.sql"],
-    { "016_isolation_tests.sql": "a test, not a migration" },
+  const result = classifyFiles(["015_indexes.sql", "016_isolation_tests.sql", "017_helcim.sql"], {
+    "016_isolation_tests.sql": "a test, not a migration",
+  });
+  assert.deepEqual(
+    result.problems,
+    [],
+    "one declared file at 016 and no migration there is correct",
   );
-  assert.deepEqual(result.problems, [], "one declared file at 016 and no migration there is correct");
 });
 
 // ===========================================================================
@@ -234,7 +252,11 @@ test("partially_applied FIRES on a ledger row that was started and never finishe
   tree.ledger[1].finished_at = null; // psql died / tab closed / statement cancelled
   const result = plan(tree);
 
-  assert.equal(has(result, "partially_applied"), true, "a half-applied migration must stop everything");
+  assert.equal(
+    has(result, "partially_applied"),
+    true,
+    "a half-applied migration must stop everything",
+  );
   assert.equal(result.ok, false);
   assert.match(
     result.problems.find((p) => p.code === "partially_applied").message,
@@ -264,10 +286,18 @@ test("out_of_order FIRES on a pending migration numbered below one already appli
 
 test("out_of_order is SILENT when pending migrations are all above the high-water mark", () => {
   const tree = goodTree();
-  tree.files.push({ version: "004", slug: "next", filename: "004_next.sql", checksum: "d".repeat(64) });
+  tree.files.push({
+    version: "004",
+    slug: "next",
+    filename: "004_next.sql",
+    checksum: "d".repeat(64),
+  });
   const result = plan(tree);
   assert.equal(has(result, "out_of_order"), false);
-  assert.deepEqual(result.pending.map((p) => p.version), ["004"]);
+  assert.deepEqual(
+    result.pending.map((p) => p.version),
+    ["004"],
+  );
 });
 
 // ===========================================================================
@@ -291,7 +321,11 @@ test("applied_file_missing FIRES when the ledger knows a migration the checkout 
   });
   const result = plan(tree);
 
-  assert.equal(has(result, "applied_file_missing"), true, "deploying over a different history must be caught");
+  assert.equal(
+    has(result, "applied_file_missing"),
+    true,
+    "deploying over a different history must be caught",
+  );
   assert.match(
     result.problems.find((p) => p.code === "applied_file_missing").message,
     /different branch or revision/,
@@ -316,7 +350,11 @@ test("a renamed migration is NOT re-run — identity is the version, not the fil
   tree.files[0].slug = "baseline";
   const result = plan({ ...tree, acceptRenames: true });
 
-  assert.equal(result.pending.length, 0, "a rename must NOT make an applied migration pending again");
+  assert.equal(
+    result.pending.length,
+    0,
+    "a rename must NOT make an applied migration pending again",
+  );
   assert.deepEqual(result.problems, []);
 });
 
@@ -338,18 +376,27 @@ test("the schema.sql -> 001_schema.sql rename is safe on a database adopted befo
   // The concrete case. An operator adopts a production database while the
   // baseline is still called schema.sql, then pulls this branch. Migration 001
   // must stay applied and must not be re-executed.
-  const ledger = [{
-    version: "001",
-    name: "schema",
-    filename: "schema.sql",
-    checksum: "a".repeat(64),
-    started_at: "2026-07-01T00:00:00Z",
-    finished_at: "2026-07-01T00:05:00Z",
-    origin: "adopted",
-  }];
-  const files = [{ version: "001", slug: "schema", filename: "001_schema.sql", checksum: "a".repeat(64) }];
+  const ledger = [
+    {
+      version: "001",
+      name: "schema",
+      filename: "schema.sql",
+      checksum: "a".repeat(64),
+      started_at: "2026-07-01T00:00:00Z",
+      finished_at: "2026-07-01T00:05:00Z",
+      origin: "adopted",
+    },
+  ];
+  const files = [
+    { version: "001", slug: "schema", filename: "001_schema.sql", checksum: "a".repeat(64) },
+  ];
 
-  const result = planMigrations({ files, ledger, allFilenames: ["001_schema.sql"], acceptRenames: true });
+  const result = planMigrations({
+    files,
+    ledger,
+    allFilenames: ["001_schema.sql"],
+    acceptRenames: true,
+  });
   assert.deepEqual(result.pending, [], "the baseline must NOT be re-applied to a live database");
   assert.deepEqual(result.problems, []);
 });
@@ -366,7 +413,9 @@ test("unclassified_file FIRES on an unnumbered .sql file in db/", () => {
 });
 
 test("unclassified_file is SILENT once the file is declared a non-migration", () => {
-  const result = classifyFiles(["001_schema.sql", "quick_fix.sql"], { "quick_fix.sql": "a scratch script" });
+  const result = classifyFiles(["001_schema.sql", "quick_fix.sql"], {
+    "quick_fix.sql": "a scratch script",
+  });
   assert.deepEqual(result.problems, []);
   assert.equal(result.excluded.length, 1);
 });
@@ -392,10 +441,18 @@ test("duplicate_ledger_row is SILENT on a well-formed ledger", () => {
 
 test("ok is false whenever ANY problem is present", () => {
   for (const mutate of [
-    (t) => { t.files[1].checksum = "9".repeat(64); },
-    (t) => { t.ledger[1].finished_at = null; },
-    (t) => { t.files[0].filename = "001_other.sql"; },
-    (t) => { t.ledger = t.ledger.filter((r) => r.version !== "002"); },
+    (t) => {
+      t.files[1].checksum = "9".repeat(64);
+    },
+    (t) => {
+      t.ledger[1].finished_at = null;
+    },
+    (t) => {
+      t.files[0].filename = "001_other.sql";
+    },
+    (t) => {
+      t.ledger = t.ledger.filter((r) => r.version !== "002");
+    },
   ]) {
     const tree = goodTree();
     mutate(tree);

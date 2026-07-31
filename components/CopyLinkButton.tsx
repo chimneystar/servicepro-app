@@ -7,7 +7,25 @@ export default function CopyLinkButton({ path, label }: { path: string; label: s
   function copy() {
     const url = `${window.location.origin}${path}`;
     navigator.clipboard?.writeText(url).catch(() => {});
-    setCopied(true); setTimeout(() => setCopied(false), 1600);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1600);
   }
-  return <button type="button" onClick={copy} style={{ background: "#eef2f8", color: "#2563eb", border: "none", borderRadius: 9, padding: "9px 13px", fontWeight: 700, fontSize: "0.8125rem", cursor: "pointer" }}>{copied ? "✓ Copied" : label}</button>;
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      style={{
+        background: "#eef2f8",
+        color: "#2563eb",
+        border: "none",
+        borderRadius: 9,
+        padding: "9px 13px",
+        fontWeight: 700,
+        fontSize: "0.8125rem",
+        cursor: "pointer",
+      }}
+    >
+      {copied ? "✓ Copied" : label}
+    </button>
+  );
 }

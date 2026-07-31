@@ -32,31 +32,103 @@ export default function LoginForm({ locale }: { locale: Locale }) {
     router.refresh();
   }, [signedIn, router]);
 
-  if (awaitingCode) return (
-    <AuthShell locale={locale} eyebrow={he ? "אימות דו-שלבי" : "Two-factor"} title={he ? "הזינו את הקוד" : "Enter your code"}
-      description={he ? "פתחו את אפליקציית האימות ורשמו את הקוד בן שש הספרות." : "Open your authenticator app and enter the six-digit code."}>
-      <form action={mfaAction} className="auth-form">
-        <input type="hidden" name="factorId" value={factorId} />
-        <label>{he ? "קוד אימות" : "Verification code"}
-          <input name="code" required inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]*" maxLength={6} placeholder="123456" />
-        </label>
-        {mfaState.error && <div className="auth-message error" role="alert">{mfaState.error}</div>}
-        <button type="submit" disabled={mfaPending} className="auth-submit">{mfaPending ? t(locale, "login.wait") : (he ? "אימות" : "Verify")}<span aria-hidden="true">→</span></button>
-      </form>
-    </AuthShell>
-  );
+  if (awaitingCode)
+    return (
+      <AuthShell
+        locale={locale}
+        eyebrow={he ? "אימות דו-שלבי" : "Two-factor"}
+        title={he ? "הזינו את הקוד" : "Enter your code"}
+        description={
+          he
+            ? "פתחו את אפליקציית האימות ורשמו את הקוד בן שש הספרות."
+            : "Open your authenticator app and enter the six-digit code."
+        }
+      >
+        <form action={mfaAction} className="auth-form">
+          <input type="hidden" name="factorId" value={factorId} />
+          <label>
+            {he ? "קוד אימות" : "Verification code"}
+            <input
+              name="code"
+              required
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="[0-9]*"
+              maxLength={6}
+              placeholder="123456"
+            />
+          </label>
+          {mfaState.error && (
+            <div className="auth-message error" role="alert">
+              {mfaState.error}
+            </div>
+          )}
+          <button type="submit" disabled={mfaPending} className="auth-submit">
+            {mfaPending ? t(locale, "login.wait") : he ? "אימות" : "Verify"}
+            <span aria-hidden="true">→</span>
+          </button>
+        </form>
+      </AuthShell>
+    );
 
   return (
-    <AuthShell locale={locale} eyebrow={t(locale, "login.welcomeBack")} title={t(locale, "login.title_login")} description={t(locale, "login.loginDescription")}>
+    <AuthShell
+      locale={locale}
+      eyebrow={t(locale, "login.welcomeBack")}
+      title={t(locale, "login.title_login")}
+      description={t(locale, "login.loginDescription")}
+    >
       <form action={formAction} className="auth-form">
-        <label>{t(locale, "login.email")}<input name="email" type="email" required autoComplete="email" inputMode="email" placeholder="you@business.com" /></label>
-        <label>{t(locale, "login.password")}
-          <span className="password-field"><input name="password" type={showPassword ? "text" : "password"} required minLength={8} autoComplete="current-password" placeholder={t(locale, "login.passwordHint")} /><button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? t(locale, "login.hidePassword") : t(locale, "login.showPassword")}>{showPassword ? "◉" : "○"}</button></span>
+        <label>
+          {t(locale, "login.email")}
+          <input
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            inputMode="email"
+            placeholder="you@business.com"
+          />
         </label>
-        <div className="auth-form-meta"><span /><Link href="/forgot-password">{t(locale, "login.forgot")}</Link></div>
-        {state.error && <div className="auth-message error" role="alert">{state.error}</div>}
-        <button type="submit" disabled={pending} className="auth-submit">{pending ? t(locale, "login.wait") : t(locale, "login.signIn")}<span aria-hidden="true">→</span></button>
-        <p className="auth-switch">{t(locale, "login.noAccount")} <Link href="/signup">{t(locale, "login.createBusiness")}</Link></p>
+        <label>
+          {t(locale, "login.password")}
+          <span className="password-field">
+            <input
+              name="password"
+              type={showPassword ? "text" : "password"}
+              required
+              minLength={8}
+              autoComplete="current-password"
+              placeholder={t(locale, "login.passwordHint")}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+              aria-label={
+                showPassword ? t(locale, "login.hidePassword") : t(locale, "login.showPassword")
+              }
+            >
+              {showPassword ? "◉" : "○"}
+            </button>
+          </span>
+        </label>
+        <div className="auth-form-meta">
+          <span />
+          <Link href="/forgot-password">{t(locale, "login.forgot")}</Link>
+        </div>
+        {state.error && (
+          <div className="auth-message error" role="alert">
+            {state.error}
+          </div>
+        )}
+        <button type="submit" disabled={pending} className="auth-submit">
+          {pending ? t(locale, "login.wait") : t(locale, "login.signIn")}
+          <span aria-hidden="true">→</span>
+        </button>
+        <p className="auth-switch">
+          {t(locale, "login.noAccount")}{" "}
+          <Link href="/signup">{t(locale, "login.createBusiness")}</Link>
+        </p>
       </form>
     </AuthShell>
   );

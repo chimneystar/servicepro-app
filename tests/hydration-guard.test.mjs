@@ -31,9 +31,14 @@ test("no client component uses locale-less Intl formatting", () => {
       const isClient = /^\s*["']use client["']/m.test(src.split("\n").slice(0, 3).join("\n"));
       if (!isClient) continue;
       src.split("\n").forEach((line, i) => {
-        if (localeless.test(line)) offenders.push(`${file.replace(root + "/", "")}:${i + 1}  ${line.trim()}`);
+        if (localeless.test(line))
+          offenders.push(`${file.replace(root + "/", "")}:${i + 1}  ${line.trim()}`);
       });
     }
   }
-  assert.equal(offenders.length, 0, "Locale-less date/number formatting in client components:\n" + offenders.join("\n"));
+  assert.equal(
+    offenders.length,
+    0,
+    "Locale-less date/number formatting in client components:\n" + offenders.join("\n"),
+  );
 });

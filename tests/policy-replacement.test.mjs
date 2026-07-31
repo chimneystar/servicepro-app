@@ -22,10 +22,16 @@ import { stripSqlComments } from "./helpers/sql.mjs";
 // ---------------------------------------------------------------------------
 
 const DB = new URL("../db/", import.meta.url);
-const files = readdirSync(DB).filter((f) => f.endsWith(".sql") && f !== "GO-LIVE.sql").sort();
+const files = readdirSync(DB)
+  .filter((f) => f.endsWith(".sql") && f !== "GO-LIVE.sql")
+  .sort();
 const read = (f) => stripSqlComments(readFileSync(new URL(f, DB), "utf8"));
 
-const clean = (name) => name.toLowerCase().replace(/^public\./, "").replace(/"/g, "");
+const clean = (name) =>
+  name
+    .toLowerCase()
+    .replace(/^public\./, "")
+    .replace(/"/g, "");
 
 /**
  * The command a policy applies to. Omitted means ALL.
@@ -37,7 +43,10 @@ const clean = (name) => name.toLowerCase().replace(/^public\./, "").replace(/"/g
  * that can happen — and a detector that cries wolf is one somebody deletes.
  */
 function commandOf(tail) {
-  const m = /^\s*(?:as\s+(?:permissive|restrictive)\s+)?for\s+(all|select|insert|update|delete)\b/i.exec(tail);
+  const m =
+    /^\s*(?:as\s+(?:permissive|restrictive)\s+)?for\s+(all|select|insert|update|delete)\b/i.exec(
+      tail,
+    );
   return m ? m[1].toLowerCase() : "all";
 }
 
@@ -55,17 +64,29 @@ const commandsIntersect = (a, b) => a === b || a === "all" || b === "all";
  * set. A guard that passes vacuously is the same failure it was written to catch.
  */
 function policiesCreatedIn(sql) {
-  const out = [...sql.matchAll(/create\s+policy\s+([a-z0-9_]+)\s+on\s+([a-z0-9_."]+)([\s\S]{0,80})/gi)]
-    .map((m) => ({ policy: m[1].toLowerCase(), table: clean(m[2]), cmd: commandOf(m[3]) }));
-  out.push(...dynamicPolicies(sql, /create\s+policy\s+%1\$s_([a-z0-9_]+)\s+on\s+public\.%1\$I([\s\S]{0,60})/i));
+  const out = [
+    ...sql.matchAll(/create\s+policy\s+([a-z0-9_]+)\s+on\s+([a-z0-9_."]+)([\s\S]{0,80})/gi),
+  ].map((m) => ({ policy: m[1].toLowerCase(), table: clean(m[2]), cmd: commandOf(m[3]) }));
+  out.push(
+    ...dynamicPolicies(
+      sql,
+      /create\s+policy\s+%1\$s_([a-z0-9_]+)\s+on\s+public\.%1\$I([\s\S]{0,60})/i,
+    ),
+  );
   return out;
 }
 
 /** `drop policy if exists <name> on <table>`, per file — literal AND loops. */
 function policiesDroppedIn(sql) {
-  const out = [...sql.matchAll(/drop\s+policy\s+if\s+exists\s+([a-z0-9_]+)\s+on\s+([a-z0-9_."]+)/gi)]
-    .map((m) => ({ policy: m[1].toLowerCase(), table: clean(m[2]), cmd: "all" }));
-  out.push(...dynamicPolicies(sql, /drop\s+policy\s+if\s+exists\s+%1\$s_([a-z0-9_]+)\s+on\s+public\.%1\$I([\s\S]{0,4})/i));
+  const out = [
+    ...sql.matchAll(/drop\s+policy\s+if\s+exists\s+([a-z0-9_]+)\s+on\s+([a-z0-9_."]+)/gi),
+  ].map((m) => ({ policy: m[1].toLowerCase(), table: clean(m[2]), cmd: "all" }));
+  out.push(
+    ...dynamicPolicies(
+      sql,
+      /drop\s+policy\s+if\s+exists\s+%1\$s_([a-z0-9_]+)\s+on\s+public\.%1\$I([\s\S]{0,4})/i,
+    ),
+  );
   return out;
 }
 
@@ -80,7 +101,11 @@ function dynamicPolicies(sql, template) {
     const cmd = commandOf(m[2] ?? "");
     for (const arr of body.matchAll(/array\s*\[([\s\S]*?)\]/gi)) {
       for (const lit of arr[1].matchAll(/'([a-z0-9_]+)'/gi)) {
-        found.push({ policy: `${lit[1].toLowerCase()}_${suffix}`, table: lit[1].toLowerCase(), cmd });
+        found.push({
+          policy: `${lit[1].toLowerCase()}_${suffix}`,
+          table: lit[1].toLowerCase(),
+          cmd,
+        });
       }
     }
   }
@@ -148,7 +173,9 @@ test("a migration that replaces a table's policies drops the ones that exist", (
 
     const here = policiesCreatedIn(read(file)).filter((p) => p.table === table);
     const droppedHere = new Set(
-      policiesDroppedIn(read(file)).filter((d) => d.table === table).map((d) => d.policy),
+      policiesDroppedIn(read(file))
+        .filter((d) => d.table === table)
+        .map((d) => d.policy),
     );
 
     for (const [name, survivor] of prior) {
@@ -184,13 +211,20 @@ test("the detector is not passing vacuously — it really sees the baseline's po
     "the loop-created invitations_rw must be visible, or the invitations assertion proves nothing",
   );
   assert.ok(
-    policiesDroppedIn(read("023_authorization_hardening.sql")).some((d) => d.policy === "invitations_rw"),
+    policiesDroppedIn(read("023_authorization_hardening.sql")).some(
+      (d) => d.policy === "invitations_rw",
+    ),
     "023 must drop it — and this test is what makes that a real check",
   );
 
   for (const { table } of REPLACEMENTS) {
     assert.ok(
-      baseline.concat(files.slice(0, files.indexOf("023_authorization_hardening.sql")).flatMap((f) => policiesCreatedIn(read(f))))
+      baseline
+        .concat(
+          files
+            .slice(0, files.indexOf("023_authorization_hardening.sql"))
+            .flatMap((f) => policiesCreatedIn(read(f))),
+        )
         .some((p) => p.table === table),
       `no prior policy found on ${table} — the assertion for it would be vacuous`,
     );
@@ -204,7 +238,11 @@ test("commandOf and commandsIntersect model PostgreSQL's actual OR-ing rules", (
   assert.equal(commandOf(" to authenticated using (true)"), "all", "an omitted FOR means ALL");
   assert.equal(commandOf(" as restrictive for update using (true)"), "update");
 
-  assert.equal(commandsIntersect("select", "update"), false, "a SELECT policy cannot authorise an UPDATE");
+  assert.equal(
+    commandsIntersect("select", "update"),
+    false,
+    "a SELECT policy cannot authorise an UPDATE",
+  );
   assert.equal(commandsIntersect("insert", "update"), false);
   assert.equal(commandsIntersect("update", "update"), true);
   assert.equal(commandsIntersect("all", "update"), true, "FOR ALL applies to every command");
@@ -215,8 +253,10 @@ test("PLANTED DEFECT: a surviving same-command policy is still caught", () => {
   // The detector was made command-aware to stop four false positives. Prove it
   // did not become blind in the process: the real regression class must still
   // fire.
-  const earlier = "create policy time_entries_write on public.job_time_entries for all using (true);";
-  const later = "create policy job_time_entries_write on public.job_time_entries for all using (false);";
+  const earlier =
+    "create policy time_entries_write on public.job_time_entries for all using (true);";
+  const later =
+    "create policy job_time_entries_write on public.job_time_entries for all using (false);";
 
   const prior = policiesCreatedIn(earlier).find((p) => p.table === "job_time_entries");
   const created = policiesCreatedIn(later).find((p) => p.table === "job_time_entries");
@@ -241,12 +281,18 @@ test("the detector catches the exact regression it was written for", () => {
                   create policy job_time_entries_select on public.job_time_entries for select using (true);`;
   const earlier = `create policy time_entries_select on public.job_time_entries for select using (true);`;
 
-  const prior = policiesCreatedIn(earlier).filter((p) => p.table === "job_time_entries").map((p) => p.policy);
-  const dropped = policiesDroppedIn(before).filter((d) => d.table === "job_time_entries").map((d) => d.policy);
+  const prior = policiesCreatedIn(earlier)
+    .filter((p) => p.table === "job_time_entries")
+    .map((p) => p.policy);
+  const dropped = policiesDroppedIn(before)
+    .filter((d) => d.table === "job_time_entries")
+    .map((d) => d.policy);
 
   assert.ok(prior.includes("time_entries_select"));
-  assert.ok(!dropped.includes("time_entries_select"),
-    "the broken migration did not drop the real policy — which is precisely the bug");
+  assert.ok(
+    !dropped.includes("time_entries_select"),
+    "the broken migration did not drop the real policy — which is precisely the bug",
+  );
 });
 
 test("every literal drop names a policy that is actually created somewhere", () => {
@@ -257,11 +303,13 @@ test("every literal drop names a policy that is actually created somewhere", () 
   const dynamicTables = new Set();
   for (const file of files) {
     const sql = read(file);
-    for (const { policy, table } of policiesCreatedIn(sql)) createdAnywhere.add(`${policy}|${table}`);
+    for (const { policy, table } of policiesCreatedIn(sql))
+      createdAnywhere.add(`${policy}|${table}`);
     // Loops build names like `%1$s_rw`, so record the table as dynamically managed.
     for (const block of sql.matchAll(/\bdo\s*\$\$([\s\S]*?)\$\$/gi)) {
       if (!/create\s+policy/i.test(block[1])) continue;
-      for (const lit of block[1].matchAll(/'([a-z0-9_]+)'/gi)) dynamicTables.add(lit[1].toLowerCase());
+      for (const lit of block[1].matchAll(/'([a-z0-9_]+)'/gi))
+        dynamicTables.add(lit[1].toLowerCase());
     }
   }
 
@@ -275,7 +323,7 @@ test("every literal drop names a policy that is actually created somewhere", () 
     for (const { policy, table } of policiesDroppedIn(read(file))) {
       const key = `${policy}|${table}`;
       if (createdAnywhere.has(key)) continue;
-      if (dynamicTables.has(table)) continue;      // created by a loop
+      if (dynamicTables.has(table)) continue; // created by a loop
       if (INTENTIONAL_REMOVALS.has(key)) continue;
       if (file.startsWith("023") && policy.endsWith("_rw")) continue; // defensive re-run drops
       orphans.push(`${file}: drop policy ${policy} on ${table} — no such policy is ever created`);

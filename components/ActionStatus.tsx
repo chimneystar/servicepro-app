@@ -49,7 +49,13 @@ export function useActionStatus(he = false) {
 }
 
 /** Inline error banner. Rendered where the person is working, not in a console. */
-export function ActionError({ error, style }: { error: string | null; style?: React.CSSProperties }) {
+export function ActionError({
+  error,
+  style,
+}: {
+  error: string | null;
+  style?: React.CSSProperties;
+}) {
   if (!error) return null;
   return (
     <div role="alert" style={{ ...errorBox, ...style }}>

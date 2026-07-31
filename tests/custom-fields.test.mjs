@@ -2,16 +2,28 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
-  FIELD_TYPES, ENTITY_TYPES, CustomFieldError,
-  normalizeDefinitionInput, coerceFieldValue, collectFieldValues,
-  assertEntityReference, formatFieldValue,
+  FIELD_TYPES,
+  ENTITY_TYPES,
+  CustomFieldError,
+  normalizeDefinitionInput,
+  coerceFieldValue,
+  collectFieldValues,
+  assertEntityReference,
+  formatFieldValue,
 } from "../lib/core/custom-fields.mjs";
 
 const ORG = "11111111-1111-1111-1111-111111111111";
 const OTHER_ORG = "22222222-2222-2222-2222-222222222222";
 const def = (over = {}) => ({
-  id: "def-1", organization_id: ORG, entity_type: "customer",
-  label: "Gate code", field_type: "text", options_json: [], required: false, active: true, ...over,
+  id: "def-1",
+  organization_id: ORG,
+  entity_type: "customer",
+  label: "Gate code",
+  field_type: "text",
+  options_json: [],
+  required: false,
+  active: true,
+  ...over,
 });
 
 test("field and entity types match the CHECK constraints in migration 019", () => {
@@ -24,18 +36,45 @@ test("field and entity types match the CHECK constraints in migration 019", () =
 // ---------------------------------------------------------------------
 
 test("a definition needs a name, a real entity and a real type", () => {
-  const good = normalizeDefinitionInput({ label: " Gate code ", entityType: "customer", fieldType: "text" });
+  const good = normalizeDefinitionInput({
+    label: " Gate code ",
+    entityType: "customer",
+    fieldType: "text",
+  });
   assert.equal(good.label, "Gate code");
   assert.equal(good.entity_type, "customer");
   assert.equal(good.required, false);
-  assert.throws(() => normalizeDefinitionInput({ label: "  ", entityType: "customer", fieldType: "text" }), CustomFieldError);
-  assert.throws(() => normalizeDefinitionInput({ label: "x", entityType: "invoice", fieldType: "text" }), CustomFieldError);
-  assert.throws(() => normalizeDefinitionInput({ label: "x", entityType: "customer", fieldType: "signature" }), CustomFieldError);
+  assert.throws(
+    () => normalizeDefinitionInput({ label: "  ", entityType: "customer", fieldType: "text" }),
+    CustomFieldError,
+  );
+  assert.throws(
+    () => normalizeDefinitionInput({ label: "x", entityType: "invoice", fieldType: "text" }),
+    CustomFieldError,
+  );
+  assert.throws(
+    () => normalizeDefinitionInput({ label: "x", entityType: "customer", fieldType: "signature" }),
+    CustomFieldError,
+  );
 });
 
 test("a choice field without options is refused, and duplicates are folded", () => {
-  assert.throws(() => normalizeDefinitionInput({ label: "Tier", entityType: "job", fieldType: "choice", options: "  \n \n" }), CustomFieldError);
-  const row = normalizeDefinitionInput({ label: "Tier", entityType: "job", fieldType: "choice", options: "Gold\nSilver\nGold\n" });
+  assert.throws(
+    () =>
+      normalizeDefinitionInput({
+        label: "Tier",
+        entityType: "job",
+        fieldType: "choice",
+        options: "  \n \n",
+      }),
+    CustomFieldError,
+  );
+  const row = normalizeDefinitionInput({
+    label: "Tier",
+    entityType: "job",
+    fieldType: "choice",
+    options: "Gold\nSilver\nGold\n",
+  });
   assert.deepEqual(row.options_json, ["Gold", "Silver"]);
 });
 
@@ -89,9 +128,15 @@ test("required is enforced, and a cleared field is deleted rather than stored bl
 });
 
 test("a definition id that was not offered is ignored, never written", () => {
-  const out = collectFieldValues([def({ id: "mine" })], { mine: "ok", "someone-elses": "injected" });
+  const out = collectFieldValues([def({ id: "mine" })], {
+    mine: "ok",
+    "someone-elses": "injected",
+  });
   assert.deepEqual(out.writes, [{ definitionId: "mine", value: "ok" }]);
-  assert.equal(out.writes.some((w) => w.definitionId === "someone-elses"), false);
+  assert.equal(
+    out.writes.some((w) => w.definitionId === "someone-elses"),
+    false,
+  );
 });
 
 test("an inactive definition is not collected", () => {
@@ -103,44 +148,80 @@ test("an inactive definition is not collected", () => {
 // ---------------------------------------------------------------------
 
 test("a value may be attached to an entity in the same org (the good case)", () => {
-  assert.equal(assertEntityReference({
-    definition: def(), entityType: "customer",
-    entity: { id: "cust-1", organization_id: ORG }, organizationId: ORG,
-  }), true);
+  assert.equal(
+    assertEntityReference({
+      definition: def(),
+      entityType: "customer",
+      entity: { id: "cust-1", organization_id: ORG },
+      organizationId: ORG,
+    }),
+    true,
+  );
 });
 
 test("F21: a value may NOT point at another tenant's row", () => {
-  assert.throws(() => assertEntityReference({
-    definition: def(), entityType: "customer",
-    entity: { id: "cust-9", organization_id: OTHER_ORG }, organizationId: ORG,
-  }), CustomFieldError);
+  assert.throws(
+    () =>
+      assertEntityReference({
+        definition: def(),
+        entityType: "customer",
+        entity: { id: "cust-9", organization_id: OTHER_ORG },
+        organizationId: ORG,
+      }),
+    CustomFieldError,
+  );
 });
 
 test("F21: a value may NOT use another tenant's definition", () => {
-  assert.throws(() => assertEntityReference({
-    definition: def({ organization_id: OTHER_ORG }), entityType: "customer",
-    entity: { id: "cust-1", organization_id: ORG }, organizationId: ORG,
-  }), CustomFieldError);
+  assert.throws(
+    () =>
+      assertEntityReference({
+        definition: def({ organization_id: OTHER_ORG }),
+        entityType: "customer",
+        entity: { id: "cust-1", organization_id: ORG },
+        organizationId: ORG,
+      }),
+    CustomFieldError,
+  );
 });
 
 test("F21: a customer definition may NOT be attached to a job", () => {
-  assert.throws(() => assertEntityReference({
-    definition: def({ entity_type: "customer" }), entityType: "job",
-    entity: { id: "job-1", organization_id: ORG }, organizationId: ORG,
-  }), CustomFieldError);
+  assert.throws(
+    () =>
+      assertEntityReference({
+        definition: def({ entity_type: "customer" }),
+        entityType: "job",
+        entity: { id: "job-1", organization_id: ORG },
+        organizationId: ORG,
+      }),
+    CustomFieldError,
+  );
 });
 
 test("F21: a value may NOT point at an id that does not resolve to a row", () => {
-  assert.throws(() => assertEntityReference({
-    definition: def(), entityType: "customer", entity: null, organizationId: ORG,
-  }), CustomFieldError);
+  assert.throws(
+    () =>
+      assertEntityReference({
+        definition: def(),
+        entityType: "customer",
+        entity: null,
+        organizationId: ORG,
+      }),
+    CustomFieldError,
+  );
 });
 
 test("F21: an unknown entity type is refused outright", () => {
-  assert.throws(() => assertEntityReference({
-    definition: def(), entityType: "payment",
-    entity: { id: "pay-1", organization_id: ORG }, organizationId: ORG,
-  }), CustomFieldError);
+  assert.throws(
+    () =>
+      assertEntityReference({
+        definition: def(),
+        entityType: "payment",
+        entity: { id: "pay-1", organization_id: ORG },
+        organizationId: ORG,
+      }),
+    CustomFieldError,
+  );
 });
 
 // ---------------------------------------------------------------------

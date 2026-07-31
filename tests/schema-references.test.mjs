@@ -41,15 +41,23 @@ function sourceFiles(dir, out = []) {
 
 // Tables that live outside db/*.sql and are legitimately referenced.
 const EXTERNAL = new Set([
-  "users",            // auth.users, via the admin client
-  "objects",          // storage.objects
-  "buckets",          // storage.buckets
-  "pg_policies", "pg_tables", "pg_class", "pg_namespace", "pg_timezone_names", "pg_indexes",
+  "users", // auth.users, via the admin client
+  "objects", // storage.objects
+  "buckets", // storage.buckets
+  "pg_policies",
+  "pg_tables",
+  "pg_class",
+  "pg_namespace",
+  "pg_timezone_names",
+  "pg_indexes",
 ]);
 
 test("every table the application queries actually exists", () => {
   const known = allSqlTables();
-  assert.ok(known.size > 90, `sanity: expected the schema to be parsed, found ${known.size} tables`);
+  assert.ok(
+    known.size > 90,
+    `sanity: expected the schema to be parsed, found ${known.size} tables`,
+  );
 
   const bad = [];
   for (const file of [...sourceFiles("app"), ...sourceFiles("lib"), ...sourceFiles("components")]) {
@@ -62,8 +70,11 @@ test("every table the application queries actually exists", () => {
       bad.push(`${file}: .from("${table}")`);
     }
   }
-  assert.deepEqual(bad, [],
-    `these table names do not exist in db/*.sql — the query returns an error nobody reads:\n  ${bad.join("\n  ")}`);
+  assert.deepEqual(
+    bad,
+    [],
+    `these table names do not exist in db/*.sql — the query returns an error nobody reads:\n  ${bad.join("\n  ")}`,
+  );
 });
 
 test("the detector catches the exact typo it was written for", () => {

@@ -13,8 +13,19 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
-  addDays, addMonths, monthStart, monthEnd, weekStart,
-  visibleRange, fetchWindow, covers, monthsBack, isTruncated, clampLimit, toIsoDate, isIsoDate,
+  addDays,
+  addMonths,
+  monthStart,
+  monthEnd,
+  weekStart,
+  visibleRange,
+  fetchWindow,
+  covers,
+  monthsBack,
+  isTruncated,
+  clampLimit,
+  toIsoDate,
+  isIsoDate,
 } from "../lib/core/query-window.mjs";
 import { phoneSearchSuffix, normalizeUsPhone } from "../lib/core/calls.mjs";
 
@@ -57,12 +68,18 @@ test("the fetched window contains every rendered range, for every day of 8 years
   // than the unbounded query this replaced, so it is proven exhaustively
   // rather than spot-checked.
   let checked = 0;
-  for (let day = new Date(Date.UTC(2023, 0, 1)); day < new Date(Date.UTC(2031, 0, 1)); day.setUTCDate(day.getUTCDate() + 1)) {
+  for (
+    let day = new Date(Date.UTC(2023, 0, 1));
+    day < new Date(Date.UTC(2031, 0, 1));
+    day.setUTCDate(day.getUTCDate() + 1)
+  ) {
     const anchor = day.toISOString().slice(0, 10);
     const window = fetchWindow(anchor);
     for (const view of ["day", "week", "month"]) {
-      assert.ok(covers(window, visibleRange(anchor, view)),
-        `${view} view of ${anchor} needs ${JSON.stringify(visibleRange(anchor, view))} but only ${JSON.stringify(window)} is loaded`);
+      assert.ok(
+        covers(window, visibleRange(anchor, view)),
+        `${view} view of ${anchor} needs ${JSON.stringify(visibleRange(anchor, view))} but only ${JSON.stringify(window)} is loaded`,
+      );
       checked++;
     }
   }
@@ -72,9 +89,21 @@ test("the fetched window contains every rendered range, for every day of 8 years
 test("covers() actually refuses a range that falls outside — it is not a rubber stamp", () => {
   const window = fetchWindow("2026-07-15");
   assert.equal(covers(window, { from: "2026-07-01", to: "2026-07-31" }), true);
-  assert.equal(covers(window, { from: "2026-01-01", to: "2026-01-07" }), false, "a month in the past must trigger a refetch");
-  assert.equal(covers(window, { from: "2027-01-01", to: "2027-01-07" }), false, "so must a month in the future");
-  assert.equal(covers(window, { from: window.from, to: addDays(window.to, 1) }), false, "one day past the edge is still outside");
+  assert.equal(
+    covers(window, { from: "2026-01-01", to: "2026-01-07" }),
+    false,
+    "a month in the past must trigger a refetch",
+  );
+  assert.equal(
+    covers(window, { from: "2027-01-01", to: "2027-01-07" }),
+    false,
+    "so must a month in the future",
+  );
+  assert.equal(
+    covers(window, { from: window.from, to: addDays(window.to, 1) }),
+    false,
+    "one day past the edge is still outside",
+  );
 });
 
 test("the month view really does reach outside its own month", () => {
@@ -106,7 +135,11 @@ test("a caller-supplied page size cannot be used to demand the whole table", () 
   assert.equal(clampLimit("-1", 500, 5000), 500);
   assert.equal(clampLimit("0", 500, 5000), 500);
   assert.equal(clampLimit("abc", 500, 5000), 500);
-  assert.equal(clampLimit("12; drop table jobs", 500, 5000), 12, "parsed as a number, never interpolated as text");
+  assert.equal(
+    clampLimit("12; drop table jobs", 500, 5000),
+    12,
+    "parsed as a number, never interpolated as text",
+  );
 });
 
 test("an anchor from the query string is validated, not trusted", () => {
@@ -115,7 +148,11 @@ test("an anchor from the query string is validated, not trusted", () => {
   assert.equal(toIsoDate("not-a-date", "2000-01-01"), "2000-01-01");
   assert.equal(toIsoDate(undefined, "2000-01-01"), "2000-01-01");
   assert.equal(toIsoDate("2026-07-31'; select 1--", "2000-01-01"), "2000-01-01");
-  assert.equal(isIsoDate("2026-7-1"), false, "the shape must be strict, or arithmetic silently drifts");
+  assert.equal(
+    isIsoDate("2026-7-1"),
+    false,
+    "the shape must be strict, or arithmetic silently drifts",
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -124,7 +161,11 @@ test("an anchor from the query string is validated, not trusted", () => {
 
 test("the phone suffix is digits only, so it can carry no ILIKE wildcard", () => {
   for (const written of ["+1 (555) 123-4567", "555.123.4567", "5551234567", "+15551234567"]) {
-    assert.equal(phoneSearchSuffix(written), "4567", `${written} should reduce to its last four digits`);
+    assert.equal(
+      phoneSearchSuffix(written),
+      "4567",
+      `${written} should reduce to its last four digits`,
+    );
   }
   assert.equal(phoneSearchSuffix("%_*"), "", "a value with no digits yields no filter at all");
   assert.equal(phoneSearchSuffix("12"), "", "too short to be a suffix");
@@ -150,9 +191,10 @@ test("the suffix narrows, and the exact normalized comparison still decides", ()
  * Scanning the raw text would match that explanation — a guard that passes
  * because of the prose describing the bug is no guard at all.
  */
-const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8")
-  .replace(/\/\*[\s\S]*?\*\//g, "")
-  .replace(/(^|[^:])\/\/.*$/gm, "$1");
+const read = (path) =>
+  readFileSync(new URL(`../${path}`, import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
 
 test("the comment stripper used below removes prose and keeps code", () => {
   const stripped = read("app/(app)/schedule/page.tsx");
@@ -163,45 +205,82 @@ test("the comment stripper used below removes prose and keeps code", () => {
 test("/schedule asks the database for the visible period only", () => {
   const src = read("app/(app)/schedule/page.tsx");
   assert.ok(/from\("jobs"\)/.test(src));
-  assert.ok(/\.gte\("scheduled_date"/.test(src) && /\.lte\("scheduled_date"/.test(src),
-    "the job query must be bounded at both ends of the visible window");
+  assert.ok(
+    /\.gte\("scheduled_date"/.test(src) && /\.lte\("scheduled_date"/.test(src),
+    "the job query must be bounded at both ends of the visible window",
+  );
   assert.ok(/\.limit\(/.test(src), "and still carry a ceiling");
-  assert.ok(/fetchWindow\(/.test(src), "the window must come from the tested helper, not be recomputed inline");
+  assert.ok(
+    /fetchWindow\(/.test(src),
+    "the window must come from the tested helper, not be recomputed inline",
+  );
 });
 
 test("the calendar re-fetches instead of showing an empty month", () => {
   const src = read("components/Calendar.tsx");
-  assert.ok(/visibleRange\(/.test(src) && /covers\(/.test(src),
-    "the calendar must compare what it renders against what was loaded");
+  assert.ok(
+    /visibleRange\(/.test(src) && /covers\(/.test(src),
+    "the calendar must compare what it renders against what was loaded",
+  );
   assert.ok(/anchor=/.test(src), "and ask the server for the new period");
 });
 
 test("/messages no longer reads every message and every customer", () => {
   const src = read("app/(app)/messages/page.tsx");
-  assert.ok(/from\("sms_messages"\)[\s\S]{0,240}\.limit\(/.test(src), "the message query must be limited");
-  assert.ok(!/from\("customers"\)\.select\("name, phone"\)\.is\("deleted_at", null\)\s*[,)]/.test(src),
-    "the whole customer table must not be pulled in to label threads");
-  assert.ok(/\.or\(/.test(src) && /phone\.ilike/.test(src), "customer names must be matched in SQL");
-  assert.ok(/isTruncated/.test(src), "and the user must be told when older conversations are not shown");
+  assert.ok(
+    /from\("sms_messages"\)[\s\S]{0,240}\.limit\(/.test(src),
+    "the message query must be limited",
+  );
+  assert.ok(
+    !/from\("customers"\)\.select\("name, phone"\)\.is\("deleted_at", null\)\s*[,)]/.test(src),
+    "the whole customer table must not be pulled in to label threads",
+  );
+  assert.ok(
+    /\.or\(/.test(src) && /phone\.ilike/.test(src),
+    "customer names must be matched in SQL",
+  );
+  assert.ok(
+    /isTruncated/.test(src),
+    "and the user must be told when older conversations are not shown",
+  );
 });
 
 test("a single /messages thread is selected in SQL", () => {
   const src = read("app/(app)/messages/[phone]/page.tsx");
-  assert.ok(/to_phone\.ilike/.test(src) && /from_phone\.ilike/.test(src),
-    "the thread must be filtered by phone in the query, not in JavaScript");
+  assert.ok(
+    /to_phone\.ilike/.test(src) && /from_phone\.ilike/.test(src),
+    "the thread must be filtered by phone in the query, not in JavaScript",
+  );
   assert.ok(/\.limit\(/.test(src));
-  assert.ok(/quoteFilterValue/.test(src),
-    "the phone goes into a PostgREST or= expression and must be escaped like /search");
+  assert.ok(
+    /quoteFilterValue/.test(src),
+    "the phone goes into a PostgREST or= expression and must be escaped like /search",
+  );
 });
 
 test("the owner dashboard is bounded and says so when it is", () => {
   const src = read("app/(app)/page.tsx");
   assert.ok(/monthsBack\(/.test(src), "the rolling window must come from the tested helper");
-  assert.ok(/from\("invoices"\)[\s\S]{0,300}issue_date\.gte\./.test(src), "invoices must be date-filtered");
-  assert.ok(/from\("estimates"\)[\s\S]{0,300}issue_date\.gte\./.test(src), "estimates must be date-filtered");
-  assert.ok(/from\("expenses"\)[\s\S]{0,200}\.gte\("expense_date"/.test(src), "expenses must be date-filtered");
-  assert.ok(/from\("jobs"\)[\s\S]{0,400}\.gte\("scheduled_date"/.test(src), "jobs must be date-filtered");
-  assert.ok(/from\("leads"\)[\s\S]{0,120}head: true/.test(src), "leads were only counted, so they must be counted in SQL");
+  assert.ok(
+    /from\("invoices"\)[\s\S]{0,300}issue_date\.gte\./.test(src),
+    "invoices must be date-filtered",
+  );
+  assert.ok(
+    /from\("estimates"\)[\s\S]{0,300}issue_date\.gte\./.test(src),
+    "estimates must be date-filtered",
+  );
+  assert.ok(
+    /from\("expenses"\)[\s\S]{0,200}\.gte\("expense_date"/.test(src),
+    "expenses must be date-filtered",
+  );
+  assert.ok(
+    /from\("jobs"\)[\s\S]{0,400}\.gte\("scheduled_date"/.test(src),
+    "jobs must be date-filtered",
+  );
+  assert.ok(
+    /from\("leads"\)[\s\S]{0,120}head: true/.test(src),
+    "leads were only counted, so they must be counted in SQL",
+  );
   assert.ok(/isTruncated\(/.test(src), "and a partial page must announce itself");
 });
 
@@ -209,17 +288,33 @@ test("the dashboard keeps every card it had", () => {
   // Bounding the queries must not quietly drop a panel. FEATURE-INVENTORY.md is
   // a contract, so the labels are asserted directly.
   const src = readFileSync(new URL("../app/(app)/page.tsx", import.meta.url), "utf8");
-  for (const label of ["Collections", "Pipeline", "Sales · this month", "Invoices", "This month", "Estimates", "Today", "Coming up", "Recent jobs", "Top job types & sources"]) {
+  for (const label of [
+    "Collections",
+    "Pipeline",
+    "Sales · this month",
+    "Invoices",
+    "This month",
+    "Estimates",
+    "Today",
+    "Coming up",
+    "Recent jobs",
+    "Top job types & sources",
+  ]) {
     assert.ok(src.includes(label), `dashboard card disappeared: ${label}`);
   }
-  assert.ok(/estimateCount/.test(src) && /jobCount/.test(src),
-    "the setup checklist asks 'have you ever', which a rolling window cannot answer");
+  assert.ok(
+    /estimateCount/.test(src) && /jobCount/.test(src),
+    "the setup checklist asks 'have you ever', which a rolling window cannot answer",
+  );
 });
 
 test("/jobs still truncates but no longer hides it", () => {
   const page = read("app/(app)/jobs/page.tsx");
   const list = read("components/JobsList.tsx");
-  assert.ok(/count: "exact", head: true/.test(page), "the real total must be counted at the database");
+  assert.ok(
+    /count: "exact", head: true/.test(page),
+    "the real total must be counted at the database",
+  );
   assert.ok(/truncated=\{truncated\}/.test(page), "and handed to the list");
   assert.ok(/loadMoreHref/.test(page), "with a way to see more");
   assert.ok(/truncated &&/.test(list), "the list must render the notice");
@@ -228,10 +323,14 @@ test("/jobs still truncates but no longer hides it", () => {
 
 test("logCall matches the caller in SQL instead of paging the customer table", () => {
   const src = read("app/(app)/service-records/actions.ts");
-  assert.ok(!/from\("customers"\)[\s\S]{0,160}\.limit\(1000\)/.test(src),
-    "selecting 1000 customers to find one phone match is wrong past 1000 customers, not just slow");
+  assert.ok(
+    !/from\("customers"\)[\s\S]{0,160}\.limit\(1000\)/.test(src),
+    "selecting 1000 customers to find one phone match is wrong past 1000 customers, not just slow",
+  );
   assert.ok(/\.ilike\("phone"/.test(src), "the phone must be filtered in the query");
   assert.ok(/phoneSearchSuffix\(/.test(src), "via the tested suffix helper");
-  assert.ok(/normalizeUsPhone\(row\.phone\) === caller/.test(src),
-    "and the exact normalized comparison must still decide, because suffixes collide");
+  assert.ok(
+    /normalizeUsPhone\(row\.phone\) === caller/.test(src),
+    "and the exact normalized comparison must still decide, because suffixes collide",
+  );
 });

@@ -16,10 +16,14 @@ export const dynamic = "force-dynamic";
 // calendar says so rather than quietly dropping appointments.
 const JOB_CEILING = 2000;
 
-export default async function SchedulePage({ searchParams }: { searchParams: Promise<{ new?: string; anchor?: string }> }) {
+export default async function SchedulePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ new?: string; anchor?: string }>;
+}) {
   const search = await searchParams;
   await requireProfile();
-  const locale = (await getLocale());
+  const locale = await getLocale();
   const supabase = await createClient();
 
   // THE BUG: this selected EVERY non-deleted job in the organisation, with no
@@ -31,18 +35,31 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
   const anchor: string = toIsoDate(search.anchor, todayISO());
   const window: { from: string; to: string } = fetchWindow(anchor);
 
-  const [{ data: jobs }, { data: customers }, { data: profiles }, { data: jobTypes }] = await Promise.all([
-    supabase.from("jobs")
-      .select("id, service, status, scheduled_date, start_time, end_time, customers(name), profiles!jobs_assigned_to_fkey(full_name)")
-      .is("deleted_at", null)
-      .gte("scheduled_date", window.from)
-      .lte("scheduled_date", window.to)
-      .order("scheduled_date")
-      .limit(JOB_CEILING),
-    supabase.from("customers").select("id, name").is("deleted_at", null).order("name").limit(1000),
-    supabase.from("profiles").select("id, full_name").order("full_name").limit(200),
-    supabase.from("job_types").select("name, color, duration_min, default_price_minor").order("sort").order("name"),
-  ]);
+  const [{ data: jobs }, { data: customers }, { data: profiles }, { data: jobTypes }] =
+    await Promise.all([
+      supabase
+        .from("jobs")
+        .select(
+          "id, service, status, scheduled_date, start_time, end_time, customers(name), profiles!jobs_assigned_to_fkey(full_name)",
+        )
+        .is("deleted_at", null)
+        .gte("scheduled_date", window.from)
+        .lte("scheduled_date", window.to)
+        .order("scheduled_date")
+        .limit(JOB_CEILING),
+      supabase
+        .from("customers")
+        .select("id, name")
+        .is("deleted_at", null)
+        .order("name")
+        .limit(1000),
+      supabase.from("profiles").select("id, full_name").order("full_name").limit(200),
+      supabase
+        .from("job_types")
+        .select("name, color, duration_min, default_price_minor")
+        .order("sort")
+        .order("name"),
+    ]);
 
   const calJobs: CalJob[] = (jobs ?? []).map((j: any) => ({
     id: j.id,
@@ -57,14 +74,29 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
 
   const custOpts = (customers ?? []).map((c) => ({ id: c.id, label: c.name }));
   const techOpts = (profiles ?? []).map((p) => ({ id: p.id, label: p.full_name || "—" }));
-  const typeColors: Record<string, string> = Object.fromEntries((jobTypes ?? []).map((tp: any) => [tp.name, tp.color]));
+  const typeColors: Record<string, string> = Object.fromEntries(
+    (jobTypes ?? []).map((tp: any) => [tp.name, tp.color]),
+  );
   const truncated: boolean = isTruncated(calJobs.length, JOB_CEILING);
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 16,
+        }}
+      >
         <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>{t(locale, "sched.title")}</h1>
-        <JobForm locale={locale} customers={custOpts} techs={techOpts} jobTypes={jobTypes ?? undefined} initialOpen={search.new === "1"} />
+        <JobForm
+          locale={locale}
+          customers={custOpts}
+          techs={techOpts}
+          jobTypes={jobTypes ?? undefined}
+          initialOpen={search.new === "1"}
+        />
       </div>
       <Calendar
         jobs={calJobs}

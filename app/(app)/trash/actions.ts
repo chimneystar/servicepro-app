@@ -4,7 +4,13 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile, assertRole } from "@/lib/auth";
 // @ts-ignore — pure, unit-tested restore rules, proven both ways (tests/recovery.test.mjs)
-import { isRecoverableKind, tableForKind, restoreBlockers, restoreFailureMessage, RESTORE_ROLES } from "@/lib/core/recovery.mjs";
+import {
+  isRecoverableKind,
+  tableForKind,
+  restoreBlockers,
+  restoreFailureMessage,
+  RESTORE_ROLES,
+} from "@/lib/core/recovery.mjs";
 
 export type RestoreResult = { ok: boolean; error?: string };
 
@@ -36,21 +42,25 @@ export async function restoreRecord(kind: string, id: string): Promise<RestoreRe
     return { ok: false, error: "You do not have permission to restore records." };
   }
 
-  if (!isRecoverableKind(kind)) return { ok: false, error: "That kind of record cannot be restored." };
+  if (!isRecoverableKind(kind))
+    return { ok: false, error: "That kind of record cannot be restored." };
   if (!/^[0-9a-f-]{36}$/i.test(id)) return { ok: false, error: "Unknown record." };
 
   const table = tableForKind(kind) as string;
   const supabase = await createClient();
 
   // Read the row and its parents so the refusal can name what is wrong.
-  const columns = kind === "invoice"
-    ? "id, deleted_at, customer_id, job_id, estimate_id"
-    : kind === "customer"
-      ? "id, deleted_at"
-      : "id, deleted_at, customer_id";
+  const columns =
+    kind === "invoice"
+      ? "id, deleted_at, customer_id, job_id, estimate_id"
+      : kind === "customer"
+        ? "id, deleted_at"
+        : "id, deleted_at, customer_id";
 
   const { data: row, error: readError } = await supabase
-    .from(table).select(columns).eq("id", id)
+    .from(table)
+    .select(columns)
+    .eq("id", id)
     .eq("organization_id", profile.organization_id!)
     .maybeSingle();
   if (readError) return { ok: false, error: restoreFailureMessage(readError).message };
@@ -61,16 +71,21 @@ export async function restoreRecord(kind: string, id: string): Promise<RestoreRe
 
   if (kind === "customer") {
     const { count } = await supabase
-      .from("privacy_requests").select("id", { head: true, count: "exact" })
-      .eq("customer_id", id).eq("request_type", "deletion").eq("status", "completed");
+      .from("privacy_requests")
+      .select("id", { head: true, count: "exact" })
+      .eq("customer_id", id)
+      .eq("request_type", "deletion")
+      .eq("status", "completed");
     context.privacyErased = (count ?? 0) > 0;
   } else {
     context.customer = await parentState(supabase, "customers", record.customer_id, "name");
     if (kind === "invoice") {
-      if (record.job_id) context.job = await parentState(supabase, "jobs", record.job_id, "service");
+      if (record.job_id)
+        context.job = await parentState(supabase, "jobs", record.job_id, "service");
       // invoices.estimate_id carries no FK (migration 024), so it is resolved
       // by explicit lookup rather than an embed that PostgREST cannot build.
-      if (record.estimate_id) context.estimate = await parentState(supabase, "estimates", record.estimate_id, "number");
+      if (record.estimate_id)
+        context.estimate = await parentState(supabase, "estimates", record.estimate_id, "number");
     }
   }
 
@@ -80,8 +95,10 @@ export async function restoreRecord(kind: string, id: string): Promise<RestoreRe
   // `.not("deleted_at", "is", null)` makes the write itself conditional: two
   // people clicking Restore at once cannot both be told it worked.
   const { data: updated, error } = await supabase
-    .from(table).update({ deleted_at: null })
-    .eq("id", id).eq("organization_id", profile.organization_id!)
+    .from(table)
+    .update({ deleted_at: null })
+    .eq("id", id)
+    .eq("organization_id", profile.organization_id!)
     .not("deleted_at", "is", null)
     .select("id");
   if (error) return { ok: false, error: restoreFailureMessage(error).message };
@@ -99,7 +116,11 @@ async function parentState(
   labelColumn: string,
 ): Promise<{ deleted: boolean; name: string | null } | null> {
   if (!parentId) return null;
-  const { data } = await supabase.from(table).select(`deleted_at, ${labelColumn}`).eq("id", parentId).maybeSingle();
+  const { data } = await supabase
+    .from(table)
+    .select(`deleted_at, ${labelColumn}`)
+    .eq("id", parentId)
+    .maybeSingle();
   if (!data) return null;
   const parent = data as unknown as Record<string, unknown>;
   const label = parent[labelColumn];

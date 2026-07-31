@@ -24,9 +24,21 @@ test("cron auth REFUSES a wrong, absent or malformed token", () => {
   assert.equal(isAuthorizedBearer("Bearer wrong", secret), false);
   assert.equal(isAuthorizedBearer("", secret), false);
   assert.equal(isAuthorizedBearer(null, secret), false);
-  assert.equal(isAuthorizedBearer(secret, secret), false, "raw secret without the Bearer prefix must not pass");
-  assert.equal(isAuthorizedBearer("bearer s3cret-value", secret), false, "scheme is case-sensitive here");
-  assert.equal(isAuthorizedBearer("Bearer s3cret-value ", secret), false, "trailing whitespace must not pass");
+  assert.equal(
+    isAuthorizedBearer(secret, secret),
+    false,
+    "raw secret without the Bearer prefix must not pass",
+  );
+  assert.equal(
+    isAuthorizedBearer("bearer s3cret-value", secret),
+    false,
+    "scheme is case-sensitive here",
+  );
+  assert.equal(
+    isAuthorizedBearer("Bearer s3cret-value ", secret),
+    false,
+    "trailing whitespace must not pass",
+  );
 });
 
 test("cron auth ACCEPTS the correct token (guard is not a cry-wolf)", () => {
@@ -49,7 +61,18 @@ test("cron auth tolerates length mismatch without throwing", () => {
 // ---------------------------------------------------------------------------
 
 test("STOP and its variants are recognised as opt-out", () => {
-  for (const word of ["STOP", "stop", " Stop ", "STOPALL", "unsubscribe", "CANCEL", "end", "quit", "OptOut", "opt-out"]) {
+  for (const word of [
+    "STOP",
+    "stop",
+    " Stop ",
+    "STOPALL",
+    "unsubscribe",
+    "CANCEL",
+    "end",
+    "quit",
+    "OptOut",
+    "opt-out",
+  ]) {
     assert.equal(isSmsOptOut(word), true, `${JSON.stringify(word)} should opt out`);
   }
 });
@@ -57,7 +80,16 @@ test("STOP and its variants are recognised as opt-out", () => {
 test("ordinary messages are NOT treated as opt-out", () => {
   // The false-positive half: silently unsubscribing a customer who asked a
   // question would be its own bug.
-  for (const word of ["stop by tomorrow please", "can you stop at 4?", "", "  ", "STOPPED", "yes please", null, undefined]) {
+  for (const word of [
+    "stop by tomorrow please",
+    "can you stop at 4?",
+    "",
+    "  ",
+    "STOPPED",
+    "yes please",
+    null,
+    undefined,
+  ]) {
     assert.equal(isSmsOptOut(word), false, `${JSON.stringify(word)} should NOT opt out`);
   }
 });
@@ -97,7 +129,7 @@ test("customer-controlled values cannot inject markup into an email", () => {
 const read = (p) => {
   const src = readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
   return src
-    .replace(/\/\*[\s\S]*?\*\//g, "")   // block comments
+    .replace(/\/\*[\s\S]*?\*\//g, "") // block comments
     .replace(/(^|[^:])\/\/.*$/gm, "$1"); // line comments (leave "https://" alone)
 };
 
@@ -113,43 +145,63 @@ test("the comment-stripping used by these guards actually works", () => {
 
 test("the daily cron cannot regress to the fail-open pattern", () => {
   const src = read("app/api/cron/daily/route.ts");
-  assert.ok(!/if\s*\(\s*secret\s*&&/.test(src),
-    "`if (secret && ...)` skips auth entirely when CRON_SECRET is unset");
+  assert.ok(
+    !/if\s*\(\s*secret\s*&&/.test(src),
+    "`if (secret && ...)` skips auth entirely when CRON_SECRET is unset",
+  );
   // The fail-closed property itself is proven behaviourally above; what this
   // asserts is that the route still routes through that proven guard rather
   // than re-implementing the comparison inline.
-  assert.ok(/isAuthorizedBearer\s*\(/.test(src),
-    "the route must delegate to the both-ways-proven bearer check");
-  assert.ok(!/timingSafeEqual/.test(src),
-    "a second inline implementation would drift from the tested one");
+  assert.ok(
+    /isAuthorizedBearer\s*\(/.test(src),
+    "the route must delegate to the both-ways-proven bearer check",
+  );
+  assert.ok(
+    !/timingSafeEqual/.test(src),
+    "a second inline implementation would drift from the tested one",
+  );
 });
 
 test("the daily cron reports failure instead of always returning ok", () => {
   const src = read("app/api/cron/daily/route.ts");
-  assert.ok(/failures\.length === 0|ok\s*=\s*failures/.test(src),
-    "a cron that always returns ok:true hides a broken system behind a green dashboard");
+  assert.ok(
+    /failures\.length === 0|ok\s*=\s*failures/.test(src),
+    "a cron that always returns ok:true hides a broken system behind a green dashboard",
+  );
 });
 
 test("the inbound SMS webhook verifies its signature and scopes the tenant", () => {
   const src = read("app/api/sms/incoming/route.ts");
-  assert.ok(/validateTwilioSignature/.test(src), "inbound SMS must be authenticated like the voice webhooks");
-  assert.ok(/tracked_phone_numbers/.test(src), "the organisation must be resolved from the number texted");
-  assert.ok(!/from\("organizations"\)[\s\S]{0,80}limit\(1\)/.test(src),
-    "falling back to an arbitrary organisation files a customer message under the wrong business");
+  assert.ok(
+    /validateTwilioSignature/.test(src),
+    "inbound SMS must be authenticated like the voice webhooks",
+  );
+  assert.ok(
+    /tracked_phone_numbers/.test(src),
+    "the organisation must be resolved from the number texted",
+  );
+  assert.ok(
+    !/from\("organizations"\)[\s\S]{0,80}limit\(1\)/.test(src),
+    "falling back to an arbitrary organisation files a customer message under the wrong business",
+  );
 });
 
 test("photo deletion derives the storage path from the row, not the caller", () => {
   const src = read("app/(app)/jobs/[id]/actions.ts");
-  assert.ok(!/storage\.from\("job-photos"\)\.remove\(\[path\]\)/.test(src),
-    "a client-supplied path allows deleting arbitrary objects");
+  assert.ok(
+    !/storage\.from\("job-photos"\)\.remove\(\[path\]\)/.test(src),
+    "a client-supplied path allows deleting arbitrary objects",
+  );
   assert.ok(/photo\.storage_path/.test(src), "the path must come from the fetched row");
 });
 
 test("document sending derives its origin from configuration, not the client", () => {
   const src = read("app/(app)/share-actions.ts");
   assert.ok(/function appOrigin/.test(src), "the link origin must be server-derived");
-  assert.ok(!/const link = `\$\{origin\}/.test(src),
-    "a caller-supplied origin turns this into branded phishing from the business's own identity");
+  assert.ok(
+    !/const link = `\$\{origin\}/.test(src),
+    "a caller-supplied origin turns this into branded phishing from the business's own identity",
+  );
 });
 
 test("migration 023 constrains the privilege columns on profiles", () => {
@@ -158,15 +210,26 @@ test("migration 023 constrains the privilege columns on profiles", () => {
   for (const col of ["role", "organization_id", "active", "commission_pct"]) {
     assert.ok(sql.includes(`new.${col}`), `${col} must be pinned against self-service escalation`);
   }
-  assert.ok(/inviter_role/.test(sql), "accept_invitation must verify who issued an owner-level invite");
+  assert.ok(
+    /inviter_role/.test(sql),
+    "accept_invitation must verify who issued an owner-level invite",
+  );
 });
 
 test("portal links expire and can be revoked", () => {
   const sql = readRaw("db/023_authorization_hardening.sql");
-  assert.ok(/portal_token_expires_at/.test(sql), "a permanent customer link cannot be revoked after a leak");
-  assert.ok(/rotate_customer_portal_token/.test(sql), "the business must be able to invalidate a leaked link");
-  assert.ok(/portal_token_expires_at is null or portal_token_expires_at > now\(\)/.test(sql),
-    "expiry must actually be enforced on lookup, not merely recorded");
+  assert.ok(
+    /portal_token_expires_at/.test(sql),
+    "a permanent customer link cannot be revoked after a leak",
+  );
+  assert.ok(
+    /rotate_customer_portal_token/.test(sql),
+    "the business must be able to invalidate a leaked link",
+  );
+  assert.ok(
+    /portal_token_expires_at is null or portal_token_expires_at > now\(\)/.test(sql),
+    "expiry must actually be enforced on lookup, not merely recorded",
+  );
 });
 
 test("portal preference changes are rate limited like every other request", () => {
@@ -175,8 +238,10 @@ test("portal preference changes are rate limited like every other request", () =
   const limitAt = fn.indexOf("recent_count >= 10");
   const prefAt = fn.indexOf("if p_type = 'preferences'");
   assert.ok(limitAt > -1 && prefAt > -1, "both the limit and the preferences branch must exist");
-  assert.ok(limitAt < prefAt,
-    "the preferences branch previously returned BEFORE the rate check, allowing unbounded consent flipping");
+  assert.ok(
+    limitAt < prefAt,
+    "the preferences branch previously returned BEFORE the rate check, allowing unbounded consent flipping",
+  );
 });
 
 test("migration 023 only uses request types the CHECK constraint permits", () => {
@@ -184,14 +249,24 @@ test("migration 023 only uses request types the CHECK constraint permits", () =>
   const allowed = /check \(request_type in \(([^)]*)\)\)/.exec(sql);
   assert.ok(allowed, "the constraint must be declared in this migration");
   const permitted = allowed[1].split(",").map((s) => s.trim().replace(/'/g, ""));
-  for (const used of [...sql.matchAll(/request_type\s*\)?\s*\n?\s*values[^;]*?'([a-z_]+)'/g)].map((m) => m[1])) {
-    assert.ok(permitted.includes(used), `inserts '${used}' but the CHECK allows only ${permitted.join(", ")}`);
+  for (const used of [...sql.matchAll(/request_type\s*\)?\s*\n?\s*values[^;]*?'([a-z_]+)'/g)].map(
+    (m) => m[1],
+  )) {
+    assert.ok(
+      permitted.includes(used),
+      `inserts '${used}' but the CHECK allows only ${permitted.join(", ")}`,
+    );
   }
 });
 
 test("security response headers are configured", () => {
   const src = readRaw("next.config.mjs");
-  for (const header of ["Content-Security-Policy", "Strict-Transport-Security", "X-Frame-Options", "Referrer-Policy"]) {
+  for (const header of [
+    "Content-Security-Policy",
+    "Strict-Transport-Security",
+    "X-Frame-Options",
+    "Referrer-Policy",
+  ]) {
     assert.ok(src.includes(header), `${header} must be set on an app serving payment pages`);
   }
   assert.ok(/frame-ancestors 'none'/.test(src), "payment and signing pages must not be framable");

@@ -2,8 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
-  BULK_ACTIONS, BULK_MAX_ROWS, bulkReport, isBulkAction, parseSelection,
-  selectionError, summarizeBulk,
+  BULK_ACTIONS,
+  BULK_MAX_ROWS,
+  bulkReport,
+  isBulkAction,
+  parseSelection,
+  selectionError,
+  summarizeBulk,
 } from "../lib/core/bulk.mjs";
 
 const id = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -54,7 +59,10 @@ test("an oversize selection is refused with the numbers", () => {
 
 test("every refusal has words a person can act on", () => {
   assert.match(selectionError(parseSelection([])), /select at least one/i);
-  assert.match(selectionError(parseSelection(Array.from({ length: 500 }, (_, i) => id(i)))), /500.*200|200/);
+  assert.match(
+    selectionError(parseSelection(Array.from({ length: 500 }, (_, i) => id(i)))),
+    /500.*200|200/,
+  );
   assert.match(selectionError(parseSelection(["nope"])), /not valid/i);
   assert.match(selectionError(parseSelection([]), "he"), /[֐-׿]/);
 });
@@ -88,8 +96,14 @@ test("a PARTIAL success is NOT ok, and names exactly which rows failed and why",
   ]);
   assert.equal(report.ok, false, "34 of 40 is not success");
   assert.equal(report.succeeded, 2);
-  assert.deepEqual(report.failed.map((f) => f.label), ["#5002", "#5004"]);
-  assert.deepEqual(report.failed.map((f) => f.reason), ["Resend error 429: rate limited", "no email address on file"]);
+  assert.deepEqual(
+    report.failed.map((f) => f.label),
+    ["#5002", "#5004"],
+  );
+  assert.deepEqual(
+    report.failed.map((f) => f.reason),
+    ["Resend error 429: rate limited", "no email address on file"],
+  );
 });
 
 test("a deliberate SKIP is reported separately from a breakage", () => {
@@ -117,8 +131,13 @@ test("a batch that only skipped is still not reported as fully done", () => {
 });
 
 test("a failure with NO reason is rejected — 'it failed' is the silence being removed", () => {
-  assert.throws(() => bulkReport("invoices.send", [{ id: id(1), label: "#1", ok: false }]), /without a reason/);
-  assert.throws(() => bulkReport("invoices.send", [{ id: id(1), label: "#1", ok: false, reason: "  " }]));
+  assert.throws(
+    () => bulkReport("invoices.send", [{ id: id(1), label: "#1", ok: false }]),
+    /without a reason/,
+  );
+  assert.throws(() =>
+    bulkReport("invoices.send", [{ id: id(1), label: "#1", ok: false, reason: "  " }]),
+  );
 });
 
 test("a report whose counts do not add up refuses to exist", () => {
@@ -151,7 +170,12 @@ test("the summary never says 'done' when something failed", () => {
 });
 
 test("a long failure list names the first five and counts the rest", () => {
-  const rows = Array.from({ length: 12 }, (_, i) => ({ id: id(i), label: `#${5000 + i}`, ok: false, reason: "rate limited" }));
+  const rows = Array.from({ length: 12 }, (_, i) => ({
+    id: id(i),
+    label: `#${5000 + i}`,
+    ok: false,
+    reason: "rate limited",
+  }));
   const report = bulkReport("invoices.send", rows);
   const text = summarizeBulk(report);
   assert.match(text, /12 FAILED/);
@@ -168,8 +192,10 @@ test("the summary exists in Hebrew", () => {
 // and honour consent on anything that sends.
 // ---------------------------------------------------------------------------
 
-const code = (path) => readFileSync(new URL(path, import.meta.url), "utf8")
-  .replace(/\/\*[\s\S]*?\*\//g, " ").replace(/\/\/[^\n]*/g, " ");
+const code = (path) =>
+  readFileSync(new URL(path, import.meta.url), "utf8")
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/\/\/[^\n]*/g, " ");
 
 test("invoice bulk actions validate the selection and build a real report", () => {
   const actions = code("../app/(app)/invoices/actions.ts");

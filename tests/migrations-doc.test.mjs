@@ -38,10 +38,18 @@ const filenames = readdirSync(DB_DIR, { withFileTypes: true })
 
 const { migrations, excluded, problems } = classifyFiles(filenames, MANIFEST.nonMigrations ?? {});
 const render = (extra = {}) =>
-  renderSequenceTable({ migrations, excluded, descriptions: MANIFEST.descriptions ?? {}, ...extra });
+  renderSequenceTable({
+    migrations,
+    excluded,
+    descriptions: MANIFEST.descriptions ?? {},
+    ...extra,
+  });
 
 test("db/ classifies cleanly, or there is no sequence to document", () => {
-  assert.deepEqual(problems.map((p) => p.code), []);
+  assert.deepEqual(
+    problems.map((p) => p.code),
+    [],
+  );
 });
 
 test("db/MIGRATIONS.md is exactly what the generator produces from db/", () => {
@@ -96,7 +104,10 @@ test("every migration has a real description — no placeholders", () => {
 // ===========================================================================
 
 test("PLANTED DEFECT: a new migration with no description renders a MISSING marker", () => {
-  const withNew = [...migrations, { version: "042", slug: "new_thing", filename: "042_new_thing.sql" }];
+  const withNew = [
+    ...migrations,
+    { version: "042", slug: "new_thing", filename: "042_new_thing.sql" },
+  ];
   const block = renderSequenceTable({
     migrations: withNew,
     excluded,

@@ -38,20 +38,34 @@ export async function assertAssignable(
   },
 ): Promise<AssignmentCheck> {
   const locale = input.locale ?? "en";
-  if (!input.profileId || !/^\d{4}-\d{2}-\d{2}$/.test(String(input.date ?? ""))) return { ok: true };
+  if (!input.profileId || !/^\d{4}-\d{2}-\d{2}$/.test(String(input.date ?? "")))
+    return { ok: true };
 
-  const { data: person } = await supabase.from("profiles").select("full_name").eq("id", input.profileId).maybeSingle();
+  const { data: person } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", input.profileId)
+    .maybeSingle();
   const name = person?.full_name ?? "";
 
   // Time off. `profile_id is null` rows are business closures and apply to
   // everyone, so both are fetched in one query and separated by the pure rule.
-  const { data: timeOff } = await supabase.from("technician_time_off")
+  const { data: timeOff } = await supabase
+    .from("technician_time_off")
     .select("profile_id,starts_on,ends_on,start_time,end_time,status")
-    .eq("organization_id", input.organizationId).eq("status", "approved")
-    .lte("starts_on", input.date).gte("ends_on", input.date)
+    .eq("organization_id", input.organizationId)
+    .eq("status", "approved")
+    .lte("starts_on", input.date)
+    .gte("ends_on", input.date)
     .or(`profile_id.eq.${input.profileId},profile_id.is.null`);
 
-  const off = isProfileOff(timeOff ?? [], input.profileId, input.date, input.startTime ?? null, input.endTime ?? null);
+  const off = isProfileOff(
+    timeOff ?? [],
+    input.profileId,
+    input.date,
+    input.startTime ?? null,
+    input.endTime ?? null,
+  );
   if (off.off) return { ok: false, error: describeUnavailable(off, { locale, name }) };
 
   // Certifications. An empty requirement list — the column default and every
@@ -60,9 +74,11 @@ export async function assertAssignable(
   const required = (input.requiredSkills ?? []).filter(Boolean);
   if (!required.length) return { ok: true };
 
-  const { data: skills } = await supabase.from("technician_skills")
+  const { data: skills } = await supabase
+    .from("technician_skills")
     .select("skill_code,label,issued_on,expires_on")
-    .eq("organization_id", input.organizationId).eq("profile_id", input.profileId);
+    .eq("organization_id", input.organizationId)
+    .eq("profile_id", input.profileId);
 
   const match = checkSkillMatch({ required, skills: skills ?? [], onDate: input.date });
   if (!match.ok) return { ok: false, error: describeSkillGap(match, { locale, name }) };
@@ -74,9 +90,13 @@ export async function assertAssignableToJob(
   supabase: Awaited<ReturnType<typeof createClient>>,
   input: { organizationId: string; jobId: string; profileId: string; locale?: "en" | "he" },
 ): Promise<AssignmentCheck> {
-  const { data: job } = await supabase.from("jobs")
+  const { data: job } = await supabase
+    .from("jobs")
     .select("scheduled_date,start_time,end_time,required_skills")
-    .eq("id", input.jobId).eq("organization_id", input.organizationId).is("deleted_at", null).maybeSingle();
+    .eq("id", input.jobId)
+    .eq("organization_id", input.organizationId)
+    .is("deleted_at", null)
+    .maybeSingle();
   if (!job) return { ok: true }; // the caller's own update will refuse it
   return assertAssignable(supabase, {
     organizationId: input.organizationId,
