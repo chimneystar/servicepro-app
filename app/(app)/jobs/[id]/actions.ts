@@ -10,6 +10,7 @@ import { computeDocument, parseAmountToMinor, parseQtyToMilli } from "@/lib/core
 import { isUniqueViolation } from "@/lib/core/db-errors.mjs";
 import { changeJobStatus } from "@/lib/job-status";
 import { recordInventoryMovement } from "@/lib/inventory";
+import { resolveDocumentTax } from "@/lib/documents";
 
 export type PhotoResult = {
   ok: boolean;
@@ -60,8 +61,12 @@ export async function createInvoiceFromJob(jobId: string): Promise<PhotoResult> 
   const supabase = await createClient();
   const { data: job } = await supabase.from("jobs").select("*").eq("id", jobId).single();
   if (!job) return { ok: false, error: "not found" };
-  const { data: org } = await supabase.from("organizations").select("tax_rate_bps").eq("id", profile.organization_id!).single();
-  const taxRateBps = org?.tax_rate_bps ?? 0;
+  // Invoicing from a job is a second document-creation path that never went
+  // through lib/documents.ts. It reads the same tax resolution, so a jurisdiction
+  // rate or an exemption certificate cannot apply on one route and not the other.
+  const tax = await resolveDocumentTax(
+    supabase, profile.organization_id!, job.customer_id, new Date().toISOString().slice(0, 10),
+  );
 
   const { data: jobItems } = await supabase.from("job_items")
     .select("description, qty_milli, unit_price_minor, cost_minor, sort").eq("job_id", jobId).order("sort");
@@ -70,13 +75,16 @@ export async function createInvoiceFromJob(jobId: string): Promise<PhotoResult> 
     ? jobItems.map((it: any) => ({ description: it.description, qty_milli: it.qty_milli, unit_price_minor: it.unit_price_minor, cost_minor: it.cost_minor ?? 0 }))
     : [{ description: job.service, qty_milli: 1000, unit_price_minor: job.price_minor, cost_minor: 0 }];
 
-  const totals = computeDocument({ items: lines.map((l) => ({ qtyMilli: l.qty_milli, unitPriceMinor: l.unit_price_minor })), discountMinor: 0, taxRateBps });
+  const totals = computeDocument({
+    items: lines.map((l) => ({ qtyMilli: l.qty_milli, unitPriceMinor: l.unit_price_minor })),
+    discountMinor: 0, taxRateBps: tax.taxRateBps, taxExempt: tax.taxExempt,
+  });
   const { data: number, error: nErr } = await supabase.rpc("next_document_number", { p_org: profile.organization_id, p_kind: "invoice" });
   if (nErr) return { ok: false, error: nErr.message };
   const { data: inv, error } = await supabase.from("invoices").insert({
     organization_id: profile.organization_id, created_by: profile.id, number,
     customer_id: job.customer_id, job_id: jobId, status: "unpaid",
-    tax_rate_bps: taxRateBps, total_minor: totals.totalMinor, discount_minor: 0,
+    tax_rate_bps: totals.taxRateBps, total_minor: totals.totalMinor, discount_minor: 0,
   }).select("id").single();
   if (error) return { ok: false, error: error.message };
   await supabase.from("invoice_items").insert(lines.map((l, idx) => ({

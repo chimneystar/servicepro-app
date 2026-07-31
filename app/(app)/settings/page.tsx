@@ -39,12 +39,13 @@ export default async function SettingsPage() {
           <SettingsLink href="/appearance" icon="appearance" title={he ? "מראה ונגישות" : "Appearance & accessibility"} text={he ? "ערכת צבעים, גודל טקסט, ניגודיות והפחתת תנועה." : "Theme, text size, contrast and reduced motion."} />
           <SettingsLink href="/settings/privacy" icon="privacy" title={he ? "פרטיות ושמירת מידע" : "Privacy & data retention"} text={he ? "הסכמות, בקשות פרטיות, תקופות שמירה ומחיקה מבוקרת." : "Consent, privacy requests, retention periods and controlled deletion."} />
           <SettingsLink href="/settings/messages" icon="messages" title={he ? "הודעות ללקוחות" : "Customer messages"} text={he ? "עריכת ההודעות שנשלחות בהזמנה, בתזכורת ובסיום עבודה." : "Edit booking, reminder, on-the-way and completion messages."} />
+          <SettingsLink href="/settings/custom-fields" icon="document" title={he ? "שדות מותאמים" : "Custom fields"} text={he ? "מידע נוסף שאתם צריכים בכרטיס הלקוח ובכרטיס העבודה." : "Extra information you need on customer and job records."} />
         </aside>
       </div>
     </div>
   );
 }
 
-function SettingsLink({ href, icon, title, text }: { href: string; icon: "team" | "messages" | "payments" | "calendar" | "finance" | "appearance" | "privacy"; title: string; text: string }) {
+function SettingsLink({ href, icon, title, text }: { href: string; icon: "team" | "messages" | "payments" | "calendar" | "finance" | "appearance" | "privacy" | "document"; title: string; text: string }) {
   return <Link href={href} className="settings-link-card"><span className="settings-link-icon"><AppIcon name={icon} /></span><span className="settings-link-copy"><strong>{title}</strong><small>{text}</small></span><span className="settings-arrow">›</span></Link>;
 }

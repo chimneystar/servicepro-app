@@ -5,12 +5,17 @@ import { assertCapability, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getLocale } from "@/lib/locale-server";
 // @ts-ignore — integer-safe money engine (JS module, unit-tested in tests/money.test.mjs)
-import { parseAmountToMinor } from "@/lib/core/money.mjs";
+import { parseAmountToMinor, parsePercentToBps } from "@/lib/core/money.mjs";
 
 export type FinanceResult = { ok: boolean; error?: string };
 const initialError = (he: boolean) => he ? "לא הצלחנו לשמור. בדקו את הפרטים ונסו שוב." : "We couldn't save this. Check the details and try again.";
 const amountError = (he: boolean) => he ? "סכום לא תקין. הזינו מספר, למשל 1234.56" : "That amount isn't valid. Enter a number, for example 1234.56";
 const forbiddenError = (he: boolean) => he ? "אין לך הרשאה לנהל כספים." : "You don't have access to manage finance.";
+const rateError = (he: boolean) => he ? "שיעור מס לא תקין. הזינו אחוז, למשל 8.25" : "That tax rate isn't valid. Enter a percentage, for example 8.25";
+const dateOrderError = (he: boolean) => he ? "תאריך הסיום מוקדם מתאריך ההתחלה." : "The end date is before the start date.";
+const migrationError = (he: boolean) => he
+  ? "לא ניתן לשמור. ודאו שההגירה db/035_custom_fields_tax.sql הורצה."
+  : "Couldn't save. Check that migration db/035_custom_fields_tax.sql has been run.";
 
 /** Thrown for a malformed money field so it is not reported as a permission problem. */
 class AmountError extends Error {}
@@ -50,15 +55,62 @@ export async function createTaxJurisdiction(_previous: FinanceResult, formData: 
   try {
     const profile = await guardFinance();
     const name = String(formData.get("name") ?? "").trim();
-    const rate = Number(formData.get("rate") ?? 0);
-    if (!name || !Number.isFinite(rate) || rate < 0 || rate > 1000) return { ok: false, error: initialError(he) };
+    if (!name) return { ok: false, error: initialError(he) };
+    // A rate is not money, but it multiplies money. `Math.round(rate * 100)` had
+    // the same float trap the money path was cleaned of (8.365% became 8.36%),
+    // and a non-numeric entry became NaN and was written as null.
+    let rate_bps: number;
+    try {
+      rate_bps = parsePercentToBps(String(formData.get("rate") ?? "0"));
+    } catch {
+      return { ok: false, error: rateError(he) };
+    }
+
+    const effectiveFrom = String(formData.get("effectiveFrom") ?? "").trim() || new Date().toISOString().slice(0, 10);
+    const effectiveTo = String(formData.get("effectiveTo") ?? "").trim() || null;
+    if (effectiveTo && effectiveTo < effectiveFrom) return { ok: false, error: dateOrderError(he) };
+
     const supabase = await createClient();
     const { error } = await supabase.from("tax_jurisdictions").insert({
       organization_id: profile.organization_id, name, code: String(formData.get("code") ?? "").trim() || null,
       jurisdiction_type: String(formData.get("type") ?? "state"), applies_to: String(formData.get("appliesTo") ?? "all"),
-      rate_bps: Math.round(rate * 100), effective_from: String(formData.get("effectiveFrom") ?? new Date().toISOString().slice(0, 10)),
+      rate_bps, effective_from: effectiveFrom, effective_to: effectiveTo,
       notes: String(formData.get("notes") ?? "").trim() || null, created_by: profile.id,
     });
+    if (error) return { ok: false, error: initialError(he) };
+    revalidatePath("/finance"); return { ok: true };
+  } catch (e) { return failure(e, he); }
+}
+
+/**
+ * Turn jurisdictional tax on or off for the business (ledger 5.16).
+ *
+ * OFF ('flat') is the default and is exactly what every document did before this
+ * existed: the single `organizations.tax_rate_bps`. Switching this changes the
+ * tax on documents created from now on, which is why it is a deliberate choice
+ * and not something the deploy did on the owner's behalf.
+ */
+export async function setTaxMode(_previous: FinanceResult, formData: FormData): Promise<FinanceResult> {
+  const locale = await getLocale(), he = locale === "he";
+  const mode = String(formData.get("mode") ?? "");
+  if (!["flat", "jurisdictions"].includes(mode)) return { ok: false, error: initialError(he) };
+  try {
+    const profile = await guardFinance();
+    const supabase = await createClient();
+    const { error } = await supabase.from("organizations").update({ tax_mode: mode }).eq("id", profile.organization_id!);
+    if (error) return { ok: false, error: migrationError(he) };
+    revalidatePath("/finance"); revalidatePath("/settings"); return { ok: true };
+  } catch (e) { return failure(e, he); }
+}
+
+/** Retire (or restore) a tax rule. There was no way to stop charging a rate that ended. */
+export async function setTaxJurisdictionActive(id: string, active: boolean): Promise<FinanceResult> {
+  const locale = await getLocale(), he = locale === "he";
+  try {
+    const profile = await guardFinance();
+    const supabase = await createClient();
+    const { error } = await supabase.from("tax_jurisdictions").update({ active })
+      .eq("id", id).eq("organization_id", profile.organization_id!);
     if (error) return { ok: false, error: initialError(he) };
     revalidatePath("/finance"); return { ok: true };
   } catch (e) { return failure(e, he); }

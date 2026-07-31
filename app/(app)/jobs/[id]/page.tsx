@@ -24,6 +24,8 @@ import JobSummaryPanel, { type SummaryDraft } from "@/components/JobSummaryPanel
 import JobHistoryPanel from "@/components/JobHistoryPanel";
 import JobWarrantyPanel, { type JobWarranty, type WarrantyCallback } from "@/components/JobWarrantyPanel";
 import { loadJobHistory } from "@/lib/job-history";
+import CustomFieldValues from "@/app/(app)/settings/custom-fields/CustomFieldValues";
+import { loadCustomFields } from "@/app/(app)/settings/custom-fields/load";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +51,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
 
   if (!job) return <div><Link href="/schedule" style={back}>{he ? "חזרה ליומן" : "Back to schedule"}</Link><div style={{ padding: 40, textAlign: "center", color: "#5c6675" }}>{he ? "העבודה לא נמצאה." : "Job not found."}</div></div>;
   const history = await loadJobHistory(id, locale, profile.id);
+  const customFields = await loadCustomFields("job", id); // ledger 5.10
 
   const [
     { data: photoRows }, { data: invoices }, { data: estimates }, { data: items },
@@ -124,6 +127,11 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         <Item2 label={he ? "כתובת העבודה" : "Service address"} value={serviceAddr || "—"} />
         <Item2 label={he ? "כתובת לחיוב" : "Billing address"} value={billingAddr || "—"} />
       </div>
+      <CustomFieldValues
+        locale={locale} entityType="job" entityId={job.id}
+        definitions={customFields.definitions} values={customFields.values}
+        canEdit={canEdit}
+      />
       {canEdit && <JobAddressForm jobId={job.id} jobAddress={job.job_address} jobCity={job.job_city} />}
       {job.notes && <div style={{ background: "#f4f7fb", borderRadius: 12, padding: "12px 14px", margin: "12px 0", fontSize: 14 }}><b style={{ fontSize: 12, color: "#5c6675" }}>{he ? "הערות" : "Notes"}</b><br />{job.notes}</div>}
       <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16, marginTop: 12 }}>

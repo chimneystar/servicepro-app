@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   parseAmountToMinor, parseQtyToMilli, lineSubtotalMinor,
   computeDocument, formatMoney,
+  resolveTaxJurisdictions, isCustomerTaxExempt, parsePercentToBps,
 } from "../lib/core/money.mjs";
 
 test("parse amounts to minor units (no float error)", () => {
@@ -154,4 +155,140 @@ test("all non-taxable => zero tax", () => {
   assert.equal(r.taxableMinor, 0);
   assert.equal(r.taxMinor, 0);
   assert.equal(r.totalMinor, 12345);
+});
+
+// =====================================================================
+//  Tax jurisdictions (ledger 5.16). Everything above this line is the
+//  pre-existing suite and is UNMODIFIED — the flat-rate path must behave
+//  exactly as it did, and those assertions are what proves it.
+// =====================================================================
+
+test("flat rate is untouched: the new options are absent by default", () => {
+  const r = computeDocument({ items: [{ qtyMilli: 2000, unitPriceMinor: 14000 }], taxRateBps: 825 });
+  assert.equal(r.taxRateBps, 825);   // the rate actually applied is now reported
+  assert.equal(r.exemptMinor, 0);
+  assert.equal(r.taxMinor, 2310);
+  assert.equal(r.totalMinor, 30310);
+});
+
+test("jurisdictions combine ADDITIVELY into one rate", () => {
+  const rules = [
+    { name: "Texas", rate_bps: 625, applies_to: "all", active: true, effective_from: "2020-01-01", effective_to: null },
+    { name: "Travis County", rate_bps: 100, applies_to: "all", active: true, effective_from: "2020-01-01", effective_to: null },
+    { name: "Austin", rate_bps: 100, applies_to: "all", active: true, effective_from: "2020-01-01", effective_to: null },
+  ];
+  const { effectiveBps, applied, skipped } = resolveTaxJurisdictions(rules, { onDate: "2026-07-31" });
+  assert.equal(effectiveBps, 825);
+  assert.equal(applied.length, 3);
+  assert.equal(skipped.length, 0);
+});
+
+test("a resolved rate produces EXACTLY the flat-rate figures — no drift", () => {
+  // 6.25 + 1.00 + 1.00 == 8.25. If the engine ever rounded per rule instead of
+  // once over the combined rate, these two would diverge by a cent on some bases.
+  const rules = [
+    { rate_bps: 625, applies_to: "all", effective_from: "2020-01-01" },
+    { rate_bps: 100, applies_to: "all", effective_from: "2020-01-01" },
+    { rate_bps: 100, applies_to: "all", effective_from: "2020-01-01" },
+  ];
+  const bps = resolveTaxJurisdictions(rules, { onDate: "2026-07-31" }).effectiveBps;
+  for (let cents = 1; cents <= 20000; cents += 1) {
+    const flat = computeDocument({ items: [{ qtyMilli: 1000, unitPriceMinor: cents }], taxRateBps: 825 });
+    const viaRules = computeDocument({ items: [{ qtyMilli: 1000, unitPriceMinor: cents }], taxRateBps: bps });
+    assert.equal(viaRules.taxMinor, flat.taxMinor);
+    assert.equal(viaRules.totalMinor, flat.totalMinor);
+  }
+});
+
+test("a rule that is not yet effective must NOT be charged", () => {
+  const rules = [
+    { name: "State", rate_bps: 625, applies_to: "all", effective_from: "2020-01-01" },
+    { name: "New city rate", rate_bps: 200, applies_to: "all", effective_from: "2026-10-01" },
+  ];
+  const before = resolveTaxJurisdictions(rules, { onDate: "2026-07-31" });
+  assert.equal(before.effectiveBps, 625);
+  assert.equal(before.skipped[0].reason, "not_yet_effective");
+  // ...and on the day it starts, it is.
+  assert.equal(resolveTaxJurisdictions(rules, { onDate: "2026-10-01" }).effectiveBps, 825);
+});
+
+test("an expired rule must NOT be charged; its last day still is", () => {
+  const rules = [{ name: "Old district", rate_bps: 50, applies_to: "all", effective_from: "2020-01-01", effective_to: "2026-06-30" }];
+  assert.equal(resolveTaxJurisdictions(rules, { onDate: "2026-06-30" }).effectiveBps, 50);
+  const after = resolveTaxJurisdictions(rules, { onDate: "2026-07-01" });
+  assert.equal(after.effectiveBps, 0);
+  assert.equal(after.skipped[0].reason, "expired");
+});
+
+test("an inactive rule is skipped and says so", () => {
+  const out = resolveTaxJurisdictions([{ rate_bps: 900, applies_to: "all", active: false, effective_from: "2020-01-01" }], { onDate: "2026-07-31" });
+  assert.equal(out.effectiveBps, 0);
+  assert.equal(out.skipped[0].reason, "inactive");
+});
+
+test("labor/materials-scoped rules are reported as unsupported, never silently applied", () => {
+  const rules = [
+    { name: "State", rate_bps: 625, applies_to: "all", effective_from: "2020-01-01" },
+    { name: "Labour surcharge", rate_bps: 200, applies_to: "labor", effective_from: "2020-01-01" },
+    { name: "Materials levy", rate_bps: 150, applies_to: "materials", effective_from: "2020-01-01" },
+    { name: "Bespoke", rate_bps: 75, applies_to: "custom", effective_from: "2020-01-01" },
+  ];
+  const out = resolveTaxJurisdictions(rules, { onDate: "2026-07-31" });
+  assert.equal(out.effectiveBps, 625);                       // NOT 1050
+  assert.equal(out.skipped.length, 3);
+  assert.deepEqual(out.skipped.map((s) => s.reason), ["unsupported_scope", "unsupported_scope", "unsupported_scope"]);
+});
+
+test("no rules at all resolves to zero, not to a guess", () => {
+  assert.equal(resolveTaxJurisdictions([], { onDate: "2026-07-31" }).effectiveBps, 0);
+  assert.equal(resolveTaxJurisdictions(null, { onDate: "2026-07-31" }).effectiveBps, 0);
+});
+
+test("a jurisdiction with a non-integer rate is rejected, not rounded", () => {
+  assert.throws(() => resolveTaxJurisdictions([{ rate_bps: 8.25, applies_to: "all" }], { onDate: "2026-07-31" }));
+  assert.throws(() => resolveTaxJurisdictions([{ rate_bps: 100001, applies_to: "all" }], { onDate: "2026-07-31" }));
+});
+
+test("customer exemption: a valid certificate means no tax, and the base is still reported", () => {
+  const taxed = computeDocument({ items: [{ qtyMilli: 1000, unitPriceMinor: 50000 }], taxRateBps: 825 });
+  assert.equal(taxed.taxMinor, 4125);
+  const exempt = computeDocument({ items: [{ qtyMilli: 1000, unitPriceMinor: 50000 }], taxRateBps: 825, taxExempt: true });
+  assert.equal(exempt.taxMinor, 0);
+  assert.equal(exempt.taxRateBps, 0);
+  assert.equal(exempt.taxableMinor, 0);
+  assert.equal(exempt.exemptMinor, 50000);      // exempt sales are reportable, not lost
+  assert.equal(exempt.totalMinor, 50000);
+  assert.equal(exempt.subtotalMinor, taxed.subtotalMinor);
+});
+
+test("exemption respects the discount split, so exempt sales are reported net", () => {
+  const r = computeDocument({
+    items: [
+      { qtyMilli: 1000, unitPriceMinor: 10000, taxable: true },
+      { qtyMilli: 1000, unitPriceMinor: 10000, taxable: false },
+    ],
+    discountMinor: 4000, taxRateBps: 1000, taxExempt: true,
+  });
+  assert.equal(r.exemptMinor, 8000);   // the same base the non-exempt run would have taxed
+  assert.equal(r.taxMinor, 0);
+  assert.equal(r.totalMinor, 16000);   // 200 - 40, no tax
+});
+
+test("exemption validity is checked against the document date", () => {
+  const exemptions = [{ active: true, expires_on: "2026-07-31" }];
+  assert.equal(isCustomerTaxExempt(exemptions, { onDate: "2026-07-31" }), true);   // the last day counts
+  assert.equal(isCustomerTaxExempt(exemptions, { onDate: "2026-08-01" }), false);  // lapsed
+  assert.equal(isCustomerTaxExempt([{ active: true, expires_on: null }], { onDate: "2099-01-01" }), true);
+  assert.equal(isCustomerTaxExempt([{ active: false, expires_on: null }], { onDate: "2026-07-31" }), false);
+  assert.equal(isCustomerTaxExempt([], { onDate: "2026-07-31" }), false);
+  assert.equal(isCustomerTaxExempt(null, { onDate: "2026-07-31" }), false);
+});
+
+test("percentages become basis points by integer maths, not by float rounding", () => {
+  assert.equal(parsePercentToBps("8.25"), 825);
+  assert.equal(parsePercentToBps("0.125"), 13);      // half-up on the 3rd decimal
+  assert.equal(parsePercentToBps("8.365"), 837);     // Math.round(8.365*100) gives 836 — the float trap
+  assert.equal(parsePercentToBps(0), 0);
+  assert.throws(() => parsePercentToBps("abc"));
+  assert.throws(() => parsePercentToBps("1001"));    // over 1000%
 });

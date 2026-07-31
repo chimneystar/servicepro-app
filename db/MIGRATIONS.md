@@ -50,6 +50,7 @@ Run these **in this exact order**. Every file, no gaps.
 | 30 | `032_automation_execution.sql` | Automation-run uniqueness, per-recipient campaign delivery claims, and outreach send tracking |
 | 31 | `033_inventory_movements.sql` | Append-only stock ledger, derived `inventory_items.quantity`, concurrency guard, multi-line purchase orders with a receive step |
 | 32 | `034_notifications_support.sql` | Push event tracing, the support-access audit table, and an `accept_invitation(token)` that actually requires the emailed token |
+| 33 | `035_custom_fields_tax.sql` | Guards `custom_field_values.entity_id` (audit F21 — polymorphic, no FK, no org check); adds opt-in `organizations.tax_mode` and `document_tax_context()` so tax jurisdictions and customer exemptions can price a document |
 
 There is **no file numbered 016**: `016_isolation_tests.sql` is a *test*, not a
 migration. Run it after step 15 (and again at the end) and confirm you see
