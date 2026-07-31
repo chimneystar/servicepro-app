@@ -179,7 +179,9 @@ Counts: **~190 capabilities — 138 REAL, 33 PARTIAL, 19 STUB.**
 | Booking confirmation with reference number | `/book/[org]` | anonymous | REAL |
 | Booking UTM / source / campaign capture | `/book/[org]` | anonymous | REAL |
 | Booking deposit mode (none / fixed / percentage / full) | `/settings/booking` | owner | **STUB** — stored and shown as copy; no deposit is ever charged from booking |
-| Service-area enforcement | `/settings/booking` | owner | PARTIAL — polygon-only orgs accept every address |
+| Service-area enforcement (ZIP / city) | `/settings/booking` | owner | REAL — out-of-area addresses are refused |
+| Service-area enforcement (polygon) | `/settings/booking` | owner | PARTIAL — polygons need geocoding this product does not have, so they are never checked. No longer a silent accept: a polygon-only org holds every booking in Leads for manual approval, and the settings screen says enforcement is not active. See REMEDIATION-PLAN 4.8 |
+| Business timezone for booking | `/settings/booking` | owner | REAL — `booking_settings.timezone`; slot maths runs on the business's clock, not the server's |
 | Customer portal via magic link, no login | `/portal/[token]` | customer | REAL — but the token never expires and cannot be revoked |
 | Portal — next appointment, invoices, estimates, service history | `/portal/[token]` | customer | REAL |
 | Portal — request reschedule or message (rate-limited) | `/portal/[token]` | customer | REAL |

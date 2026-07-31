@@ -43,6 +43,12 @@ Run these **in this exact order**. Every file, no gaps.
 | 23 | `024_deposit_credit.sql` | Links invoices to their originating estimate so deposits are credited |
 | 24 | `025_job_end_date_default.sql` | Stops jobs with a null `end_date` haunting the dispatch board |
 | 25 | `026_usd_only.sql` | Aligns the currency constraint with what the payment layer can process |
+| 26 | `027_hot_path_indexes.sql` | Indexes for the access paths hit on every request |
+| 27 | `029_booking_timezone.sql` | `booking_settings.timezone` — online booking slot maths runs on the business's clock, not the server's |
+
+Run every file in the order above; each is idempotent and safe to re-run. Apply
+any file numbered `028` in its numeric position if it is present — it belongs to
+a parallel workstream and may land after this list was written.
 
 There is **no file numbered 016**: `016_isolation_tests.sql` is a *test*, not a
 migration. Run it after step 15 (and again at the end) and confirm you see

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { addMinutes, buildBookingSlots, createBookingReference, matchesServiceArea, type BookingHours, type ServiceArea } from "@/lib/booking";
+import { addMinutes, buildBookingSlots, createBookingReference, evaluateServiceArea, type BookingHours, type ServiceArea } from "@/lib/booking";
 // @ts-ignore — proven both ways in tests/rate-limit.test.mjs
 import { consume, clientKey } from "@/lib/core/rate-limit.mjs";
 
@@ -40,16 +40,34 @@ export async function POST(request: Request, { params }: { params: Promise<{ org
     ]);
     if (!settings?.enabled || !service) return NextResponse.json({ok:false,error:"booking_unavailable"},{status:404});
     if ((recent??0)>=25) return NextResponse.json({ok:false,error:"try_later"},{status:429});
-    if (settings.enforce_service_area && !matchesServiceArea(postalCode,city,(areas??[]) as ServiceArea[])) return NextResponse.json({ok:false,error:"outside_area"},{status:422});
-    const available=buildBookingSlots({date,hours:settings.hours_json as BookingHours,intervalMin:settings.slot_interval_min,durationMin:service.duration_min,arrivalWindowMin:settings.arrival_window_min,minNoticeHours:settings.min_notice_hours,maxDaysAhead:settings.max_days_ahead,capacity:settings.use_team_capacity?Math.max(1,capacity??1):1,busy:(jobs??[]).map((row)=>({start:row.start_time,end:row.end_time}))});
+    // Service area, as a TRI-STATE. "outside" is refused. "unevaluable" means the
+    // org configured enforcement using only polygon areas, which cannot be tested
+    // without a geocoded point this product never produces (no PostGIS, no
+    // geocoder, addresses are free text). Previously that case returned true and
+    // every address sailed through while the toggle claimed enforcement.
+    //
+    // We neither accept it silently nor reject every customer of a
+    // misconfigured business: the booking is taken but is NOT auto-confirmed —
+    // it lands in Leads as "requested" for a human to approve, and carries a
+    // marker saying why. The owner is warned about the same condition on
+    // /settings/booking. See docs/REMEDIATION-PLAN.md item 4.8.
+    const verdict=settings.enforce_service_area?evaluateServiceArea(postalCode,city,(areas??[]) as ServiceArea[]):"match";
+    if (verdict==="outside") return NextResponse.json({ok:false,error:"outside_area"},{status:422});
+    const areaUnverified=verdict==="unevaluable";
+    if (areaUnverified) console.warn(JSON.stringify({event:"booking.service_area_unevaluable",organizationId:org,reason:"polygon_only_areas_cannot_be_evaluated_without_geocoding"}));
+    const needsReview=Boolean(settings.approval_required)||areaUnverified;
+    const available=buildBookingSlots({date,hours:settings.hours_json as BookingHours,intervalMin:settings.slot_interval_min,durationMin:service.duration_min,arrivalWindowMin:settings.arrival_window_min,minNoticeHours:settings.min_notice_hours,maxDaysAhead:settings.max_days_ahead,capacity:settings.use_team_capacity?Math.max(1,capacity??1):1,busy:(jobs??[]).map((row)=>({start:row.start_time,end:row.end_time})),timeZone:settings.timezone});
     if (!available.some((slot)=>slot.start===start)) return NextResponse.json({ok:false,error:"slot_taken"},{status:409});
     const reference=createBookingReference();
     const answers=typeof body.answers==="object"&&body.answers?body.answers:{};
-    const leadPayload={organization_id:org,name,phone,email:email||null,address:address||null,city:city||null,postal_code:postalCode||null,service:service.name_en,notes:notes||null,status:"new",source,preferred_date:date,preferred_start_time:start,preferred_window_min:settings.arrival_window_min,booking_service_id:service.id,booking_answers:answers,booking_reference:reference,booking_status:settings.approval_required?"requested":"confirmed",campaign:campaign||null,contact_preference:contactPreference,urgency};
+    // The marker rides on booking_answers (jsonb, already on the row) so the
+    // office can see WHY this request needs a look instead of guessing.
+    const bookingAnswers=areaUnverified?{...answers,service_area_unverified:true}:answers;
+    const leadPayload={organization_id:org,name,phone,email:email||null,address:address||null,city:city||null,postal_code:postalCode||null,service:service.name_en,notes:notes||null,status:"new",source,preferred_date:date,preferred_start_time:start,preferred_window_min:settings.arrival_window_min,booking_service_id:service.id,booking_answers:bookingAnswers,booking_reference:reference,booking_status:needsReview?"requested":"confirmed",campaign:campaign||null,contact_preference:contactPreference,urgency};
     const {data:lead,error:leadError}=await admin.from("leads").insert(leadPayload).select("id").single();
     if(leadError) throw leadError;
     let status="requested";
-    if(!settings.approval_required&&service.book_as==="job"){
+    if(!needsReview&&service.book_as==="job"){
       let customer=null;
       if(email){const {data}=await admin.from("customers").select("id").eq("organization_id",org).ilike("email",email).is("deleted_at",null).limit(1).maybeSingle();customer=data;}
       if(!customer){const {data}=await admin.from("customers").select("id").eq("organization_id",org).eq("phone",phone).is("deleted_at",null).limit(1).maybeSingle();customer=data;}

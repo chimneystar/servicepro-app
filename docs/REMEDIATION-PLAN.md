@@ -99,10 +99,48 @@ Status: `TODO` / `WIP` / `DONE` / `BLOCKED`. Keep this honest — a status doc t
 | 4.5 | Dispatch reassignment: remove stale lead assignment; surface double-book conflict | TODO |
 | 4.6 | Search: parameterise the PostgREST `.or()` filter injection | DONE |
 | 4.7 | Pagination on `/jobs`, `/schedule`, `/messages`, dashboard, reports | TODO |
-| 4.8 | Booking: timezone support; polygon service areas | TODO |
+| 4.8 | Booking: timezone support **DONE**; polygon service areas **PARTIAL — see note below** | PARTIAL |
 | 4.9 | Reminders: mark sent AFTER send; allow retry | DONE |
 | 4.10 | Surface swallowed errors (26 discarding call sites, 21 void actions) | TODO |
 | 4.11 | Crew assignment must respect the no-double-book constraint | TODO |
+
+**Note on 4.8 — why it is PARTIAL and not DONE.**
+
+*Timezone: done.* `db/029_booking_timezone.sql` adds `booking_settings.timezone`
+(IANA, default `America/New_York`, NOT NULL, validated against
+`pg_timezone_names` by a trigger). `lib/core/booking.mjs` now converts wall clock
+↔ instant through `Intl.DateTimeFormat` with an explicit `timeZone`, so the day
+boundary and the minimum-notice cutoff are the business's, not the server's. No
+new dependency. Owner picks the zone on `/settings/booking`. Tested with an
+injected clock and named zones (Chicago / New York / Los Angeles / Phoenix /
+Tokyo / UTC), including a DST transition; the suite passes identically under
+`TZ=UTC`, `TZ=Pacific/Kiritimati` and `TZ=Pacific/Honolulu`.
+
+*Polygons: NOT enforced, and cannot be without new infrastructure.* Testing a
+point against a polygon needs a geocoded lat/lng for the customer's address.
+This product geocodes nothing: `leads`/`customers` store address text only, there
+is no PostGIS, there is no geocoding provider, and the Operations screen builds a
+"polygon" by splitting a free-text box on commas — so `values_json` is not even
+coordinate pairs. Implementing point-in-polygon would mean adding a geocoding
+dependency and a polygon-drawing UI. That is a Phase 5/6 feature, not a bug fix,
+so it is **not** claimed as done here.
+
+What did change is that the toggle stopped lying:
+- `evaluateServiceArea` is now actually called (`app/api/booking/[org]/submit`).
+  "outside" → 422 as before. **"unevaluable" (polygon-only) no longer accepts
+  silently**: the booking is taken but held in Leads as `requested` for manual
+  approval, never auto-confirmed, and the lead carries
+  `booking_answers.service_area_unverified = true`. The server logs the event.
+  Customers of a misconfigured business are not turned away; no address is
+  silently deemed in-area.
+- `/settings/booking` warns the owner, naming the counts, and says enforcement is
+  NOT active when every area is a polygon.
+- `createServiceArea` refuses to create new polygon areas (the Operations form
+  only ever offered ZIP/city, so this closes the server-side gap). Existing
+  polygon rows are left untouched — nothing is dropped.
+
+To close 4.8 fully, a follow-up needs: a geocoder, lat/lng on the address, a
+polygon editor, and real coordinate storage. Until then this is PARTIAL.
 
 ### Phase 5 — finish the half-built screens
 **SCOPE DECIDED 2026-07-31: every screen stays. Nothing is deleted; the unfinished third gets

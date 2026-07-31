@@ -23,8 +23,18 @@ export interface BookingSlotInput {
   maxDaysAhead: number;
   capacity: number;
   busy: BusyInterval[];
-  now?: Date;
+  /** IANA name from `booking_settings.timezone`. Invalid/missing falls back to the default. */
+  timeZone?: string | null;
+  /** Injectable clock. Instant, not wall clock. */
+  now?: Date | number;
 }
+
+export type ServiceAreaEnforcement = {
+  total: number;
+  polygons: number;
+  enforceable: number;
+  unenforceable: boolean;
+};
 
 export const normalizePhone: (value: string) => string = core.normalizePhone;
 
@@ -43,7 +53,16 @@ export const evaluateServiceArea: (
   areas: ServiceArea[],
 ) => ServiceAreaVerdict = core.evaluateServiceArea;
 
+/** @deprecated collapses "unevaluable" into accept — that collapse is the bug. */
 export const matchesServiceArea: (postalCode: string, city: string, areas: ServiceArea[]) => boolean =
   core.matchesServiceArea;
+
+/** Counts polygon vs. checkable areas so the settings UI can stop the toggle lying. */
+export const serviceAreaEnforcementGaps: (areas: ServiceArea[]) => ServiceAreaEnforcement =
+  core.serviceAreaEnforcementGaps;
+
+export const DEFAULT_BOOKING_TIMEZONE: string = core.DEFAULT_BOOKING_TIMEZONE;
+
+export const resolveTimeZone: (timeZone: string | null | undefined) => string = core.resolveTimeZone;
 
 export const createBookingReference: () => string = core.createBookingReference;

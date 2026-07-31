@@ -24,8 +24,18 @@ export async function createServiceArea(form: FormData) {
   const { profile, supabase } = await context();
   const name = text(form, "name"); if (!name) return;
   const values = text(form, "values").split(/[,\n]/).map((value) => value.trim()).filter(Boolean);
-  await supabase.from("service_areas").insert({ organization_id: profile.organization_id, name, area_type: text(form, "areaType") || "zip", values_json: values });
+  // Only 'zip' and 'city' are accepted. A 'polygon' area cannot be evaluated at
+  // booking time — that needs map coordinates for the customer's address, and
+  // nothing here geocodes (addresses are free text, there is no PostGIS, and
+  // this very form would build the "polygon" by splitting a text box on commas).
+  // Storing one produced an area that looks enforced and silently is not, so the
+  // creation path refuses instead of manufacturing more of them. Existing
+  // polygon rows are left untouched and surfaced as a warning on
+  // /settings/booking. See docs/REMEDIATION-PLAN.md item 4.8.
+  const areaType = text(form, "areaType") === "city" ? "city" : "zip";
+  await supabase.from("service_areas").insert({ organization_id: profile.organization_id, name, area_type: areaType, values_json: values });
   revalidatePath("/operations");
+  revalidatePath("/settings/booking");
 }
 
 export async function createAutomation(form: FormData) {

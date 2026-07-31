@@ -404,6 +404,7 @@ a.ritem:hover, button.ritem:hover { background: #f8faff; }
 .booking-service-admin .booking-admin-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
 .booking-service-admin .booking-admin-field:nth-last-child(-n+2) { grid-column:span 2; }
 .booking-provider-note { margin:11px 0; padding:10px 12px; border-inline-start:4px solid var(--gold); border-radius:9px; background:var(--gold-soft); color:#6b5713; font-size:10px; line-height:1.5; }
+.booking-area-warning { font-size:12.5px; } .booking-area-warning a { color:inherit; text-decoration:underline; }
 .booking-admin-message { position:sticky; bottom:16px; z-index:3; padding:11px 13px; border:1px solid #cbd9f2; border-radius:11px; background:#edf3ff; color:var(--accent-dark); font-size:11px; font-weight:800; box-shadow:0 9px 24px rgba(17,32,64,.12); }
 .booking-admin-save { justify-self:start; }
 .booking-questions-admin { margin-top:15px; }
