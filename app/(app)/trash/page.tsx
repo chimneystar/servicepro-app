@@ -134,12 +134,12 @@ export default async function TrashPage({ searchParams }: { searchParams: Promis
 
   return (
     <div style={{ maxWidth: 820 }}>
-      <h1 style={{ fontSize: 24, fontWeight: 800 }}>Trash</h1>
-      <p style={{ color: "#5c6675", fontSize: 13, marginTop: 4 }}>
+      <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>Trash</h1>
+      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginTop: 4 }}>
         {total} deleted {total === 1 ? "record" : "records"} · customers, jobs, estimates and invoices
       </p>
 
-      <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", color: "#1e3a8a", borderRadius: 12, padding: "11px 14px", fontSize: 13, margin: "12px 0 16px", lineHeight: 1.55 }}>
+      <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", color: "#1e3a8a", borderRadius: 12, padding: "11px 14px", fontSize: "0.8125rem", margin: "12px 0 16px", lineHeight: 1.55 }}>
         🗑️ Deleted records are hidden from every list and report but are never destroyed. Restore brings one back exactly as it
         was. A record is restored <b>only when everything it belongs to is back first</b> — an invoice cannot return while its
         customer is still deleted, because it would show up in your ledger attached to a customer no screen can open.
@@ -149,7 +149,7 @@ export default async function TrashPage({ searchParams }: { searchParams: Promis
       </div>
 
       {unreadable.length > 0 && (
-        <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", borderRadius: 12, padding: "11px 14px", fontSize: 13, marginBottom: 14 }}>
+        <div style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", borderRadius: 12, padding: "11px 14px", fontSize: "0.8125rem", marginBottom: 14 }}>
           Could not read deleted {unreadable.join(", ")}. This list is incomplete. If this persists, migration
           <code style={{ margin: "0 4px" }}>db/037_recovery.sql</code> may not have been applied yet.
         </div>
@@ -167,7 +167,7 @@ export default async function TrashPage({ searchParams }: { searchParams: Promis
   );
 }
 
-const pageBtn: React.CSSProperties = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: 13, color: "#334155", textDecoration: "none" };
+const pageBtn: React.CSSProperties = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10, padding: "9px 14px", fontWeight: 700, fontSize: "0.8125rem", color: "#334155", textDecoration: "none" };
 
 /**
  * Formatted HERE, on the server, and passed down as a string.

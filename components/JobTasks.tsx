@@ -22,7 +22,7 @@ export default function JobTasks({ jobId, tasks }: { jobId: string; tasks: Task[
 
   return (
     <div>
-      {tasks.length > 0 && <div style={{ fontSize: 13, color: "#5c6675", marginBottom: 8 }}>{he ? `${doneCount} מתוך ${tasks.length} הושלמו` : `${doneCount} of ${tasks.length} complete`}</div>}
+      {tasks.length > 0 && <div style={{ fontSize: "0.8125rem", color: "#5c6675", marginBottom: 8 }}>{he ? `${doneCount} מתוך ${tasks.length} הושלמו` : `${doneCount} of ${tasks.length} complete`}</div>}
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
         <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && add()} placeholder={he ? "הוספת משימה…" : "Add a task…"} style={inp} />
         <button onClick={add} disabled={pending} style={btn}>➕</button>
@@ -42,7 +42,7 @@ export default function JobTasks({ jobId, tasks }: { jobId: string; tasks: Task[
   );
 }
 
-const inp: React.CSSProperties = { flex: 1, border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 16, outline: "none" };
+const inp: React.CSSProperties = { flex: 1, border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: "1rem", outline: "none" };
 const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", padding: "9px 15px", borderRadius: 10, fontWeight: 700, cursor: "pointer" };
 const row: React.CSSProperties = { display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "11px 14px" };
 const xBtn: React.CSSProperties = { background: "#fdeaea", border: "none", borderRadius: 8, padding: "5px 8px", cursor: "pointer" };

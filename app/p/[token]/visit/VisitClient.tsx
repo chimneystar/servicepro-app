@@ -61,23 +61,23 @@ export default function VisitClient({ token, appointment, locale, accent }: {
   return (
     <div>
       <div style={{ background: accent, color: "#fff", padding: "22px 24px" }}>
-        <div style={{ fontSize: 19, fontWeight: 800 }}>{appointment.org?.name}</div>
-        {appointment.org?.tagline && <div style={{ fontSize: 13, opacity: .85 }}>{appointment.org.tagline}</div>}
+        <div style={{ fontSize: "1.25rem", fontWeight: 800 }}>{appointment.org?.name}</div>
+        {appointment.org?.tagline && <div style={{ fontSize: "0.8125rem", opacity: .85 }}>{appointment.org.tagline}</div>}
       </div>
 
       <div style={{ padding: "22px 24px" }}>
-        <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 800, letterSpacing: .6, textTransform: "uppercase" }}>
+        <div style={{ fontSize: "0.8125rem", color: "#94a3b8", fontWeight: 800, letterSpacing: .6, textTransform: "uppercase" }}>
           {he ? "הביקור שלכם" : "Your visit"}
         </div>
-        <div style={{ fontSize: 20, fontWeight: 800, marginTop: 4 }}>{appointment.service}</div>
-        <div style={{ fontSize: 14, color: "#5c6675", marginTop: 2 }}>
+        <div style={{ fontSize: "1.25rem", fontWeight: 800, marginTop: 4 }}>{appointment.service}</div>
+        <div style={{ fontSize: "0.875rem", color: "#5c6675", marginTop: 2 }}>
           {appointment.date}{window ? ` · ${window}` : ""}
           {appointment.technician ? ` · ${he ? "טכנאי" : "Technician"}: ${appointment.technician}` : ""}
         </div>
 
         {/* Arrival — the half of "on my way" that never existed. */}
         <div style={{
-          marginTop: 16, borderRadius: 12, padding: "14px 16px", fontSize: 14.5, fontWeight: 700,
+          marginTop: 16, borderRadius: 12, padding: "14px 16px", fontSize: "0.9375rem", fontWeight: 700,
           background: state === "arrived" || state === "completed" ? "#e6f6ec" : state === "due" ? "#fff5e0" : "#f4f7fb",
           color: state === "arrived" || state === "completed" ? "#15803d" : state === "due" ? "#a15c07" : "#334155",
         }}>
@@ -89,19 +89,19 @@ export default function VisitClient({ token, appointment, locale, accent }: {
           <div style={{ marginTop: 18 }}>
             {answered ? (
               <div style={{
-                borderRadius: 12, padding: "12px 14px", fontWeight: 700, fontSize: 14,
+                borderRadius: 12, padding: "12px 14px", fontWeight: 700, fontSize: "0.875rem",
                 background: appointment.confirmation === "confirmed" ? "#e6f6ec" : "#fdeaea",
                 color: appointment.confirmation === "confirmed" ? "#15803d" : "#dc2626",
               }}>
                 {appointment.confirmation === "confirmed"
                   ? (he ? "✓ אישרתם את הפגישה. תודה!" : "✓ You confirmed this appointment. Thank you!")
                   : (he ? "ביקשתם לשנות את המועד — ניצור קשר בהקדם." : "You asked to change this appointment — we will call you shortly.")}
-                <div style={{ fontWeight: 400, fontSize: 12.5, marginTop: 4 }}>
+                <div style={{ fontWeight: 400, fontSize: "0.8125rem", marginTop: 4 }}>
                   {he ? "אפשר לשנות את התשובה למטה." : "You can change your answer below."}
                 </div>
               </div>
             ) : (
-              <div style={{ fontSize: 13.5, color: "#334155", marginBottom: 8 }}>
+              <div style={{ fontSize: "0.875rem", color: "#334155", marginBottom: 8 }}>
                 {he ? "המועד מתאים לכם?" : "Does this time still work for you?"}
               </div>
             )}
@@ -109,33 +109,33 @@ export default function VisitClient({ token, appointment, locale, accent }: {
             {asking && (
               <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={2}
                 placeholder={he ? "מתי כן יתאים לכם? (לא חובה)" : "When would suit you better? (optional)"}
-                style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 14, marginTop: 10 }} />
+                style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: "0.875rem", marginTop: 10 }} />
             )}
 
             <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
               <button type="button" disabled={busy} onClick={() => respond("confirmed")}
-                style={{ flex: "1 1 150px", background: accent, color: "#fff", border: "none", padding: "13px 14px", borderRadius: 11, fontWeight: 800, fontSize: 15, cursor: "pointer" }}>
+                style={{ flex: "1 1 150px", background: accent, color: "#fff", border: "none", padding: "13px 14px", borderRadius: 11, fontWeight: 800, fontSize: "0.9375rem", cursor: "pointer" }}>
                 {he ? "מאשר/ת" : "Confirm"}
               </button>
               <button type="button" disabled={busy}
                 onClick={() => (asking ? respond("declined") : setAsking(true))}
-                style={{ flex: "1 1 150px", background: "#eef1f6", color: "#334155", border: "none", padding: "13px 14px", borderRadius: 11, fontWeight: 800, fontSize: 15, cursor: "pointer" }}>
+                style={{ flex: "1 1 150px", background: "#eef1f6", color: "#334155", border: "none", padding: "13px 14px", borderRadius: 11, fontWeight: 800, fontSize: "0.9375rem", cursor: "pointer" }}>
                 {asking ? (he ? "שליחת הבקשה" : "Send request") : (he ? "צריך מועד אחר" : "Need a different time")}
               </button>
             </div>
           </div>
         )}
 
-        {error && <div style={{ background: "#fdeaea", color: "#dc2626", padding: "10px 12px", borderRadius: 10, fontSize: 13, marginTop: 12 }}>{error}</div>}
+        {error && <div style={{ background: "#fdeaea", color: "#dc2626", padding: "10px 12px", borderRadius: 10, fontSize: "0.8125rem", marginTop: 12 }}>{error}</div>}
 
         {appointment.org?.phone && (
-          <div style={{ marginTop: 16, textAlign: "center", fontSize: 13.5 }}>
+          <div style={{ marginTop: 16, textAlign: "center", fontSize: "0.875rem" }}>
             <a href={`tel:${String(appointment.org.phone).replace(/[^0-9+]/g, "")}`} style={{ color: accent, fontWeight: 700, textDecoration: "none" }}>
               {he ? "התקשרו אלינו" : "Call us"} · {appointment.org.phone}
             </a>
           </div>
         )}
-        <div style={{ marginTop: 14, fontSize: 11.5, color: "#94a3b8", textAlign: "center" }}>
+        <div style={{ marginTop: 14, fontSize: "0.8125rem", color: "#94a3b8", textAlign: "center" }}>
           {he ? "קישור אישי לפגישה זו בלבד. הוא פג תוקף וניתן לביטול." : "A private link to this appointment only. It expires and can be revoked."}
         </div>
       </div>

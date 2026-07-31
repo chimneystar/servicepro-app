@@ -22,16 +22,16 @@ export default function CustomerList({ customers, emptyText }: { customers: Cust
   return (
     <div>
       <div style={{ position: "relative", marginBottom: 12 }}>
-        <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 15, color: "#94a3b8" }}>🔍</span>
+        <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: "0.9375rem", color: "#94a3b8" }}>🔍</span>
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search by name, address, or phone…"
-          style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px 38px", fontSize: 16, outline: "none" }}
+          style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px 38px", fontSize: "1rem", outline: "none" }}
         />
         {q && <button onClick={() => setQ("")} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", border: "none", background: "#eef2f8", borderRadius: 8, padding: "4px 8px", cursor: "pointer", color: "#5c6675" }}>✕</button>}
       </div>
-      {q && <div style={{ fontSize: 12.5, color: "#5c6675", margin: "0 4px 8px" }}>{filtered.length} match{filtered.length === 1 ? "" : "es"}</div>}
+      {q && <div style={{ fontSize: "0.8125rem", color: "#5c6675", margin: "0 4px 8px" }}>{filtered.length} match{filtered.length === 1 ? "" : "es"}</div>}
 
       <div className="rlist">
         {filtered.map((c) => (
@@ -42,7 +42,7 @@ export default function CustomerList({ customers, emptyText }: { customers: Cust
               <div className="rsub">{c.phone}{c.city ? ` · ${c.city}` : ""}</div>
             </div>
             {c.source && <span className="pill" style={{ background: "#eef1f6", color: "#57606f" }}>{c.source}</span>}
-            <span style={{ color: "#b6bfcc", fontSize: 18 }}>›</span>
+            <span style={{ color: "#b6bfcc", fontSize: "1.125rem" }}>›</span>
           </Link>
         ))}
         {filtered.length === 0 && <div className="rempty">{q ? "No customers match your search." : emptyText}</div>}

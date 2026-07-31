@@ -62,9 +62,9 @@ export default async function CustomReportPage({ searchParams }: { searchParams:
 
   return (
     <div style={{ maxWidth: 780 }}>
-      <Link href="/reports" style={{ color: "#2563eb", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>‹ Reports</Link>
+      <Link href="/reports" style={{ color: "#2563eb", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none" }}>‹ Reports</Link>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, margin: "8px 0 14px" }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800 }}>Custom report</h1>
+        <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>Custom report</h1>
         <PrintButton label="Save as PDF" />
       </div>
 
@@ -77,7 +77,7 @@ export default async function CustomReportPage({ searchParams }: { searchParams:
         <label style={lbl}>Include sections</label>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, margin: "6px 0 12px" }}>
           {ALL.map(([k, label]) => (
-            <label key={k} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14 }}>
+            <label key={k} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.875rem" }}>
               <input type="checkbox" name="sec" value={k} defaultChecked={selected.has(k)} style={{ width: 18, height: 18 }} /> {label}
             </label>
           ))}
@@ -88,8 +88,8 @@ export default async function CustomReportPage({ searchParams }: { searchParams:
       {/* Report */}
       <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 22 }} className="print-card">
         <div style={{ textAlign: "center", marginBottom: 16 }}>
-          <div style={{ fontSize: 20, fontWeight: 800 }}>{org?.name}</div>
-          <div style={{ color: "#5c6675", fontSize: 13 }}>Report · {fmt(from)} – {fmt(to)}</div>
+          <div style={{ fontSize: "1.25rem", fontWeight: 800 }}>{org?.name}</div>
+          <div style={{ color: "#5c6675", fontSize: "0.8125rem" }}>Report · {fmt(from)} – {fmt(to)}</div>
         </div>
 
         {chk("sales") && <Section title="Sales summary">
@@ -129,12 +129,12 @@ export default async function CustomReportPage({ searchParams }: { searchParams:
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return <div style={{ marginBottom: 18 }}><h3 style={{ fontSize: 15, fontWeight: 800, borderBottom: "2px solid #0f2a5e", paddingBottom: 6, marginBottom: 8 }}>{title}</h3>{children}</div>;
+  return <div style={{ marginBottom: 18 }}><h3 style={{ fontSize: "0.9375rem", fontWeight: 800, borderBottom: "2px solid #0f2a5e", paddingBottom: 6, marginBottom: 8 }}>{title}</h3>{children}</div>;
 }
 function KV({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
-  return <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #f1f4f9", fontSize: 14 }}><span style={{ color: "#334155" }}>{label}</span><b style={{ color: strong ? "#15803d" : "#0b1524" }}>{value}</b></div>;
+  return <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #f1f4f9", fontSize: "0.875rem" }}><span style={{ color: "#334155" }}>{label}</span><b style={{ color: strong ? "#15803d" : "#0b1524" }}>{value}</b></div>;
 }
-function Empty() { return <div style={{ color: "#5c6675", fontSize: 13, padding: "6px 0" }}>No data in this period.</div>; }
+function Empty() { return <div style={{ color: "#5c6675", fontSize: "0.8125rem", padding: "6px 0" }}>No data in this period.</div>; }
 function fmt(iso: string) { const d = new Date(iso + "T00:00:00"); return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`; }
-const lbl: React.CSSProperties = { fontSize: 12.5, fontWeight: 700, color: "#334155", display: "block", marginBottom: 5 };
-const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 14, outline: "none" };
+const lbl: React.CSSProperties = { fontSize: "0.8125rem", fontWeight: 700, color: "#334155", display: "block", marginBottom: 5 };
+const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: "0.875rem", outline: "none" };

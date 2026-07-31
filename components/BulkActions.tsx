@@ -95,7 +95,7 @@ export default function BulkActions({
   return (
     <div style={{ marginBottom: 12 }}>
       <div style={bar}>
-        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.875rem", fontWeight: 700, cursor: "pointer" }}>
           <input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label={`Select all ${noun}s`} />
           {count > 0 ? `${count} selected` : `Select ${noun}s`}
         </label>
@@ -115,7 +115,7 @@ export default function BulkActions({
       {rows.length > 0 && (
         <div style={picker}>
           {rows.map((row) => (
-            <label key={row.id} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, padding: "3px 6px", cursor: "pointer" }}>
+            <label key={row.id} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: "0.8125rem", padding: "3px 6px", cursor: "pointer" }}>
               <input type="checkbox" checked={selected.has(row.id)} onChange={() => toggle(row.id)} aria-label={row.label} />
               <span>{row.label}</span>
             </label>
@@ -127,7 +127,7 @@ export default function BulkActions({
         <div
           role="status"
           style={{
-            marginTop: 10, borderRadius: 12, padding: "12px 14px", fontSize: 13,
+            marginTop: 10, borderRadius: 12, padding: "12px 14px", fontSize: "0.8125rem",
             border: "1px solid",
             ...(result.ok && result.failedCount === 0
               ? { background: "#e6f6ec", borderColor: "#b7e3c6", color: "#15803d" }
@@ -183,7 +183,7 @@ const picker: React.CSSProperties = {
 };
 const actionButton: React.CSSProperties = {
   background: "#e0ebff", color: "#1d4ed8", border: "none", borderRadius: 9,
-  padding: "8px 12px", fontWeight: 700, fontSize: 13, cursor: "pointer",
+  padding: "8px 12px", fontWeight: 700, fontSize: "0.8125rem", cursor: "pointer",
 };
 const danger: React.CSSProperties = { background: "#fdeaea", color: "#b91c1c" };
 const dismiss: React.CSSProperties = { background: "none", border: "none", cursor: "pointer", color: "inherit", fontWeight: 700 };

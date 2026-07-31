@@ -37,7 +37,7 @@ export default function JobCosting({ locale, currency, jobId, revenueMinor, mate
 
   return (
     <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16, marginTop: 12 }}>
-      <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 8 }}>{he ? "רווחיות העבודה" : "Job profitability"}</div>
+      <div style={{ fontWeight: 800, fontSize: "0.875rem", marginBottom: 8 }}>{he ? "רווחיות העבודה" : "Job profitability"}</div>
       {!labour.available && (
         <div style={warn}>
           {he ? "תמחור עבודה אינו זמין — יש להריץ את מיגרציה 039." : "Job costing is unavailable — migration 039 has not been run."}
@@ -83,7 +83,7 @@ export default function JobCosting({ locale, currency, jobId, revenueMinor, mate
         </small>
       </div>
       {error && <div style={{ ...warn, background: "#fdeaea", color: "#dc2626" }}>{error}</div>}
-      <div style={{ fontSize: 12, color: "#5c6675", marginTop: 8, lineHeight: 1.5 }}>
+      <div style={{ fontSize: "0.75rem", color: "#5c6675", marginTop: 8, lineHeight: 1.5 }}>
         {he
           ? "עלות העבודה נכנסת לחשבונית כשורת עלות במחיר 0, ולכן היא מגיעה לדוח הרווחיות בלי לחייב את הלקוח פעמיים."
           : "The labour cost is carried onto the invoice as a zero-priced cost line, which is how it reaches the margin report without charging the customer twice."}
@@ -94,11 +94,11 @@ export default function JobCosting({ locale, currency, jobId, revenueMinor, mate
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: 13.5, color: "#334155" }}>
+    <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: "0.875rem", color: "#334155" }}>
       <span>{label}</span><b>{value}</b>
     </div>
   );
 }
 
-const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", padding: "9px 14px", borderRadius: 10, fontWeight: 700, cursor: "pointer", fontSize: 13.5 };
-const warn: React.CSSProperties = { background: "#fff5e0", color: "#a15c07", padding: "9px 12px", borderRadius: 10, fontSize: 12.5, marginTop: 10, lineHeight: 1.5 };
+const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", padding: "9px 14px", borderRadius: 10, fontWeight: 700, cursor: "pointer", fontSize: "0.875rem" };
+const warn: React.CSSProperties = { background: "#fff5e0", color: "#a15c07", padding: "9px 12px", borderRadius: 10, fontSize: "0.8125rem", marginTop: 10, lineHeight: 1.5 };

@@ -35,13 +35,13 @@ export default function ExportClient() {
           <button onClick={() => download("payments")} disabled={pending} style={btn}>⬇ Export payments (.csv)</button>
           <button onClick={() => download("expenses")} disabled={pending} style={btn}>⬇ Export expenses (.csv)</button>
         </div>
-        {msg && <div style={{ marginTop: 12, color: msg.startsWith("✓") ? "#15803d" : "#dc2626", fontWeight: 700, fontSize: 13 }}>{msg}</div>}
+        {msg && <div style={{ marginTop: 12, color: msg.startsWith("✓") ? "#15803d" : "#dc2626", fontWeight: 700, fontSize: "0.8125rem" }}>{msg}</div>}
       </div>
-      <p style={{ color: "#5c6675", fontSize: 12.5, marginTop: 12 }}>These CSV files import cleanly into QuickBooks, Xero, Wave, or a spreadsheet for your bookkeeper.</p>
+      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginTop: 12 }}>These CSV files import cleanly into QuickBooks, Xero, Wave, or a spreadsheet for your bookkeeper.</p>
     </div>
   );
 }
 
-const lbl: React.CSSProperties = { fontSize: 12.5, fontWeight: 700, color: "#334155", display: "block", marginBottom: 5 };
-const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 16, outline: "none" };
-const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", borderRadius: 10, padding: "12px 16px", fontWeight: 700, fontSize: 14, cursor: "pointer" };
+const lbl: React.CSSProperties = { fontSize: "0.8125rem", fontWeight: 700, color: "#334155", display: "block", marginBottom: 5 };
+const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: "1rem", outline: "none" };
+const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", borderRadius: 10, padding: "12px 16px", fontWeight: 700, fontSize: "0.875rem", cursor: "pointer" };

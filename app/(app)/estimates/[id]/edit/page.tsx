@@ -39,8 +39,8 @@ export default async function EditEstimatePage({ params }: { params: Promise<{ i
 
   return (
     <div>
-      <Link href={`/estimates/${id}`} style={{ color: "#2563eb", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>‹ Back</Link>
-      <h1 style={{ fontSize: 24, fontWeight: 800, margin: "8px 0 14px" }}>Edit estimate #{est.number}</h1>
+      <Link href={`/estimates/${id}`} style={{ color: "#2563eb", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none" }}>‹ Back</Link>
+      <h1 style={{ fontSize: "1.5rem", fontWeight: 800, margin: "8px 0 14px" }}>Edit estimate #{est.number}</h1>
       <DocEditor kind="estimate" docId={est.id} action={updateEstimate.bind(null, est.id)} customers={(customers ?? []).map((c) => ({ id: c.id, label: c.name }))} catalog={catalog ?? []} orgId={profile.organization_id!} initial={initial} returnHref={`/estimates/${est.id}`} />
     </div>
   );

@@ -93,4 +93,4 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
     </div>
   );
 }
-const back: React.CSSProperties = { color: "#2563eb", fontWeight: 700, fontSize: 14, textDecoration: "none" };
+const back: React.CSSProperties = { color: "#2563eb", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none" };

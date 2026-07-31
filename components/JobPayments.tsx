@@ -39,8 +39,8 @@ export default function JobPayments({ jobId, invoices, currency, canRecord }: { 
   return (
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
-        <div style={{ background: "#fdf1dc", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: 12, color: "#b45309", fontWeight: 700 }}>Balance due</div><div style={{ fontSize: 20, fontWeight: 800, color: "#b45309" }}>{money(totalDue, currency)}</div></div>
-        <div style={{ background: "#e6f6ec", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: 12, color: "#15803d", fontWeight: 700 }}>Paid</div><div style={{ fontSize: 20, fontWeight: 800, color: "#15803d" }}>{money(totalPaid, currency)}</div></div>
+        <div style={{ background: "#fdf1dc", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: "0.75rem", color: "#b45309", fontWeight: 700 }}>Balance due</div><div style={{ fontSize: "1.25rem", fontWeight: 800, color: "#b45309" }}>{money(totalDue, currency)}</div></div>
+        <div style={{ background: "#e6f6ec", borderRadius: 12, padding: "12px 14px" }}><div style={{ fontSize: "0.75rem", color: "#15803d", fontWeight: 700 }}>Paid</div><div style={{ fontSize: "1.25rem", fontWeight: 800, color: "#15803d" }}>{money(totalPaid, currency)}</div></div>
       </div>
 
       <div style={{ display: "grid", gap: 10 }}>
@@ -51,14 +51,14 @@ export default function JobPayments({ jobId, invoices, currency, canRecord }: { 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   <b>Invoice #{inv.number}</b>
-                  <div style={{ fontSize: 13, color: "#5c6675" }}>{money(inv.paid_minor, currency)} paid of {money(inv.total_minor, currency)}</div>
+                  <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>{money(inv.paid_minor, currency)} paid of {money(inv.total_minor, currency)}</div>
                 </div>
                 <span className="pill" style={bal <= 0 ? { background: "#e6f6ec", color: "#15803d" } : { background: "#fdf1dc", color: "#b45309" }}>{bal <= 0 ? "Paid" : `${money(bal, currency)} due`}</span>
               </div>
               {(inv.payments ?? []).length > 0 && (
                 <div style={{ marginTop: 8, display: "grid", gap: 4 }}>
                   {(inv.payments ?? []).map((p, k) => (
-                    <div key={k} style={{ fontSize: 12.5, color: "#5c6675", display: "flex", justifyContent: "space-between", gap: 8 }}>
+                    <div key={k} style={{ fontSize: "0.8125rem", color: "#5c6675", display: "flex", justifyContent: "space-between", gap: 8 }}>
                       <span>{p.method || "Payment"}{p.reference ? ` · ${p.reference}` : ""}{p.paid_at ? ` · ${new Date(p.paid_at).toLocaleDateString("en-US")}` : ""}</span>
                       <b style={{ color: "#15803d" }}>{money(p.amount_minor, currency)}</b>
                     </div>
@@ -94,6 +94,6 @@ export default function JobPayments({ jobId, invoices, currency, canRecord }: { 
 }
 
 const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", padding: "9px 15px", borderRadius: 10, fontWeight: 700, cursor: "pointer" };
-const lbl: React.CSSProperties = { fontSize: 12, fontWeight: 700, color: "#334155", display: "block", marginBottom: 5 };
-const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 16, outline: "none" };
-const errBox: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "8px 12px", borderRadius: 10, fontSize: 13, marginTop: 8 };
+const lbl: React.CSSProperties = { fontSize: "0.75rem", fontWeight: 700, color: "#334155", display: "block", marginBottom: 5 };
+const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: "1rem", outline: "none" };
+const errBox: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "8px 12px", borderRadius: 10, fontSize: "0.8125rem", marginTop: 8 };

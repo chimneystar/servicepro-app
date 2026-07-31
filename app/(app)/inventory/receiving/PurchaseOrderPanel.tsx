@@ -56,7 +56,7 @@ export default function PurchaseOrderPanel({
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
               <div>
                 <b>{po.po_number}</b>{po.vendor ? ` · ${po.vendor}` : ""}
-                <div style={{ fontSize: 12.5, color: "#5c6675" }}>
+                <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>
                   {po.status.replaceAll("_", " ")}{po.expected_date ? ` · expected ${po.expected_date}` : ""}
                   {settled === "received" && po.status !== "received" ? " · all lines are in" : ""}
                 </div>
@@ -71,7 +71,7 @@ export default function PurchaseOrderPanel({
                   <div key={line.id} style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", borderTop: "1px solid #eef2f8", paddingTop: 8 }}>
                     <div style={{ flex: 1, minWidth: 160 }}>
                       <div style={{ fontWeight: 600 }}>{line.description}</div>
-                      <div style={{ fontSize: 12.5, color: "#5c6675" }}>
+                      <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>
                         {formatQtyMilli(line.received_qty_milli)} / {formatQtyMilli(line.qty_milli)} received · {money(line.unit_cost_minor, currency)} each
                         {!line.inventory_item_id && <span style={{ color: "#9a3412" }}> · not linked to stock</span>}
                       </div>
@@ -88,7 +88,7 @@ export default function PurchaseOrderPanel({
                   </div>
                 );
               })}
-              {po.lines.length === 0 && <div style={{ fontSize: 13, color: "#5c6675" }}>No lines yet.</div>}
+              {po.lines.length === 0 && <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>No lines yet.</div>}
             </div>
 
             <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
@@ -128,6 +128,6 @@ export default function PurchaseOrderPanel({
   );
 }
 
-const smallBtn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", padding: "7px 12px", borderRadius: 9, fontWeight: 700, cursor: "pointer", fontSize: 13 };
-const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "9px 11px", fontSize: 15, outline: "none" };
-const errBox: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "8px 12px", borderRadius: 10, fontSize: 13 };
+const smallBtn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", padding: "7px 12px", borderRadius: 9, fontWeight: 700, cursor: "pointer", fontSize: "0.8125rem" };
+const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "9px 11px", fontSize: "0.9375rem", outline: "none" };
+const errBox: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "8px 12px", borderRadius: 10, fontSize: "0.8125rem" };

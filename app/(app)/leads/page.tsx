@@ -17,8 +17,8 @@ export default async function LeadsPage() {
 
   return (
     <div style={{ maxWidth: 780 }}>
-      <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>{he ? "לידים" : "Leads"}</h1>
-      <p style={{ color: "#5c6675", fontSize: 13, marginBottom: 14 }}>{he ? "פניות חדשות והתקדמות המכירה, עד שהלקוח קובע עבודה." : "New requests and sales progress until a job is booked."}</p>
+      <h1 style={{ fontSize: "1.5rem", fontWeight: 800, marginBottom: 4 }}>{he ? "לידים" : "Leads"}</h1>
+      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 14 }}>{he ? "פניות חדשות והתקדמות המכירה, עד שהלקוח קובע עבודה." : "New requests and sales progress until a job is booked."}</p>
       <LeadsBoard leads={(data ?? []) as Lead[]} orgId={profile.organization_id!} />
     </div>
   );

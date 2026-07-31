@@ -64,10 +64,10 @@ export default function OptionChooser({ token, options, selectedId, currency, ac
 
   return (
     <div style={{ marginTop: 20 }}>
-      <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 800, letterSpacing: .6, textTransform: "uppercase", marginBottom: 8 }}>
+      <div style={{ fontSize: "0.8125rem", color: "#94a3b8", fontWeight: 800, letterSpacing: .6, textTransform: "uppercase", marginBottom: 8 }}>
         {he ? "בחרו את החבילה שלכם" : "Choose your package"}
       </div>
-      {error && <div style={{ background: "#fdeaea", color: "#dc2626", padding: "10px 12px", borderRadius: 10, fontSize: 13, marginBottom: 10 }}>{error}</div>}
+      {error && <div style={{ background: "#fdeaea", color: "#dc2626", padding: "10px 12px", borderRadius: 10, fontSize: "0.8125rem", marginBottom: 10 }}>{error}</div>}
       <div style={{ display: "grid", gap: 10 }}>
         {rows.map((row) => {
           const chosen = selectedId === row.id;
@@ -77,19 +77,19 @@ export default function OptionChooser({ token, options, selectedId, currency, ac
               background: chosen ? `${accent}0d` : "#fff",
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <b style={{ fontSize: 15 }}>{row.title || (tierLabel(row.tier, locale) as string)}</b>
-                {row.recommended && <span style={{ background: `${accent}22`, color: accent, borderRadius: 999, padding: "2px 9px", fontSize: 11, fontWeight: 800 }}>{he ? "מומלץ" : "Recommended"}</span>}
-                <span style={{ marginInlineStart: "auto", fontSize: 18, fontWeight: 800, color: accent }}>{money(row.totalMinor, currency)}</span>
+                <b style={{ fontSize: "0.9375rem" }}>{row.title || (tierLabel(row.tier, locale) as string)}</b>
+                {row.recommended && <span style={{ background: `${accent}22`, color: accent, borderRadius: 999, padding: "2px 9px", fontSize: "0.8125rem", fontWeight: 800 }}>{he ? "מומלץ" : "Recommended"}</span>}
+                <span style={{ marginInlineStart: "auto", fontSize: "1.125rem", fontWeight: 800, color: accent }}>{money(row.totalMinor, currency)}</span>
               </div>
-              {row.description && <div style={{ fontSize: 13, color: "#5c6675", marginTop: 4 }}>{row.description}</div>}
-              {row.depositMinor > 0 && <div style={{ fontSize: 12.5, color: "#5c6675", marginTop: 3 }}>{he ? "מקדמה לתיאום" : "Deposit to schedule"}: {money(row.depositMinor, currency)}</div>}
+              {row.description && <div style={{ fontSize: "0.8125rem", color: "#5c6675", marginTop: 4 }}>{row.description}</div>}
+              {row.depositMinor > 0 && <div style={{ fontSize: "0.8125rem", color: "#5c6675", marginTop: 3 }}>{he ? "מקדמה לתיאום" : "Deposit to schedule"}: {money(row.depositMinor, currency)}</div>}
               {chosen ? (
-                <div style={{ marginTop: 10, color: "#15803d", fontWeight: 800, fontSize: 14 }}>✓ {he ? "זו הבחירה שלכם" : "This is your choice"}</div>
+                <div style={{ marginTop: 10, color: "#15803d", fontWeight: 800, fontSize: "0.875rem" }}>✓ {he ? "זו הבחירה שלכם" : "This is your choice"}</div>
               ) : (
                 <button type="button" disabled={!!busy || signed} onClick={() => choose(row.id)}
                   style={{
                     marginTop: 10, width: "100%", background: signed ? "#cbd5e1" : accent, color: "#fff", border: "none",
-                    padding: "12px 14px", borderRadius: 11, fontWeight: 800, fontSize: 15, cursor: signed ? "not-allowed" : "pointer",
+                    padding: "12px 14px", borderRadius: 11, fontWeight: 800, fontSize: "0.9375rem", cursor: signed ? "not-allowed" : "pointer",
                   }}>
                   {busy === row.id ? (he ? "שומרים…" : "Saving…") : (he ? "בחירה בחבילה זו" : "Choose this package")}
                 </button>
@@ -98,7 +98,7 @@ export default function OptionChooser({ token, options, selectedId, currency, ac
           );
         })}
       </div>
-      <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 8 }}>
+      <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: 8 }}>
         {signed
           ? (he ? "ההצעה כבר אושרה — הבחירה נעולה." : "This estimate is approved — your choice is locked in.")
           : (he ? "אפשר לשנות את הבחירה עד לאישור ההצעה. הסכום למעלה מתעדכן לפי הבחירה." : "You can change your choice until you approve the estimate. The total above updates to match.")}

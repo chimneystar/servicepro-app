@@ -37,7 +37,7 @@ export default function StatementActions({ customerId }: { customerId: string })
         🖨 Print
       </button>
       {message && (
-        <span role="status" style={{ fontSize: 13, fontWeight: 700, color: message.ok ? "#15803d" : "#b91c1c" }}>
+        <span role="status" style={{ fontSize: "0.8125rem", fontWeight: 700, color: message.ok ? "#15803d" : "#b91c1c" }}>
           {message.text}
         </span>
       )}
@@ -47,5 +47,5 @@ export default function StatementActions({ customerId }: { customerId: string })
 
 const button: React.CSSProperties = {
   background: "#e0ebff", color: "#1d4ed8", border: "none", borderRadius: 10,
-  padding: "9px 14px", fontWeight: 700, fontSize: 13.5, cursor: "pointer",
+  padding: "9px 14px", fontWeight: 700, fontSize: "0.875rem", cursor: "pointer",
 };

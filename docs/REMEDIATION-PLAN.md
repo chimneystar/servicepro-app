@@ -1000,8 +1000,64 @@ written.
 | 6.3 | One action contract; error/loading boundaries per route group; toast primitive | TODO |
 | 6.4 | De-minify the 78 long-line files; Prettier + max-len lint | TODO |
 | 6.5 | Design system: tokens + ~15 primitives; retire 871 inline style objects | TODO |
-| 6.6 | Accessibility: label association (`htmlFor` is currently used **zero** times), focus visibility, dialog semantics, button types | TODO |
+| 6.6 | Accessibility: label association (`htmlFor` is currently used **zero** times), focus visibility, dialog semantics, button types | **PARTIAL** — the typographic half (owner findings A1 + A2) is DONE; `htmlFor`, dialog semantics and `type` on buttons are untouched. See the A1/A2 note |
 | 6.7 | Consolidate overlapping tables (line items, assignment models, permission systems) | TODO |
+
+**Note on 6.6 — the typographic half (owner findings A1 and A2). The rest of 6.6 is untouched.**
+
+*The mechanism, and why.* Every font size in the product is now expressed in `rem` — all 403 declarations
+in `app/globals.css` (including two `font:` shorthands and ten `clamp()` display sizes) and all 705 inline
+`fontSize` props under `app/` and `components/`. A CSS custom-property multiplier was considered and
+rejected: `calc(12px * var(--text-scale))` works, but it must be written at all 1,108 sites, and a site
+that is missed silently keeps working while ignoring the toggle — which is the present defect, only harder
+to detect. With `rem`, unit purity IS the proof: zero non-`rem` font-size units means nothing can opt out,
+and that is a single static assertion. `rem` also honours the reader's own browser and OS text-size
+setting, which a `px` value silently overrides. The `vw` terms in the ten heading `clamp()`s were dropped
+for the same reason — a viewport unit cannot be scaled by the root font-size, so it was a hole in the
+toggle. Their responsive step moved into a `@media (max-width: 640px)` block at the end of the sheet.
+
+*A1 — the scale.* A 12px floor, then a ladder of 13 / 14 / 15 / 16 / 17 / 18 / 20 / 22 / 24 / 26 / 28 /
+32 / 36 / 42 / 44. Before: 261 of 404 CSS declarations were under 12px, the smallest 7px; 38 of 705 inline
+props were under 12px, the smallest 9px. After: **zero** below 12px on either side. The two pre-existing
+sub-12px tiers were lifted onto the two lowest legible steps rather than collapsed onto one floor —
+~7-9.5px (eyebrows, badges) to 12px and ~10-11.5px (metadata) to 13px — because flattening 261 rules onto
+a single size would have traded an illegibility bug for a no-hierarchy bug. Display type came DOWN at the
+same time (the dashboard greeting from 47px to 32px, 26px on a phone), because A1 is an inversion, not
+merely a floor: the greeting was 4.7x the customer's name beside it. That name is now 14px, the alert
+headline 14px, the alert copy 13px (was 8px), and on the public booking page the service a customer must
+choose is 17px with 13px metadata (was 14px / 9.5px).
+
+*A2 — proving the toggle changes something.* `html[data-text-scale="large"]{font-size:112.5%}` was already
+present and already correct; it moved the root 16px → 18px and changed nothing, because no element
+referenced the root. So `tests/typography.test.mjs` asserts nothing about that rule's existence — it reads
+the percentage out of the stylesheet, resolves **every** font size in the product at both roots, and
+requires each one to move. 403 CSS declarations and 705 inline props all move; the same computation run
+over a verbatim pre-change sample moves **zero**, which is the owner's live measurement reproduced
+statically and is kept in the file permanently as the cry-wolf guard.
+
+*Proven both ways, by running the shipped probes against the pre-change tree* (`git stash` of `app/` and
+`components/`, same test file): **7 of 16 fail before, 16 of 16 pass after.** The failures are the floor
+check (CSS and inline), both A2 scaling checks, the rem-purity check, and both hierarchy checks. Suite
+883 → 899.
+
+*Layout in the other direction.* Two probes guard the dense screens: no box with an explicit `height` may
+be tighter than 1.3x the text inside it (0 violations), and the dispatch board and job pulse keep their
+`overflow-x: auto`. Raising the floor was partly paid for by pulling display type down, so the net growth
+is smaller than the floor change suggests. **This has still never been rendered in a browser** — there is
+none on this machine — so "does not break the layout" is verified by static geometry and by reasoning
+about which containers scroll, not by looking at it. That is the same caveat as 0.6.
+
+*RTL is untouched and asserted so.* Hebrew is driven by logical properties; the count is 53 before and 53
+after, and the test refuses a decrease.
+
+*Out of scope, observed not fixed.* (a) `components/Nav.tsx` and every `actions.ts` are owned by other
+workstreams this session and were excluded from the codemod; `Nav.tsx` happens to contain zero inline
+`fontSize`, so nothing is stranded, but the exclusion is encoded in the test and must be revisited if that
+changes. (b) 293 rules landing on the two lowest steps means the bottom of the scale is still flatter than
+it should be; genuinely fixing that is 6.5 (design tokens + primitives), not a find-and-replace.
+(c) A stray `}` introduced while moving the responsive block was caught only by `npm run build`, not by
+any test — a brace-balance probe was added, because a stylesheet probe that cannot see a broken stylesheet
+is not one.
 
 ## STATE AT THE SESSION LIMIT — 2026-07-31, ~23:00 Asia/Jerusalem
 
@@ -1033,8 +1089,8 @@ No number of passing unit tests closes any of those.
 ### Outstanding from the owner's audit (verified real, NOT yet fixed)
 | # | Finding |
 |---|---|
-| A1 | Type scale inverted — 164 CSS rules under 12px, some at 7px; the dashboard greeting is 47px while the customer's name is 10px |
-| A2 | The "Larger text" toggle provably does nothing — it scales `rem`, and **0 of 384** font-size declarations use `rem` |
+| ~~A1~~ | **FIXED** — type scale rebuilt; smallest text 7px → 12px. See the A1/A2 note under 6.6 |
+| ~~A2~~ | **FIXED** — every font size in the product is now `rem`, so the toggle moves all 1,108 of them. See the A1/A2 note under 6.6 |
 | A3 | Expanding the sidebar "Tools" group renders all 11 destinations off-screen with no scroll affordance |
 | A5 | Hebrew customers see English service names; `name_he` is seeded from the English name and the sync trigger can never correct it |
 | A6 | Every business publishes the same hardcoded HVAC menu — a chimney sweep advertises "AC Install", while a bilingual chimney pack exists unused |

@@ -39,10 +39,10 @@ export default function CustomFieldsEditor({ locale, entityType, definitions }:
   return (
     <div className="settings-section">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-        <h3 style={{ fontSize: 15, fontWeight: 800 }}>{entityType === "customer" ? (he ? "שדות לקוח" : "Customer fields") : (he ? "שדות עבודה" : "Job fields")}</h3>
+        <h3 style={{ fontSize: "0.9375rem", fontWeight: 800 }}>{entityType === "customer" ? (he ? "שדות לקוח" : "Customer fields") : (he ? "שדות עבודה" : "Job fields")}</h3>
         <button onClick={() => open(null)} style={btn}>{he ? "הוספה" : "Add"}</button>
       </div>
-      <p style={{ fontSize: 12.5, color: "#5c6675", marginBottom: 10 }}>
+      <p style={{ fontSize: "0.8125rem", color: "#5c6675", marginBottom: 10 }}>
         {he ? `שדות שמופיעים בכרטיס ה${noun}.` : `These appear on every ${entityType} record.`}
       </p>
 
@@ -50,7 +50,7 @@ export default function CustomFieldsEditor({ locale, entityType, definitions }:
         <div key={definition.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderTop: "1px solid #f1f4f9" }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <b>{definition.label}{definition.required ? " *" : ""}</b>
-            <div style={{ fontSize: 12, color: "#5c6675" }}>
+            <div style={{ fontSize: "0.75rem", color: "#5c6675" }}>
               {types[definition.field_type] ?? definition.field_type}
               {definition.field_type === "choice" && (definition.options_json ?? []).length ? ` · ${(definition.options_json ?? []).join(", ")}` : ""}
               {definition.active ? "" : ` · ${he ? "מוסתר" : "hidden"}`}
@@ -74,13 +74,13 @@ export default function CustomFieldsEditor({ locale, entityType, definitions }:
           }} aria-label={he ? "מחיקה" : "Delete"}>×</button>
         </div>
       ))}
-      {definitions.length === 0 && <div style={{ color: "#5c6675", fontSize: 13, padding: 8 }}>{he ? "עוד לא הוגדרו שדות." : "No fields defined yet."}</div>}
-      {message && <div style={{ fontSize: 12.5, color: "#2563eb", marginTop: 8 }} role="status">{message}</div>}
+      {definitions.length === 0 && <div style={{ color: "#5c6675", fontSize: "0.8125rem", padding: 8 }}>{he ? "עוד לא הוגדרו שדות." : "No fields defined yet."}</div>}
+      {message && <div style={{ fontSize: "0.8125rem", color: "#2563eb", marginTop: 8 }} role="status">{message}</div>}
 
       {editing !== undefined && (
         <div style={overlay} onClick={(event) => event.target === event.currentTarget && setEditing(undefined)}>
           <form action={action} style={modal}>
-            <h3 style={{ fontSize: 17, fontWeight: 800, marginBottom: 12 }}>{editing ? (he ? "עריכת שדה" : "Edit field") : (he ? "שדה חדש" : "New field")}</h3>
+            <h3 style={{ fontSize: "1.0625rem", fontWeight: 800, marginBottom: 12 }}>{editing ? (he ? "עריכת שדה" : "Edit field") : (he ? "שדה חדש" : "New field")}</h3>
             {editing && <input type="hidden" name="id" value={editing.id} />}
             <input type="hidden" name="entityType" value={entityType} />
             <L>{he ? "שם השדה" : "Field name"}</L>
@@ -98,7 +98,7 @@ export default function CustomFieldsEditor({ locale, entityType, definitions }:
             )}
             <L>{he ? "סדר הצגה" : "Sort order"}</L>
             <input name="sort" type="number" min={0} defaultValue={editing?.sort ?? 0} style={inp} />
-            <label style={{ display: "flex", alignItems: "center", gap: 8, margin: "12px 0 0", fontSize: 13.5, fontWeight: 700 }}>
+            <label style={{ display: "flex", alignItems: "center", gap: 8, margin: "12px 0 0", fontSize: "0.875rem", fontWeight: 700 }}>
               <input type="checkbox" name="required" defaultChecked={editing?.required ?? false} />
               {he ? "שדה חובה" : "Required"}
             </label>
@@ -121,9 +121,9 @@ function Save({ he }: { he: boolean }) {
 function L({ children }: { children: React.ReactNode }) { return <label style={lbl}>{children}</label>; }
 
 const btn: React.CSSProperties = { background: "#2b66f6", color: "#fff", border: "none", padding: "9px 15px", borderRadius: 10, fontWeight: 700, cursor: "pointer" };
-const mini: React.CSSProperties = { background: "#eef2f8", border: "none", borderRadius: 8, padding: "5px 8px", cursor: "pointer", fontSize: 13 };
+const mini: React.CSSProperties = { background: "#eef2f8", border: "none", borderRadius: 8, padding: "5px 8px", cursor: "pointer", fontSize: "0.8125rem" };
 const overlay: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,30,61,.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 24, zIndex: 100, overflowY: "auto" };
 const modal: React.CSSProperties = { background: "#fff", borderRadius: 18, width: "100%", maxWidth: 420, padding: 22 };
-const lbl: React.CSSProperties = { fontSize: 12.5, fontWeight: 700, color: "#334155", display: "block", margin: "10px 0 6px" };
-const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 14, outline: "none" };
-const err: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "9px 12px", borderRadius: 10, fontSize: 13, marginTop: 10 };
+const lbl: React.CSSProperties = { fontSize: "0.8125rem", fontWeight: 700, color: "#334155", display: "block", margin: "10px 0 6px" };
+const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: "0.875rem", outline: "none" };
+const err: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "9px 12px", borderRadius: 10, fontSize: "0.8125rem", marginTop: 10 };

@@ -18,10 +18,10 @@ export default function ReviewForm({ customerId }: { customerId: string }) {
 
   return (
     <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 16, marginBottom: 16 }}>
-      <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 10 }}>Add a review</div>
+      <div style={{ fontWeight: 800, fontSize: "0.9375rem", marginBottom: 10 }}>Add a review</div>
       <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
         {[1, 2, 3, 4, 5].map((n) => (
-          <button key={n} onClick={() => setRating(n)} style={{ background: "none", border: "none", fontSize: 26, cursor: "pointer", color: n <= rating ? "#eab308" : "#d7dce6", lineHeight: 1 }}>★</button>
+          <button key={n} onClick={() => setRating(n)} style={{ background: "none", border: "none", fontSize: "1.625rem", cursor: "pointer", color: n <= rating ? "#eab308" : "#d7dce6", lineHeight: 1 }}>★</button>
         ))}
       </div>
       <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={2} placeholder="Optional note" style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", outline: "none", marginBottom: 10 }} />

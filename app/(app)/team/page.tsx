@@ -40,7 +40,7 @@ export default async function TeamPage() {
 
   return (
     <div>
-      <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 16 }}>{t(locale, "team.title")}</h1>
+      <h1 style={{ fontSize: "1.5rem", fontWeight: 800, marginBottom: 16 }}>{t(locale, "team.title")}</h1>
       <TeamClient locale={locale} members={members ?? []} invites={invites ?? []} paymentPermissions={paymentPermissions ?? []} capabilities={capabilities ?? []} myId={profile.id} />
       <TeamWorkforce
         locale={locale} currency={org?.currency ?? "USD"} members={members ?? []}

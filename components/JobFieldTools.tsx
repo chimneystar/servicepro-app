@@ -21,7 +21,7 @@ export default function JobFieldTools({ jobId, onMyWayAt, startedAt, completedAt
 
   return (
     <div style={{ background: "#0f2a5e", color: "#fff", borderRadius: 14, padding: 16, marginBottom: 12 }}>
-      <div style={{ fontWeight: 800, fontSize: 14, marginBottom: 10 }}>🚚 Field tools</div>
+      <div style={{ fontWeight: 800, fontSize: "0.875rem", marginBottom: 10 }}>🚚 Field tools</div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
         <button onClick={() => run(() => setOnMyWay(jobId))} disabled={pending || done} style={{ ...b, background: onMyWayAt ? "#1e40af" : "#2563eb" }}>
@@ -32,14 +32,14 @@ export default function JobFieldTools({ jobId, onMyWayAt, startedAt, completedAt
           : <button onClick={() => run(() => clockOut(jobId))} disabled={pending} style={{ ...b, background: "#b45309" }}>⏸️ Clock out</button>}
       </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, opacity: .9, marginBottom: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem", opacity: .9, marginBottom: 10 }}>
         <span>{clockedIn ? "🟢 On the clock now" : "Time logged"}</span>
         <b>{Math.floor(totalMinutes / 60)}h {totalMinutes % 60}m</b>
       </div>
 
       {!done
         ? <button onClick={() => setSignOpen(true)} disabled={pending} style={{ ...b, width: "100%", background: "#fff", color: "#15803d" }}>✅ Complete job {startedAt ? "" : ""}</button>
-        : <div style={{ background: "rgba(255,255,255,.12)", borderRadius: 10, padding: "10px 12px", fontSize: 13 }}>✓ Completed {fmtTime(completedAt)}{signedBy ? ` · signed by ${signedBy}` : ""}</div>}
+        : <div style={{ background: "rgba(255,255,255,.12)", borderRadius: 10, padding: "10px 12px", fontSize: "0.8125rem" }}>✓ Completed {fmtTime(completedAt)}{signedBy ? ` · signed by ${signedBy}` : ""}</div>}
 
       <ActionError error={error} />
 
@@ -82,8 +82,8 @@ function SignModal({ jobId, onClose }: { jobId: string; onClose: () => void }) {
   return (
     <div style={overlay} onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div style={modal}>
-        <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 4, color: "#0b1524" }}>Complete job</h3>
-        <p style={{ color: "#5c6675", fontSize: 13, marginBottom: 12 }}>Have the customer sign to confirm the work is done (optional).</p>
+        <h3 style={{ fontSize: "1.125rem", fontWeight: 800, marginBottom: 4, color: "#0b1524" }}>Complete job</h3>
+        <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 12 }}>Have the customer sign to confirm the work is done (optional).</p>
         <label style={lbl}>Customer name</label>
         <input value={name} onChange={(e) => setName(e.target.value)} style={inp} placeholder="Name" />
         <label style={{ ...lbl, marginTop: 10 }}>Signature</label>
@@ -102,8 +102,8 @@ function SignModal({ jobId, onClose }: { jobId: string; onClose: () => void }) {
   );
 }
 
-const b: React.CSSProperties = { border: "none", borderRadius: 10, padding: "11px 12px", fontWeight: 700, fontSize: 13.5, color: "#fff", cursor: "pointer" };
+const b: React.CSSProperties = { border: "none", borderRadius: 10, padding: "11px 12px", fontWeight: 700, fontSize: "0.875rem", color: "#fff", cursor: "pointer" };
 const overlay: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,30,61,.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 24, zIndex: 120, overflowY: "auto" };
 const modal: React.CSSProperties = { background: "#fff", borderRadius: 18, width: "100%", maxWidth: 560, padding: 22 };
-const lbl: React.CSSProperties = { fontSize: 12.5, fontWeight: 700, color: "#334155", display: "block", marginBottom: 6 };
-const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "11px 12px", fontSize: 16, outline: "none" };
+const lbl: React.CSSProperties = { fontSize: "0.8125rem", fontWeight: 700, color: "#334155", display: "block", marginBottom: 6 };
+const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "11px 12px", fontSize: "1rem", outline: "none" };

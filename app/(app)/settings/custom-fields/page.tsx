@@ -33,7 +33,7 @@ export default async function CustomFieldsPage() {
     <div className="settings-shell">
       <header className="settings-heading">
         <div>
-          <Link href="/settings" style={{ color: "#2563eb", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>
+          <Link href="/settings" style={{ color: "#2563eb", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none" }}>
             {he ? "‹ הגדרות" : "‹ Settings"}
           </Link>
           <h1>{he ? "שדות מותאמים" : "Custom fields"}</h1>

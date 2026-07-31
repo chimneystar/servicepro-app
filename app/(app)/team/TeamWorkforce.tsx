@@ -97,7 +97,7 @@ export default function TeamWorkforce({ locale, currency, members, skills, timeO
             <div key={s.id} style={row}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <b>{nameOf(s.profile_id)}</b> · {s.label || s.skill_code}
-                <div style={{ fontSize: 12, color: tone }}>
+                <div style={{ fontSize: "0.75rem", color: tone }}>
                   {status === "expired" ? (he ? "פג תוקף" : "EXPIRED") : status === "expiring" ? (he ? "עומד לפוג" : "expires soon") : (he ? "בתוקף" : "valid")}
                   {s.expires_on ? ` · ${s.expires_on}` : ""}
                   {s.certification_number ? ` · #${s.certification_number}` : ""}
@@ -140,7 +140,7 @@ export default function TeamWorkforce({ locale, currency, members, skills, timeO
           <div key={row2.id} style={row}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <b>{nameOf(row2.profile_id)}</b>
-              <div style={{ fontSize: 12, color: "#5c6675" }}>
+              <div style={{ fontSize: "0.75rem", color: "#5c6675" }}>
                 {row2.starts_on}{row2.ends_on !== row2.starts_on ? ` → ${row2.ends_on}` : ""}
                 {row2.start_time ? ` · ${row2.start_time.slice(0, 5)}–${(row2.end_time ?? "").slice(0, 5)}` : ` · ${he ? "כל היום" : "all day"}`}
                 {` · ${row2.kind}`}{row2.note ? ` · ${row2.note}` : ""}
@@ -182,7 +182,7 @@ function PayRateRow({ he, member, currency, rate, busy, onSave }: {
     <div style={row}>
       <div style={{ flex: 1, minWidth: 140 }}>
         <b>{member.full_name || "—"}</b>
-        <div style={{ fontSize: 12, color: rate ? "#5c6675" : "#a15c07" }}>
+        <div style={{ fontSize: "0.75rem", color: rate ? "#5c6675" : "#a15c07" }}>
           {rate
             ? `${he ? "כעת" : "now"} ${money(rate.cost_rate_minor, currency)}/${he ? "שעה" : "h"} · ${he ? "מ-" : "from"} ${rate.effective_from}`
             : (he ? "אין תעריף — שעות העובד הזה מתומחרות באפס והמסך אומר זאת." : "No rate — this person's hours cost 0 and job costing says so rather than pretending they are free.")}
@@ -196,10 +196,10 @@ function PayRateRow({ he, member, currency, rate, busy, onSave }: {
 }
 
 const card: React.CSSProperties = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 18, marginBottom: 16, boxShadow: "0 6px 18px rgba(15,42,94,.06)" };
-const h3: React.CSSProperties = { fontSize: 15, fontWeight: 800, marginBottom: 8 };
-const hint: React.CSSProperties = { fontSize: 12.5, color: "#5c6675", marginBottom: 10, lineHeight: 1.5 };
+const h3: React.CSSProperties = { fontSize: "0.9375rem", fontWeight: 800, marginBottom: 8 };
+const hint: React.CSSProperties = { fontSize: "0.8125rem", color: "#5c6675", marginBottom: 10, lineHeight: 1.5 };
 const row: React.CSSProperties = { display: "flex", alignItems: "center", gap: 8, padding: "10px 0", borderTop: "1px solid #f1f4f9", flexWrap: "wrap" };
-const inp: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 10, padding: "9px 11px", fontSize: 13.5, outline: "none", background: "#fff" };
-const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", padding: "9px 14px", borderRadius: 10, fontWeight: 700, cursor: "pointer", fontSize: 13.5 };
-const rm: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", border: "none", padding: "7px 12px", borderRadius: 9, fontWeight: 700, fontSize: 13, cursor: "pointer" };
-const err: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "9px 12px", borderRadius: 10, fontSize: 13, marginBottom: 10 };
+const inp: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 10, padding: "9px 11px", fontSize: "0.875rem", outline: "none", background: "#fff" };
+const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", padding: "9px 14px", borderRadius: 10, fontWeight: 700, cursor: "pointer", fontSize: "0.875rem" };
+const rm: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", border: "none", padding: "7px 12px", borderRadius: 9, fontWeight: 700, fontSize: "0.8125rem", cursor: "pointer" };
+const err: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "9px 12px", borderRadius: 10, fontSize: "0.8125rem", marginBottom: 10 };

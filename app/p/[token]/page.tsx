@@ -63,21 +63,21 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
         <div style={{ background: `linear-gradient(135deg, ${accentDark}, ${accent})`, color: "#fff", padding: "28px 30px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}>
             <div style={{ display: "flex", gap: 14, alignItems: "center", minWidth: 0 }}>
-              <div style={{ width: 60, height: 60, borderRadius: 16, background: "rgba(255,255,255,.16)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, flexShrink: 0, overflow: "hidden" }}>
+              <div style={{ width: 60, height: 60, borderRadius: 16, background: "rgba(255,255,255,.16)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.75rem", flexShrink: 0, overflow: "hidden" }}>
                 {doc.org?.logo_url ? <img src={doc.org.logo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : "❄️"}
               </div>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 20, fontWeight: 800 }}>{doc.org?.name}</div>
-                {doc.org?.tagline && <div style={{ fontSize: 13, opacity: .85 }}>{doc.org.tagline}</div>}
-                <div style={{ fontSize: 12, opacity: .8, marginTop: 4 }}>
+                <div style={{ fontSize: "1.25rem", fontWeight: 800 }}>{doc.org?.name}</div>
+                {doc.org?.tagline && <div style={{ fontSize: "0.8125rem", opacity: .85 }}>{doc.org.tagline}</div>}
+                <div style={{ fontSize: "0.75rem", opacity: .8, marginTop: 4 }}>
                   {[doc.org?.phone, doc.org?.email].filter(Boolean).join(" · ")}
                 </div>
               </div>
             </div>
             <div style={{ textAlign: "end", flexShrink: 0 }}>
-              <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: .5 }}>{title.toUpperCase()}</div>
-              <div style={{ fontSize: 13, opacity: .9 }}>#{doc.number}</div>
-              {doc.issue_date && <div style={{ fontSize: 12, opacity: .8, marginTop: 2 }}>{fmtD(doc.issue_date)}</div>}
+              <div style={{ fontSize: "1.625rem", fontWeight: 800, letterSpacing: .5 }}>{title.toUpperCase()}</div>
+              <div style={{ fontSize: "0.8125rem", opacity: .9 }}>#{doc.number}</div>
+              {doc.issue_date && <div style={{ fontSize: "0.75rem", opacity: .8, marginTop: 2 }}>{fmtD(doc.issue_date)}</div>}
             </div>
           </div>
         </div>
@@ -86,15 +86,15 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
           {/* Bill to / addresses */}
           <div style={{ display: "flex", justifyContent: "space-between", gap: 20, flexWrap: "wrap", marginBottom: 20 }}>
             <div style={{ minWidth: 160 }}>
-              <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 800, letterSpacing: .6, textTransform: "uppercase" }}>Prepared for</div>
-              <div style={{ fontSize: 17, fontWeight: 800, marginTop: 3 }}>{doc.customer?.name}</div>
-              {(doc.customer?.address || doc.customer?.city) && <div style={{ fontSize: 13, color: "#5c6675" }}>{[doc.customer.address, doc.customer.city].filter(Boolean).join(", ")}</div>}
-              {doc.customer?.phone && <div style={{ fontSize: 13, color: "#5c6675" }}>{doc.customer.phone}</div>}
-              {doc.customer?.email && <div style={{ fontSize: 13, color: "#5c6675" }}>{doc.customer.email}</div>}
+              <div style={{ fontSize: "0.8125rem", color: "#94a3b8", fontWeight: 800, letterSpacing: .6, textTransform: "uppercase" }}>Prepared for</div>
+              <div style={{ fontSize: "1.0625rem", fontWeight: 800, marginTop: 3 }}>{doc.customer?.name}</div>
+              {(doc.customer?.address || doc.customer?.city) && <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>{[doc.customer.address, doc.customer.city].filter(Boolean).join(", ")}</div>}
+              {doc.customer?.phone && <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>{doc.customer.phone}</div>}
+              {doc.customer?.email && <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>{doc.customer.email}</div>}
             </div>
             <div style={{ textAlign: "end" }}>
-              <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 800, letterSpacing: .6, textTransform: "uppercase" }}>Amount {doc.kind === "invoice" ? "due" : ""}</div>
-              <div style={{ fontSize: 28, fontWeight: 800, color: accent }}>{money(totals.totalMinor, cur)}</div>
+              <div style={{ fontSize: "0.8125rem", color: "#94a3b8", fontWeight: 800, letterSpacing: .6, textTransform: "uppercase" }}>Amount {doc.kind === "invoice" ? "due" : ""}</div>
+              <div style={{ fontSize: "1.75rem", fontWeight: 800, color: accent }}>{money(totals.totalMinor, cur)}</div>
             </div>
           </div>
 
@@ -104,13 +104,13 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
               <div key={i} style={{ display: "flex", gap: 12, padding: "13px 0", borderBottom: "1px solid #f1f4f9" }}>
                 {it.image_path && <img src={imgUrl(it.image_path)} alt="" style={{ width: 52, height: 52, borderRadius: 10, objectFit: "cover", flexShrink: 0, border: "1px solid #e2e8f0" }} />}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14.5 }}>{it.title || it.description}</div>
-                  {it.description && it.description !== it.title && <div style={{ fontSize: 12.5, color: "#5c6675", marginTop: 2 }}>{it.description}</div>}
-                  <div style={{ fontSize: 12, color: "#9aa3b2", marginTop: 2 }}>
+                  <div style={{ fontWeight: 700, fontSize: "0.9375rem" }}>{it.title || it.description}</div>
+                  {it.description && it.description !== it.title && <div style={{ fontSize: "0.8125rem", color: "#5c6675", marginTop: 2 }}>{it.description}</div>}
+                  <div style={{ fontSize: "0.75rem", color: "#9aa3b2", marginTop: 2 }}>
                     {(it.qty_milli / 1000).toLocaleString()} × {money(it.unit_price_minor, cur)}{hasNonTaxable && it.taxable === false ? " · no tax" : ""}
                   </div>
                 </div>
-                <b style={{ whiteSpace: "nowrap", fontSize: 14.5 }}>{money(lineSubtotalMinor(it.qty_milli, it.unit_price_minor), cur)}</b>
+                <b style={{ whiteSpace: "nowrap", fontSize: "0.9375rem" }}>{money(lineSubtotalMinor(it.qty_milli, it.unit_price_minor), cur)}</b>
               </div>
             ))}
           </div>
@@ -120,7 +120,7 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
             <Line label="Subtotal" value={money(totals.subtotalMinor, cur)} />
             {totals.discountMinor > 0 && <Line label="Discount" value={"-" + money(totals.discountMinor, cur)} red />}
             <Line label={`${doc.tax_label || "Tax"} (${doc.tax_rate_bps / 100}%)`} value={money(totals.taxMinor, cur)} />
-            <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 12, marginTop: 8, borderTop: `2px solid ${accent}`, fontSize: 20, fontWeight: 800, color: accent }}>
+            <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 12, marginTop: 8, borderTop: `2px solid ${accent}`, fontSize: "1.25rem", fontWeight: 800, color: accent }}>
               <span>Total</span><span>{money(totals.totalMinor, cur)}</span>
             </div>
           </div>
@@ -141,12 +141,12 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
 
           {depositMinor > 0 && doc.kind === "estimate" && (
             <div style={{ marginTop: 16, background: "#f8fafc", border: `1px solid ${accent}33`, borderRadius: 12, padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontWeight: 700, fontSize: 14 }}>Deposit to schedule</span>
-              <b style={{ fontSize: 16, color: accent }}>{money(depositMinor, cur)}</b>
+              <span style={{ fontWeight: 700, fontSize: "0.875rem" }}>Deposit to schedule</span>
+              <b style={{ fontSize: "1rem", color: accent }}>{money(depositMinor, cur)}</b>
             </div>
           )}
           {canPayDeposit && (
-            <a href={`/api/pay/${token}?deposit=1`} style={{ display: "block", marginTop: 12, background: accent, color: "#fff", padding: "15px 16px", borderRadius: 12, fontWeight: 800, fontSize: 16, textAlign: "center", textDecoration: "none" }}>
+            <a href={`/api/pay/${token}?deposit=1`} style={{ display: "block", marginTop: 12, background: accent, color: "#fff", padding: "15px 16px", borderRadius: 12, fontWeight: 800, fontSize: "1rem", textAlign: "center", textDecoration: "none" }}>
               💳 Pay {money(depositMinor, cur)} deposit
             </a>
           )}
@@ -154,13 +154,13 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
             <div style={{ marginTop: 18, background: "#e6f6ec", color: "#15803d", padding: "14px 16px", borderRadius: 12, fontWeight: 800, textAlign: "center" }}>✓ Paid — thank you!</div>
           )}
           {canPayOnline && (
-            <a href={`/api/pay/${token}`} style={{ display: "block", marginTop: 18, background: accent, color: "#fff", padding: "15px 16px", borderRadius: 12, fontWeight: 800, fontSize: 16, textAlign: "center", textDecoration: "none" }}>
+            <a href={`/api/pay/${token}`} style={{ display: "block", marginTop: 18, background: accent, color: "#fff", padding: "15px 16px", borderRadius: 12, fontWeight: 800, fontSize: "1rem", textAlign: "center", textDecoration: "none" }}>
               💳 Pay {money(totals.totalMinor, cur)} now
             </a>
           )}
 
-          {doc.notes && <div style={{ marginTop: 18, background: "#f8fafc", borderRadius: 12, padding: 14, fontSize: 13, color: "#475569" }}><b>Notes</b><br />{doc.notes}</div>}
-          {doc.org?.terms && <div style={{ marginTop: 12, padding: 14, border: "1px solid #eef1f6", borderRadius: 12 }}><div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 800, letterSpacing: .5, textTransform: "uppercase", marginBottom: 4 }}>Terms &amp; conditions</div><div style={{ fontSize: 12, color: "#64748b", whiteSpace: "pre-wrap" }}>{doc.org.terms}</div></div>}
+          {doc.notes && <div style={{ marginTop: 18, background: "#f8fafc", borderRadius: 12, padding: 14, fontSize: "0.8125rem", color: "#475569" }}><b>Notes</b><br />{doc.notes}</div>}
+          {doc.org?.terms && <div style={{ marginTop: 12, padding: 14, border: "1px solid #eef1f6", borderRadius: 12 }}><div style={{ fontSize: "0.8125rem", color: "#94a3b8", fontWeight: 800, letterSpacing: .5, textTransform: "uppercase", marginBottom: 4 }}>Terms &amp; conditions</div><div style={{ fontSize: "0.75rem", color: "#64748b", whiteSpace: "pre-wrap" }}>{doc.org.terms}</div></div>}
 
           {/* Sign / approve */}
           <div style={{ marginTop: 22 }}>
@@ -176,7 +176,7 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
         </div>
 
         {/* Footer */}
-        <div style={{ background: "#f8fafc", borderTop: "1px solid #eef1f6", padding: "14px 30px", textAlign: "center", fontSize: 12, color: "#94a3b8" }}>
+        <div style={{ background: "#f8fafc", borderTop: "1px solid #eef1f6", padding: "14px 30px", textAlign: "center", fontSize: "0.75rem", color: "#94a3b8" }}>
           {doc.org?.footer || `${doc.org?.name} · Thank you for your business!`}
         </div>
       </div>
@@ -188,5 +188,5 @@ function Center({ children, accent }: { children: React.ReactNode; accent: strin
   return <div style={{ minHeight: "100vh", background: "#eef3fb", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "20px 14px", borderTop: `5px solid ${accent}` }}>{children}</div>;
 }
 function Line({ label, value, red }: { label: string; value: string; red?: boolean }) {
-  return <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 14, color: red ? "#dc2626" : "#334155" }}><span>{label}</span><b>{value}</b></div>;
+  return <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: "0.875rem", color: red ? "#dc2626" : "#334155" }}><span>{label}</span><b>{value}</b></div>;
 }

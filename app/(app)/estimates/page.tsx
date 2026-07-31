@@ -24,7 +24,7 @@ export default async function EstimatesPage({ searchParams }: { searchParams: Pr
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800 }}>{t(locale, "est.title")}</h1>
+        <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>{t(locale, "est.title")}</h1>
         <DocForm locale={locale} customers={custOpts} action={createEstimate} newKey="est.new" catalog={catalog ?? []} orgId={profile.organization_id!} initialOpen={search.new === "1"} />
       </div>
       <DocList

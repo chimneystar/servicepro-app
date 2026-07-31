@@ -53,8 +53,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
 
   return (
     <div style={{ maxWidth: 760 }}>
-      <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>Search</h1>
-      <p style={{ color: "#5c6675", fontSize: 13, marginBottom: 16 }}>{q ? `${total} result${total === 1 ? "" : "s"} for “${q}”` : "Type in the top search bar to find anything."}</p>
+      <h1 style={{ fontSize: "1.5rem", fontWeight: 800, marginBottom: 4 }}>Search</h1>
+      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 16 }}>{q ? `${total} result${total === 1 ? "" : "s"} for “${q}”` : "Type in the top search bar to find anything."}</p>
 
       {(customers?.length ?? 0) > 0 && <Section title="Clients">
         {customers!.map((c) => <Row key={c.id} href={`/customers/${c.id}`} title={c.name} sub={[c.phone, c.city].filter(Boolean).join(" · ")} />)}
@@ -74,8 +74,8 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return <div style={{ marginBottom: 16 }}><div style={{ fontWeight: 800, fontSize: 13, color: "#5c6675", textTransform: "uppercase", letterSpacing: .5, margin: "0 2px 6px" }}>{title}</div><div className="rlist">{children}</div></div>;
+  return <div style={{ marginBottom: 16 }}><div style={{ fontWeight: 800, fontSize: "0.8125rem", color: "#5c6675", textTransform: "uppercase", letterSpacing: .5, margin: "0 2px 6px" }}>{title}</div><div className="rlist">{children}</div></div>;
 }
 function Row({ href, title, sub }: { href: string; title: string; sub: string }) {
-  return <Link className="ritem" href={href}><div className="rmain"><div className="rtitle">{title}</div><div className="rsub">{sub}</div></div><span style={{ color: "#b6bfcc", fontSize: 18 }}>›</span></Link>;
+  return <Link className="ritem" href={href}><div className="rmain"><div className="rtitle">{title}</div><div className="rsub">{sub}</div></div><span style={{ color: "#b6bfcc", fontSize: "1.125rem" }}>›</span></Link>;
 }

@@ -77,9 +77,9 @@ export default async function CommissionPage({ searchParams }: { searchParams: P
 
   return (
     <div style={{ maxWidth: 760 }}>
-      <Link href="/reports" style={{ color: "#2563eb", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>‹ Reports</Link>
-      <h1 style={{ fontSize: 24, fontWeight: 800, margin: "8px 0 4px" }}>Technician commission</h1>
-      <p style={{ color: "#5c6675", fontSize: 13, marginBottom: 12 }}>Payroll based on money actually collected on completed jobs, after costs & fees.</p>
+      <Link href="/reports" style={{ color: "#2563eb", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none" }}>‹ Reports</Link>
+      <h1 style={{ fontSize: "1.5rem", fontWeight: 800, margin: "8px 0 4px" }}>Technician commission</h1>
+      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 12 }}>Payroll based on money actually collected on completed jobs, after costs & fees.</p>
 
       <form method="get" style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "end" }}>
         <div><label style={lbl}>From</label><input type="date" name="from" defaultValue={from} style={inp} /></div>
@@ -91,5 +91,5 @@ export default async function CommissionPage({ searchParams }: { searchParams: P
     </div>
   );
 }
-const lbl: React.CSSProperties = { fontSize: 12.5, fontWeight: 700, color: "#334155", display: "block", marginBottom: 5 };
-const inp: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 16, outline: "none" };
+const lbl: React.CSSProperties = { fontSize: "0.8125rem", fontWeight: 700, color: "#334155", display: "block", marginBottom: 5 };
+const inp: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: "1rem", outline: "none" };

@@ -49,9 +49,9 @@ export default async function ReceivingPage() {
 
   return (
     <div style={{ maxWidth: 860 }}>
-      <Link href="/inventory" style={{ fontSize: 13, color: "#2563eb", textDecoration: "none" }}>← {he ? "חזרה למלאי" : "Back to inventory"}</Link>
-      <h1 style={{ fontSize: 24, fontWeight: 800, margin: "8px 0 4px" }}>{he ? "קבלת סחורה" : "Receiving"}</h1>
-      <p style={{ color: "#5c6675", fontSize: 13, marginBottom: 14 }}>
+      <Link href="/inventory" style={{ fontSize: "0.8125rem", color: "#2563eb", textDecoration: "none" }}>← {he ? "חזרה למלאי" : "Back to inventory"}</Link>
+      <h1 style={{ fontSize: "1.5rem", fontWeight: 800, margin: "8px 0 4px" }}>{he ? "קבלת סחורה" : "Receiving"}</h1>
+      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 14 }}>
         {he
           ? "הזמנות רכש פתוחות. קבלת שורה מוסיפה תנועת מלאי לפריט המקושר."
           : "Open purchase orders. Receiving a line adds a stock movement to the linked inventory item."}
@@ -65,7 +65,7 @@ export default async function ReceivingPage() {
           {" "}<Link href="/operations">{he ? "תפעול" : "Operations"}</Link>
         </div>
       )}
-      <p style={{ color: "#5c6675", fontSize: 12.5, marginTop: 12 }}>
+      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginTop: 12 }}>
         {he ? "סה\"כ פתוח: " : "Open value: "}{money(rows.reduce((sum, r) => sum + (r.total_minor ?? 0), 0), org?.currency ?? "USD")}
       </p>
     </div>

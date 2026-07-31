@@ -28,7 +28,7 @@ export default function ArchiveList({ records }: { records: ArchRow[] }) {
     <div>
       <div style={{ position: "relative", marginBottom: 12 }}>
         <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}>🔍</span>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search archived records…" style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px 38px", fontSize: 16, outline: "none" }} />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search archived records…" style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px 38px", fontSize: "1rem", outline: "none" }} />
       </div>
       <ActionError error={error} style={{ marginTop: 0, marginBottom: 10 }} />
       <div style={{ display: "grid", gap: 8 }}>
@@ -36,11 +36,11 @@ export default function ArchiveList({ records }: { records: ArchRow[] }) {
           <div key={r.id} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14 }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "flex-start" }}>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 800 }}>{r.name} <span style={{ fontSize: 11, fontWeight: 700, color: "#9a3412", background: "#fff7ed", borderRadius: 6, padding: "2px 6px", marginInlineStart: 4 }}>ARCHIVED</span></div>
-                <div style={{ fontSize: 13, color: "#5c6675" }}>{[r.phone, r.email, [r.address, r.city].filter(Boolean).join(", ")].filter(Boolean).join(" · ")}</div>
-                {r.legacy_note && <div style={{ fontSize: 12.5, color: "#475569", marginTop: 4 }}>🗒️ {r.legacy_note}</div>}
+                <div style={{ fontWeight: 800 }}>{r.name} <span style={{ fontSize: "0.8125rem", fontWeight: 700, color: "#9a3412", background: "#fff7ed", borderRadius: 6, padding: "2px 6px", marginInlineStart: 4 }}>ARCHIVED</span></div>
+                <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>{[r.phone, r.email, [r.address, r.city].filter(Boolean).join(", ")].filter(Boolean).join(" · ")}</div>
+                {r.legacy_note && <div style={{ fontSize: "0.8125rem", color: "#475569", marginTop: 4 }}>🗒️ {r.legacy_note}</div>}
               </div>
-              <button onClick={() => restore(r.id)} disabled={pending} style={{ background: "#e0ebff", color: "#2563eb", border: "none", borderRadius: 9, padding: "7px 11px", fontWeight: 700, fontSize: 12.5, cursor: "pointer", flexShrink: 0 }}>↩ Restore</button>
+              <button onClick={() => restore(r.id)} disabled={pending} style={{ background: "#e0ebff", color: "#2563eb", border: "none", borderRadius: 9, padding: "7px 11px", fontWeight: 700, fontSize: "0.8125rem", cursor: "pointer", flexShrink: 0 }}>↩ Restore</button>
             </div>
           </div>
         ))}

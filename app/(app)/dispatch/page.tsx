@@ -40,7 +40,7 @@ export default async function DispatchPage({ searchParams }: { searchParams: Pro
   return (
     <div>
       {(closed || day.awayWindows.length > 0) && (
-        <div style={{ background: closed ? "#fdeaea" : "#fff5e0", color: closed ? "#dc2626" : "#a15c07", border: "1px solid rgba(0,0,0,.06)", borderRadius: 12, padding: "10px 14px", marginBottom: 12, fontSize: 13 }}>
+        <div style={{ background: closed ? "#fdeaea" : "#fff5e0", color: closed ? "#dc2626" : "#a15c07", border: "1px solid rgba(0,0,0,.06)", borderRadius: 12, padding: "10px 14px", marginBottom: 12, fontSize: "0.8125rem" }}>
           <b>{closed ? (he ? "העסק סגור היום." : "The business is closed today.") : (he ? "לא זמינים היום" : "Off today")}</b>
           {!closed && (
             <span>
@@ -54,13 +54,13 @@ export default async function DispatchPage({ searchParams }: { searchParams: Pro
               ))}
             </span>
           )}
-          <div style={{ marginTop: 4, fontSize: 12 }}>
+          <div style={{ marginTop: 4, fontSize: "0.75rem" }}>
             {he ? "שיבוץ לאדם שאינו זמין יידחה עם ההסבר." : "Assigning work to anyone listed here is refused, with the reason."}
           </div>
         </div>
       )}
       {requiredToday.length > 0 && (
-        <div style={{ background: "#e0ebff", color: "#1d4ed8", borderRadius: 12, padding: "10px 14px", marginBottom: 12, fontSize: 12.5 }}>
+        <div style={{ background: "#e0ebff", color: "#1d4ed8", borderRadius: 12, padding: "10px 14px", marginBottom: 12, fontSize: "0.8125rem" }}>
           <b>{he ? "הסמכות נדרשות היום" : "Certifications needed today"}:</b>{" "}
           {requiredToday.join(", ")}
           {". "}

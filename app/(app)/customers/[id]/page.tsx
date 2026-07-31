@@ -65,7 +65,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
     <div style={{ maxWidth: 760 }}>
       <Link href="/customers" style={back}>‹ Customers</Link>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, margin: "8px 0 2px" }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800 }}>{c.name}</h1>
+        <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>{c.name}</h1>
         <CustomerEditForm customer={c as any} />
       </div>
       <p style={{ color: "#5c6675", marginBottom: 14 }}>{[c.city, c.source].filter(Boolean).join(" · ")}</p>
@@ -78,7 +78,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
             Receivables, so not offered to a technician (the page redirects them
             too, rather than showing a page of zeroes that reads as "nothing due"). */}
         {canEditRecord && (
-          <Link href={`/customers/${id}/statement`} style={{ background: "#fdf1dc", color: "#b45309", borderRadius: 10, padding: "10px 14px", fontWeight: 700, fontSize: 13.5, textDecoration: "none" }}>
+          <Link href={`/customers/${id}/statement`} style={{ background: "#fdf1dc", color: "#b45309", borderRadius: 10, padding: "10px 14px", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none" }}>
             🧾 Statement
           </Link>
         )}
@@ -97,7 +97,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
       </div>
 
       {(c.email || c.address || c.phone || c.billing_address) && (
-        <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, marginBottom: 16, fontSize: 14, display: "grid", gap: 4 }}>
+        <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14, marginBottom: 16, fontSize: "0.875rem", display: "grid", gap: 4 }}>
           {c.phone && <div>📞 {c.phone}</div>}
           {c.email && <div>✉️ {c.email}</div>}
           {(c.address || c.city) && <div>📍 <b style={{ fontWeight: 700 }}>Service:</b> {[c.address, c.city].filter(Boolean).join(", ")}</div>}
@@ -134,8 +134,8 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
       {revs.map((r) => (
         <div key={r.id} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, marginBottom: 8 }}>
           <div style={{ color: "#eab308" }}>{stars(r.rating)}</div>
-          {r.body && <div style={{ fontSize: 14, marginTop: 3 }}>{r.body}</div>}
-          <div style={{ fontSize: 12, color: "#5c6675", marginTop: 3 }}>{fmtDate(r.review_date)}</div>
+          {r.body && <div style={{ fontSize: "0.875rem", marginTop: 3 }}>{r.body}</div>}
+          <div style={{ fontSize: "0.75rem", color: "#5c6675", marginTop: 3 }}>{fmtDate(r.review_date)}</div>
         </div>
       ))}
       <ActivityTimeline entries={activity} locale={locale} />
@@ -144,10 +144,10 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
 }
 
 function Action({ href, icon, label }: { href: string; icon: string; label: string }) {
-  return <a href={href} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, color: "#2563eb", textDecoration: "none", fontSize: 12, fontWeight: 600 }}><span style={{ width: 48, height: 48, borderRadius: "50%", background: "#e0ebff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>{icon}</span>{label}</a>;
+  return <a href={href} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5, color: "#2563eb", textDecoration: "none", fontSize: "0.75rem", fontWeight: 600 }}><span style={{ width: 48, height: 48, borderRadius: "50%", background: "#e0ebff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.25rem" }}>{icon}</span>{label}</a>;
 }
 function Kpi({ value, label, tone }: { value: string; label: string; tone?: string }) {
-  return <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px 8px", textAlign: "center" }}><div style={{ fontSize: 20, fontWeight: 800, color: tone ?? "#0b1524" }}>{value}</div><div style={{ fontSize: 12, color: "#5c6675", fontWeight: 600 }}>{label}</div></div>;
+  return <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px 8px", textAlign: "center" }}><div style={{ fontSize: "1.25rem", fontWeight: 800, color: tone ?? "#0b1524" }}>{value}</div><div style={{ fontSize: "0.75rem", color: "#5c6675", fontWeight: 600 }}>{label}</div></div>;
 }
-const back: React.CSSProperties = { color: "#2563eb", fontWeight: 700, fontSize: 14, textDecoration: "none" };
-const h3: React.CSSProperties = { fontSize: 16, fontWeight: 800, margin: "18px 0 8px" };
+const back: React.CSSProperties = { color: "#2563eb", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none" };
+const h3: React.CSSProperties = { fontSize: "1rem", fontWeight: 800, margin: "18px 0 8px" };

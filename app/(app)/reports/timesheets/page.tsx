@@ -33,9 +33,9 @@ export default async function TimesheetsPage({ searchParams }: { searchParams: P
 
   return (
     <div style={{ maxWidth: 720 }}>
-      <Link href="/reports" style={{ color: "#2563eb", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>‹ Reports</Link>
+      <Link href="/reports" style={{ color: "#2563eb", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none" }}>‹ Reports</Link>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, margin: "8px 0 14px" }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800 }}>Timesheets</h1>
+        <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>Timesheets</h1>
         <TimesheetExport rows={rows} filename={`timesheets_${from}_${to}.csv`} />
       </div>
 
@@ -45,7 +45,7 @@ export default async function TimesheetsPage({ searchParams }: { searchParams: P
         <button type="submit" style={{ background: "#eef2f8", color: "#2563eb", border: "none", borderRadius: 10, padding: "10px 16px", fontWeight: 700, cursor: "pointer" }}>Apply</button>
       </form>
 
-      <div style={{ fontWeight: 800, fontSize: 15, margin: "4px 0 8px" }}>Hours by technician</div>
+      <div style={{ fontWeight: 800, fontSize: "0.9375rem", margin: "4px 0 8px" }}>Hours by technician</div>
       <div className="rlist">
         {totals.map(([tech, hrs]) => (
           <div className="ritem" key={tech}><div className="rmain"><div className="rtitle">{tech}</div></div><div className="rend"><b>{hrs.toFixed(2)} h</b></div></div>
@@ -55,5 +55,5 @@ export default async function TimesheetsPage({ searchParams }: { searchParams: P
     </div>
   );
 }
-const lbl: React.CSSProperties = { fontSize: 12.5, fontWeight: 700, color: "#334155", display: "block", marginBottom: 5 };
-const inp: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 16, outline: "none" };
+const lbl: React.CSSProperties = { fontSize: "0.8125rem", fontWeight: 700, color: "#334155", display: "block", marginBottom: 5 };
+const inp: React.CSSProperties = { border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: "1rem", outline: "none" };

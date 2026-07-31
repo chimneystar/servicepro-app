@@ -75,7 +75,7 @@ export default function DocList({ rows, locale, currency, kind, emptyKey, status
   return (
     <div className="rlist">
       {toast && (
-        <div style={{ background: toast.text.startsWith("✓") ? "#e6f6ec" : "#fdeaea", color: toast.text.startsWith("✓") ? "#15803d" : "#dc2626", padding: "12px 14px", borderRadius: 12, fontWeight: 700, fontSize: 14, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+        <div style={{ background: toast.text.startsWith("✓") ? "#e6f6ec" : "#fdeaea", color: toast.text.startsWith("✓") ? "#15803d" : "#dc2626", padding: "12px 14px", borderRadius: 12, fontWeight: 700, fontSize: "0.875rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
           <span>{toast.text}</span>
           {toast.href && <a href={toast.href} style={{ color: "#15803d", fontWeight: 800, textDecoration: "underline", whiteSpace: "nowrap" }}>View →</a>}
         </div>
@@ -83,7 +83,7 @@ export default function DocList({ rows, locale, currency, kind, emptyKey, status
       {rows.length > 0 && (
         <div style={{ position: "relative" }}>
           <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }}>🔍</span>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by number, customer, or status…" style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 12, padding: "11px 38px", fontSize: 16, outline: "none" }} />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by number, customer, or status…" style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 12, padding: "11px 38px", fontSize: "1rem", outline: "none" }} />
         </div>
       )}
       {visible.map((r) => {
@@ -96,7 +96,7 @@ export default function DocList({ rows, locale, currency, kind, emptyKey, status
                 <div className="rsub">{d(r.issue_date)}</div>
               </div>
               <div className="rend">
-                <b style={{ fontSize: 15, textDecoration: r.voided_at ? "line-through" : "none", color: r.voided_at ? "#94a3b8" : undefined }}>{m(r.total_minor)}</b>
+                <b style={{ fontSize: "0.9375rem", textDecoration: r.voided_at ? "line-through" : "none", color: r.voided_at ? "#94a3b8" : undefined }}>{m(r.total_minor)}</b>
                 {r.voided_at
                   ? <span className="pill" style={{ background: "#eef1f6", color: "#57606f" }}>{t(locale, "ist.void")}</span>
                   : <span className="pill" style={{ background: bg, color: fg }}>{t(locale, `${statusPrefix}.${r.status}`)}</span>}
@@ -119,4 +119,4 @@ export default function DocList({ rows, locale, currency, kind, emptyKey, status
   );
 }
 
-const actBtn: React.CSSProperties = { background: "#eef2f8", color: "#2563eb", border: "none", borderRadius: 9, padding: "8px 12px", fontWeight: 700, fontSize: 13, cursor: "pointer" };
+const actBtn: React.CSSProperties = { background: "#eef2f8", color: "#2563eb", border: "none", borderRadius: 9, padding: "8px 12px", fontWeight: 700, fontSize: "0.8125rem", cursor: "pointer" };

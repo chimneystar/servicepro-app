@@ -27,7 +27,7 @@ export default function JobChecklist({ jobId, items }: { jobId: string; items: C
     <div>
       {items.length > 0 && (
         <div style={{ marginBottom: 12 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#5c6675", marginBottom: 4 }}><span>{he ? "התקדמות" : "Progress"}</span><span>{pct}%</span></div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem", color: "#5c6675", marginBottom: 4 }}><span>{he ? "התקדמות" : "Progress"}</span><span>{pct}%</span></div>
           <div style={{ height: 8, background: "#eef2f8", borderRadius: 99 }}><div style={{ width: `${pct}%`, height: "100%", background: "#15803d", borderRadius: 99 }} /></div>
         </div>
       )}
@@ -50,7 +50,7 @@ export default function JobChecklist({ jobId, items }: { jobId: string; items: C
   );
 }
 
-const inp: React.CSSProperties = { flex: 1, border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 16, outline: "none" };
+const inp: React.CSSProperties = { flex: 1, border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: "1rem", outline: "none" };
 const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", padding: "9px 15px", borderRadius: 10, fontWeight: 700, cursor: "pointer" };
 const row: React.CSSProperties = { display: "flex", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "11px 14px" };
 const xBtn: React.CSSProperties = { background: "#fdeaea", border: "none", borderRadius: 8, padding: "5px 8px", cursor: "pointer" };

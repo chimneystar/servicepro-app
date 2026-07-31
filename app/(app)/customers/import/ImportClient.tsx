@@ -38,18 +38,18 @@ export default function ImportClient() {
 
   return (
     <div style={{ maxWidth: 720 }}>
-      <Link href="/customers" style={{ color: "#2563eb", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>‹ Customers</Link>
-      <h1 style={{ fontSize: 24, fontWeight: 800, margin: "8px 0 6px" }}>Import customers</h1>
-      <p style={{ color: "#5c6675", fontSize: 13.5, marginBottom: 14 }}>
+      <Link href="/customers" style={{ color: "#2563eb", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none" }}>‹ Customers</Link>
+      <h1 style={{ fontSize: "1.5rem", fontWeight: 800, margin: "8px 0 6px" }}>Import customers</h1>
+      <p style={{ color: "#5c6675", fontSize: "0.875rem", marginBottom: 14 }}>
         Paste rows from your spreadsheet. First line can be a header. Columns: <b>name, phone, email, city</b> (only name is required).
       </p>
 
-      <div style={{ background: "#f4f7fb", borderRadius: 10, padding: 12, fontSize: 12.5, color: "#475569", marginBottom: 12, fontFamily: "monospace", whiteSpace: "pre-wrap" }}>
+      <div style={{ background: "#f4f7fb", borderRadius: 10, padding: 12, fontSize: "0.8125rem", color: "#475569", marginBottom: 12, fontFamily: "monospace", whiteSpace: "pre-wrap" }}>
         name,phone,email,city{"\n"}Jane Cohen,555-1234,jane@mail.com,Austin{"\n"}Mike Ross,555-9876,,Dallas
       </div>
 
       <textarea value={text} onChange={(e) => setText(e.target.value)} rows={10} placeholder="Paste CSV here…"
-        style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, fontSize: 14, outline: "none", fontFamily: "monospace" }} />
+        style={{ width: "100%", border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, fontSize: "0.875rem", outline: "none", fontFamily: "monospace" }} />
 
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12 }}>
         <button onClick={run} disabled={pending || rows.length === 0} style={{ background: rows.length ? "#2563eb" : "#94a3b8", color: "#fff", border: "none", borderRadius: 12, padding: "12px 20px", fontWeight: 800, cursor: rows.length ? "pointer" : "not-allowed" }}>

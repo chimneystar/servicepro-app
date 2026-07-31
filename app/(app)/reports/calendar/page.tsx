@@ -45,13 +45,13 @@ export default async function CalendarFeedPage() {
   return (
     <div style={{ maxWidth: 760 }}>
       <Link href="/reports" style={back}>‹ Reports</Link>
-      <h1 style={{ fontSize: 24, fontWeight: 800, margin: "8px 0 4px" }}>Calendar subscriptions</h1>
-      <p style={{ color: "#5c6675", fontSize: 13, marginBottom: 14 }}>
+      <h1 style={{ fontSize: "1.5rem", fontWeight: 800, margin: "8px 0 4px" }}>Calendar subscriptions</h1>
+      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 14 }}>
         Subscribe to your schedule from Google Calendar, Apple Calendar or Outlook. Paste the URL into
         &ldquo;Add calendar → From URL&rdquo;.
       </p>
 
-      <div style={{ background: "#fff7ed", border: "1px solid #fcd9a8", color: "#9a3412", borderRadius: 12, padding: "12px 14px", fontSize: 13, marginBottom: 16 }}>
+      <div style={{ background: "#fff7ed", border: "1px solid #fcd9a8", color: "#9a3412", borderRadius: 12, padding: "12px 14px", fontSize: "0.8125rem", marginBottom: 16 }}>
         <b>Treat this URL as a password.</b> Anyone who has it can read the schedule it covers, with no login,
         until it expires or you revoke it. It expires automatically after <b>{CALENDAR_TOKEN_TTL_DAYS} days</b> —
         rotate it to get a new one. The feed carries the service, the time, the customer&rsquo;s name and the
@@ -60,7 +60,7 @@ export default async function CalendarFeedPage() {
       </div>
 
       {!origin && (
-        <div role="alert" style={{ background: "#fdeaea", border: "1px solid #f5b5b5", color: "#b91c1c", borderRadius: 12, padding: "11px 14px", fontSize: 13, marginBottom: 16 }}>
+        <div role="alert" style={{ background: "#fdeaea", border: "1px solid #f5b5b5", color: "#b91c1c", borderRadius: 12, padding: "11px 14px", fontSize: "0.8125rem", marginBottom: 16 }}>
           NEXT_PUBLIC_APP_URL is not configured, so the full feed URL cannot be shown. Set it and reload.
         </div>
       )}
@@ -77,7 +77,7 @@ export default async function CalendarFeedPage() {
       </ActionForm>
 
       {!canOrgScope && (
-        <p style={{ fontSize: 12.5, color: "#5c6675", marginBottom: 14 }}>
+        <p style={{ fontSize: "0.8125rem", color: "#5c6675", marginBottom: 14 }}>
           Technicians can subscribe to their own jobs. A whole-schedule feed would put every customer address in
           the business behind one long-lived URL, so it is offered to owners and office members only.
         </p>
@@ -90,7 +90,7 @@ export default async function CalendarFeedPage() {
       {expired.length > 0 && (
         <>
           <h3 style={h3}>Expired ({expired.length})</h3>
-          <p style={{ fontSize: 12.5, color: "#5c6675" }}>
+          <p style={{ fontSize: "0.8125rem", color: "#5c6675" }}>
             These have aged out and no longer serve anything. Rotate one to get a working URL again.
           </p>
           {expired.map((feed: Feed) => <FeedRow key={feed.id} feed={feed} origin={origin} daysLeft={daysLeft(feed)} />)}
@@ -100,7 +100,7 @@ export default async function CalendarFeedPage() {
   );
 }
 
-const back: React.CSSProperties = { color: "#2563eb", fontWeight: 700, fontSize: 14, textDecoration: "none" };
-const h3: React.CSSProperties = { fontSize: 16, fontWeight: 800, margin: "18px 0 8px" };
-const input: React.CSSProperties = { border: "1px solid #d7dee9", borderRadius: 9, padding: "9px 11px", fontSize: 13.5, minWidth: 180 };
-const primary: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", borderRadius: 9, padding: "9px 16px", fontWeight: 700, fontSize: 13.5, cursor: "pointer" };
+const back: React.CSSProperties = { color: "#2563eb", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none" };
+const h3: React.CSSProperties = { fontSize: "1rem", fontWeight: 800, margin: "18px 0 8px" };
+const input: React.CSSProperties = { border: "1px solid #d7dee9", borderRadius: 9, padding: "9px 11px", fontSize: "0.875rem", minWidth: 180 };
+const primary: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", borderRadius: 9, padding: "9px 16px", fontWeight: 700, fontSize: "0.875rem", cursor: "pointer" };

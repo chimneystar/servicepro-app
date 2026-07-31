@@ -83,15 +83,15 @@ export default function DocCorrections({
       <div style={panel}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <span style={{ ...pill, background: "#eef1f6", color: "#57606f" }}>VOID</span>
-          <b style={{ fontSize: 14 }}>
+          <b style={{ fontSize: "0.875rem" }}>
             {/* ISO slice, not toLocaleDateString: a locale-less Intl call in a
                 client component renders differently on the server and in the
                 browser, which tests/hydration-guard.test.mjs exists to stop. */}
             {kind === "invoice" ? "Invoice" : "Estimate"} #{number} was voided on {String(voidedAt).slice(0, 10)}
           </b>
         </div>
-        {voidReason && <div style={{ fontSize: 13, color: "#5c6675", marginTop: 6 }}>Reason: {voidReason}</div>}
-        <div style={{ fontSize: 12.5, color: "#5c6675", marginTop: 8, lineHeight: 1.6 }}>
+        {voidReason && <div style={{ fontSize: "0.8125rem", color: "#5c6675", marginTop: 6 }}>Reason: {voidReason}</div>}
+        <div style={{ fontSize: "0.8125rem", color: "#5c6675", marginTop: 8, lineHeight: 1.6 }}>
           The document and its number are kept on purpose, so the numbering has a
           cancelled entry rather than an unexplained gap. It can no longer be
           signed or paid. Duplicate it if a replacement is needed.
@@ -106,10 +106,10 @@ export default function DocCorrections({
 
   return (
     <div style={panel}>
-      <div style={{ fontSize: 12.5, fontWeight: 800, color: "#334155", marginBottom: 8 }}>Corrections</div>
+      <div style={{ fontSize: "0.8125rem", fontWeight: 800, color: "#334155", marginBottom: 8 }}>Corrections</div>
 
       {locked && lockReason && (
-        <div style={{ background: "#fdf1dc", border: "1px solid #f5d99b", borderRadius: 10, padding: "10px 12px", fontSize: 12.5, color: "#7c4a03", lineHeight: 1.6, marginBottom: 10 }}>
+        <div style={{ background: "#fdf1dc", border: "1px solid #f5d99b", borderRadius: 10, padding: "10px 12px", fontSize: "0.8125rem", color: "#7c4a03", lineHeight: 1.6, marginBottom: 10 }}>
           {lockReason}
         </div>
       )}
@@ -133,7 +133,7 @@ export default function DocCorrections({
       </div>
 
       {!canVoid && (
-        <div style={{ fontSize: 12, color: "#5c6675", marginTop: 8, lineHeight: 1.6 }}>
+        <div style={{ fontSize: "0.75rem", color: "#5c6675", marginTop: 8, lineHeight: 1.6 }}>
           {m(collectedMinor)} has been collected against this document, so it cannot
           be voided — voiding says the sale never happened.{" "}
           {kind === "invoice" ? "Issue a credit note instead, and refund the money separately if it is going back." : "Refund the deposit first if the work is not going ahead."}
@@ -196,27 +196,27 @@ function CreditList({ notes, m, onCancel, pending }: {
 }) {
   return (
     <div style={{ marginTop: 12 }}>
-      <div style={{ fontSize: 12, fontWeight: 800, color: "#334155", marginBottom: 6 }}>Credit notes</div>
+      <div style={{ fontSize: "0.75rem", fontWeight: 800, color: "#334155", marginBottom: 6 }}>Credit notes</div>
       {notes.map((n) => {
         const cancelled = n.status !== "issued";
         return (
           <div key={n.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, borderTop: "1px solid #eef2f8", padding: "8px 0" }}>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 700, fontSize: 13.5, textDecoration: cancelled ? "line-through" : "none", color: cancelled ? "#94a3b8" : "#0b1524" }}>
+              <div style={{ fontWeight: 700, fontSize: "0.875rem", textDecoration: cancelled ? "line-through" : "none", color: cancelled ? "#94a3b8" : "#0b1524" }}>
                 CN #{n.number} · {m(n.amount_minor)}
               </div>
-              <div style={{ fontSize: 12, color: "#5c6675" }}>{n.issue_date} · {n.reason}</div>
-              {cancelled && <div style={{ fontSize: 12, color: "#b45309" }}>Cancelled: {n.cancel_reason ?? "—"}</div>}
+              <div style={{ fontSize: "0.75rem", color: "#5c6675" }}>{n.issue_date} · {n.reason}</div>
+              {cancelled && <div style={{ fontSize: "0.75rem", color: "#b45309" }}>Cancelled: {n.cancel_reason ?? "—"}</div>}
             </div>
             {!cancelled && (
-              <button onClick={() => onCancel(n.id)} disabled={pending} style={{ ...btn, background: "#eef2f8", color: "#5c6675", padding: "6px 10px", fontSize: 12 }}>
+              <button onClick={() => onCancel(n.id)} disabled={pending} style={{ ...btn, background: "#eef2f8", color: "#5c6675", padding: "6px 10px", fontSize: "0.75rem" }}>
                 Cancel
               </button>
             )}
           </div>
         );
       })}
-      <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 6, lineHeight: 1.5 }}>
+      <div style={{ fontSize: "0.8125rem", color: "#94a3b8", marginTop: 6, lineHeight: 1.5 }}>
         A credit note is never deleted. Cancelling one records the cancellation and
         its reason, so the credit-note sequence has no gaps either.
       </div>
@@ -228,7 +228,7 @@ function Panel({ title, onCancel, children }: { title: string; onCancel: () => v
   return (
     <div style={{ background: "#f8fbff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, marginTop: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-        <b style={{ fontSize: 13.5 }}>{title}</b>
+        <b style={{ fontSize: "0.875rem" }}>{title}</b>
         <button onClick={onCancel} style={{ ...btn, background: "transparent", color: "#5c6675", padding: "4px 6px" }}>✕</button>
       </div>
       {children}
@@ -247,8 +247,8 @@ function Reason({ value, onChange }: { value: string; onChange: (v: string) => v
 }
 
 const panel: React.CSSProperties = { background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 14, marginBottom: 14 };
-const btn: React.CSSProperties = { background: "#eef2f8", color: "#2563eb", border: "none", borderRadius: 9, padding: "9px 13px", fontWeight: 700, fontSize: 13, cursor: "pointer" };
-const lbl: React.CSSProperties = { fontSize: 12, fontWeight: 700, color: "#334155", display: "block", margin: "8px 0 4px" };
-const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "9px 11px", fontSize: 15, outline: "none" };
-const hint: React.CSSProperties = { fontSize: 12.5, color: "#5c6675", lineHeight: 1.6, margin: "0 0 4px" };
-const pill: React.CSSProperties = { borderRadius: 999, padding: "3px 10px", fontWeight: 800, fontSize: 11.5, letterSpacing: 0.4 };
+const btn: React.CSSProperties = { background: "#eef2f8", color: "#2563eb", border: "none", borderRadius: 9, padding: "9px 13px", fontWeight: 700, fontSize: "0.8125rem", cursor: "pointer" };
+const lbl: React.CSSProperties = { fontSize: "0.75rem", fontWeight: 700, color: "#334155", display: "block", margin: "8px 0 4px" };
+const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "9px 11px", fontSize: "0.9375rem", outline: "none" };
+const hint: React.CSSProperties = { fontSize: "0.8125rem", color: "#5c6675", lineHeight: 1.6, margin: "0 0 4px" };
+const pill: React.CSSProperties = { borderRadius: 999, padding: "3px 10px", fontWeight: 800, fontSize: "0.8125rem", letterSpacing: 0.4 };
