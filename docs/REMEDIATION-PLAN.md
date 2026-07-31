@@ -55,8 +55,8 @@ Status: `TODO` / `WIP` / `DONE` / `BLOCKED`. Keep this honest — a status doc t
 | 1.5 | **Migration 023:** add role predicate to the 24 blanket-select tables from migration 019 | DONE |
 | 1.6 | **Migration 023:** `TO authenticated` + explicit anon revokes on the 32 legacy tables | DONE |
 | 1.7 | **Migration 023:** `approve_document` — guard on `signed_at is null`, add rate limit | DONE |
-| 1.8 | **Migration 023:** portal token — expiry + rotation function; stop returning nested document tokens | DONE |
-| 1.9 | **Migration 023:** remove payout details (Zelle/check) from `public_payment_options` | DONE |
+| 1.8 | **Migration 023:** portal token expiry (180d, enforced on lookup) + `rotate_customer_portal_token()` + payload narrowed to 24 months. **Nested document tokens KEPT** — see 1.9. | DONE |
+| 1.9 | ~~Remove payout details (Zelle/check) from `public_payment_options`~~ — **REJECTED after review, not skipped.** Those fields *are* the payment instructions: a customer cannot mail a cheque without the payee address, and cannot open their invoice without its token. Removing them breaks the feature. The actual exposure was the *permanent, irrevocable* portal link that chained to them, which 1.8 closes. Revisit only if a tighter model is wanted (e.g. per-document short-lived tokens). | REJECTED |
 | 1.10 | **Migration 023:** `item-photos` storage policies | DONE |
 | 1.11 | **Migration 023:** `subscriptions` — make billing state service-role only | DONE |
 | 1.12 | Cron route: fail **closed** when `CRON_SECRET` unset; timing-safe compare; stop leaking error strings | DONE |
