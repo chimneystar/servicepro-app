@@ -352,6 +352,46 @@ test("no single request ever asks for more than the server will honour", () => {
   assert.equal(clampLimit(2.7), 2);
 });
 
+test("a failure on page three loses the read — it does not return pages one and two", async () => {
+  // The decision this pins: partial data is worse than no data. Two pages of
+  // three is a SHORT ANSWER WITH NO ERROR, which is the exact defect the whole
+  // data layer exists to remove; a thrown error is recoverable and visible.
+  let calls = 0;
+  await assert.rejects(
+    pageAll(
+      async () => {
+        calls++;
+        if (calls === 3) throw new Error("PGRST_boom");
+        return new Array(10).fill({ id: calls });
+      },
+      {
+        size: 10,
+        onOverflow: () => {
+          throw new Error("unexpected overflow");
+        },
+      },
+    ),
+    /PGRST_boom/,
+    "the rows already collected must not be returned as if they were all of them",
+  );
+  assert.equal(calls, 3, "it failed on the page that failed, not earlier");
+});
+
+test("a broken query surfaces as an error OBJECT, which is what the gateway checks", async () => {
+  // PostgREST reports a bad query as `{ error }`, not as a rejected promise. A
+  // caller that only try/catches sees nothing — which is how 513 of 526 reads
+  // in this codebase came to ignore failure. lib/data/db.ts reads the field.
+  const { db, orgId } = await databaseWithCustomers(3);
+  const supabase = fakePostgrest(db);
+  const { data, error } = await supabase
+    .from("customers")
+    .select("no_such_column")
+    .eq("organization_id", orgId);
+  assert.equal(data, null);
+  assert.ok(error && error.message, "the failure arrives in the error field, not as a throw");
+  await db.close();
+});
+
 test("the paging ceiling raises instead of looping for ever", async () => {
   let ceiling = null;
   await assert.rejects(
