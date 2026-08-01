@@ -5,6 +5,7 @@ import { requireProfile, assertRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 // @ts-ignore -- shared JS module, proven both ways in tests/scheduled-reports.test.mjs
 import { isDigestFrequency } from "@/lib/core/digest.mjs";
+import * as profilesRepo from "@/lib/data/profiles";
 
 export type ActionResult = { ok: boolean; error?: string };
 
@@ -53,12 +54,13 @@ export async function createReportSchedule(
   const supabase = await createClient();
   // Every recipient must be a real member of THIS organisation. A forged id in
   // the form body is discarded, not stored.
-  const { data: members } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("organization_id", profile.organization_id)
-    .in("id", recipients);
-  const valid = (members ?? []).map((row: { id: string }) => row.id);
+  let members;
+  try {
+    members = await profilesRepo.listMembersAmong(supabase, profile.organization_id, recipients);
+  } catch {
+    return { ok: false, error: "We couldn't verify those recipients. Try again." };
+  }
+  const valid = members.map((row) => row.id);
   if (!valid.length)
     return { ok: false, error: "None of those recipients are members of this business." };
 

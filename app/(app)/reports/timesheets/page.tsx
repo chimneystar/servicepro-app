@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import TimesheetExport, { type TSRow } from "@/components/TimesheetExport";
+import * as jobsRepo from "@/lib/data/jobs";
 
 export const dynamic = "force-dynamic";
 
@@ -21,17 +22,12 @@ export default async function TimesheetsPage({
   const to =
     search.to || new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
 
-  const { data: entries } = await supabase
-    .from("job_time_entries")
-    .select("started_at, ended_at, profiles(full_name), jobs!job_time_entries_job_id_fkey(service)")
-    .gte("started_at", `${from}T00:00:00`)
-    .lte("started_at", `${to}T23:59:59`)
-    .order("started_at");
+  const entries = await jobsRepo.listTimesheetEntries(supabase, from, to);
 
   // Server request time is intentionally captured once for open time entries.
   // eslint-disable-next-line react-hooks/purity
   const nowMs = Date.now();
-  const rows: TSRow[] = (entries ?? []).map((e: any) => {
+  const rows: TSRow[] = entries.map((e: any) => {
     const st = new Date(e.started_at).getTime();
     const en = e.ended_at ? new Date(e.ended_at).getTime() : nowMs;
     const hrs = Math.max(0, (en - st) / 3600000);

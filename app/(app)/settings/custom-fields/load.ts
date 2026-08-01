@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import * as operationsRepo from "@/lib/data/operations";
 
 export type CustomFieldDefinition = {
   id: string;
@@ -23,24 +24,16 @@ export type CustomFieldDefinition = {
 export async function loadCustomFields(entityType: "customer" | "job", entityId: string) {
   try {
     const supabase = await createClient();
-    const { data: definitions } = await supabase
-      .from("custom_field_definitions")
-      .select("id, label, entity_type, field_type, options_json, required, active, sort")
-      .eq("entity_type", entityType)
-      .eq("active", true)
-      .order("sort")
-      .order("label");
-    const defs = (definitions ?? []) as CustomFieldDefinition[];
-    if (defs.length === 0) return { definitions: defs, values: {} as Record<string, unknown> };
+    const definitions = (await operationsRepo.listCustomFieldDefinitions(
+      supabase,
+      entityType,
+    )) as CustomFieldDefinition[];
+    if (definitions.length === 0) return { definitions, values: {} as Record<string, unknown> };
 
-    const { data: rows } = await supabase
-      .from("custom_field_values")
-      .select("definition_id, value_json")
-      .eq("entity_type", entityType)
-      .eq("entity_id", entityId);
+    const rows = await operationsRepo.listCustomFieldValues(supabase, entityType, entityId);
     const values: Record<string, unknown> = {};
-    for (const row of rows ?? []) values[row.definition_id] = row.value_json;
-    return { definitions: defs, values };
+    for (const row of rows) values[row.definition_id] = row.value_json;
+    return { definitions, values };
   } catch {
     return { definitions: [] as CustomFieldDefinition[], values: {} as Record<string, unknown> };
   }

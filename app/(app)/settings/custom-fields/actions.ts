@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireProfile, assertRole } from "@/lib/auth";
 import { getLocale } from "@/lib/locale-server";
 import { isOneOf } from "@/lib/validation";
+import * as operationsRepo from "@/lib/data/operations";
 // @ts-ignore — pure, unit-tested in tests/custom-fields.test.mjs
 import {
   ENTITY_TYPES,
@@ -157,18 +158,19 @@ export async function saveCustomFieldValues(
 
   const supabase = await createClient();
   const table = entityType === "customer" ? "customers" : "jobs";
-  const [{ data: entity }, { data: definitions }] = await Promise.all([
-    supabase.from(table).select("id, organization_id").eq("id", entityId).maybeSingle(),
-    supabase
-      .from("custom_field_definitions")
-      .select("id, organization_id, entity_type, label, field_type, options_json, required, active")
-      .eq("entity_type", entityType)
-      .eq("active", true)
-      .order("sort")
-      .order("label"),
-  ]);
+  let entity;
+  let defs;
+  try {
+    const [entityResult, definitionsResult] = await Promise.all([
+      supabase.from(table).select("id, organization_id").eq("id", entityId).maybeSingle(),
+      operationsRepo.listCustomFieldDefinitionsForValidation(supabase, entityType),
+    ]);
+    entity = entityResult.data;
+    defs = definitionsResult;
+  } catch {
+    return { ok: false, error: failed(he) };
+  }
 
-  const defs = definitions ?? [];
   try {
     for (const definition of defs) {
       assertEntityReference({
