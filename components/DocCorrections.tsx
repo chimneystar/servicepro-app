@@ -239,7 +239,7 @@ export default function DocCorrections({
             <b>{m(remainingCreditable)}</b> can still be credited. The invoice itself is not
             changed; the credit note is its own numbered document.
           </p>
-          <label style={{ display: "block" }}>
+          <label className="sp-field">
             <span style={lbl}>Amount to credit</span>
             <input
               value={amount}
@@ -336,7 +336,7 @@ function CreditList({
               >
                 CN #{n.number} · {m(n.amount_minor)}
               </div>
-              <div style={{ fontSize: "0.75rem", color: "#5c6675" }}>
+              <div className="sp-text-muted-xs">
                 {n.issue_date} · {n.reason}
               </div>
               {cancelled && (
@@ -416,7 +416,7 @@ function Panel({
 
 function Reason({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
-    <label style={{ display: "block" }}>
+    <label className="sp-field">
       <span style={lbl}>Reason (kept on the record permanently)</span>
       <textarea
         value={value}

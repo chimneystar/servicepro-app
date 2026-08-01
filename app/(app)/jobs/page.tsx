@@ -93,7 +93,7 @@ export default async function JobsPage({
           marginBottom: 12,
         }}
       >
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>Jobs</h1>
+        <h1 className="sp-heading sp-heading--lg">Jobs</h1>
         {canEdit && (
           <JobForm
             locale={locale}

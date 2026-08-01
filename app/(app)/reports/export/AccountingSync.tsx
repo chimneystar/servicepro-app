@@ -122,7 +122,7 @@ export default function AccountingSync({
               id="acct-target"
               value={target}
               onChange={(e) => setTarget(e.target.value as "quickbooks" | "xero")}
-              style={inp}
+              className="sp-select"
             >
               <option value="quickbooks">QuickBooks Online</option>
               <option value="xero">Xero</option>
@@ -137,7 +137,7 @@ export default function AccountingSync({
               type="date"
               value={from}
               onChange={(e) => setFrom(e.target.value)}
-              style={inp}
+              className="sp-input"
             />
           </div>
           <div>
@@ -149,7 +149,7 @@ export default function AccountingSync({
               type="date"
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              style={inp}
+              className="sp-input"
             />
           </div>
         </div>

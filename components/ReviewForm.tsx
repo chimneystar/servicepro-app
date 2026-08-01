@@ -69,20 +69,7 @@ export default function ReviewForm({ customerId }: { customerId: string }) {
           marginBottom: 10,
         }}
       />
-      <button
-        type="button"
-        onClick={submit}
-        disabled={pending}
-        style={{
-          background: "#2563eb",
-          color: "#fff",
-          border: "none",
-          borderRadius: 10,
-          padding: "10px 16px",
-          fontWeight: 700,
-          cursor: "pointer",
-        }}
-      >
+      <button type="button" onClick={submit} disabled={pending} className="sp-btn">
         {pending ? "…" : "Save review"}
       </button>
       <ActionError error={error} />

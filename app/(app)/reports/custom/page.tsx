@@ -114,10 +114,7 @@ export default async function CustomReportPage({
 
   return (
     <div style={{ maxWidth: 780 }}>
-      <Link
-        href="/reports"
-        style={{ color: "#2563eb", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none" }}
-      >
+      <Link href="/reports" className="sp-link">
         ‹ Reports
       </Link>
       <div
@@ -130,7 +127,7 @@ export default async function CustomReportPage({
           margin: "8px 0 14px",
         }}
       >
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>Custom report</h1>
+        <h1 className="sp-heading sp-heading--lg">Custom report</h1>
         <PrintButton label="Save as PDF" />
       </div>
 
@@ -149,15 +146,15 @@ export default async function CustomReportPage({
       >
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
           <div>
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <span style={lbl}>From</span>
-              <input type="date" name="from" defaultValue={from} style={inp} />
+              <input type="date" name="from" defaultValue={from} className="sp-input" />
             </label>
           </div>
           <div>
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <span style={lbl}>To</span>
-              <input type="date" name="to" defaultValue={to} style={inp} />
+              <input type="date" name="to" defaultValue={to} className="sp-input" />
             </label>
           </div>
         </div>
@@ -202,7 +199,7 @@ export default async function CustomReportPage({
       >
         <div style={{ textAlign: "center", marginBottom: 16 }}>
           <div style={{ fontSize: "1.25rem", fontWeight: 800 }}>{org?.name}</div>
-          <div style={{ color: "#5c6675", fontSize: "0.8125rem" }}>
+          <div className="sp-text-muted">
             Report · {fmt(from)} – {fmt(to)}
           </div>
         </div>
@@ -323,12 +320,4 @@ const lbl: React.CSSProperties = {
   color: "#334155",
   display: "block",
   marginBottom: 5,
-};
-const inp: React.CSSProperties = {
-  width: "100%",
-  border: "1px solid #e2e8f0",
-  borderRadius: 10,
-  padding: "10px 12px",
-  fontSize: "0.875rem",
-  outline: "none",
 };

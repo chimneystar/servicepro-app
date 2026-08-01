@@ -104,7 +104,7 @@ export default function SignApprove({ token, locale }: { token: string; locale: 
 
   return (
     <div style={{ border: "1px solid #e2e8f0", borderRadius: 14, padding: 16 }}>
-      <label style={{ display: "block" }}>
+      <label className="sp-field">
         <span
           style={{
             fontSize: "0.8125rem",

@@ -73,10 +73,7 @@ export default async function ThreadPage({
 
   return (
     <div style={{ maxWidth: 620, display: "flex", flexDirection: "column", minHeight: "70vh" }}>
-      <Link
-        href="/messages"
-        style={{ color: "#2563eb", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none" }}
-      >
+      <Link href="/messages" className="sp-link">
         ‹ Messages
       </Link>
       <h1 style={{ fontSize: "1.25rem", fontWeight: 800, margin: "8px 0 2px" }}>{name}</h1>

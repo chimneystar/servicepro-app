@@ -199,16 +199,12 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
                 {doc.customer?.name}
               </div>
               {(doc.customer?.address || doc.customer?.city) && (
-                <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>
+                <div className="sp-text-muted">
                   {[doc.customer.address, doc.customer.city].filter(Boolean).join(", ")}
                 </div>
               )}
-              {doc.customer?.phone && (
-                <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>{doc.customer.phone}</div>
-              )}
-              {doc.customer?.email && (
-                <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>{doc.customer.email}</div>
-              )}
+              {doc.customer?.phone && <div className="sp-text-muted">{doc.customer.phone}</div>}
+              {doc.customer?.email && <div className="sp-text-muted">{doc.customer.email}</div>}
             </div>
             <div style={{ textAlign: "end" }}>
               <div
@@ -254,7 +250,7 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
                     }}
                   />
                 )}
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="sp-flex-fill">
                   <div style={{ fontWeight: 700, fontSize: "0.9375rem" }}>
                     {it.title || it.description}
                   </div>

@@ -31,6 +31,7 @@ import JobWarrantyPanel, {
 import { loadJobHistory } from "@/lib/job-history";
 import CustomFieldValues from "@/app/(app)/settings/custom-fields/CustomFieldValues";
 import { loadCustomFields } from "@/app/(app)/settings/custom-fields/load";
+import { TextLink } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -64,9 +65,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         <Link href="/schedule" style={back}>
           {he ? "חזרה ליומן" : "Back to schedule"}
         </Link>
-        <div style={{ padding: 40, textAlign: "center", color: "#5c6675" }}>
-          {he ? "העבודה לא נמצאה." : "Job not found."}
-        </div>
+        <div className="sp-empty">{he ? "העבודה לא נמצאה." : "Job not found."}</div>
       </div>
     );
   const history = await loadJobHistory(id, locale, profile.id);
@@ -297,15 +296,13 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         signedBy={job.completion_signed_by}
       />
       <div style={{ display: "flex", gap: 18, justifyContent: "center", margin: "2px 0 16px" }}>
-        <a href={"tel:" + (c?.phone ?? "").replace(/[^0-9+]/g, "")} style={clink}>
+        <TextLink href={"tel:" + (c?.phone ?? "").replace(/[^0-9+]/g, "")}>
           {he ? "התקשרות" : "Call"}
-        </a>
-        <a href={"sms:" + (c?.phone ?? "")} style={clink}>
-          {he ? "הודעה" : "Text"}
-        </a>
-        <a href={"https://maps.google.com/?q=" + encodeURIComponent(serviceAddr)} style={clink}>
+        </TextLink>
+        <TextLink href={"sms:" + (c?.phone ?? "")}>{he ? "הודעה" : "Text"}</TextLink>
+        <TextLink href={"https://maps.google.com/?q=" + encodeURIComponent(serviceAddr)}>
           {he ? "ניווט" : "Navigate"}
-        </a>
+        </TextLink>
       </div>
       <div
         style={{
@@ -350,7 +347,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             fontSize: "0.875rem",
           }}
         >
-          <b style={{ fontSize: "0.75rem", color: "#5c6675" }}>{he ? "הערות" : "Notes"}</b>
+          <b className="sp-text-muted-xs">{he ? "הערות" : "Notes"}</b>
           <br />
           {job.notes}
         </div>
@@ -550,7 +547,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           margin: "8px 0 2px",
         }}
       >
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>{job.service}</h1>
+        <h1 className="sp-heading sp-heading--lg">{job.service}</h1>
         <span className="pill" style={{ background: stageColor + "22", color: stageColor }}>
           {(job as any).stage ?? "Scheduled"}
         </span>
@@ -679,10 +676,4 @@ const back: React.CSSProperties = {
   fontWeight: 700,
   fontSize: "0.875rem",
   textDecoration: "none",
-};
-const clink: React.CSSProperties = {
-  color: "#2563eb",
-  textDecoration: "none",
-  fontWeight: 700,
-  fontSize: "0.875rem",
 };

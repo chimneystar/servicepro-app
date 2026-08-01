@@ -6,6 +6,7 @@ import { addJobPart } from "./actions";
 import { useAppLocale } from "@/components/LocaleProvider";
 // @ts-ignore — pure logic, unit-tested in tests/inventory.test.mjs
 import { formatQtyMilli } from "@/lib/core/inventory.mjs";
+import { Button, Notice } from "@/components/ui";
 
 export type StockItem = {
   id: string;
@@ -75,9 +76,9 @@ export default function JobParts({ jobId, stock }: { jobId: string; stock: Stock
         >
           <select
             name="inventoryItemId"
-            style={inp}
             required
             aria-label={he ? "בחירת חלק" : "Choose a part"}
+            className="sp-select sp-control--lg"
           >
             <option value="">{he ? "בחירת חלק" : "Choose a part"}</option>
             {stock.map((s) => (
@@ -95,7 +96,7 @@ export default function JobParts({ jobId, stock }: { jobId: string; stock: Stock
               defaultValue="1"
               placeholder={he ? "כמות" : "Qty"}
               aria-label={he ? "כמות" : "Qty"}
-              style={inp}
+              className="sp-input sp-control--lg"
             />
             <input
               name="price"
@@ -104,13 +105,13 @@ export default function JobParts({ jobId, stock }: { jobId: string; stock: Stock
               min="0"
               placeholder={he ? "מחיר ללקוח" : "Price to customer"}
               aria-label={he ? "מחיר ללקוח" : "Price to customer"}
-              style={inp}
+              className="sp-input sp-control--lg"
             />
           </div>
           {error && (
-            <div role="alert" style={errBox}>
+            <Notice role="alert" mt={3}>
               {error}
-            </div>
+            </Notice>
           )}
           {needsOverride && (
             <label
@@ -123,9 +124,9 @@ export default function JobParts({ jobId, stock }: { jobId: string; stock: Stock
             </label>
           )}
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-            <button type="submit" disabled={pending} style={btn}>
+            <Button type="submit" disabled={pending} size="md">
               {pending ? (he ? "שומרים…" : "Saving…") : he ? "שמירה" : "Save"}
-            </button>
+            </Button>
             <button
               type="button"
               onClick={() => {
@@ -152,20 +153,4 @@ const btn: React.CSSProperties = {
   borderRadius: 10,
   fontWeight: 700,
   cursor: "pointer",
-};
-const inp: React.CSSProperties = {
-  width: "100%",
-  border: "1px solid #e2e8f0",
-  borderRadius: 10,
-  padding: "10px 12px",
-  fontSize: "1rem",
-  outline: "none",
-};
-const errBox: React.CSSProperties = {
-  background: "#fdeaea",
-  color: "#dc2626",
-  padding: "8px 12px",
-  borderRadius: 10,
-  fontSize: "0.8125rem",
-  marginTop: 8,
 };

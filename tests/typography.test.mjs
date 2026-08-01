@@ -217,10 +217,50 @@ test("the parser finds the sizes it is supposed to find (cry-wolf guard)", () =>
     CSS_SIZES.length > 350,
     `expected the real stylesheet to yield hundreds of sizes, got ${CSS_SIZES.length}`,
   );
-  assert.ok(
-    INLINE_SIZES.length > 600,
-    `expected hundreds of inline props, got ${INLINE_SIZES.length}`,
-  );
+
+  // THE DENOMINATOR, and why it is no longer a total.
+  //
+  // This was `INLINE_SIZES.length > 600`, a floor under the inline half alone.
+  // Ledger 6.5 broke it, and correctly: retiring a copy-pasted style object
+  // moves its font size out of this scan, and because thirty-one call sites
+  // collapse onto ONE rule in the stylesheet, the sum falls too. 1,110 sizes
+  // became 1,021 by deleting 89 duplicates, not by losing 89 sizes. A floor on
+  // either number would fail on progress, and the tempting repair — lower it
+  // until it passes — is how a guard becomes decoration.
+  //
+  // The property that actually matters is COVERAGE: no font size in the
+  // product may be invisible to this file. That is asserted three ways.
+  assert.ok(INLINE_SIZES.length > 400, `the inline scan found only ${INLINE_SIZES.length}`);
+});
+
+test("the walker still visits the whole tree (coverage, not count)", () => {
+  // A scan that silently stopped descending would keep every other assertion
+  // in this file green while checking a fraction of the product.
+  const scanned = ["app", "components"].flatMap((d) => sourceFiles(path.join(ROOT, d)));
+  assert.ok(scanned.length > 240, `the walker reached only ${scanned.length} source files`);
+  const withSizes = new Set(INLINE_SIZES.map((i) => i.file));
+  assert.ok(withSizes.size > 100, `only ${withSizes.size} files contributed an inline size`);
+});
+
+test("the sizes that left the inline scan arrived in the stylesheet", () => {
+  // The other half of the coverage argument. Every design-system class that
+  // sets a font-size must be one of the declarations CSS_SIZES checks — that
+  // is what makes "the size moved" different from "the size vanished".
+  const primitives = CSS.slice(CSS.indexOf("PRIMITIVES — ledger 6.5"));
+  const declared = [
+    ...stripCssComments(primitives).matchAll(/(?:^|[;{])\s*font-size\s*:\s*([^;}]+)/g),
+  ].map((m) => m[1].trim());
+  assert.ok(declared.length >= 6, `the primitives declare only ${declared.length} font sizes`);
+  for (const value of declared) {
+    assert.ok(
+      CSS_SIZES.some((d) => d.value === value),
+      `the primitives set font-size: ${value}, and the stylesheet scan does not see it`,
+    );
+    // And it resolves, through the token table, to a real rem length.
+    const resolved = resolvePx(value, DEFAULT_ROOT_PX);
+    assert.ok(resolved, `font-size: ${value} resolves to nothing`);
+    assert.deepEqual(resolved.units, ["rem"], `font-size: ${value} is not rem`);
+  }
 });
 
 test("the stylesheet is structurally valid", () => {
@@ -398,7 +438,15 @@ test("A2: turning the toggle on moves EVERY inline fontSize prop", () => {
     }
   }
   assert.deepEqual(unchanged, []);
-  assert.ok(changed > 600, `only ${changed} inline props respond to the toggle`);
+  // Tied to what the scan actually found rather than to a fixed number, so
+  // retiring an inline style object cannot fail this and lowering a constant
+  // cannot silence it. EVERY prop found must move; none may be skipped.
+  assert.equal(
+    changed,
+    INLINE_SIZES.reduce((n, item) => n + quoted(item.expression).length, 0),
+    "some inline font sizes were counted but did not move with the root",
+  );
+  assert.ok(changed >= INLINE_SIZES.length, `only ${changed} inline props respond to the toggle`);
 });
 
 test("A2: the same computation shows the PRE-CHANGE product did not move at all", () => {

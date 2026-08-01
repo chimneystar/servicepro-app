@@ -105,7 +105,7 @@ export default function ArchiveList({ records }: { records: ArchRow[] }) {
                     ARCHIVED
                   </span>
                 </div>
-                <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>
+                <div className="sp-text-muted">
                   {[r.phone, r.email, [r.address, r.city].filter(Boolean).join(", ")]
                     .filter(Boolean)
                     .join(" · ")}

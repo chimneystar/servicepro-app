@@ -6,6 +6,7 @@ import { useFormState, useFormStatus } from "react-dom";
 import { addExpense, deleteExpense, type ActionResult } from "./actions";
 import { t, type Locale } from "@/lib/i18n";
 import Modal from "@/components/Modal";
+import { Button, Grid, Label, Notice } from "@/components/ui";
 
 type Expense = {
   id: string;
@@ -72,10 +73,10 @@ export default function ExpensesClient({
           marginBottom: 16,
         }}
       >
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>{t(locale, "exp.title")}</h1>
-        <button type="button" onClick={() => setOpen(true)} style={btn}>
+        <h1 className="sp-heading sp-heading--lg">{t(locale, "exp.title")}</h1>
+        <Button onClick={() => setOpen(true)}>
           <span aria-hidden="true">➕</span> {t(locale, "exp.new")}
-        </button>
+        </Button>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
@@ -129,45 +130,45 @@ export default function ExpensesClient({
             <h3 id={titleId} style={{ fontSize: "1.125rem", fontWeight: 800, marginBottom: 14 }}>
               {t(locale, "exp.new")}
             </h3>
-            <div style={two}>
+            <Grid cols={2}>
               <div>
-                <label style={{ display: "block" }}>
+                <label className="sp-field">
                   <L>{t(locale, "exp.date")}</L>
                   <input
                     name="date"
                     type="date"
                     defaultValue={new Date().toISOString().slice(0, 10)}
-                    style={inp}
+                    className="sp-input"
                   />
                 </label>
               </div>
               <div>
-                <label style={{ display: "block" }}>
+                <label className="sp-field">
                   <L>{t(locale, "exp.amount")}</L>
                   <input
                     name="amount"
                     type="number"
                     step="0.01"
-                    style={inp}
                     placeholder="0.00"
                     required
+                    className="sp-input"
                   />
                 </label>
               </div>
-            </div>
-            <label style={{ display: "block" }}>
+            </Grid>
+            <label className="sp-field">
               <L>{t(locale, "exp.category")}</L>
-              <select name="category" style={inp} defaultValue={CATS[0]}>
+              <select name="category" defaultValue={CATS[0]} className="sp-select">
                 {CATS.map((c) => (
                   <option key={c}>{c}</option>
                 ))}
               </select>
             </label>
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <L>{t(locale, "exp.vendor")}</L>
-              <input name="vendor" style={inp} />
+              <input name="vendor" className="sp-input" />
             </label>
-            {state.error && <div style={err}>{state.error}</div>}
+            {state.error && <Notice>{state.error}</Notice>}
             <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
               <Save locale={locale} />
               <button
@@ -204,13 +205,13 @@ function Kpi({ label, value, tone }: { label: string; value: string; tone: strin
 function Save({ locale }: { locale: Locale }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} style={btn}>
+    <Button type="submit" disabled={pending}>
       {pending ? t(locale, "common.saving") : `💾 ${t(locale, "common.save")}`}
-    </button>
+    </Button>
   );
 }
 function L({ children }: { children: React.ReactNode }) {
-  return <span style={lbl}>{children}</span>;
+  return <Label>{children}</Label>;
 }
 
 const btn: React.CSSProperties = {
@@ -221,28 +222,4 @@ const btn: React.CSSProperties = {
   borderRadius: 10,
   fontWeight: 700,
   cursor: "pointer",
-};
-const two: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 };
-const lbl: React.CSSProperties = {
-  fontSize: "0.8125rem",
-  fontWeight: 700,
-  color: "#334155",
-  display: "block",
-  margin: "10px 0 6px",
-};
-const inp: React.CSSProperties = {
-  width: "100%",
-  border: "1px solid #e2e8f0",
-  borderRadius: 10,
-  padding: "10px 12px",
-  fontSize: "0.875rem",
-  outline: "none",
-};
-const err: React.CSSProperties = {
-  background: "#fdeaea",
-  color: "#dc2626",
-  padding: "9px 12px",
-  borderRadius: 10,
-  fontSize: "0.8125rem",
-  marginTop: 10,
 };

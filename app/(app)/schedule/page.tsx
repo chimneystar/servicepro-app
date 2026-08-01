@@ -89,7 +89,7 @@ export default async function SchedulePage({
           marginBottom: 16,
         }}
       >
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>{t(locale, "sched.title")}</h1>
+        <h1 className="sp-heading sp-heading--lg">{t(locale, "sched.title")}</h1>
         <JobForm
           locale={locale}
           customers={custOpts}

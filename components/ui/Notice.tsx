@@ -1,10 +1,17 @@
 import type { HTMLAttributes } from "react";
-import { cx } from "./cx";
+import { cx, type SpaceStep } from "./cx";
 
 export type NoticeTone = "error" | "success" | "warning" | "info";
 
 export type NoticeProps = Omit<HTMLAttributes<HTMLDivElement>, "className"> & {
   tone?: NoticeTone;
+  /**
+   * Top margin, as a step from the spacing scale. The copies this replaces
+   * differed ONLY in this value — 8px, 10px and 12px — so it is a prop rather
+   * than three more variant classes, and it is a token step rather than a
+   * number so the scale stays the only place a spacing value is written.
+   */
+  mt?: SpaceStep;
   className?: string;
 };
 
@@ -18,11 +25,12 @@ export type NoticeProps = Omit<HTMLAttributes<HTMLDivElement>, "className"> & {
  * whole point of routing these through one component is that the announcement
  * comes with the colour rather than being remembered separately.
  */
-export default function Notice({ tone = "error", className, ...rest }: NoticeProps) {
+export default function Notice({ tone = "error", mt, className, ...rest }: NoticeProps) {
   return (
     <div
       role={tone === "error" ? "alert" : "status"}
       className={cx("sp-notice", tone !== "error" && `sp-notice--${tone}`, className)}
+      style={mt === undefined ? undefined : ({ "--sp-mt": `var(--sp-space-${mt})` } as object)}
       {...rest}
     />
   );

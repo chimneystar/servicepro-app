@@ -174,12 +174,12 @@ export default function LeadsBoard({ leads, orgId }: { leads: Lead[]; orgId: str
                 }}
               >
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 800, fontSize: "0.9375rem" }}>{l.name}</div>
-                  <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>
+                  <div className="sp-heading">{l.name}</div>
+                  <div className="sp-text-muted">
                     {[l.service, l.city].filter(Boolean).join(" · ") || "—"}
                   </div>
                   {l.preferred_date && (
-                    <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>
+                    <div className="sp-text-muted">
                       📅 Prefers{" "}
                       {new Date(l.preferred_date + "T00:00:00").toLocaleDateString("en-US")}
                     </div>

@@ -40,7 +40,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         <Link href="/invoices" style={back}>
           ‹ Invoices
         </Link>
-        <div style={{ padding: 40, textAlign: "center", color: "#5c6675" }}>Invoice not found.</div>
+        <div className="sp-empty">Invoice not found.</div>
       </div>
     );
   const activity = await loadActivity("invoices", id);

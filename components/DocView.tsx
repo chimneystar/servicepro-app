@@ -129,7 +129,7 @@ export default function DocView({
             Prepared for
           </div>
           <div style={{ fontSize: "1rem", fontWeight: 800 }}>{customer?.name}</div>
-          <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>
+          <div className="sp-text-muted">
             {[customer?.address, customer?.city].filter(Boolean).join(", ")}
             {customer?.phone ? ` · ${customer.phone}` : ""}
           </div>
@@ -160,12 +160,12 @@ export default function DocView({
                   }}
                 />
               )}
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="sp-flex-fill">
                 <div style={{ fontWeight: 700, fontSize: "0.875rem" }}>
                   {it.title || it.description}
                 </div>
                 {it.description && it.description !== it.title && (
-                  <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>{it.description}</div>
+                  <div className="sp-text-muted">{it.description}</div>
                 )}
                 <div style={{ fontSize: "0.75rem", color: "#9aa3b2" }}>
                   {(it.qty_milli / 1000).toLocaleString("en-US")} ×{" "}

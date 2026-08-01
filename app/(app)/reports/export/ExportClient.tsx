@@ -42,20 +42,25 @@ export default function ExportClient() {
       >
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
           <div>
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <span style={lbl}>From</span>
               <input
                 type="date"
                 value={from}
                 onChange={(e) => setFrom(e.target.value)}
-                style={inp}
+                className="sp-input sp-control--lg"
               />
             </label>
           </div>
           <div>
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <span style={lbl}>To</span>
-              <input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={inp} />
+              <input
+                type="date"
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+                className="sp-input sp-control--lg"
+              />
             </label>
           </div>
         </div>
@@ -97,14 +102,6 @@ const lbl: React.CSSProperties = {
   color: "#334155",
   display: "block",
   marginBottom: 5,
-};
-const inp: React.CSSProperties = {
-  width: "100%",
-  border: "1px solid #e2e8f0",
-  borderRadius: 10,
-  padding: "10px 12px",
-  fontSize: "1rem",
-  outline: "none",
 };
 const btn: React.CSSProperties = {
   background: "#2563eb",

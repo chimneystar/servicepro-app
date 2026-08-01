@@ -9,6 +9,7 @@ import {
 } from "@/app/(app)/jobs/[id]/actions";
 import { useAppLocale } from "@/components/LocaleProvider";
 import { ActionError, useActionStatus } from "@/components/ActionStatus";
+import { Button } from "@/components/ui";
 
 export type Check = { id: string; label: string; checked: boolean };
 
@@ -66,15 +67,14 @@ export default function JobChecklist({ jobId, items }: { jobId: string; items: C
           aria-label={he ? "הוספת סעיף לבדיקה…" : "Add checklist item…"}
           style={inp}
         />
-        <button
-          type="button"
+        <Button
           onClick={add}
           disabled={pending}
-          style={btn}
           aria-label={he ? "הוספת סעיף" : "Add item"}
+          size="md"
         >
           ➕
-        </button>
+        </Button>
       </div>
       <div style={{ display: "grid", gap: 8 }}>
         {items.map((it) => (
@@ -135,15 +135,6 @@ const inp: React.CSSProperties = {
   padding: "10px 12px",
   fontSize: "1rem",
   outline: "none",
-};
-const btn: React.CSSProperties = {
-  background: "#2563eb",
-  color: "#fff",
-  border: "none",
-  padding: "9px 15px",
-  borderRadius: 10,
-  fontWeight: 700,
-  cursor: "pointer",
 };
 const row: React.CSSProperties = {
   display: "flex",

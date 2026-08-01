@@ -6,6 +6,7 @@ import { useFormState, useFormStatus } from "react-dom";
 import { createClient } from "@/lib/supabase/client";
 import type { ActionResult } from "@/lib/documents";
 import type { CatalogItem } from "@/components/DocForm";
+import { Notice } from "@/components/ui";
 
 type Opt = { id: string; label: string };
 type Row = {
@@ -107,9 +108,14 @@ export default function DocEditor({
         people opened the same estimate.
       */}
       <input type="hidden" name="version" value={String(initial.version ?? "")} />
-      <label style={{ display: "block" }}>
+      <label className="sp-field">
         <span style={lbl}>Customer</span>
-        <select name="customer_id" defaultValue={initial.customer_id} style={inp} required>
+        <select
+          name="customer_id"
+          defaultValue={initial.customer_id}
+          required
+          className="sp-select sp-control--lg"
+        >
           {customers.map((c) => (
             <option key={c.id} value={c.id}>
               {c.label}
@@ -169,7 +175,7 @@ export default function DocEditor({
           <div
             style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginTop: 6 }}
           >
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <span style={miniLbl}>Qty</span>
               <input
                 name="qty"
@@ -180,7 +186,7 @@ export default function DocEditor({
                 style={cell}
               />
             </label>
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <span style={miniLbl}>Unit price</span>
               <input
                 name="price"
@@ -191,7 +197,7 @@ export default function DocEditor({
                 style={cell}
               />
             </label>
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <span style={miniLbl}>Cost</span>
               <input
                 name="cost"
@@ -274,32 +280,37 @@ export default function DocEditor({
       </button>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 14 }}>
-        <label style={{ display: "block" }}>
+        <label className="sp-field">
           <span style={lbl}>Discount</span>
           <input
             name="discount"
             type="number"
             step="0.01"
             defaultValue={initial.discount}
-            style={inp}
+            className="sp-input sp-control--lg"
           />
         </label>
-        <label style={{ display: "block" }}>
+        <label className="sp-field">
           <span style={lbl}>Date</span>
-          <input name="issue_date" type="date" defaultValue={initial.issue_date} style={inp} />
+          <input
+            name="issue_date"
+            type="date"
+            defaultValue={initial.issue_date}
+            className="sp-input sp-control--lg"
+          />
         </label>
       </div>
       {kind === "estimate" && (
         <div style={{ marginTop: 10 }}>
-          <label style={{ display: "block" }}>
+          <label className="sp-field">
             <span style={lbl}>Deposit to request (optional)</span>
             <input
               name="deposit"
               type="number"
               step="0.01"
               defaultValue={initial.deposit ?? "0"}
-              style={inp}
               placeholder="0.00"
+              className="sp-input sp-control--lg"
             />
           </label>
           <div style={{ fontSize: "0.75rem", color: "#5c6675", marginTop: 4 }}>
@@ -310,12 +321,17 @@ export default function DocEditor({
       <div style={{ textAlign: "end", fontSize: "0.8125rem", color: "#5c6675", margin: "6px 2px" }}>
         Items subtotal ≈ ${(subtotal / 100).toFixed(2)} · tax &amp; total recalculated on save
       </div>
-      <label style={{ display: "block" }}>
+      <label className="sp-field">
         <span style={lbl}>Notes</span>
-        <textarea name="notes" rows={3} defaultValue={initial.notes} style={inp} />
+        <textarea
+          name="notes"
+          rows={3}
+          defaultValue={initial.notes}
+          className="sp-textarea sp-control--lg"
+        />
       </label>
 
-      {state.error && <div style={err}>{state.error}</div>}
+      {state.error && <Notice mt={5}>{state.error}</Notice>}
       <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
         <Save />
         <button
@@ -408,12 +424,4 @@ const xBtn: React.CSSProperties = {
   padding: "6px 9px",
   cursor: "pointer",
   flexShrink: 0,
-};
-const err: React.CSSProperties = {
-  background: "#fdeaea",
-  color: "#dc2626",
-  padding: "9px 12px",
-  borderRadius: 10,
-  fontSize: "0.8125rem",
-  marginTop: 12,
 };

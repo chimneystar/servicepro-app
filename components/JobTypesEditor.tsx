@@ -10,6 +10,7 @@ import {
 } from "@/app/(app)/settings/jobtypes-actions";
 import type { Locale } from "@/lib/i18n";
 import Modal from "@/components/Modal";
+import { Button, Grid, Label, Notice } from "@/components/ui";
 
 export type JobType = {
   id: string;
@@ -72,9 +73,7 @@ export default function JobTypesEditor({
           marginBottom: 12,
         }}
       >
-        <h3 style={{ fontSize: "0.9375rem", fontWeight: 800 }}>
-          {he ? "סוגי עבודות" : "Job types"}
-        </h3>
+        <h3 className="sp-heading">{he ? "סוגי עבודות" : "Job types"}</h3>
         <button type="button" onClick={() => open(null)} style={btn}>
           {he ? "הוספה" : "Add"}
         </button>
@@ -93,23 +92,23 @@ export default function JobTypesEditor({
           <span
             style={{ width: 14, height: 14, borderRadius: 4, background: tp.color, flexShrink: 0 }}
           />
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="sp-flex-fill">
             <b>{tp.name}</b>
-            <div style={{ fontSize: "0.75rem", color: "#5c6675" }}>
+            <div className="sp-text-muted-xs">
               {tp.duration_min} {he ? "דק׳" : "min"}
               {tp.default_price_minor
                 ? ` · ${cur}${(tp.default_price_minor / 100).toFixed(2)}`
                 : ""}
             </div>
           </div>
-          <button
-            type="button"
+          <Button
             onClick={() => open(tp)}
-            style={mini}
             aria-label={he ? "עריכה" : "Edit"}
+            variant="secondary"
+            size="sm"
           >
             ✎
-          </button>
+          </Button>
           <button
             type="button"
             onClick={() => del(tp.id)}
@@ -140,9 +139,9 @@ export default function JobTypesEditor({
             </h3>
             {editing && <input type="hidden" name="id" value={editing.id} />}
             <input type="hidden" name="color" value={color} />
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <L>{he ? "שם" : "Name"}</L>
-              <input name="name" defaultValue={editing?.name ?? ""} style={inp} required />
+              <input name="name" defaultValue={editing?.name ?? ""} required className="sp-input" />
             </label>
             <L>{he ? "צבע" : "Color"}</L>
             <div
@@ -168,33 +167,33 @@ export default function JobTypesEditor({
                 />
               ))}
             </div>
-            <div style={two}>
+            <Grid cols={2}>
               <div>
-                <label style={{ display: "block" }}>
+                <label className="sp-field">
                   <L>{he ? "משך בדקות" : "Duration (min)"}</L>
                   <input
                     name="duration"
                     type="number"
                     defaultValue={editing?.duration_min ?? 60}
-                    style={inp}
+                    className="sp-input"
                   />
                 </label>
               </div>
               <div>
-                <label style={{ display: "block" }}>
+                <label className="sp-field">
                   <L>{he ? "מחיר ברירת מחדל" : "Default price"}</L>
                   <input
                     name="price"
                     type="number"
                     step="0.01"
                     defaultValue={editing ? (editing.default_price_minor / 100).toFixed(2) : ""}
-                    style={inp}
                     placeholder="0.00"
+                    className="sp-input"
                   />
                 </label>
               </div>
-            </div>
-            {state.error && <div style={err}>{state.error}</div>}
+            </Grid>
+            {state.error && <Notice>{state.error}</Notice>}
             <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
               <Save locale={locale} />
               <button
@@ -221,7 +220,7 @@ function Save({ locale }: { locale: Locale }) {
   );
 }
 function L({ children }: { children: React.ReactNode }) {
-  return <span style={lbl}>{children}</span>;
+  return <Label>{children}</Label>;
 }
 const btn: React.CSSProperties = {
   background: "#2b66f6",
@@ -239,28 +238,4 @@ const mini: React.CSSProperties = {
   padding: "5px 8px",
   cursor: "pointer",
   fontSize: "0.8125rem",
-};
-const two: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 };
-const lbl: React.CSSProperties = {
-  fontSize: "0.8125rem",
-  fontWeight: 700,
-  color: "#334155",
-  display: "block",
-  margin: "10px 0 6px",
-};
-const inp: React.CSSProperties = {
-  width: "100%",
-  border: "1px solid #e2e8f0",
-  borderRadius: 10,
-  padding: "10px 12px",
-  fontSize: "0.875rem",
-  outline: "none",
-};
-const err: React.CSSProperties = {
-  background: "#fdeaea",
-  color: "#dc2626",
-  padding: "9px 12px",
-  borderRadius: 10,
-  fontSize: "0.8125rem",
-  marginTop: 10,
 };

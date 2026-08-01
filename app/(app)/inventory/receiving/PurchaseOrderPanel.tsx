@@ -94,7 +94,7 @@ export default function PurchaseOrderPanel({
               <div>
                 <b>{po.po_number}</b>
                 {po.vendor ? ` · ${po.vendor}` : ""}
-                <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>
+                <div className="sp-text-muted">
                   {po.status.replaceAll("_", " ")}
                   {po.expected_date ? ` · expected ${po.expected_date}` : ""}
                   {settled === "received" && po.status !== "received" ? " · all lines are in" : ""}
@@ -120,7 +120,7 @@ export default function PurchaseOrderPanel({
                   >
                     <div style={{ flex: 1, minWidth: 160 }}>
                       <div style={{ fontWeight: 600 }}>{line.description}</div>
-                      <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>
+                      <div className="sp-text-muted">
                         {formatQtyMilli(line.received_qty_milli)} / {formatQtyMilli(line.qty_milli)}{" "}
                         received · {money(line.unit_cost_minor, currency)} each
                         {!line.inventory_item_id && (
@@ -143,9 +143,7 @@ export default function PurchaseOrderPanel({
                   </div>
                 );
               })}
-              {po.lines.length === 0 && (
-                <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>No lines yet.</div>
-              )}
+              {po.lines.length === 0 && <div className="sp-text-muted">No lines yet.</div>}
             </div>
 
             <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>

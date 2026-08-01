@@ -103,13 +103,13 @@ export default function ShareDoc({
 
       {mode === "email" ? (
         <>
-          <label style={{ display: "block" }}>
+          <label className="sp-field">
             <span style={lbl}>Send to email</span>
             <input
               value={to}
               onChange={(e) => setTo(e.target.value)}
               placeholder="client@email.com"
-              style={inp}
+              className="sp-input sp-control--lg"
             />
           </label>
           <button
@@ -123,13 +123,13 @@ export default function ShareDoc({
         </>
       ) : (
         <>
-          <label style={{ display: "block" }}>
+          <label className="sp-field">
             <span style={lbl}>Send to phone</span>
             <input
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="+1 555 123 4567"
-              style={inp}
+              className="sp-input sp-control--lg"
             />
           </label>
           <button

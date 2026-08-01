@@ -30,8 +30,8 @@ export default async function ArchivePage() {
         }}
       >
         <div>
-          <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>Archive (legacy records)</h1>
-          <p style={{ color: "#5c6675", fontSize: "0.8125rem" }}>
+          <h1 className="sp-heading sp-heading--lg">Archive (legacy records)</h1>
+          <p className="sp-text-muted">
             {(data ?? []).length} archived · kept separate from your active data
           </p>
         </div>

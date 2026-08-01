@@ -10,6 +10,7 @@ import {
 } from "@/app/(app)/settings/jobstatuses-actions";
 import type { Locale } from "@/lib/i18n";
 import Modal from "@/components/Modal";
+import { Button, Grid, Label, Notice } from "@/components/ui";
 
 export type JobStatus = {
   id: string;
@@ -71,9 +72,7 @@ export default function JobStatusesEditor({
           marginBottom: 12,
         }}
       >
-        <h3 style={{ fontSize: "0.9375rem", fontWeight: 800 }}>
-          {he ? "סטטוסים לעבודות" : "Job statuses"}
-        </h3>
+        <h3 className="sp-heading">{he ? "סטטוסים לעבודות" : "Job statuses"}</h3>
         <button type="button" onClick={() => open(null)} style={btn}>
           {he ? "הוספה" : "Add"}
         </button>
@@ -92,7 +91,7 @@ export default function JobStatusesEditor({
           <span
             style={{ width: 14, height: 14, borderRadius: 4, background: s.color, flexShrink: 0 }}
           />
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="sp-flex-fill">
             <b>{s.name}</b>
             {s.is_done && (
               <span style={{ fontSize: "0.8125rem", color: "#15803d", marginInlineStart: 6 }}>
@@ -105,14 +104,14 @@ export default function JobStatusesEditor({
               </span>
             )}
           </div>
-          <button
-            type="button"
+          <Button
             onClick={() => open(s)}
-            style={mini}
             aria-label={he ? "עריכה" : "Edit"}
+            variant="secondary"
+            size="sm"
           >
             ✎
-          </button>
+          </Button>
           <button
             type="button"
             onClick={() => del(s.id)}
@@ -137,14 +136,14 @@ export default function JobStatusesEditor({
             </h3>
             {editing && <input type="hidden" name="id" value={editing.id} />}
             <input type="hidden" name="color" value={color} />
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <L>{he ? "שם" : "Name"}</L>
               <input
                 name="name"
                 defaultValue={editing?.name ?? ""}
-                style={inp}
                 required
                 placeholder={he ? "למשל: ממתינים לחלק" : "For example: Waiting on parts"}
+                className="sp-input"
               />
             </label>
             <L>{he ? "צבע" : "Color"}</L>
@@ -171,25 +170,34 @@ export default function JobStatusesEditor({
                 />
               ))}
             </div>
-            <div style={two}>
+            <Grid cols={2}>
               <div>
-                <label style={{ display: "block" }}>
+                <label className="sp-field">
                   <L>{he ? "סדר תצוגה" : "Display order"}</L>
-                  <input name="sort" type="number" defaultValue={editing?.sort ?? 50} style={inp} />
+                  <input
+                    name="sort"
+                    type="number"
+                    defaultValue={editing?.sort ?? 50}
+                    className="sp-input"
+                  />
                 </label>
               </div>
               <div>
-                <label style={{ display: "block" }}>
+                <label className="sp-field">
                   <L>{he ? "סוג" : "Type"}</L>
-                  <select name="kind" defaultValue={editing ? kindOf(editing) : "open"} style={inp}>
+                  <select
+                    name="kind"
+                    defaultValue={editing ? kindOf(editing) : "open"}
+                    className="sp-select"
+                  >
                     <option value="open">{he ? "פתוח / בתהליך" : "Open / in progress"}</option>
                     <option value="done">{he ? "הושלם" : "Done"}</option>
                     <option value="cancelled">{he ? "בוטל" : "Cancelled"}</option>
                   </select>
                 </label>
               </div>
-            </div>
-            {state.error && <div style={err}>{state.error}</div>}
+            </Grid>
+            {state.error && <Notice>{state.error}</Notice>}
             <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
               <Save locale={locale} />
               <button
@@ -216,7 +224,7 @@ function Save({ locale }: { locale: Locale }) {
   );
 }
 function L({ children }: { children: React.ReactNode }) {
-  return <span style={lbl}>{children}</span>;
+  return <Label>{children}</Label>;
 }
 const btn: React.CSSProperties = {
   background: "#2b66f6",
@@ -234,28 +242,4 @@ const mini: React.CSSProperties = {
   padding: "5px 8px",
   cursor: "pointer",
   fontSize: "0.8125rem",
-};
-const two: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 };
-const lbl: React.CSSProperties = {
-  fontSize: "0.8125rem",
-  fontWeight: 700,
-  color: "#334155",
-  display: "block",
-  margin: "10px 0 6px",
-};
-const inp: React.CSSProperties = {
-  width: "100%",
-  border: "1px solid #e2e8f0",
-  borderRadius: 10,
-  padding: "10px 12px",
-  fontSize: "0.875rem",
-  outline: "none",
-};
-const err: React.CSSProperties = {
-  background: "#fdeaea",
-  color: "#dc2626",
-  padding: "9px 12px",
-  borderRadius: 10,
-  fontSize: "0.8125rem",
-  marginTop: 10,
 };

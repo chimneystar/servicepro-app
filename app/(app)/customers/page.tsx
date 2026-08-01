@@ -37,10 +37,8 @@ export default async function CustomersPage({
         }}
       >
         <div>
-          <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>{t(locale, "cust.title")}</h1>
-          <p style={{ color: "#5c6675", fontSize: "0.8125rem" }}>
-            {t(locale, "cust.count", { n: customers?.length ?? 0 })}
-          </p>
+          <h1 className="sp-heading sp-heading--lg">{t(locale, "cust.title")}</h1>
+          <p className="sp-text-muted">{t(locale, "cust.count", { n: customers?.length ?? 0 })}</p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <Link

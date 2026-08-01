@@ -170,7 +170,7 @@ export default async function ReportsPage({
           gap: 10,
         }}
       >
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>{t(locale, "nav.reports")}</h1>
+        <h1 className="sp-heading sp-heading--lg">{t(locale, "nav.reports")}</h1>
         <div style={{ display: "flex", background: "#eef2f8", borderRadius: 10, padding: 3 }}>
           {pill("month", "This month")}
           {pill("year", "This year")}

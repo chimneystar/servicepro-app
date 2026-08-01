@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { recordStockMovement } from "../actions";
 // @ts-ignore — pure logic, unit-tested in tests/inventory.test.mjs
 import { formatQtyMilli } from "@/lib/core/inventory.mjs";
+import { Button, Notice } from "@/components/ui";
 
 type ItemRow = { id: string; name: string; unit: string; quantity_milli: number };
 
@@ -43,9 +44,9 @@ export default function MovementForm({ items }: { items: ItemRow[] }) {
 
   if (!open) {
     return (
-      <button type="button" onClick={() => setOpen(true)} style={btn}>
+      <Button onClick={() => setOpen(true)} size="md">
         ➕ Record a stock movement
-      </button>
+      </Button>
     );
   }
 
@@ -55,7 +56,12 @@ export default function MovementForm({ items }: { items: ItemRow[] }) {
       style={{ background: "#f8fbff", border: "1px solid #e2e8f0", borderRadius: 12, padding: 14 }}
     >
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 8 }}>
-        <select name="itemId" style={inp} required aria-label="Choose an item">
+        <select
+          name="itemId"
+          required
+          aria-label="Choose an item"
+          className="sp-select sp-control--lg"
+        >
           <option value="">Choose an item</option>
           {items.map((i) => (
             <option key={i.id} value={i.id}>
@@ -65,10 +71,10 @@ export default function MovementForm({ items }: { items: ItemRow[] }) {
         </select>
         <select
           name="kind"
-          style={inp}
           value={kind}
           onChange={(e) => setKind(e.target.value)}
           aria-label="Movement type"
+          className="sp-select sp-control--lg"
         >
           <option value="receipt">Received in</option>
           <option value="consumption">Used</option>
@@ -90,11 +96,11 @@ export default function MovementForm({ items }: { items: ItemRow[] }) {
           min="0.001"
           placeholder="Quantity"
           aria-label="Quantity"
-          style={inp}
           required
+          className="sp-input sp-control--lg"
         />
         {kind === "adjustment" && (
-          <select name="direction" style={inp} aria-label="Direction">
+          <select name="direction" aria-label="Direction" className="sp-select sp-control--lg">
             <option value="in">Add</option>
             <option value="out">Remove</option>
           </select>
@@ -106,7 +112,7 @@ export default function MovementForm({ items }: { items: ItemRow[] }) {
           min="0"
           placeholder="Unit cost (optional)"
           aria-label="Unit cost (optional)"
-          style={inp}
+          className="sp-input sp-control--lg"
         />
       </div>
       <input
@@ -117,9 +123,9 @@ export default function MovementForm({ items }: { items: ItemRow[] }) {
         required
       />
       {error && (
-        <div role="alert" style={errBox}>
+        <Notice role="alert" mt={3}>
           {error}
-        </div>
+        </Notice>
       )}
       {needsOverride && (
         <label style={{ display: "block", fontSize: "0.8125rem", color: "#9a3412", marginTop: 8 }}>
@@ -128,9 +134,9 @@ export default function MovementForm({ items }: { items: ItemRow[] }) {
         </label>
       )}
       <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-        <button type="submit" disabled={pending} style={btn}>
+        <Button type="submit" disabled={pending} size="md">
           {pending ? "Saving…" : "Save movement"}
-        </button>
+        </Button>
         <button
           type="button"
           onClick={() => {
@@ -163,12 +169,4 @@ const inp: React.CSSProperties = {
   padding: "10px 12px",
   fontSize: "1rem",
   outline: "none",
-};
-const errBox: React.CSSProperties = {
-  background: "#fdeaea",
-  color: "#dc2626",
-  padding: "8px 12px",
-  borderRadius: 10,
-  fontSize: "0.8125rem",
-  marginTop: 8,
 };

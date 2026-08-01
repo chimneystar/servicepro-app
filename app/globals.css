@@ -545,9 +545,6 @@ video {
   /* Surfaces. */
   --sp-surface: #ffffff; /* 75 uses as `background` */
   --sp-surface-sunken: #eef2f8; /* 45 */
-  --sp-surface-muted: #eef1f6; /* 23 */
-  --sp-surface-alt: #f1f4f9; /* 15 */
-  --sp-surface-tint: #f8fbff; /* 12 */
 
   /* Lines. */
   --sp-border: #e2e8f0; /* 134 */
@@ -560,14 +557,22 @@ video {
 
   /* Status. */
   --sp-danger: #dc2626; /* 41 */
-  --sp-danger-strong: #b91c1c; /* 12 */
   --sp-danger-soft: #fdeaea; /* 53 — the error box */
   --sp-success: #15803d; /* 36 */
   --sp-success-soft: #e6f6ec; /* 16 */
   --sp-warning: #9a3412; /* 21 */
-  --sp-warning-strong: #b45309; /* 14 */
   --sp-warning-soft: #fff7ed; /* 15 */
-  --sp-warning-border: #fed7aa; /* 10 */
+
+  /* MEASURED BUT NOT DECLARED. These are real values with real usage counts,
+     and they are written here as prose rather than as tokens because no
+     primitive reads them yet: #eef1f6 (23), #f1f4f9 (15), #f8fbff (12) as
+     surfaces; #b91c1c (12) as a pressed danger; #b45309 (14) and #fed7aa (10)
+     as the warning pair; rgba(15,42,94,.06) (11) as the card shadow. A token
+     nobody reads is not a source of truth, it is a second place to look, so
+     tests/design-system.test.mjs refuses one — add these back the moment a
+     primitive needs them, with the count that justifies it. The ladders
+     (font/space/radius/weight) are exempt from that rule, because a scale is
+     declared whole or it is not a scale. */
 
   /* Radius. The ladder the product actually uses; 9px and 16px exist too but
      with 26 and 5 uses they are one-offs, not a step. */
@@ -592,10 +597,6 @@ video {
   --sp-space-10: 24px;
   --sp-space-12: 32px;
   --sp-space-14: 40px;
-
-  /* Elevation. */
-  --sp-shadow-sm: 0 1px 2px rgba(15, 42, 94, 0.06);
-  --sp-shadow-md: 0 6px 18px rgba(15, 42, 94, 0.06); /* 11 */
 
   /* TYPE SCALE. rem only, and that is load-bearing — see the A1/A2 block
      further down this file. A `px` here would silently opt every primitive out
@@ -8371,10 +8372,10 @@ html[data-theme="dark"] [style*="background: rgb(255, 255, 255)"] {
   background: var(--sp-surface);
   color: var(--sp-text);
 }
-.sp-textarea.sp-textarea.sp-textarea {
-  min-height: 5rem;
-  resize: vertical;
-}
+/* No `min-height` and no `resize` here. Both were invented by this pass, and
+   the objects being replaced had neither — a migrated textarea that suddenly
+   grew a 5rem floor is a repaint. `resize: vertical` is the base reset's job
+   and it already does it, a few hundred lines up. */
 /* The other size in the product: `font-size:1rem` on the same box (12 uses). */
 .sp-input.sp-input.sp-input.sp-control--lg,
 .sp-select.sp-select.sp-select.sp-control--lg,
@@ -8388,6 +8389,10 @@ html[data-theme="dark"] [style*="background: rgb(255, 255, 255)"] {
      margin:10px 0 6px */
 .sp-label.sp-label.sp-label {
   display: block;
+  /* The object this replaces was `margin: "10px 0 6px"`, so the inline sides
+     were explicitly zero. Stated rather than left to the initial value, because
+     the check in tests/design-system.test.mjs compares what is DECLARED. */
+  margin-inline: 0;
   margin-block: var(--sp-space-4) var(--sp-space-2);
   color: var(--sp-text-strong);
   font-size: var(--sp-font-sm);
@@ -8403,7 +8408,7 @@ html[data-theme="dark"] [style*="background: rgb(255, 255, 255)"] {
      background:#fdeaea; color:#dc2626; padding:9px 12px; border-radius:10px;
      font-size:0.8125rem; margin-top:10px */
 .sp-notice.sp-notice.sp-notice {
-  margin-block-start: var(--sp-space-4);
+  margin-block-start: var(--sp-mt, var(--sp-space-4));
   border-radius: var(--sp-radius-md);
   padding-block: 9px;
   padding-inline: var(--sp-space-5);
@@ -8510,6 +8515,14 @@ html[data-theme="dark"] [style*="background: rgb(255, 255, 255)"] {
   color: var(--sp-text-muted);
   font-size: var(--sp-font-sm);
 }
+/* The SAME colour one step down the scale — 8 call sites. This is a separate
+   class rather than a `--xs` modifier on the subtle one because the two are not
+   the same grey: subtle is #94a3b8 and muted is #5c6675. Collapsing them was
+   the first thing tests/design-system.test.mjs caught, in 8 places. */
+.sp-text-muted-xs.sp-text-muted-xs.sp-text-muted-xs {
+  color: var(--sp-text-muted);
+  font-size: var(--sp-font-xs);
+}
 .sp-text-subtle.sp-text-subtle.sp-text-subtle {
   color: var(--sp-text-subtle);
   font-size: var(--sp-font-xs);
@@ -8523,6 +8536,15 @@ html[data-theme="dark"] [style*="background: rgb(255, 255, 255)"] {
 }
 .sp-heading.sp-heading.sp-heading.sp-heading--lg {
   font-size: var(--sp-font-4xl);
+}
+
+/* --- Flexible cell -------------------------------------------------------
+   `flex: 1; min-width: 0` — 16 exact copies. The `min-width: 0` is the whole
+   point of it: without it a flex child refuses to shrink below its content and
+   a long customer name pushes the row's actions off the screen. */
+.sp-flex-fill.sp-flex-fill.sp-flex-fill {
+  flex: 1;
+  min-width: 0;
 }
 
 /* --- Inline link ---------------------------------------------------------

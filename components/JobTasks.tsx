@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { addJobTask, toggleJobTask, deleteJobTask } from "@/app/(app)/jobs/[id]/actions";
 import { useAppLocale } from "@/components/LocaleProvider";
 import { ActionError, useActionStatus } from "@/components/ActionStatus";
+import { Button } from "@/components/ui";
 
 export type Task = { id: string; title: string; done: boolean };
 
@@ -45,15 +46,14 @@ export default function JobTasks({ jobId, tasks }: { jobId: string; tasks: Task[
           aria-label={he ? "הוספת משימה…" : "Add a task…"}
           style={inp}
         />
-        <button
-          type="button"
+        <Button
           onClick={add}
           disabled={pending}
-          style={btn}
           aria-label={he ? "הוספת משימה" : "Add task"}
+          size="md"
         >
           ➕
-        </button>
+        </Button>
       </div>
       <div style={{ display: "grid", gap: 8 }}>
         {tasks.map((t) => (
@@ -112,15 +112,6 @@ const inp: React.CSSProperties = {
   padding: "10px 12px",
   fontSize: "1rem",
   outline: "none",
-};
-const btn: React.CSSProperties = {
-  background: "#2563eb",
-  color: "#fff",
-  border: "none",
-  padding: "9px 15px",
-  borderRadius: 10,
-  fontWeight: 700,
-  cursor: "pointer",
 };
 const row: React.CSSProperties = {
   display: "flex",

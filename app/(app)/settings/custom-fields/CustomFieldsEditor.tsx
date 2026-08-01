@@ -13,6 +13,7 @@ import {
 import type { CustomFieldDefinition } from "./load";
 import type { Locale } from "@/lib/i18n";
 import Modal from "@/components/Modal";
+import { Button, Label, Notice } from "@/components/ui";
 
 const initial: CustomFieldResult = { ok: false };
 
@@ -64,7 +65,7 @@ export default function CustomFieldsEditor({
           marginBottom: 4,
         }}
       >
-        <h3 style={{ fontSize: "0.9375rem", fontWeight: 800 }}>
+        <h3 className="sp-heading">
           {entityType === "customer"
             ? he
               ? "שדות לקוח"
@@ -92,12 +93,12 @@ export default function CustomFieldsEditor({
             borderTop: "1px solid #f1f4f9",
           }}
         >
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="sp-flex-fill">
             <b>
               {definition.label}
               {definition.required ? " *" : ""}
             </b>
-            <div style={{ fontSize: "0.75rem", color: "#5c6675" }}>
+            <div className="sp-text-muted-xs">
               {types[definition.field_type] ?? definition.field_type}
               {definition.field_type === "choice" && (definition.options_json ?? []).length
                 ? ` · ${(definition.options_json ?? []).join(", ")}`
@@ -105,18 +106,16 @@ export default function CustomFieldsEditor({
               {definition.active ? "" : ` · ${he ? "מוסתר" : "hidden"}`}
             </div>
           </div>
-          <button
-            type="button"
+          <Button
             onClick={() => open(definition)}
-            style={mini}
             aria-label={he ? "עריכה" : "Edit"}
+            variant="secondary"
+            size="sm"
           >
             ✎
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
             disabled={pending}
-            style={mini}
             onClick={() =>
               start(async () => {
                 const result = await setCustomFieldActive(definition.id, !definition.active);
@@ -124,9 +123,11 @@ export default function CustomFieldsEditor({
                 router.refresh();
               })
             }
+            variant="secondary"
+            size="sm"
           >
             {definition.active ? (he ? "הסתרה" : "Hide") : he ? "הצגה" : "Show"}
-          </button>
+          </Button>
           <button
             type="button"
             disabled={pending}
@@ -171,24 +172,24 @@ export default function CustomFieldsEditor({
             </h3>
             {editing && <input type="hidden" name="id" value={editing.id} />}
             <input type="hidden" name="entityType" value={entityType} />
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <L>{he ? "שם השדה" : "Field name"}</L>
               <input
                 name="label"
                 defaultValue={editing?.label ?? ""}
-                style={inp}
                 required
                 maxLength={80}
+                className="sp-input"
               />
             </label>
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <L>{he ? "סוג" : "Type"}</L>
               <select
                 name="fieldType"
-                style={inp}
                 value={fieldType}
                 onChange={(event) => setFieldType(event.target.value)}
                 disabled={Boolean(editing)}
+                className="sp-select"
               >
                 {Object.entries(types).map(([value, text]) => (
                   <option key={value} value={value}>
@@ -199,24 +200,24 @@ export default function CustomFieldsEditor({
             </label>
             {editing && <input type="hidden" name="fieldType" value={editing.field_type} />}
             {fieldType === "choice" && (
-              <label style={{ display: "block" }}>
+              <label className="sp-field">
                 <L>{he ? "אפשרויות (שורה לכל אפשרות)" : "Options (one per line)"}</L>
                 <textarea
                   name="options"
                   rows={4}
-                  style={inp}
                   defaultValue={(editing?.options_json ?? []).join("\n")}
+                  className="sp-textarea"
                 />
               </label>
             )}
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <L>{he ? "סדר הצגה" : "Sort order"}</L>
               <input
                 name="sort"
                 type="number"
                 min={0}
                 defaultValue={editing?.sort ?? 0}
-                style={inp}
+                className="sp-input"
               />
             </label>
             <label
@@ -232,7 +233,7 @@ export default function CustomFieldsEditor({
               <input type="checkbox" name="required" defaultChecked={editing?.required ?? false} />
               {he ? "שדה חובה" : "Required"}
             </label>
-            {state.error && <div style={err}>{state.error}</div>}
+            {state.error && <Notice>{state.error}</Notice>}
             <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
               <Save he={he} />
               <button
@@ -259,7 +260,7 @@ function Save({ he }: { he: boolean }) {
   );
 }
 function L({ children }: { children: React.ReactNode }) {
-  return <span style={lbl}>{children}</span>;
+  return <Label>{children}</Label>;
 }
 
 const btn: React.CSSProperties = {
@@ -278,27 +279,4 @@ const mini: React.CSSProperties = {
   padding: "5px 8px",
   cursor: "pointer",
   fontSize: "0.8125rem",
-};
-const lbl: React.CSSProperties = {
-  fontSize: "0.8125rem",
-  fontWeight: 700,
-  color: "#334155",
-  display: "block",
-  margin: "10px 0 6px",
-};
-const inp: React.CSSProperties = {
-  width: "100%",
-  border: "1px solid #e2e8f0",
-  borderRadius: 10,
-  padding: "10px 12px",
-  fontSize: "0.875rem",
-  outline: "none",
-};
-const err: React.CSSProperties = {
-  background: "#fdeaea",
-  color: "#dc2626",
-  padding: "9px 12px",
-  borderRadius: 10,
-  fontSize: "0.8125rem",
-  marginTop: 10,
 };

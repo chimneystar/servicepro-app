@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { money } from "@/lib/format";
 import { addJobItem, deleteJobItem, createInvoiceFromJob } from "@/app/(app)/jobs/[id]/actions";
 import { useAppLocale } from "@/components/LocaleProvider";
+import { Button, Notice } from "@/components/ui";
 
 export type Item = {
   id: string;
@@ -97,9 +98,9 @@ export default function JobItems({
         )}
       </div>
       {err && !adding && (
-        <div role="alert" style={errBox}>
+        <Notice role="alert" mt={3}>
           {err}
-        </div>
+        </Notice>
       )}
 
       {items.length > 0 && (
@@ -118,9 +119,9 @@ export default function JobItems({
       )}
 
       {canEdit && !adding && (
-        <button type="button" onClick={() => setAdding(true)} style={btn}>
+        <Button onClick={() => setAdding(true)} size="md">
           {he ? "הוספת פריט" : "Add item"}
-        </button>
+        </Button>
       )}
       {canEdit && items.length > 0 && (
         <button
@@ -148,8 +149,8 @@ export default function JobItems({
             name="description"
             placeholder={he ? "תיאור" : "Description"}
             aria-label={he ? "תיאור" : "Description"}
-            style={inp}
             autoFocus
+            className="sp-input sp-control--lg"
           />
           <div
             style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 8 }}
@@ -161,7 +162,7 @@ export default function JobItems({
               defaultValue="1"
               placeholder={he ? "כמות" : "Qty"}
               aria-label={he ? "כמות" : "Qty"}
-              style={inp}
+              className="sp-input sp-control--lg"
             />
             <input
               name="price"
@@ -169,7 +170,7 @@ export default function JobItems({
               step="0.01"
               placeholder={he ? "מחיר ליחידה" : "Unit price"}
               aria-label={he ? "מחיר ליחידה" : "Unit price"}
-              style={inp}
+              className="sp-input sp-control--lg"
             />
             <input
               name="cost"
@@ -177,14 +178,14 @@ export default function JobItems({
               step="0.01"
               placeholder={he ? "עלות" : "Cost"}
               aria-label={he ? "עלות" : "Cost"}
-              style={inp}
+              className="sp-input sp-control--lg"
             />
           </div>
-          {err && <div style={errBox}>{err}</div>}
+          {err && <Notice mt={3}>{err}</Notice>}
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-            <button type="submit" disabled={pending} style={btn}>
+            <Button type="submit" disabled={pending} size="md">
               {pending ? (he ? "שומרים…" : "Saving…") : he ? "שמירה" : "Save"}
-            </button>
+            </Button>
             <button
               type="button"
               onClick={() => setAdding(false)}
@@ -215,20 +216,4 @@ const xBtn: React.CSSProperties = {
   padding: "5px 8px",
   cursor: "pointer",
   marginInlineStart: 8,
-};
-const inp: React.CSSProperties = {
-  width: "100%",
-  border: "1px solid #e2e8f0",
-  borderRadius: 10,
-  padding: "10px 12px",
-  fontSize: "1rem",
-  outline: "none",
-};
-const errBox: React.CSSProperties = {
-  background: "#fdeaea",
-  color: "#dc2626",
-  padding: "8px 12px",
-  borderRadius: 10,
-  fontSize: "0.8125rem",
-  marginTop: 8,
 };

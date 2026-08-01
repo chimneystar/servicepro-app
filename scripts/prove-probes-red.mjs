@@ -174,6 +174,57 @@ const CASES = [
     replace: `.from("staff_notifications")\n    .upsert`,
     guards: "the inbox row is claimed before the push is attempted",
   },
+
+  // --- ledger 6.5, the design system --------------------------------------
+  // The four ways a design system rots quietly, each planted in real source.
+  {
+    id: "design-system/tokens-are-used-not-duplicated",
+    probe: "tests/design-system.test.mjs",
+    source: "app/globals.css",
+    find: `  background: var(--sp-accent);\n  color: var(--sp-text-on-accent);`,
+    replace: `  background: #2563eb;\n  color: var(--sp-text-on-accent);`,
+    guards: "no primitive spells a colour out again instead of reading the token",
+  },
+  {
+    id: "design-system/a-primitive-cannot-be-repainted",
+    probe: "tests/design-system.test.mjs",
+    source: "app/globals.css",
+    find: `--sp-text-muted: #5c6675;`,
+    replace: `--sp-text-muted: #66728a;`,
+    guards:
+      "every primitive still paints exactly what the inline object it replaced painted — " +
+      "this is the only thing standing in for a browser",
+  },
+  {
+    id: "design-system/primitives-out-specify-the-sheet",
+    probe: "tests/design-system.test.mjs",
+    source: "app/globals.css",
+    find: `.sp-notice.sp-notice.sp-notice {`,
+    replace: `.sp-notice {`,
+    guards:
+      "a primitive rule out-specifies the ~200 element-targeting selectors already in " +
+      "the sheet, as the inline style it replaced did",
+  },
+  {
+    id: "design-system/accessible-name-cannot-be-hidden",
+    probe: "tests/design-system.test.mjs",
+    source: "components/ui/Select.tsx",
+    find: `<select className={cls} aria-label={ariaLabel} aria-labelledby={ariaLabelledBy} {...rest} />`,
+    replace: `<select className={cls} {...rest} />`,
+    guards:
+      "a control primitive forwards its accessible name visibly, where a static scan " +
+      "can confirm it, rather than through a spread",
+  },
+  {
+    id: "typography/the-type-scale-cannot-leave-rem",
+    probe: "tests/typography.test.mjs",
+    source: "app/globals.css",
+    find: `--sp-font-sm: 0.8125rem;`,
+    replace: `--sp-font-sm: 13px;`,
+    guards:
+      "the 6.5 type scale is resolved through var() and held to rem, so a token cannot " +
+      "opt every primitive out of the Larger-text toggle at once",
+  },
 ];
 
 // The working tree is CRLF (core.autocrlf=true) while these anchors are written

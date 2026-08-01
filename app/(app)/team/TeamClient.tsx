@@ -18,6 +18,7 @@ import {
 import { describeInviteDelivery } from "@/lib/core/invitations.mjs";
 import { t, type Locale } from "@/lib/i18n";
 import { ActionError, useActionStatus } from "@/components/ActionStatus";
+import { Notice } from "@/components/ui";
 
 type Member = { id: string; full_name: string; role: string };
 type Invite = {
@@ -87,13 +88,13 @@ export default function TeamClient({
           style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}
         >
           <div style={{ flex: "1 1 200px" }}>
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <span style={lbl}>{t(locale, "team.email")}</span>
               <input name="email" type="email" required placeholder="tech@email.com" style={inp} />
             </label>
           </div>
           <div style={{ flex: "0 0 130px" }}>
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <span style={lbl}>{t(locale, "team.role")}</span>
               <select name="role" defaultValue="tech" style={inp}>
                 <option value="tech">{roleLabel("tech")}</option>
@@ -104,7 +105,7 @@ export default function TeamClient({
           </div>
           <SendBtn locale={locale} />
         </form>
-        {state.error && <div style={err}>{state.error}</div>}
+        {state.error && <Notice>{state.error}</Notice>}
         {/* An invitation that was saved but never emailed must not be reported
             as sent — that was the whole defect: no email was ever sent and the
             screen said the invitation had gone out. */}
@@ -199,9 +200,9 @@ export default function TeamClient({
           </h3>
           {invites.map((iv) => (
             <div key={iv.id} style={row}>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="sp-flex-fill">
                 <b>{iv.email}</b>
-                <div style={{ fontSize: "0.75rem", color: "#5c6675" }}>
+                <div className="sp-text-muted-xs">
                   {roleLabel(iv.role)} · {t(locale, "team.invited")}
                 </div>
                 <div
@@ -492,14 +493,6 @@ const rm: React.CSSProperties = {
   fontWeight: 700,
   fontSize: "0.8125rem",
   cursor: "pointer",
-};
-const err: React.CSSProperties = {
-  background: "#fdeaea",
-  color: "#dc2626",
-  padding: "9px 12px",
-  borderRadius: 10,
-  fontSize: "0.8125rem",
-  marginTop: 10,
 };
 const ok: React.CSSProperties = {
   background: "#e6f6ec",

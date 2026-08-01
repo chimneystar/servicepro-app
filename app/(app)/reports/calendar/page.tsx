@@ -146,7 +146,7 @@ export default async function CalendarFeedPage() {
       {expired.length > 0 && (
         <>
           <h3 style={h3}>Expired ({expired.length})</h3>
-          <p style={{ fontSize: "0.8125rem", color: "#5c6675" }}>
+          <p className="sp-text-muted">
             These have aged out and no longer serve anything. Rotate one to get a working URL again.
           </p>
           {expired.map((feed: Feed) => (
