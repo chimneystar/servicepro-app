@@ -1388,7 +1388,7 @@ written.
 | # | Task | Status |
 |---|---|---|
 | 6.1 | Generate Supabase types; remove `any` at the DB boundary | **PARTIAL** — the type system is installed and guarded: a `Database` type GENERATED from the migrations, all three clients typed against it, drift caught by a test. `any` as a type is **248 -> 152**. The remaining 152 are catalogued below; none of them is a `from()`/`select()` that is now unchecked. See note |
-| 6.2 | `lib/data/*` repository modules; mandatory pagination | **PARTIAL** — the mechanism is DONE and proven against a real database: `lib/data/db.ts` is a gateway a caller cannot forget to bound, and a repo-wide ratchet fails the build on any new unpaged read anywhere. Call-site migration is honest and incomplete; exact before/after counts in the note | REPLACE_STATUS |
+| 6.2 | `lib/data/*` repository modules; mandatory pagination | **DONE** — 15 repository modules / 228 functions behind one gateway a caller cannot forget to bound, proven against a real Postgres with 1001 rows. Unpaged list reads **130 -> 0**, and the ratchet's ceiling is now **0**, so the next one fails the build. Four new both-ways probes (21 -> 25). Six real truncation defects found and fixed along the way; two residual risks and one unrelated defect recorded. See note |
 | 6.3 | One action contract; error/loading boundaries per route group; toast primitive | TODO |
 | 6.4 | De-minify the long-line files; Prettier + max-len lint | **DONE** — 383 files reformatted, proven semantics-preserving file by file. See note |
 | 6.5 | Design system: tokens + ~15 primitives; retire 871 inline style objects | **PARTIAL** — tokens, 18 primitives and Tailwind's removal are DONE and proven; the migration is 238 of 1,587 style objects (15%). See note |
@@ -1459,6 +1459,20 @@ item and each needs its own probe:
   fire, since `organizations.tax_mode` is in the derived schema.
 
 **Note on 6.2 — the data layer, and how an unpaged read was made impossible rather than discouraged.**
+
+*The numbers, measured with `node scripts/unpaged-inventory.mjs` at every step.*
+
+| | before | after |
+|---|---|---|
+| unbounded list reads (silently truncate at 1000) | **130** | **0** |
+| reads going through the paging gateway | 0 | **224** |
+| repository modules / functions | 0 | **15 / 228** |
+| the ratchet's ceiling in `tests/data-layer.test.mjs` | — | **0** |
+| tests | 1,202 | **1,222** |
+| both-ways probes | 21 | **25** |
+
+Every read in the product is now one of: a single row, a head count, an explicitly bounded read below
+the server's cap, or a query the gateway ranges. `tests/unpaged-reads.json` is an **empty file**.
 
 *The problem, stated exactly.* PostgREST caps a response at 1000 rows and says nothing about it:
 HTTP 200, `error: null`, a thousand perfectly valid rows, and a missing remainder. Nothing above the
@@ -1535,12 +1549,26 @@ request, which `readPage` did not offer. The reason was real and the exception w
 moment one repository may bound itself for a good reason, the rule is advice, and advice is what
 produced the 130. The gateway grew `readPageWithTotal` instead.
 
-*Two false positives in the scanner, both fixed, because a false red is as damaging as a false
-green.* `readAll<{ customer_id: string | null }>(…)` contains a brace inside its TYPE ARGUMENT, so a
-"look back to the nearest brace" search began after the generic and reported two correctly-paged
-repositories as unbounded; the scanner now walks to the first unmatched paren and reads the callee.
-And a repository *documenting* why it does not call `.range()` failed the check that it does not call
-`.range()` — comments are stripped first.
+*Four false positives in the scanner, all fixed, because a false red is as damaging as a false green
+— it teaches everybody the guard is noise.*
+
+* `readAll<{ customer_id: string | null }>(…)` contains a brace inside its TYPE ARGUMENT, so a "look
+  back to the nearest brace" search began after the generic and reported two correctly-paged
+  repositories as unbounded. The scanner now walks to the first unmatched paren and reads the callee.
+* A repository *documenting* why it does not call `.range()` failed the check that it does not call
+  `.range()`. Comments are stripped first.
+* `GATEWAY` was `/read(All|AtMost|Page|Pages)\(/` and a regex alternation is first-match, so
+  `readPageWithTotal(` matched `readPage` and then failed on the following `(` — the newest primitive
+  was invisible and every query using it read as unbounded.
+* A query assembled across statements and bounded at the end (`let query = …; query = cond ? … : …;
+  await query.limit(1).maybeSingle()`) stopped at the first `;`. The scanner now follows the variable
+  and checks for a bound later **in the same function**; a bound in a different function does not
+  vouch for it, and the tests plant all three cases.
+
+*Where the guard is still only as good as a text scan.* It cannot resolve a numeric ceiling **imported
+from another module** — only ones declared in the same file, and only names declared once. That is why
+`CALENDAR_MAX_EVENTS` had to be found by reading rather than by the scan. Stated here rather than left
+for somebody to discover.
 
 *An explicit limit is not automatically a bound, and that cost real money.* The migration turned up
 `.limit(2000)` on `/reports`' aging report. PostgREST honours `min(limit, db-max-rows)`, so that read
@@ -1563,9 +1591,32 @@ truncated export, in the report the owner reads monthly.
   uses 500 deliberately for this reason and says so. The fix is a one-line change to that constant;
   it is not made here because it touches the export path's page arithmetic and belongs with its own
   probe.
-* `CALENDAR_MAX_EVENTS = 2000` (`lib/core/calendar.mjs:40`), used by
-  `app/api/calendar/[token]/route.ts`, is a ceiling above the cap — the subscribed calendar feed
-  stops at 1000 events. Left because that route was being edited concurrently.
+* `CALENDAR_MAX_EVENTS = 2000` (`lib/core/calendar.mjs:40`) was a ceiling above the cap, so the
+  subscribed calendar feed stopped at 1000 events. **This one is now fixed for free**: the feed reads
+  through `readAtMost`, which pages rather than clamps, so a limit of 2000 genuinely returns up to
+  2000. It is the clearest argument for the gateway — a call site that never changed became correct
+  because the primitive underneath it stopped lying.
+
+*The six real defects the migration found, all fixed.* None was hypothetical; each was a wrong number
+shown to somebody.
+
+1. **`/reports` aging report** — `.limit(2000)` returned 1000. The business was told what it was owed
+   on its first thousand unpaid invoices.
+2. **The dashboard** — `ROW_CEILING = 2000` with a "showing partial data" banner driven by
+   `isTruncated(rows, ROW_CEILING)`. The server returns 1000 and `isTruncated(1000, 2000)` is false,
+   so it was truncated *and* the warning built to say so could never fire.
+3. **Customer statements** (`lib/statements.ts`) — `STATEMENT_ROW_LIMIT = 1000`, exactly the cap, so
+   it bounded nothing. The worse half is `loadStatementForCron`, which feeds the nightly **dunning**
+   run: a truncated payment list makes paid invoices look unpaid, so the customer is chased for money
+   they have already sent.
+4. **The scheduled report emailed to the owner** (`lib/cron-tasks.ts`) — six reads at
+   `.limit(2000)`/`.limit(5000)`/`.limit(10000)`, every one of them silently answered with 1000.
+5. **The estimate detail screen** read `estimate_option_items` **with no filter at all** — every
+   option line in the organisation — and narrowed to the current estimate in JavaScript. Past 1000
+   rows it would start dropping the tiers of the estimate being displayed.
+6. **`refreshInvoicePaidState` / `reopenInvoiceIfUnderpaid`** computed credited totals from a
+   silently `undefined` result on a query error, so a transient failure could leave a fully-paid
+   invoice stuck unpaid or flip a paid one back.
 
 *A defect found while verifying the gates, deliberately NOT fixed here.* `tests/push.test.mjs` fails
 roughly one run in fifty, and it is **not flaky noise — it is intermittently catching a real bug.**
