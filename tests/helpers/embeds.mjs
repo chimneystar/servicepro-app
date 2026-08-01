@@ -30,7 +30,14 @@ export function foreignKeys(typesSource) {
   const out = [];
   let table = null;
   let pending = null;
-  for (const line of typesSource.split("\n")) {
+  // `.replace(/\r\n/g, "\n")` is load-bearing. `core.autocrlf` is on in this
+  // repository, so the generated file is written with LF and checked out with
+  // CRLF — and the table-name pattern below is anchored at end of line. Without
+  // this, every table read as null, every relationship looked like
+  // `null->customers`, and the guard reported the whole codebase as broken. It
+  // was caught by its own second assertion after a rebase, which is the point
+  // of having one.
+  for (const line of typesSource.replace(/\r\n/g, "\n").split("\n")) {
     const t = /^ {6}(\w+): \{$/.exec(line);
     if (t) table = t[1];
     const fk = /foreignKeyName: "([^"]+)"/.exec(line);

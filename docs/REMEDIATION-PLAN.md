@@ -1371,14 +1371,75 @@ written.
 ### Phase 7 — architecture + maintainability
 | # | Task | Status |
 |---|---|---|
-| 6.1 | Generate Supabase types; remove `any` at the DB boundary | TODO |
+| 6.1 | Generate Supabase types; remove `any` at the DB boundary | **PARTIAL** — the type system is installed and guarded: a `Database` type GENERATED from the migrations, all three clients typed against it, drift caught by a test. `any` as a type is **248 -> 152**. The remaining 152 are catalogued below; none of them is a `from()`/`select()` that is now unchecked. See note |
 | 6.2 | `lib/data/*` repository modules; mandatory pagination | TODO |
 | 6.3 | One action contract; error/loading boundaries per route group; toast primitive | TODO |
 | 6.4 | De-minify the long-line files; Prettier + max-len lint | **DONE** — 383 files reformatted, proven semantics-preserving file by file. See note |
 | 6.5 | Design system: tokens + ~15 primitives; retire 871 inline style objects | **PARTIAL** — tokens, 18 primitives and Tailwind's removal are DONE and proven; the migration is 238 of 1,587 style objects (15%). See note |
 | 6.6 | Accessibility: label association (`htmlFor` is currently used **zero** times), focus visibility, dialog semantics, button types | **PARTIAL** — both halves are now closed: the typographic half (owner findings A1 + A2) and the four named non-typographic defects, everywhere except two quarantined directories. Remaining: only 15 of the plugin rules are on, and nothing has been tested with a real screen reader or axe. See both notes |
-| 6.8 | **Thirteen unvalidated writes reach CHECK-constrained columns.** Found by the 6.1 typing work: `String(formData.get(...) ?? "default")` lands in a column with a database CHECK and nothing tests the value in between. A crafted POST — a server action is a public endpoint, the `<select>` in the UI is not the boundary — hits the constraint and the user gets a generic "couldn’t save". Sites: `support_cases.severity`, `support_sessions.access_level`, `release_records.risk_level`, `tax_jurisdictions.jurisdiction_type`, `tax_jurisdictions.applies_to`, `tax_filings.status`, `settlement_batches.status`, `estimate_followups.channel`, `consent_events.channel`, `privacy_requests.request_type`, `retention_holds.category`, `organizations.locale` (x2), plus `booking_settings.slot_interval_min` (CHECK 15/30/45/60/90/120 while every neighbouring field is clamped and this one is not). **`organizations.locale` is the sharpest**: `updateSettings` writes `locale: lang` and THEN tests `lang === "en" || lang === "he"` — the check runs after the write and only gates the cookie, so it never protects the column; `onboarding/page.tsx` validates the same value for the catalogue pack on one line and writes the raw value on the next. Both found independently by two agents. The update result is never checked, so the failure is silent: onboarding continues and the organisation keeps the default locale. | TODO |
+| 6.8 | **Thirteen unvalidated writes reach CHECK-constrained columns.** Found by the 6.1 typing work: `String(formData.get(...) ?? "default")` lands in a column with a database CHECK and nothing tests the value in between. A crafted POST — a server action is a public endpoint, the `<select>` in the UI is not the boundary — hits the constraint and the user gets a generic "couldn’t save". Sites: `support_cases.severity`, `support_sessions.access_level`, `release_records.risk_level`, `tax_jurisdictions.jurisdiction_type`, `tax_jurisdictions.applies_to`, `tax_filings.status`, `settlement_batches.status`, `estimate_followups.channel`, `consent_events.channel`, `privacy_requests.request_type`, `retention_holds.category`, `organizations.locale` (x2), plus `booking_settings.slot_interval_min` (CHECK 15/30/45/60/90/120 while every neighbouring field is clamped and this one is not). **`organizations.locale` is the sharpest**: `updateSettings` writes `locale: lang` and THEN tests `lang === "en" || lang === "he"` — the check runs after the write and only gates the cookie, so it never protects the column; `onboarding/page.tsx` validates the same value for the catalogue pack on one line and writes the raw value on the next. Both found independently by two agents. The update result is never checked, so the failure is silent: onboarding continues and the organisation keeps the default locale. | **DONE** — all fourteen validated before the write; see the 6.1 note |
 | 6.7 | Consolidate overlapping tables (line items, assignment models, permission systems) | TODO |
+
+
+**Note on 6.1 — what was generated, what it caught, and the 152 `any` that remain.**
+
+*The types are derived, not written.* `npm run db:types` applies every migration to an empty
+PostgreSQL (the PGlite harness from ledger 0.6) and reads the catalogue into
+`lib/supabase/database.types.ts`: 124 tables, 6 enums, 324 foreign keys, 38 callable functions.
+`tests/db-types.test.mjs` rebuilds it and fails when the committed file and the migrations disagree,
+plus a determinism check so it cannot fail at random. This is deliberately the same shape as the
+Supabase CLI's output, so the CLI could replace the file without touching a call site — but the CLI
+needs a linked cloud project and cannot run in CI here.
+
+It reads four things the CLI's generator does not:
+
+| what | count | why it matters |
+|---|---|---|
+| columns narrowed by a CHECK constraint | **99** | `check (col = any (array[...]))` is an enum written the long way, and it is most of the status columns in this product |
+| NOT NULL columns a BEFORE INSERT trigger supplies | **5** | `payments.provider`/`.normalized_status`/`.base_amount_minor` have their default dropped and are filled by `prepare_payment_row()`; demanding them would have broken four INSERT sites including the Stripe webhook |
+| STORED generated columns | **2** | `jobs.slot`, `industry_pack_items.pack_item_key` — naming one in an INSERT is a compile error, as the database already made it a runtime one |
+| function arguments as nullable unless STRICT | **38 functions** | Postgres has no NOT NULL on a parameter; `stamp_permission_change_context` is written entirely around nulls |
+
+*What it caught.* Three defect classes, each fixed in its own commit because each changes behaviour:
+
+1. **37 queries were returning HTTP 300 and nobody knew.** Migration 014's composite tenant-isolation
+   foreign keys made every `customers(...)` embed ambiguous to PostgREST (PGRST201). The dashboard,
+   jobs list, job detail, dispatch board, schedule, route sheet, tech screen, search, calendar feed,
+   reminder cron and push notifier were all affected. Guarded by `tests/postgrest-embeds.test.mjs`,
+   which re-derives the ambiguous pairs from the generated types, so a future migration that adds a
+   second foreign key between two tables names the queries it has just broken.
+2. **The 14 unvalidated writes of 6.8**, now validated before the write rather than by it.
+3. **A deposit could be taken and the job never created** — `jobs.service` is NOT NULL and
+   `leads.service` is not; the INSERT failed after payment and left only a console line.
+
+*The dependency pair was also wrong.* `@supabase/ssr@0.5.2` type-imports a path that
+`@supabase/supabase-js@2.110` no longer ships and calls `SupabaseClient` with the pre-2.5x generic
+order. `skipLibCheck` plus `Database = any` hid both; typed, every query collapsed to `never`
+(1,139 errors, none about our code). Realigned to `ssr@^0.12.4` + `supabase-js@^2.111.0`.
+
+*The 152 `any` that remain*, counted by `npm run count:any` (which strips comments and strings — a
+plain grep counts the English word and goes UP when someone explains a removal). **None of them is a
+`from()` or `select()` that has gone unchecked**; they are downstream of a typed read:
+
+| category | ~count | what it would take |
+|---|---|---|
+| `catch (e: any)` | 19 | mechanical: the repo's own `cause instanceof Error ? cause.message : String(cause)` idiom |
+| a `jsonb` column consumed as a typed record by a client component | ~12 | the fix belongs in the component (`AdminConsole`, `PrivacyCenter`, `AuditLog`), not the page: `retention_runs.summary`, `release_records.regression_checklist`, `permission_change_log.changes` are `Json` and are indexed as `Record<string, …>` with no validation anywhere on the path |
+| `(row: any) =>` in a callback over a typed read | ~60 | mechanical, one file at a time; the row type already infers |
+| a shared `.mjs` helper whose return type is still `string` | ~25 | a JSDoc `@returns` per helper, as was done for `assertVersionMatch`, `notificationOutcome`, `DUNNING_LADDER`, `JOB_STATUSES` and `KIND_TABLE` |
+| genuinely dynamic | 3 | `app/api/export/business/route.ts` walks ~120 tables from a manifest. It uses `createUntypedClient`, which `tests/db-types.test.mjs` pins to that one caller |
+
+*Three defects found and deliberately NOT fixed*, because they are behaviour changes outside this
+item and each needs its own probe:
+
+* `app/(app)/jobs/[id]/actions.ts:110` — **the AI job summary never names the customer.**
+  `Array.isArray(job.customers) ? job.customers[0]?.name : null` on a many-to-one embed: the embed is
+  an object, so the array branch is never taken and `customer` is always null. Line 833 of the same
+  file takes the object branch, which is the correct one.
+* `app/(app)/reports/commission/page.tsx:72-79` — `jobByInvoice` and `techByJob` are declared
+  `Record<string, string>` and fed `invoices.job_id` and `jobs.assigned_to`, both nullable.
+* `app/(app)/finance/page.tsx:31-35` — a fallback for "migration 035 not applied" that can no longer
+  fire, since `organizations.tax_mode` is in the derived schema.
 
 **Note on 6.4 — the real numbers, and how a 383-file diff was proven to change nothing.**
 
