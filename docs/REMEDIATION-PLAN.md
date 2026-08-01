@@ -1388,7 +1388,7 @@ written.
 | # | Task | Status |
 |---|---|---|
 | 6.1 | Generate Supabase types; remove `any` at the DB boundary | **PARTIAL** — the type system is installed and guarded: a `Database` type GENERATED from the migrations, all three clients typed against it, drift caught by a test. `any` as a type is **248 -> 152**. The remaining 152 are catalogued below; none of them is a `from()`/`select()` that is now unchecked. See note |
-| 6.2 | `lib/data/*` repository modules; mandatory pagination | TODO |
+| 6.2 | `lib/data/*` repository modules; mandatory pagination | **PARTIAL** — the mechanism is DONE and proven against a real database: `lib/data/db.ts` is a gateway a caller cannot forget to bound, and a repo-wide ratchet fails the build on any new unpaged read anywhere. Call-site migration is honest and incomplete; exact before/after counts in the note | REPLACE_STATUS |
 | 6.3 | One action contract; error/loading boundaries per route group; toast primitive | TODO |
 | 6.4 | De-minify the long-line files; Prettier + max-len lint | **DONE** — 383 files reformatted, proven semantics-preserving file by file. See note |
 | 6.5 | Design system: tokens + ~15 primitives; retire 871 inline style objects | **PARTIAL** — tokens, 18 primitives and Tailwind's removal are DONE and proven; the migration is 238 of 1,587 style objects (15%). See note |
