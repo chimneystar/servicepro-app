@@ -4,7 +4,15 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { freshDatabase, asUser, DB_DIR } from "./helpers/pg.mjs";
 import { fakePostgrest, countingPostgrest, DB_MAX_ROWS } from "./helpers/postgrest-fake.mjs";
-import { pageAll, PAGE_SIZE, clampLimit, isLastPage, pageBounds } from "../lib/core/paging.mjs";
+import {
+  pageAll,
+  PAGE_SIZE,
+  clampLimit,
+  isLastPage,
+  pageBounds,
+  pageWindow,
+  splitPage,
+} from "../lib/core/paging.mjs";
 
 // ---------------------------------------------------------------------------
 // THE ONLY WAY TO KNOW.
@@ -237,6 +245,45 @@ test("row-level security still applies to a paged read — paging is not a way a
     );
     await db.exec("reset role;");
   });
+  await db.close();
+});
+
+test("visible pagination walks a real table exactly once, and knows where it ends", async () => {
+  // readPage's over-read, against real rows. The failure this catches is a
+  // "Next" button on the last page: with 300 rows and a page of 100, page 2 is
+  // full and there is nothing after it, which an implementation that asks for
+  // exactly `size` rows cannot tell from a page that continues.
+  const SIZE = 100;
+  const TOTAL = 300;
+  const { db, orgId } = await databaseWithCustomers(TOTAL);
+  const supabase = fakePostgrest(db);
+
+  const readOnePage = async (page) => {
+    const { from, to } = pageWindow(page, SIZE);
+    const { data } = await supabase
+      .from("customers")
+      .select("id, name")
+      .eq("organization_id", orgId)
+      .order("name", { ascending: true })
+      .range(from, to);
+    return splitPage(data, SIZE);
+  };
+
+  const seen = [];
+  for (let page = 0; page < 5; page++) {
+    const { rows, hasMore } = await readOnePage(page);
+    seen.push(...rows);
+    assert.ok(rows.length <= SIZE, `page ${page} returned more than one page of rows`);
+    if (page < 2) assert.equal(hasMore, true, `page ${page} of 3 must offer a next page`);
+    if (page === 2) {
+      assert.equal(rows.length, SIZE, "the last page is exactly full");
+      assert.equal(hasMore, false, "...and must NOT offer a next page — this is the off-by-one");
+    }
+    if (!hasMore) break;
+  }
+
+  assert.equal(seen.length, TOTAL, "every row appeared");
+  assert.equal(new Set(seen.map((r) => r.id)).size, TOTAL, "and none appeared twice");
   await db.close();
 });
 

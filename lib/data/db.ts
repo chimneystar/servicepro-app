@@ -67,6 +67,8 @@ import {
   isLastPage,
   clampLimit,
   pageAll,
+  pageWindow,
+  splitPage,
 } from "@/lib/core/paging.mjs";
 
 export { POSTGREST_ROW_CAP, PAGE_SIZE, MAX_PAGES };
@@ -156,6 +158,12 @@ async function resolve<T>(source: string, query: PromiseLike<Resolved<T>>): Prom
  * still let a caller pass a builder it never ranged, and this does not.
  *
  * `source` is a label used in errors, e.g. `"customers.listActive"`.
+ *
+ * IF A PAGE FAILS, THE WHOLE READ FAILS. Pages already fetched are discarded
+ * rather than returned. That looks wasteful and is the only defensible choice:
+ * returning the first two pages of three is a SHORT ANSWER WITH NO ERROR, which
+ * is precisely the defect this module exists to remove. Losing the read is
+ * recoverable; a plausible wrong total is not.
  */
 export function readAll<T>(source: string, build: Build<T>): Promise<T[]> {
   return pageAll<T>((from, to) => resolve(source, build().range(from, to)), {
@@ -212,9 +220,10 @@ export async function readPage<T>(
 ): Promise<Page<T>> {
   const p = Math.max(0, Math.floor(page));
   const s = clampLimit(size);
-  const from = p * s;
-  const rows = await resolve(source, build().range(from, from + s));
-  return { rows: rows.slice(0, s), page: p, size: s, hasMore: rows.length > s };
+  const { from, to } = pageWindow(p, s);
+  const over = await resolve(source, build().range(from, to));
+  const { rows, hasMore } = splitPage(over, s);
+  return { rows, page: p, size: s, hasMore };
 }
 
 /**
