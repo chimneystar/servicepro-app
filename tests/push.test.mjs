@@ -248,7 +248,17 @@ test("a mismatched VAPID key pair is caught instead of failing on every send for
     b = vapidPair();
   assert.equal(checkVapidKeys(a.publicKey, a.privateKey).ok, true);
   assert.equal(checkVapidKeys(b.publicKey, a.privateKey).reason, "key_pair_mismatch");
-  assert.equal(checkVapidKeys(a.publicKey, toB64Url(randomBytes(16))).reason, "private_key_length");
+  // This asserted `private_key_length` for a 16-byte key. That expectation was
+  // itself built on the bug: it assumed a scalar shorter than 32 bytes is
+  // malformed BY LENGTH. It is not — a P-256 scalar is an integer, and roughly 1
+  // in 256 valid ones encode to 31 bytes or fewer. The honest reason 16 random
+  // bytes are wrong here is that they do not derive this public key, which is
+  // precisely what `key_pair_mismatch` says. Changed because the old expectation
+  // was untrue, not to make the suite pass.
+  assert.equal(checkVapidKeys(a.publicKey, toB64Url(randomBytes(16))).reason, "key_pair_mismatch");
+  // A length that CANNOT be a P-256 scalar is still refused by length.
+  assert.equal(checkVapidKeys(a.publicKey, toB64Url(randomBytes(33))).reason, "private_key_length");
+  assert.equal(checkVapidKeys(a.publicKey, "").reason, "private_key_length");
   assert.equal(checkVapidKeys(toB64Url(randomBytes(65)), a.privateKey).reason, "public_key_format");
   assert.deepEqual(publicKeyFromPrivate(fromB64Url(a.privateKey)), fromB64Url(a.publicKey));
 });
@@ -415,4 +425,51 @@ test("VAPID secrets are placeholders in .env.example and never real values", () 
       `${name} must be present and EMPTY in .env.example`,
     );
   }
+});
+
+// ---------------------------------------------------------------------------
+// A VALID key pair whose private scalar has a leading zero byte.
+//
+// The P-256 private key is a 256-bit integer, and a big-endian integer need not
+// occupy its full width: when the high byte is zero — about 1 pair in 256 — a
+// generator emitting the minimal encoding produces 31 bytes. `checkVapidKeys`
+// required exactly 32 and so rejected a correctly generated pair roughly 0.4% of
+// the time, reporting a properly configured business as `private_key_length` and
+// leaving push silently unavailable.
+//
+// It surfaced as this suite failing about 1 run in 50. That is exactly the shape
+// of a defect that gets "fixed" by padding the test until it stops complaining —
+// which would have kept the suite green and left the product broken.
+//
+// This test does not wait for luck. It generates until it finds a short scalar,
+// so the case is exercised on EVERY run.
+// ---------------------------------------------------------------------------
+test("a valid key pair with a short private scalar is accepted", () => {
+  let short = null;
+  for (let i = 0; i < 20000 && !short; i++) {
+    const ecdh = createECDH("prime256v1");
+    ecdh.generateKeys();
+    const priv = ecdh.getPrivateKey();
+    if (priv.length < 32) short = { priv, pub: ecdh.getPublicKey() };
+  }
+  assert.ok(short, "expected at least one scalar under 32 bytes in 20,000 tries");
+  assert.ok(short.priv.length < 32, `planted scalar is ${short.priv.length} bytes`);
+
+  const result = checkVapidKeys(toB64Url(short.pub), toB64Url(short.priv));
+  assert.equal(
+    result.ok,
+    true,
+    `a valid pair was refused as ${result.reason} because its scalar was ${short.priv.length} bytes`,
+  );
+
+  // And the derivation agrees, left-padded to the curve's width.
+  assert.deepEqual(publicKeyFromPrivate(short.priv), short.pub);
+});
+
+test("a genuinely wrong private key length is still refused", () => {
+  // The other direction. Accepting anything under 32 bytes would turn the fix
+  // into a hole: 16 bytes is not a P-256 scalar with leading zeros, it is a
+  // 128-bit key, and it must still be refused.
+  assert.equal(checkVapidKeys(toB64Url(randomBytes(65)), toB64Url(randomBytes(33))).ok, false);
+  assert.equal(checkVapidKeys(toB64Url(randomBytes(65)), "").ok, false);
 });
