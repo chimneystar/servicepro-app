@@ -233,11 +233,18 @@ test("the trash screen exists, is owner/office, and pages", () => {
     /\.not\("deleted_at", "is", null\)/,
     "the trash lists deleted rows and only deleted rows",
   );
+  // The bound is no longer written here at all: `pageDeletedRows` states a
+  // PAGE and lib/data/db.ts's `readPageWithTotal` applies the range. That is
+  // stronger than the `.range(from, to)` this used to assert, because a range
+  // the query cannot write is one it cannot omit — so the property checked is
+  // that the read goes through the gateway, and tests/data-layer.test.mjs
+  // proves the gateway ranges.
   assert.match(
     query,
-    /\.range\(range\.from, range\.to\)/,
+    /readPageWithTotal/,
     "an unpaginated list would stop at PostgREST's 1000-row cap",
   );
+  assert.doesNotMatch(query, /\.range\(/, "the repository must not bound itself");
   assert.match(
     page + query,
     /organization_id/,

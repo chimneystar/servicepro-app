@@ -67,19 +67,64 @@ const GATEWAY = /\bread(All|AtMost|Page|Pages)\s*\(/;
  * entire design, since a bound the caller cannot write is a bound the caller
  * cannot forget.
  *
- * Detected by looking back from `.from(` to the previous statement boundary. A
- * gateway call in that window means this chain is its `build` argument. The
- * window is deliberately short: matching a `readAll` from three statements
- * earlier would let an unbounded read hide behind an unrelated one.
+ * WHY THIS IS STRUCTURAL AND NOT A REGEX OVER THE PRECEDING TEXT. The first
+ * version looked back to the nearest `;`, `{` or `}` and asked whether a
+ * gateway call appeared after it. That reported two correctly-paged
+ * repositories as unbounded, because
+ *
+ *     readAll<{ customer_id: string | null }>( ... )
+ *
+ * contains a `{` INSIDE ITS TYPE ARGUMENT, so the search began after the
+ * generic and never saw the `readAll`. A false red is exactly as damaging as a
+ * false green — it teaches people the guard is noise — so this now finds the
+ * enclosing call properly: walk back to the first unmatched `(`, step over a
+ * balanced `<...>` type argument if one is there, and read the callee's name.
  */
+function enclosingCallee(source, index) {
+  let depth = 0;
+  let i = index - 1;
+  for (; i >= 0; i--) {
+    const c = source[i];
+    if (c === ")") depth++;
+    else if (c === "(") {
+      if (depth === 0) break; // the call this chain sits inside
+      depth--;
+    }
+  }
+  if (i < 0) return null;
+
+  let j = i - 1;
+  while (j >= 0 && /\s/.test(source[j])) j--;
+  // Step over a generic: readAll<T>( ... )
+  if (source[j] === ">") {
+    let angle = 0;
+    for (; j >= 0; j--) {
+      if (source[j] === ">") angle++;
+      else if (source[j] === "<") {
+        angle--;
+        if (angle === 0) {
+          j--;
+          break;
+        }
+      }
+    }
+    while (j >= 0 && /\s/.test(source[j])) j--;
+  }
+  let end = j + 1;
+  while (j >= 0 && /[A-Za-z0-9_$.]/.test(source[j])) j--;
+  return source.slice(j + 1, end) || null;
+}
+
 function insideGatewayCall(source, index) {
-  const before = source.slice(0, index);
-  const boundary = Math.max(
-    before.lastIndexOf(";"),
-    before.lastIndexOf("{"),
-    before.lastIndexOf("}"),
-  );
-  return GATEWAY.test(before.slice(boundary + 1));
+  // The chain sits inside the `build` callback, which sits inside the gateway
+  // call: `readAll(source, () => supabase.from(...))`. An arrow function's own
+  // parens are balanced, so the first UNMATCHED `(` walking back is the
+  // gateway's — and because a completed earlier statement has balanced parens
+  // too, a `readAll` from a previous line cannot be reached this way. That is
+  // what keeps the exemption narrow, and tests/data-layer.test.mjs plants
+  // exactly that case to prove it.
+  const callee = enclosingCallee(source, index);
+  return Boolean(callee) && GATEWAY.test(`${callee}(`);
 }
 
 /**

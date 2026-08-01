@@ -41,37 +41,26 @@ export default async function TrashPage({
   if (profile.role === "tech") redirect("/");
   const search = await searchParams;
   const page = Math.max(0, Number.parseInt(search.page ?? "0", 10) || 0);
-  const from = page * PAGE_SIZE;
-  const to = from + PAGE_SIZE - 1;
 
   const supabase = await createClient();
   const orgId = profile.organization_id!;
 
   const [customers, jobs, estimates, invoices] = await Promise.all([
-    deletedRows(supabase, orgId, "customers", "id, name, phone, email, archived", from, to),
-    deletedRows(
-      supabase,
-      orgId,
-      "jobs",
-      "id, service, status, scheduled_date, customer_id",
-      from,
-      to,
-    ),
+    deletedRows(supabase, orgId, "customers", "id, name, phone, email, archived", page),
+    deletedRows(supabase, orgId, "jobs", "id, service, status, scheduled_date, customer_id", page),
     deletedRows(
       supabase,
       orgId,
       "estimates",
       "id, number, status, issue_date, total_minor, customer_id",
-      from,
-      to,
+      page,
     ),
     deletedRows(
       supabase,
       orgId,
       "invoices",
       "id, number, status, issue_date, total_minor, customer_id, job_id, estimate_id",
-      from,
-      to,
+      page,
     ),
   ]);
 
@@ -311,10 +300,9 @@ async function deletedRows(
   // lib/data/crm.ts `pageDeletedRows` for why this goes around readAll/readPage.
   table: TrashTable,
   columns: string,
-  from: number,
-  to: number,
+  page: number,
 ) {
-  return crmRepo.pageDeletedRows(supabase, orgId, table, columns, { from, to });
+  return crmRepo.pageDeletedRows(supabase, orgId, table, columns, { page, size: PAGE_SIZE });
 }
 
 /**

@@ -145,6 +145,11 @@ export type Rangeable<T> = PromiseLike<Resolved<T>> & {
 /** A query shape. The gateway supplies the bound; this supplies everything else. */
 export type Build<T> = () => Rangeable<T>;
 
+/** The same, for a query built with `{ count: "exact" }` — see `readPageWithTotal`. */
+export type RangeableCounted<T> = PromiseLike<Resolved<T> & { count: number | null }> & {
+  range(from: number, to: number): PromiseLike<Resolved<T> & { count: number | null }>;
+};
+
 async function resolve<T>(source: string, query: PromiseLike<Resolved<T>>): Promise<T[]> {
   const { data, error } = await query;
   if (error) throw new DataError(source, error);
@@ -225,6 +230,44 @@ export async function readPage<T>(
   const over = await resolve(source, build().range(from, to));
   const { rows, hasMore } = splitPage(over, s);
   return { rows, page: p, size: s, hasMore };
+}
+
+/** One page plus the TRUE total number of matching rows. */
+export type CountedPage<T> = {
+  readonly rows: T[];
+  readonly page: number;
+  readonly size: number;
+  readonly total: number;
+};
+
+/**
+ * One page, and how many rows there are altogether.
+ *
+ * `readPage` answers "is there another page?", which is all a Next button
+ * needs. A screen that prints "showing 1-50 of 384" needs the real total, and
+ * PostgREST supplies it in the Content-Range header when the query asks for
+ * `count: "exact"` — in the SAME request, so this is not a second round trip.
+ *
+ * THIS EXISTS BECAUSE THE GUARD REFUSED TO BE SILENCED. The trash screen needed
+ * exactly this shape, and the first attempt met it by reaching around the
+ * gateway and applying `.range()` in the repository — with a careful comment
+ * explaining why that was acceptable. It was not: the moment one repository may
+ * bound itself "for a good reason", the rule is advisory, and an advisory rule
+ * is what produced 130 unpaged reads. The gateway grew a primitive instead.
+ *
+ * The caller still states a page, never a range.
+ */
+export async function readPageWithTotal<T>(
+  source: string,
+  build: () => RangeableCounted<T>,
+  { page, size }: { page: number; size: number },
+): Promise<CountedPage<T>> {
+  const p = Math.max(0, Math.floor(page));
+  const s = clampLimit(size);
+  const from = p * s;
+  const { data, error, count } = await build().range(from, from + s - 1);
+  if (error) throw new DataError(source, error);
+  return { rows: data ?? [], page: p, size: s, total: count ?? 0 };
 }
 
 /**

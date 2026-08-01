@@ -4,22 +4,27 @@
  * per-table read with the deleted_by column retry, plus the id-lookup
  * helpers it resolves parents through).
  *
- * See lib/data/db.ts for why nothing here applies its own UNBOUNDED range,
- * and for how errors and row-level security are handled elsewhere.
+ * See lib/data/db.ts for why nothing here applies its own range, and for how
+ * errors and row-level security are handled.
  *
- * `pageDeletedRows` is a deliberate, narrow exception to "always go through
- * readAll/readPage/readAtMost": the trash screen needs a row page AND a true
- * total count from the SAME request, plus a retry with fewer columns when
- * migration 037 (which added `deleted_by`) has not been applied yet — a shape
- * the gateway does not offer (`readPage` has no true total, only `hasMore`;
- * `readAll` pages until the source is exhausted and cannot honour a
- * caller-supplied range). It stays held to the same bar as everything else in
- * the tree even so: its `.range()` is applied explicitly by the caller, never
- * omitted, so it is bounded exactly like a `readPage` call would be.
+ * `pageDeletedRows` needs a row page AND a true total from the same request,
+ * which `readPage` (whose answer is only `hasMore`) does not give. The first
+ * version met that by reaching around the gateway and calling `.range()` here,
+ * with a comment arguing the exception was narrow and disciplined. The guard in
+ * tests/data-layer.test.mjs refused it, and the guard was right: an exception
+ * granted for a good reason is still an exception, and a rule with exceptions
+ * is advice. `readPageWithTotal` was added to the gateway instead, so this
+ * function states a PAGE and still never states a range.
  */
 
 import type { ServerClient } from "@/lib/supabase/server";
-import { readAll, readAtMost, type Rangeable } from "./db";
+import {
+  readAll,
+  readAtMost,
+  readPageWithTotal,
+  type Rangeable,
+  type RangeableCounted,
+} from "./db";
 
 // --- warranties --------------------------------------------------------
 
@@ -100,25 +105,42 @@ export async function pageDeletedRows(
   orgId: string,
   table: RecoverableTable,
   columns: string,
-  range: { from: number; to: number },
+  { page, size }: { page: number; size: number },
 ): Promise<DeletedPage> {
   const run = (cols: string) =>
-    supabase
-      .from(table)
-      .select(`${cols}, deleted_at`, { count: "exact" })
-      .eq("organization_id", orgId)
-      .not("deleted_at", "is", null)
-      .order("deleted_at", { ascending: false })
-      .range(range.from, range.to);
+    readPageWithTotal<Record<string, unknown>>(
+      `crm.pageDeletedRows.${table}`,
+      () =>
+        supabase
+          .from(table)
+          .select(`${cols}, deleted_at`, { count: "exact" })
+          .eq("organization_id", orgId)
+          .not("deleted_at", "is", null)
+          .order("deleted_at", { ascending: false }) as unknown as RangeableCounted<
+          Record<string, unknown>
+        >,
+      { page, size },
+    );
 
-  let { data, error, count } = await run(`${columns}, deleted_by`);
-  if (error) ({ data, error, count } = await run(columns));
-  return {
-    table,
-    rows: (data ?? []) as unknown as Record<string, unknown>[],
-    total: count ?? 0,
-    error: error ? String((error as { message?: string }).message ?? error) : null,
-  };
+  try {
+    const withActor = await run(`${columns}, deleted_by`);
+    return { table, rows: withActor.rows, total: withActor.total, error: null };
+  } catch {
+    // Migration 037 is not applied: retry without the column it added.
+  }
+  try {
+    const fallback = await run(columns);
+    return { table, rows: fallback.rows, total: fallback.total, error: null };
+  } catch (cause) {
+    // Returned, not swallowed: the caller shows an "unreadable" banner rather
+    // than an empty table, which would read as "nothing was deleted".
+    return {
+      table,
+      rows: [],
+      total: 0,
+      error: cause instanceof Error ? cause.message : String(cause),
+    };
+  }
 }
 
 /**

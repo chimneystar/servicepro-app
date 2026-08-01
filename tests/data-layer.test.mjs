@@ -9,6 +9,9 @@ import { chains, classify, unboundedReads } from "./helpers/reads.mjs";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (p) => readFileSync(join(ROOT, p), "utf8");
 
+/** Source with comments removed, so a guard cannot fire on its own explanation. */
+const stripComments = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+
 /**
  * Every source file, INCLUDING ones not yet committed.
  *
@@ -123,13 +126,23 @@ test("every read in lib/data goes through the gateway — none is left unbounded
 test("the gateway is the only thing that applies a range, and it applies one", () => {
   const gateway = read("lib/data/db.ts");
   assert.match(gateway, /\.range\(from, to\)/, "readAll/readPages must actually range");
-  assert.match(gateway, /\.limit\(clampLimit\(limit\)\)/, "readAtMost must actually limit");
+  assert.match(gateway, /\.limit\(clampLimit\(/, "readAtMost must actually limit");
+  assert.match(
+    gateway,
+    /pageUpTo</,
+    "a limit above the cap must be PAGED, not clamped — clamping returns 999 rows " +
+      "for a requested 1500 with no error, which is the defect in miniature",
+  );
 
   // No repository may range or limit for itself. If one did, the bound would be
   // back in the caller's hands — which is the arrangement that produced 130
   // unpaged reads in the first place.
+  //
+  // Comments are stripped first. Without that, a repository DOCUMENTING why it
+  // does not call `.range()` fails the check that it does not call `.range()`,
+  // which is the guard reading its own explanation as the offence.
   const offenders = dataLayerFiles().filter(
-    (f) => f !== "lib/data/db.ts" && /\.(range|limit)\s*\(/.test(read(f)),
+    (f) => f !== "lib/data/db.ts" && /\.(range|limit)\s*\(/.test(stripComments(read(f))),
   );
   assert.deepEqual(
     offenders,
