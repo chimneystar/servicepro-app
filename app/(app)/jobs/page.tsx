@@ -5,6 +5,9 @@ import JobsList, { type JobRow, type StageDef } from "@/components/JobsList";
 import JobForm from "@/app/(app)/schedule/JobForm";
 // @ts-ignore — pure helpers, unit-tested by node:test.
 import { clampLimit, isTruncated } from "@/lib/core/query-window.mjs";
+import * as jobsData from "@/lib/data/jobs";
+import * as customersData from "@/lib/data/customers";
+import * as fieldData from "@/lib/data/field";
 
 export const dynamic = "force-dynamic";
 
@@ -26,44 +29,20 @@ export default async function JobsPage({
   const search = await searchParams;
   const pageSize: number = clampLimit(search.show, DEFAULT_PAGE, MAX_PAGE);
   const supabase = await createClient();
-  const [
-    { data: jobs },
-    { count: totalJobs },
-    { data: stages },
-    { data: org },
-    { data: custs },
-    { data: techs },
-    { data: jobTypes },
-  ] = await Promise.all([
-    supabase
-      .from("jobs")
-      .select(
-        "id, service, stage, tags, price_minor, scheduled_date, start_time, stage_changed_at, customers!jobs_customer_id_fkey(name, address, city), profiles!jobs_assigned_to_fkey(full_name)",
-      )
-      .is("deleted_at", null)
-      .order("scheduled_date", { ascending: false })
-      .limit(pageSize),
-    // Counted at the database so the banner can state the real total rather
-    // than the size of the page we happened to load.
-    supabase.from("jobs").select("id", { count: "exact", head: true }).is("deleted_at", null),
-    supabase.from("job_statuses").select("name, color, is_done, is_cancelled").order("sort"),
-    supabase.from("organizations").select("currency").single(),
-    supabase
-      .from("customers")
-      .select("id, name")
-      .is("deleted_at", null)
-      .eq("archived", false)
-      .order("name")
-      .limit(1000),
-    supabase.from("profiles").select("id, full_name").order("full_name").limit(200),
-    supabase
-      .from("job_types")
-      .select("name, color, duration_min, default_price_minor")
-      .order("sort")
-      .order("name"),
-  ]);
+  const [jobs, { count: totalJobs }, stages, { data: org }, custs, techs, jobTypes] =
+    await Promise.all([
+      fieldData.listPageForJobsScreen(supabase, pageSize),
+      // Counted at the database so the banner can state the real total rather
+      // than the size of the page we happened to load.
+      supabase.from("jobs").select("id", { count: "exact", head: true }).is("deleted_at", null),
+      fieldData.listJobStatusesForBoard(supabase),
+      supabase.from("organizations").select("currency").single(),
+      customersData.listPickable(supabase),
+      fieldData.listAssigneeNames(supabase, 200),
+      jobsData.listTypes(supabase),
+    ]);
 
-  const rows: JobRow[] = (jobs ?? []).map((j: any) => ({
+  const rows: JobRow[] = jobs.map((j: any) => ({
     id: j.id,
     service: j.service,
     stage: j.stage ?? "Scheduled",
@@ -97,15 +76,15 @@ export default async function JobsPage({
         {canEdit && (
           <JobForm
             locale={locale}
-            customers={(custs ?? []).map((c) => ({ id: c.id, label: c.name }))}
-            techs={(techs ?? []).map((p) => ({ id: p.id, label: p.full_name || "—" }))}
-            jobTypes={jobTypes ?? undefined}
+            customers={custs.map((c) => ({ id: c.id, label: c.name }))}
+            techs={techs.map((p) => ({ id: p.id, label: p.full_name || "—" }))}
+            jobTypes={jobTypes}
           />
         )}
       </div>
       <JobsList
         jobs={rows}
-        stages={(stages ?? []) as StageDef[]}
+        stages={stages as StageDef[]}
         currency={org?.currency ?? "USD"}
         nowMs={nowMs}
         truncated={truncated}

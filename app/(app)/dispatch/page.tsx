@@ -11,6 +11,9 @@ import DispatchBoard, {
 import { dayAvailability } from "@/lib/core/availability.mjs";
 // @ts-ignore -- pure logic, proven both ways in tests/skills.test.mjs
 import { heldSkillCodes } from "@/lib/core/skills.mjs";
+import * as jobsData from "@/lib/data/jobs";
+import * as profilesData from "@/lib/data/profiles";
+import * as techniciansData from "@/lib/data/technicians";
 
 export const dynamic = "force-dynamic";
 
@@ -27,46 +30,23 @@ export default async function DispatchPage({
     ? requested!
     : new Date().toISOString().slice(0, 10);
   const supabase = await createClient();
-  const [
-    { data: jobs },
-    { data: techs },
-    { data: assignments },
-    { data: timeOff },
-    { data: skills },
-  ] = await Promise.all([
-    supabase
-      .from("jobs")
-      .select(
-        "id,service,status,scheduled_date,end_date,start_time,end_time,assigned_to,job_address,job_city,required_skills,customers!jobs_customer_id_fkey(name)",
-      )
-      .lte("scheduled_date", date)
-      .or(`end_date.gte.${date},end_date.is.null`)
-      .is("deleted_at", null)
-      .order("start_time"),
-    supabase
-      .from("profiles")
-      .select("id,full_name,role")
-      .in("role", ["tech", "office", "owner"])
-      .order("full_name"),
-    supabase.from("job_assignments").select("job_id,profile_id,is_lead"),
+  const [jobs, techs, assignments, timeOff, skills] = await Promise.all([
+    jobsData.listForDispatchDay(supabase, date),
+    profilesData.listAssignable(supabase),
+    jobsData.listAssignments(supabase),
     // 6c.3 — the board had no idea who was on holiday. Approved rows covering
     // this day only; `profile_id is null` is a business closure.
-    supabase
-      .from("technician_time_off")
-      .select("id,profile_id,starts_on,ends_on,start_time,end_time,kind,status,note")
-      .eq("status", "approved")
-      .lte("starts_on", date)
-      .gte("ends_on", date),
+    techniciansData.listApprovedTimeOffOn(supabase, date),
     // 6c.11 — who is licensed for what, so the dispatcher can see it before
     // trying an assignment the server will refuse.
-    supabase.from("technician_skills").select("profile_id,skill_code,label,issued_on,expires_on"),
+    techniciansData.listSkills(supabase),
   ]);
-  const normalized = (jobs ?? []).map((job) => ({
+  const normalized = jobs.map((job) => ({
     ...job,
     customers: Array.isArray(job.customers) ? (job.customers[0] ?? null) : job.customers,
   }));
-  const nameOf = (id: string | null) => (techs ?? []).find((row) => row.id === id)?.full_name ?? "";
-  const day = dayAvailability(timeOff ?? [], date) as {
+  const nameOf = (id: string | null) => techs.find((row) => row.id === id)?.full_name ?? "";
+  const day = dayAvailability(timeOff, date) as {
     closedWindows: { allDay: boolean }[];
     awayWindows: { profileId: string; allDay: boolean; start: number; end: number }[];
   };
@@ -134,9 +114,9 @@ export default async function DispatchPage({
           <b>{he ? "הסמכות נדרשות היום" : "Certifications needed today"}:</b>{" "}
           {requiredToday.join(", ")}
           {". "}
-          {(techs ?? []).map((tech) => {
+          {techs.map((tech) => {
             const held = heldSkillCodes(
-              (skills ?? []).filter((row) => row.profile_id === tech.id),
+              skills.filter((row) => row.profile_id === tech.id),
               date,
             ) as string[];
             const covers = requiredToday.filter((code) => held.includes(code));
@@ -152,8 +132,8 @@ export default async function DispatchPage({
         locale={locale}
         date={date}
         jobs={normalized as DispatchJob[]}
-        techs={(techs ?? []) as DispatchTech[]}
-        assignments={(assignments ?? []) as DispatchAssignment[]}
+        techs={techs as DispatchTech[]}
+        assignments={assignments as DispatchAssignment[]}
       />
     </div>
   );

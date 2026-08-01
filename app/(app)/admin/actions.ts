@@ -17,6 +17,7 @@ import {
   describeRotationPlan,
   rotatePayload,
 } from "@/lib/core/secret-keyring.mjs";
+import * as fieldData from "@/lib/data/field";
 
 export type AdminResult = { ok: boolean; error?: string };
 const initialError = "The change could not be saved. Check the required fields and try again.";
@@ -234,12 +235,7 @@ export async function openBusinessSnapshot(organizationId: string): Promise<Snap
     count("invoices", (q: any) => q.is("deleted_at", null)),
     count("invoices", (q: any) => q.is("deleted_at", null).eq("status", "unpaid")),
     count("profiles", (q: any) => q.eq("active", true)),
-    admin
-      .from("audit_log")
-      .select("table_name, action, at")
-      .eq("organization_id", organizationId)
-      .order("at", { ascending: false })
-      .limit(10),
+    fieldData.listAuditLogForOrganization(admin, organizationId, 10),
   ]);
 
   return {
@@ -250,7 +246,7 @@ export async function openBusinessSnapshot(organizationId: string): Promise<Snap
       accessLevel: verdict.accessLevel ?? "read_only",
       expiresAt: verdict.expiresAt,
       counts: { customers, jobs, openJobs, invoices, unpaidInvoices, team },
-      recentActivity: (activity.data ?? []).map((row: any) => ({
+      recentActivity: activity.map((row: any) => ({
         table: row.table_name,
         action: row.action,
         at: row.at,
@@ -295,15 +291,13 @@ async function readKeyStatus(
   locale: "en" | "he",
 ): Promise<KeyStatus> {
   const keyring = parseKeyring(process.env) as any;
-  const { data: rows } = await admin
-    .from("merchant_secrets")
-    .select("organization_id, key_version");
+  const rows = await fieldData.listMerchantSecretVersions(admin);
   const counts = new Map<number, number>();
-  for (const row of (rows ?? []) as { key_version: number }[]) {
+  for (const row of rows as { key_version: number }[]) {
     const version = Number(row.key_version ?? 1);
     counts.set(version, (counts.get(version) ?? 0) + 1);
   }
-  const plan = planRotation(rows ?? [], keyring) as any;
+  const plan = planRotation(rows, keyring) as any;
   const { data: last } = await admin
     .from("secret_key_rotations")
     .select("status, to_version, rows_rotated, error, started_at")
@@ -374,16 +368,14 @@ export async function rotatePaymentSecretsKey(_previous: RotationState): Promise
   }
 
   const keyring = parseKeyring(process.env) as any;
-  const { data: rows } = await admin
-    .from("merchant_secrets")
-    .select("organization_id, encrypted_api_token, key_version");
-  const plan = planRotation(rows ?? [], keyring) as any;
+  const rows = await fieldData.listMerchantSecretsForRotation(admin);
+  const plan = planRotation(rows, keyring) as any;
 
   if (!keyring.configured || !plan.ok) {
     await admin.from("secret_key_rotations").insert({
       target: "merchant_secrets",
       to_version: keyring.activeVersion,
-      rows_total: (rows ?? []).length,
+      rows_total: rows.length,
       status: "refused",
       error: [...keyring.errors, describeRotationPlan(plan, "en")].join(" | ").slice(0, 500),
       actor: profile.id,
@@ -402,7 +394,7 @@ export async function rotatePaymentSecretsKey(_previous: RotationState): Promise
       // what it holds: planRotation only ever puts key versions in `toRotate`.
       from_versions: [...new Set<number>(plan.toRotate.map((entry: any) => entry.keyVersion))],
       to_version: keyring.activeVersion,
-      rows_total: (rows ?? []).length,
+      rows_total: rows.length,
       actor: profile.id,
     })
     .select("id")
@@ -411,7 +403,7 @@ export async function rotatePaymentSecretsKey(_previous: RotationState): Promise
   let rotated = 0;
   let skipped = 0;
   const failures: string[] = [];
-  for (const row of (rows ?? []) as {
+  for (const row of rows as {
     organization_id: string;
     encrypted_api_token: string;
     key_version: number;

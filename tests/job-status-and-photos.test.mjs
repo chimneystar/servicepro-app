@@ -88,9 +88,18 @@ test("the guard checks membership, the status set, and the transition", () => {
 // ---------------------------------------------------------------------------
 
 test("the customer report only shows photos marked visible", () => {
+  // The report page reads through jobs.listCustomerVisiblePhotos (ledger 6.2)
+  // rather than querying job_photos inline, so the filter itself now lives in
+  // lib/data/jobs.ts; the call site is proven against it by asserting it calls
+  // that specific repository function.
   const src = readCode("app/(app)/jobs/[id]/report/page.tsx");
   assert.ok(
-    /eq\("customer_visible", true\)/.test(src),
+    /listCustomerVisiblePhotos/.test(src),
+    "the customer-facing report must read through the visible-only repository function",
+  );
+  const repo = readCode("lib/data/jobs.ts");
+  assert.ok(
+    /eq\("customer_visible", true\)/.test(repo),
     "the customer-facing report must filter on the flag — otherwise the flag means nothing",
   );
 });

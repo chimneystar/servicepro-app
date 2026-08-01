@@ -7,6 +7,8 @@ import { money, fmtDate } from "@/lib/format";
 import MovementForm from "./MovementForm";
 // @ts-ignore — pure logic, unit-tested in tests/inventory.test.mjs
 import { formatQtyMilli } from "@/lib/core/inventory.mjs";
+import * as profilesData from "@/lib/data/profiles";
+import * as fieldData from "@/lib/data/field";
 
 export const dynamic = "force-dynamic";
 
@@ -24,31 +26,22 @@ export default async function InventoryMovementsPage() {
   if (profile.role === "tech") redirect("/");
   const supabase = await createClient();
 
-  const [{ data: rows }, { data: items }, { data: org }] = await Promise.all([
-    supabase
-      .from("inventory_movements")
-      .select(
-        "id, kind, qty_milli, unit_cost_minor, reason, allow_negative, created_at, job_id, item_id, created_by",
-      )
-      .order("created_at", { ascending: false })
-      .limit(PAGE),
-    supabase
-      .from("inventory_items")
-      .select("id, name, unit, quantity_milli, cost_minor")
-      .order("name"),
+  const [rows, items, { data: org }] = await Promise.all([
+    fieldData.listRecentInventoryMovements(supabase, PAGE),
+    fieldData.listInventoryItemsForPicker(supabase),
     supabase.from("organizations").select("currency").single(),
   ]);
 
-  const movements = rows ?? [];
+  const movements = rows;
   const actorIds = Array.from(
     new Set(movements.map((m) => m.created_by).filter(Boolean)),
   ) as string[];
-  const { data: actors } = actorIds.length
-    ? await supabase.from("profiles").select("id, full_name").in("id", actorIds)
-    : { data: [] as { id: string; full_name: string }[] };
+  const actors = actorIds.length
+    ? await profilesData.listNamesByIds(supabase, actorIds)
+    : ([] as { id: string; full_name: string }[]);
 
-  const nameOfItem = new Map((items ?? []).map((i) => [i.id, i.name as string]));
-  const nameOfActor = new Map((actors ?? []).map((a) => [a.id, a.full_name as string]));
+  const nameOfItem = new Map(items.map((i) => [i.id, i.name as string]));
+  const nameOfActor = new Map(actors.map((a) => [a.id, a.full_name as string]));
   const cur = org?.currency ?? "USD";
 
   return (
@@ -69,9 +62,7 @@ export default async function InventoryMovementsPage() {
       </p>
 
       <MovementForm
-        items={
-          (items ?? []) as { id: string; name: string; unit: string; quantity_milli: number }[]
-        }
+        items={items as { id: string; name: string; unit: string; quantity_milli: number }[]}
       />
 
       <div className="rlist" style={{ marginTop: 16 }}>

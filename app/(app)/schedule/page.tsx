@@ -7,6 +7,8 @@ import JobForm from "./JobForm";
 import Calendar, { type CalJob } from "@/components/Calendar";
 // @ts-ignore — pure date-window arithmetic, unit-tested by node:test.
 import { fetchWindow, toIsoDate, isTruncated } from "@/lib/core/query-window.mjs";
+import * as jobsData from "@/lib/data/jobs";
+import * as fieldData from "@/lib/data/field";
 
 export const dynamic = "force-dynamic";
 
@@ -35,33 +37,14 @@ export default async function SchedulePage({
   const anchor: string = toIsoDate(search.anchor, todayISO());
   const window: { from: string; to: string } = fetchWindow(anchor);
 
-  const [{ data: jobs }, { data: customers }, { data: profiles }, { data: jobTypes }] =
-    await Promise.all([
-      supabase
-        .from("jobs")
-        .select(
-          "id, service, status, scheduled_date, start_time, end_time, customers!jobs_customer_id_fkey(name), profiles!jobs_assigned_to_fkey(full_name)",
-        )
-        .is("deleted_at", null)
-        .gte("scheduled_date", window.from)
-        .lte("scheduled_date", window.to)
-        .order("scheduled_date")
-        .limit(JOB_CEILING),
-      supabase
-        .from("customers")
-        .select("id, name")
-        .is("deleted_at", null)
-        .order("name")
-        .limit(1000),
-      supabase.from("profiles").select("id, full_name").order("full_name").limit(200),
-      supabase
-        .from("job_types")
-        .select("name, color, duration_min, default_price_minor")
-        .order("sort")
-        .order("name"),
-    ]);
+  const [jobs, customers, profiles, jobTypes] = await Promise.all([
+    fieldData.listForCalendarWindow(supabase, window.from, window.to, JOB_CEILING),
+    fieldData.listCustomerNamesIncludingArchived(supabase, 1000),
+    fieldData.listAssigneeNames(supabase, 200),
+    jobsData.listTypes(supabase),
+  ]);
 
-  const calJobs: CalJob[] = (jobs ?? []).map((j) => ({
+  const calJobs: CalJob[] = jobs.map((j) => ({
     id: j.id,
     title: j.customers?.name ?? "—",
     service: j.service,
@@ -72,10 +55,10 @@ export default async function SchedulePage({
     tech: j.profiles?.full_name ?? "",
   }));
 
-  const custOpts = (customers ?? []).map((c) => ({ id: c.id, label: c.name }));
-  const techOpts = (profiles ?? []).map((p) => ({ id: p.id, label: p.full_name || "—" }));
+  const custOpts = customers.map((c) => ({ id: c.id, label: c.name }));
+  const techOpts = profiles.map((p) => ({ id: p.id, label: p.full_name || "—" }));
   const typeColors: Record<string, string> = Object.fromEntries(
-    (jobTypes ?? []).map((tp) => [tp.name, tp.color]),
+    jobTypes.map((tp) => [tp.name, tp.color]),
   );
   const truncated: boolean = isTruncated(calJobs.length, JOB_CEILING);
 
@@ -94,7 +77,7 @@ export default async function SchedulePage({
           locale={locale}
           customers={custOpts}
           techs={techOpts}
-          jobTypes={jobTypes ?? undefined}
+          jobTypes={jobTypes}
           initialOpen={search.new === "1"}
         />
       </div>

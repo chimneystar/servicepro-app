@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { money, fmtDate } from "@/lib/format";
 import Link from "next/link";
 import PrintButton from "@/components/PrintButton";
+import * as jobsData from "@/lib/data/jobs";
 
 export const dynamic = "force-dynamic";
 
@@ -28,14 +29,9 @@ export default async function JobReportPage({ params }: { params: Promise<{ id: 
   // component — and used by nothing. This report is the CUSTOMER-facing artifact
   // (it is printed and handed over), so an internal photo taken as evidence or a
   // note to the office was shown to them regardless.
-  const { data: rows } = await supabase
-    .from("job_photos")
-    .select("storage_path, label")
-    .eq("job_id", id)
-    .eq("customer_visible", true)
-    .order("created_at");
+  const rows = await jobsData.listCustomerVisiblePhotos(supabase, id);
   const photos = await Promise.all(
-    (rows ?? []).map(async (r) => {
+    rows.map(async (r) => {
       const { data } = await supabase.storage
         .from("job-photos")
         .createSignedUrl(r.storage_path, 3600);
