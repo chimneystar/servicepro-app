@@ -137,7 +137,7 @@ That applies everything below, in order, and records it. To do it by hand,
      db/migrations.manifest.json instead. tests/migrations-doc.test.mjs fails if
      this table and the files in db/ ever disagree. -->
 
-**41 migrations**, applied in this order.
+**42 migrations**, applied in this order.
 
 | Order | Version | File | What it adds |
 |---|---|---|---|
@@ -182,6 +182,7 @@ That applies everything below, in order, and records it. To do it by hand,
 | 39 | `040` | `040_communications.sql` | Staff notification inbox (claim + audit), the dunning ladder's per-rung claim, sent statements, **calendar feed tokens bounded like 023 §10's portal tokens** (NOT NULL expiry, revocation, scope), report schedules with a per-period delivery claim, the bulk-operation failure record, and accounting-export idempotency. Additive: drops nothing |
 | 40 | `041` | `041_booking_locale_packs.sql` | The bilingual trade catalogue in the database, `job_types.name_en/name_he/pack_item_key`, a sync trigger that maintains the Hebrew booking-service name instead of copying the English one, a re-runnable `repair_booking_service_names()`, the pack menu for businesses that chose trades and have **no** job types (an org that already has any is skipped entirely), and an empty default for `organizations.job_types` so 005's HVAC list seeds nobody new. Additive: drops nothing |
 | 41 | `042` | `042_void_signing_guard.sql` | **Security fix.** Restores `and voided_at is null` to `approve_document_with_evidence`. Migration 036 §11 added that guard so a VOIDED document could not be signed from its old public link; migration 038 replaced the function with the evidence-capturing version, carried the sign-once guard across VERBATIM and silently dropped this one. Between 038 and here, anyone holding the public token of a voided estimate or invoice could sign it into an approved, signed document. Found by executing db/ci/ for the first time (ledger 0.6). Replaces one function; drops nothing. |
+| 42 | `043` | `043_booking_orphan_services.sql` | **Booking integrity.** Deleting a job type left its bookable service orphaned but still `active`, so it vanished from the owner’s settings (which lists by job type) while customers could still see and book it (`public_booking_info_v2`, `/slots` and `/submit` never mention job_types). A BEFORE DELETE trigger now deactivates the service, which closes all three read paths at once because each already filters on `active`. Deactivates rather than cascade-deletes so the configured duration, price and translations survive. Backfills existing orphans. |
 
 ### `.sql` files in `db/` that are NOT migrations
 

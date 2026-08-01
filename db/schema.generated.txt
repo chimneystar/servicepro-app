@@ -8,7 +8,7 @@
  the live schema forty migrations ago. This file is the expected schema.
 =====================================================================
 
-migrations applied: 41
+migrations applied: 42
 
 TABLES (124)
 =====================================================================
@@ -4171,7 +4171,7 @@ table webhook_events  [rls=on force=off]
   index webhook_events_provider_event_id_key: CREATE UNIQUE INDEX webhook_events_provider_event_id_key ON public.webhook_events USING btree (provider, event_id)
   policy webhook_events_no_access: for ALL to anon,authenticated using (false) with check (false)
 
-FUNCTIONS (115)
+FUNCTIONS (116)
 =====================================================================
 
 function accept_invitation() returns uuid security definer config={search_path=public} body=3e8d2c2171ccdc63
@@ -4200,6 +4200,7 @@ function crypt(text, text) returns text body=d7ba321b9c5f5ebf
 function current_org_id() returns uuid security definer config={search_path=public} body=8183ed7289566df0
 function current_user_can(p_capability text) returns boolean security definer config={"search_path=\"\""} body=102ab98d6eef928a
 function current_user_role() returns user_role security definer config={search_path=public} body=cec24004915b77cd
+function deactivate_orphaned_booking_services() returns trigger security definer config={"search_path=\"\""} body=8e961144c6c00600
 function dearmor(text) returns bytea body=9d82509f042416de
 function decrypt(bytea, bytea, text) returns bytea body=2253b85dd318729c
 function decrypt_iv(bytea, bytea, bytea, text) returns bytea body=2c24076a57e5b858
@@ -4290,7 +4291,7 @@ function sync_payment_refunded_total() returns trigger security definer config={
 function sync_purchase_order_item_qty() returns trigger config={"search_path=\"\""} body=11a3339104dc2279
 function sync_purchase_order_total() returns trigger security definer config={"search_path=\"\""} body=7c18e3c50076ebd2
 
-TRIGGERS (198)
+TRIGGERS (199)
 =====================================================================
 
 automation_rules.trg_automation_rules_updated: CREATE TRIGGER trg_automation_rules_updated BEFORE UPDATE ON public.automation_rules FOR EACH ROW EXECUTE FUNCTION set_updated_at()
@@ -4379,6 +4380,7 @@ job_assignments.job_assignments_profile_org_guard: CREATE TRIGGER job_assignment
 job_assignments.trg_job_assignments_no_double_book: CREATE TRIGGER trg_job_assignments_no_double_book BEFORE INSERT OR UPDATE OF job_id, profile_id, assignment_status ON public.job_assignments FOR EACH ROW EXECUTE FUNCTION assert_crew_not_double_booked()
 job_summary_drafts.job_summary_job_org_guard: CREATE TRIGGER job_summary_job_org_guard BEFORE INSERT OR UPDATE ON public.job_summary_drafts FOR EACH ROW EXECUTE FUNCTION assert_child_org('jobs', 'job_id')
 job_types.trg_job_type_booking_service: CREATE TRIGGER trg_job_type_booking_service AFTER INSERT OR UPDATE OF name, name_en, name_he, pack_item_key, duration_min, default_price_minor, sort ON public.job_types FOR EACH ROW EXECUTE FUNCTION sync_booking_service_from_job_type()
+job_types.trg_job_types_withdraw_booking: CREATE TRIGGER trg_job_types_withdraw_booking BEFORE DELETE ON public.job_types FOR EACH ROW EXECUTE FUNCTION deactivate_orphaned_booking_services()
 job_warranties.job_warranties_job_org_guard: CREATE TRIGGER job_warranties_job_org_guard BEFORE INSERT OR UPDATE ON public.job_warranties FOR EACH ROW EXECUTE FUNCTION assert_child_org('jobs', 'job_id')
 job_warranties.trg_job_warranties_audit: CREATE TRIGGER trg_job_warranties_audit AFTER INSERT OR DELETE OR UPDATE ON public.job_warranties FOR EACH ROW EXECUTE FUNCTION audit_trigger()
 job_warranties.trg_job_warranties_updated: CREATE TRIGGER trg_job_warranties_updated BEFORE UPDATE ON public.job_warranties FOR EACH ROW EXECUTE FUNCTION set_updated_at()

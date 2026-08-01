@@ -6,7 +6,7 @@
 //  catalogue: `npm run db:types`. `tests/db-types.test.mjs` fails when this
 //  file and the migrations disagree.
 //
-//  migrations applied: 41
+//  migrations applied: 42
 //  tables: 124   enums: 6   foreign keys: 324   functions: 38
 //  columns narrowed to a union by a CHECK constraint: 99
 //  NOT NULL columns a BEFORE INSERT trigger supplies: 5
