@@ -6,7 +6,7 @@ import Link from "next/link";
 import ReviewForm from "@/components/ReviewForm";
 import CustomerEditForm from "@/components/CustomerEditForm";
 import CopyLinkButton from "@/components/CopyLinkButton";
-import DocForm, { type CatalogItem } from "@/components/DocForm";
+import DocForm from "@/components/DocForm";
 import { createEstimate } from "@/app/(app)/estimates/actions";
 import { createInvoice } from "@/app/(app)/invoices/actions";
 import ActivityTimeline from "@/components/ActivityTimeline";
@@ -101,7 +101,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           customers={custOpt}
           action={createEstimate}
           newKey="est.new"
-          catalog={catalog as unknown as CatalogItem[]}
+          catalog={catalog}
           orgId={profile.organization_id!}
         />
         <DocForm
@@ -109,7 +109,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           customers={custOpt}
           action={createInvoice}
           newKey="inv.new"
-          catalog={catalog as unknown as CatalogItem[]}
+          catalog={catalog}
           orgId={profile.organization_id!}
         />
         {c.portal_token && (

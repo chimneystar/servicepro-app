@@ -21,8 +21,6 @@
 import type { ServerClient } from "@/lib/supabase/server";
 import { readAll, readAtMost, readPage, readOne, readCount } from "./db";
 
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
 // --- what must NOT compile ------------------------------------------------
 
 /** `readAtMost` has no default limit. "Just read the rows" is not expressible. */

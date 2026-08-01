@@ -42,9 +42,7 @@ export default async function EditEstimatePage({ params }: { params: Promise<{ i
     // `PriceBookRow.cost_minor` is typed nullable in lib/data/price-book.ts even
     // though the column is NOT NULL; coerced here to match `CatalogItem` without
     // touching a file this migration doesn't own.
-    priceBookData
-      .listForPicker(supabase)
-      .then((rows) => rows.map((r) => ({ ...r, cost_minor: r.cost_minor ?? 0 }))),
+    priceBookData.listForPicker(supabase),
   ]);
 
   const initial: EditInitial = {
