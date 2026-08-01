@@ -18,6 +18,27 @@
 > the files aside or read them out of git with `git show <ref>:<path>` — never
 > stash.
 
+> **A file read while another agent is writing it is a TORN READ, not corruption.**
+> An agent fanning work out to sub-agents kept editing the files it had just
+> handed them. One sub-agent read `app/api/calendar/[token]/route.ts` part-way
+> through an edit that was adding a foreign-key hint to a `.select(...)` string,
+> saw `"iid, organization_id, ...label)` — a leading `iid` and a dropped closing
+> quote — concluded the tree was corrupted, and halted with 19 files of finished
+> analysis undelivered. Nothing was damaged: the file was correct, unmodified per
+> `git status`, and the worktree had zero syntax errors.
+>
+> Two rules follow. **Writers:** commit a coherent checkpoint before dispatching
+> readers, and do not keep editing files a sub-agent is reading. **Readers:**
+> before concluding a tree is corrupt, re-read the file and check `git status`
+> and `tsc`. One file containing an impossible string literal, in a tree where
+> nothing else is broken, is almost always a race — and halting on it costs more
+> than the re-read.
+>
+> This is the third hazard of this shape: the shared stash stack, eslint scanning
+> other agents' `.next` output, and now torn reads. Parallelism buys wall-clock
+> at the cost of shared-resource discipline, and the discipline has to be written
+> down each time it is learned.
+
 
 
 1. **Nothing gets dropped.** `docs/FEATURE-INVENTORY.md` is the contract. Any capability listed there
