@@ -67,7 +67,7 @@ export function everyBoundedFormIsLegal(supabase: ServerClient) {
     page: 0,
     size: 50,
   });
-  const one = readOne("contract", supabase.from("customers").select("id").limit(1).maybeSingle());
+  const one = readOne("contract", supabase.from("customers").select("id").maybeSingle());
   const count = readCount(
     "contract",
     supabase.from("customers").select("id", { count: "exact", head: true }),
