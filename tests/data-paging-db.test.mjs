@@ -12,6 +12,7 @@ import {
   pageBounds,
   pageWindow,
   splitPage,
+  pageUpTo,
 } from "../lib/core/paging.mjs";
 
 // ---------------------------------------------------------------------------
@@ -287,6 +288,47 @@ test("visible pagination walks a real table exactly once, and knows where it end
   await db.close();
 });
 
+test("an explicit limit above the cap is PAGED, not quietly cut down to the cap", async () => {
+  // The hole this closes was in this module's own first draft: readAtMost
+  // clamped the caller's limit to 999 and issued one request, so asking for
+  // 1500 returned 999 rows with no error. That is the defect the whole data
+  // layer exists to remove, reintroduced inside it behind an explicit number.
+  const { db, orgId } = await databaseWithCustomers(ROWS);
+  const { client, requests } = countingPostgrest(db);
+
+  const rows = await pageUpTo(
+    (from, to) =>
+      client
+        .from("customers")
+        .select("id, name")
+        .eq("organization_id", orgId)
+        .order("name", { ascending: true })
+        .range(from, to)
+        .then((r) => r.data),
+    900,
+  );
+  assert.equal(rows.length, 900, "a limit under the cap is honoured exactly");
+  assert.equal(new Set(rows.map((r) => r.id)).size, 900, "with no duplicates across the boundary");
+
+  requests.length = 0;
+  const big = await pageUpTo(
+    (from, to) =>
+      client
+        .from("customers")
+        .select("id, name")
+        .eq("organization_id", orgId)
+        .order("name", { ascending: true })
+        .range(from, to)
+        .then((r) => r.data),
+    1500,
+  );
+  // 1001 rows exist, so "at most 1500" means all 1001 — never 999.
+  assert.equal(big.length, ROWS, "a limit above the cap returns everything there is, not 999");
+  assert.ok(requests.length > 1, "which it can only do by paging");
+  assert.equal(new Set(big.map((r) => r.id)).size, ROWS, "and still no row twice");
+  await db.close();
+});
+
 // ---------------------------------------------------------------------------
 // The arithmetic, without a database. Fast, and it pins the reasoning that the
 // database tests confirm.
@@ -303,9 +345,9 @@ test("the page size is below the cap, which is what makes a short page meaningfu
   assert.equal(isLastPage(500, 500), false, "a full page is never assumed to be the last");
 });
 
-test("an explicit limit is clamped below the cap rather than silently truncated", () => {
+test("no single request ever asks for more than the server will honour", () => {
   assert.equal(clampLimit(10), 10);
-  assert.equal(clampLimit(5000), DB_MAX_ROWS - 1, "asking for 5000 must not quietly become 1000");
+  assert.equal(clampLimit(5000), DB_MAX_ROWS - 1, "one request cannot carry 5000 rows");
   assert.equal(clampLimit(0), 1);
   assert.equal(clampLimit(2.7), 2);
 });

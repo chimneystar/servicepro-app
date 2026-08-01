@@ -14,6 +14,11 @@ export declare function pageBounds(page: number, size?: number): { from: number;
 export declare function isLastPage(batchLength: number, size?: number): boolean;
 export declare function clampLimit(limit: number): number;
 export declare function pageWindow(page: number, size: number): { from: number; to: number };
+export declare function pageUpTo<T>(
+  fetchPage: (from: number, to: number) => Promise<T[]>,
+  limit: number,
+  options?: { size?: number },
+): Promise<T[]>;
 export declare function splitPage<T>(rows: T[], size: number): { rows: T[]; hasMore: boolean };
 
 export declare function pageAll<T>(

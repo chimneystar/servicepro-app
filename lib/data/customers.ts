@@ -6,21 +6,18 @@
  */
 
 import type { ServerClient } from "@/lib/supabase/server";
+import type { Database } from "@/lib/supabase/database.types";
 import { readAll, readAtMost, readOne, type Page, readPage } from "./db";
 import { orIlike } from "@/lib/core/postgrest-filter.mjs";
 
 /** The columns the list screens render. */
 const LIST_COLUMNS = "id, name, phone, city, address, email, source";
 
-export type CustomerListRow = {
-  id: string;
-  name: string;
-  phone: string | null;
-  city: string | null;
-  address: string | null;
-  email: string | null;
-  source: string | null;
-};
+/** Derived from the schema rather than retyped — see lib/data/price-book.ts for why. */
+export type CustomerListRow = Pick<
+  Database["public"]["Tables"]["customers"]["Row"],
+  "id" | "name" | "phone" | "city" | "address" | "email" | "source"
+>;
 
 /** Live customers, alphabetical — the /customers screen. Paged, so a business past 1000 sees all of them. */
 export function listActive(supabase: ServerClient): Promise<CustomerListRow[]> {

@@ -69,6 +69,7 @@ import {
   pageAll,
   pageWindow,
   splitPage,
+  pageUpTo,
 } from "@/lib/core/paging.mjs";
 
 export { POSTGREST_ROW_CAP, PAGE_SIZE, MAX_PAGES };
@@ -231,12 +232,17 @@ export async function readPage<T>(
  * caller that means "the ten most recent" says ten, and a caller that means
  * "all of them" has to say `readAll` and accept the paging.
  *
- * `limit` is clamped below PostgREST's cap: a caller asking for 5000 in one
- * request would silently receive 1000, which is the original defect wearing an
- * explicit-looking number.
+ * A limit within one request costs one request. A limit ABOVE PostgREST's cap
+ * is paged rather than clamped: the first version of this function clamped to
+ * 999 and returned that many with no error, which is the very defect this
+ * module exists to remove, reintroduced inside it. See `pageUpTo`.
  */
 export async function readAtMost<T>(source: string, build: Build<T>, limit: number): Promise<T[]> {
-  return resolve(source, build().limit(clampLimit(limit)));
+  const wanted = Math.max(1, Math.floor(limit));
+  if (wanted <= POSTGREST_ROW_CAP - 1) {
+    return resolve(source, build().limit(clampLimit(wanted)));
+  }
+  return pageUpTo<T>((from, to) => resolve(source, build().range(from, to)), wanted);
 }
 
 /** A builder that resolves to a single row (`.single()` / `.maybeSingle()`). */
