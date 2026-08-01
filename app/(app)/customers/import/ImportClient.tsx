@@ -55,10 +55,7 @@ export default function ImportClient() {
 
   return (
     <div style={{ maxWidth: 720 }}>
-      <Link
-        href="/customers"
-        style={{ color: "#2563eb", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none" }}
-      >
+      <Link href="/customers" className="sp-link">
         ‹ Customers
       </Link>
       <h1 style={{ fontSize: "1.5rem", fontWeight: 800, margin: "8px 0 6px" }}>Import customers</h1>

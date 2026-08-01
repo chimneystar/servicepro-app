@@ -118,7 +118,7 @@ export default async function MessagesPage({
             >
               {(th.name[0] ?? "?").toUpperCase()}
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="sp-flex-fill">
               <div style={{ fontWeight: 700 }}>{th.name}</div>
               <div
                 style={{

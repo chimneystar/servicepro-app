@@ -188,7 +188,7 @@ export default function TeamWorkforce({
             status === "expired" ? "#dc2626" : status === "expiring" ? "#a15c07" : "#15803d";
           return (
             <div key={s.id} style={row}>
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="sp-flex-fill">
                 <b>{nameOf(s.profile_id)}</b> · {s.label || s.skill_code}
                 <div style={{ fontSize: "0.75rem", color: tone }}>
                   {status === "expired"
@@ -310,9 +310,9 @@ export default function TeamWorkforce({
         )}
         {timeOff.map((row2) => (
           <div key={row2.id} style={row}>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="sp-flex-fill">
               <b>{nameOf(row2.profile_id)}</b>
-              <div style={{ fontSize: "0.75rem", color: "#5c6675" }}>
+              <div className="sp-text-muted-xs">
                 {row2.starts_on}
                 {row2.ends_on !== row2.starts_on ? ` → ${row2.ends_on}` : ""}
                 {row2.start_time

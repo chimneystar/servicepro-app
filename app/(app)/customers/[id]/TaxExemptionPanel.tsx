@@ -48,9 +48,7 @@ export default function TaxExemptionPanel({
       <div
         style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}
       >
-        <h3 style={{ fontSize: "0.9375rem", fontWeight: 800 }}>
-          {he ? "פטור ממס מכירה" : "Sales tax exemption"}
-        </h3>
+        <h3 className="sp-heading">{he ? "פטור ממס מכירה" : "Sales tax exemption"}</h3>
         <span
           className="pill"
           style={
@@ -84,9 +82,9 @@ export default function TaxExemptionPanel({
             fontSize: "0.8125rem",
           }}
         >
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="sp-flex-fill">
             <b>{row.certificate_number || (he ? "ללא מספר אישור" : "No certificate number")}</b>
-            <div style={{ fontSize: "0.75rem", color: "#5c6675" }}>
+            <div className="sp-text-muted-xs">
               {row.reason}
               {row.expires_on
                 ? ` · ${row.expires_on < today ? (he ? "פג ב־" : "expired ") : he ? "בתוקף עד " : "until "}${day(row.expires_on)}`
@@ -120,7 +118,7 @@ export default function TaxExemptionPanel({
         </div>
       ))}
       {exemptions.length === 0 && (
-        <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>
+        <div className="sp-text-muted">
           {he ? "לא נרשם אישור פטור." : "No exemption certificate on file."}
         </div>
       )}

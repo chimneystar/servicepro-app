@@ -190,7 +190,7 @@ export default function EstimateOptionsEditor({
                   borderTop: "1px solid #f1f4f9",
                 }}
               >
-                <span style={{ flex: 1, minWidth: 0 }}>
+                <span className="sp-flex-fill">
                   {row.title || row.description} ·{" "}
                   {(row.qty_milli / 1000).toLocaleString(locale === "he" ? "he-IL" : "en-US")} ×{" "}
                   {money(row.unit_price_minor, currency)}

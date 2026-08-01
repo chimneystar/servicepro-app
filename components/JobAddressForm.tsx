@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { updateJobAddress } from "@/app/(app)/jobs/[id]/actions";
 import { useAppLocale } from "@/components/LocaleProvider";
 import { ActionError, useActionStatus } from "@/components/ActionStatus";
+import { Button } from "@/components/ui";
 
 export default function JobAddressForm({
   jobId,
@@ -59,21 +60,21 @@ export default function JobAddressForm({
           defaultValue={jobAddress ?? ""}
           placeholder={he ? "כתובת" : "Address"}
           aria-label={he ? "כתובת" : "Address"}
-          style={inp}
+          className="sp-input sp-control--lg"
         />
         <input
           name="job_city"
           defaultValue={jobCity ?? ""}
           placeholder={he ? "עיר" : "City"}
           aria-label={he ? "עיר" : "City"}
-          style={inp}
+          className="sp-input sp-control--lg"
         />
       </div>
       <ActionError error={error} />
       <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-        <button type="submit" disabled={pending} style={btn}>
+        <Button type="submit" disabled={pending} size="md">
           {pending ? (he ? "שומרים…" : "Saving…") : he ? "שמירה" : "Save"}
-        </button>
+        </Button>
         <button
           type="button"
           onClick={() => setOpen(false)}
@@ -105,12 +106,4 @@ const btn: React.CSSProperties = {
   borderRadius: 10,
   fontWeight: 700,
   cursor: "pointer",
-};
-const inp: React.CSSProperties = {
-  width: "100%",
-  border: "1px solid #e2e8f0",
-  borderRadius: 10,
-  padding: "10px 12px",
-  fontSize: "1rem",
-  outline: "none",
 };

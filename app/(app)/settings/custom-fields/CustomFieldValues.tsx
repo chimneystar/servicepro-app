@@ -44,7 +44,7 @@ export default function CustomFieldValues({
     return (
       <div style={card}>
         <div style={head}>
-          <h3 style={{ fontSize: "0.9375rem", fontWeight: 800 }}>{heading}</h3>
+          <h3 className="sp-heading">{heading}</h3>
           {canEdit && (
             <button type="button" style={mini} onClick={() => setEditing(true)}>
               {he ? "עריכה" : "Edit"}
@@ -75,7 +75,7 @@ export default function CustomFieldValues({
   return (
     <div style={card}>
       <div style={head}>
-        <h3 style={{ fontSize: "0.9375rem", fontWeight: 800 }}>{heading}</h3>
+        <h3 className="sp-heading">{heading}</h3>
       </div>
       <form action={action} style={{ display: "grid", gap: 10 }}>
         <input type="hidden" name="entityType" value={entityType} />

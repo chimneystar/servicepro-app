@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useFormState, useFormStatus } from "react-dom";
 import { updateCustomer, type ActionResult } from "@/app/(app)/customers/actions";
 import Modal from "@/components/Modal";
+import { Button, Notice } from "@/components/ui";
 
 export type EditCust = {
   id: string;
@@ -41,25 +42,30 @@ export default function CustomerEditForm({ customer }: { customer: EditCust }) {
             <h3 id={titleId} style={{ fontSize: "1.125rem", fontWeight: 800, marginBottom: 12 }}>
               Edit customer
             </h3>
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <L>Name</L>
-              <input name="name" defaultValue={customer.name} style={inp} required />
+              <input name="name" defaultValue={customer.name} required className="sp-input" />
             </label>
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <L>Phone</L>
-              <input name="phone" defaultValue={customer.phone ?? ""} style={inp} />
+              <input name="phone" defaultValue={customer.phone ?? ""} className="sp-input" />
             </label>
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <L>Email</L>
-              <input name="email" type="email" defaultValue={customer.email ?? ""} style={inp} />
+              <input
+                name="email"
+                type="email"
+                defaultValue={customer.email ?? ""}
+                className="sp-input"
+              />
             </label>
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <L>Service address</L>
-              <input name="address" defaultValue={customer.address ?? ""} style={inp} />
+              <input name="address" defaultValue={customer.address ?? ""} className="sp-input" />
             </label>
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <L>City</L>
-              <input name="city" defaultValue={customer.city ?? ""} style={inp} />
+              <input name="city" defaultValue={customer.city ?? ""} className="sp-input" />
             </label>
             <div
               style={{
@@ -71,23 +77,32 @@ export default function CustomerEditForm({ customer }: { customer: EditCust }) {
             >
               Billing address (leave blank if same)
             </div>
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <L>Billing address</L>
               <input
                 name="billing_address"
                 defaultValue={customer.billing_address ?? ""}
-                style={inp}
+                className="sp-input"
               />
             </label>
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <L>Billing city</L>
-              <input name="billing_city" defaultValue={customer.billing_city ?? ""} style={inp} />
+              <input
+                name="billing_city"
+                defaultValue={customer.billing_city ?? ""}
+                className="sp-input"
+              />
             </label>
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <L>Notes</L>
-              <textarea name="notes" rows={2} defaultValue={customer.notes ?? ""} style={inp} />
+              <textarea
+                name="notes"
+                rows={2}
+                defaultValue={customer.notes ?? ""}
+                className="sp-textarea"
+              />
             </label>
-            {state.error && <div style={err}>{state.error}</div>}
+            {state.error && <Notice>{state.error}</Notice>}
             <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
               <Save />
               <button
@@ -108,9 +123,9 @@ export default function CustomerEditForm({ customer }: { customer: EditCust }) {
 function Save() {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} style={save}>
+    <Button type="submit" disabled={pending}>
       {pending ? "Saving…" : "💾 Save"}
-    </button>
+    </Button>
   );
 }
 function L({ children }: { children: React.ReactNode }) {
@@ -142,20 +157,4 @@ const lbl: React.CSSProperties = {
   color: "#334155",
   display: "block",
   margin: "9px 0 5px",
-};
-const inp: React.CSSProperties = {
-  width: "100%",
-  border: "1px solid #e2e8f0",
-  borderRadius: 10,
-  padding: "10px 12px",
-  fontSize: "0.875rem",
-  outline: "none",
-};
-const err: React.CSSProperties = {
-  background: "#fdeaea",
-  color: "#dc2626",
-  padding: "9px 12px",
-  borderRadius: 10,
-  fontSize: "0.8125rem",
-  marginTop: 10,
 };

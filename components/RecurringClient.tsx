@@ -10,6 +10,7 @@ import {
   type ActionResult,
 } from "@/app/(app)/recurring/actions";
 import Modal from "@/components/Modal";
+import { Button, Grid, Label, Notice } from "@/components/ui";
 
 export type Plan = {
   id: string;
@@ -91,7 +92,7 @@ export default function RecurringClient({
           flexWrap: "wrap",
         }}
       >
-        <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>
+        <div className="sp-text-muted">
           {plans.length} plans{dueCount ? ` · ${dueCount} due now` : ""}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -105,9 +106,9 @@ export default function RecurringClient({
               <span aria-hidden="true">⚡</span> Generate {dueCount} due
             </button>
           )}
-          <button type="button" onClick={() => setEditing(null)} style={btn}>
+          <Button onClick={() => setEditing(null)} size="md">
             <span aria-hidden="true">➕</span> New plan
-          </button>
+          </Button>
         </div>
       </div>
       {msg && (
@@ -143,11 +144,11 @@ export default function RecurringClient({
                 gap: 10,
               }}
             >
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="sp-flex-fill">
                 <div style={{ fontWeight: 700 }}>
                   {p.customer_name} · {p.service}
                 </div>
-                <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>
+                <div className="sp-text-muted">
                   Every {p.interval_months} mo · {cur}
                   {(p.price_minor / 100).toFixed(2)} · next {fmt(p.next_due)}
                 </div>
@@ -190,13 +191,13 @@ export default function RecurringClient({
               {editing ? "Edit plan" : "New maintenance plan"}
             </h3>
             {editing && <input type="hidden" name="id" value={editing.id} />}
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <L>Customer</L>
               <select
                 name="customer_id"
                 defaultValue={editing?.customer_id ?? customers[0]?.id}
-                style={inp}
                 required
+                className="sp-select sp-control--lg"
               >
                 {customers.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -205,58 +206,62 @@ export default function RecurringClient({
                 ))}
               </select>
             </label>
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <L>Service</L>
               <input
                 name="service"
                 defaultValue={editing?.service ?? ""}
-                style={inp}
                 placeholder="e.g. Annual chimney cleaning"
                 required
+                className="sp-input sp-control--lg"
               />
             </label>
-            <div style={two}>
+            <Grid cols={2}>
               <div>
-                <label style={{ display: "block" }}>
+                <label className="sp-field">
                   <L>Repeat every (months)</L>
                   <input
                     name="interval"
                     type="number"
                     defaultValue={editing?.interval_months ?? 12}
-                    style={inp}
+                    className="sp-input sp-control--lg"
                   />
                 </label>
               </div>
               <div>
-                <label style={{ display: "block" }}>
+                <label className="sp-field">
                   <L>Price</L>
                   <input
                     name="price"
                     type="number"
                     step="0.01"
                     defaultValue={editing ? (editing.price_minor / 100).toFixed(2) : ""}
-                    style={inp}
                     placeholder="0.00"
+                    className="sp-input sp-control--lg"
                   />
                 </label>
               </div>
-            </div>
-            <div style={two}>
+            </Grid>
+            <Grid cols={2}>
               <div>
-                <label style={{ display: "block" }}>
+                <label className="sp-field">
                   <L>Next due date</L>
                   <input
                     name="next_due"
                     type="date"
                     defaultValue={editing?.next_due ?? today}
-                    style={inp}
+                    className="sp-input sp-control--lg"
                   />
                 </label>
               </div>
               <div>
-                <label style={{ display: "block" }}>
+                <label className="sp-field">
                   <L>Technician</L>
-                  <select name="assigned_to" defaultValue={editing?.assigned_to ?? ""} style={inp}>
+                  <select
+                    name="assigned_to"
+                    defaultValue={editing?.assigned_to ?? ""}
+                    className="sp-select sp-control--lg"
+                  >
                     <option value="">Unassigned</option>
                     {techs.map((t) => (
                       <option key={t.id} value={t.id}>
@@ -266,8 +271,8 @@ export default function RecurringClient({
                   </select>
                 </label>
               </div>
-            </div>
-            {state.error && <div style={err}>{state.error}</div>}
+            </Grid>
+            {state.error && <Notice>{state.error}</Notice>}
             <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
               <Save />
               <button
@@ -288,13 +293,13 @@ export default function RecurringClient({
 function Save() {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} style={btn}>
+    <Button type="submit" disabled={pending} size="md">
       {pending ? "Saving…" : "💾 Save"}
-    </button>
+    </Button>
   );
 }
 function L({ children }: { children: React.ReactNode }) {
-  return <span style={lbl}>{children}</span>;
+  return <Label>{children}</Label>;
 }
 function fmt(iso: string) {
   const d = new Date(iso + "T00:00:00");
@@ -317,28 +322,4 @@ const mini: React.CSSProperties = {
   cursor: "pointer",
   fontSize: "0.8125rem",
   flexShrink: 0,
-};
-const two: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 };
-const lbl: React.CSSProperties = {
-  fontSize: "0.8125rem",
-  fontWeight: 700,
-  color: "#334155",
-  display: "block",
-  margin: "10px 0 6px",
-};
-const inp: React.CSSProperties = {
-  width: "100%",
-  border: "1px solid #e2e8f0",
-  borderRadius: 10,
-  padding: "10px 12px",
-  fontSize: "1rem",
-  outline: "none",
-};
-const err: React.CSSProperties = {
-  background: "#fdeaea",
-  color: "#dc2626",
-  padding: "9px 12px",
-  borderRadius: 10,
-  fontSize: "0.8125rem",
-  marginTop: 10,
 };

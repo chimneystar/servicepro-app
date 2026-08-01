@@ -213,7 +213,7 @@ export default function CommissionClient({
                     }}
                   />
                 </label>
-                <span style={{ fontSize: "0.8125rem", color: "#5c6675" }}>%</span>
+                <span className="sp-text-muted">%</span>
                 {canEditPct && (
                   <button
                     type="button"

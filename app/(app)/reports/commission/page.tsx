@@ -105,10 +105,7 @@ export default async function CommissionPage({
 
   return (
     <div style={{ maxWidth: 760 }}>
-      <Link
-        href="/reports"
-        style={{ color: "#2563eb", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none" }}
-      >
+      <Link href="/reports" className="sp-link">
         ‹ Reports
       </Link>
       <h1 style={{ fontSize: "1.5rem", fontWeight: 800, margin: "8px 0 4px" }}>
@@ -123,13 +120,13 @@ export default async function CommissionPage({
         style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "end" }}
       >
         <div>
-          <label style={{ display: "block" }}>
+          <label className="sp-field">
             <span style={lbl}>From</span>
             <input type="date" name="from" defaultValue={from} style={inp} />
           </label>
         </div>
         <div>
-          <label style={{ display: "block" }}>
+          <label className="sp-field">
             <span style={lbl}>To</span>
             <input type="date" name="to" defaultValue={to} style={inp} />
           </label>

@@ -33,9 +33,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         <Link href="/customers" style={back}>
           ‹ Customers
         </Link>
-        <div style={{ padding: 40, textAlign: "center", color: "#5c6675" }}>
-          Customer not found.
-        </div>
+        <div className="sp-empty">Customer not found.</div>
       </div>
     );
   const activity = await loadActivity("customers", id);
@@ -111,7 +109,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           margin: "8px 0 2px",
         }}
       >
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>{c.name}</h1>
+        <h1 className="sp-heading sp-heading--lg">{c.name}</h1>
         <CustomerEditForm customer={c as any} />
       </div>
       <p style={{ color: "#5c6675", marginBottom: 14 }}>

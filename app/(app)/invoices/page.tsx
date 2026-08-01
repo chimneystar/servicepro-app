@@ -85,7 +85,7 @@ export default async function InvoicesPage({
           marginBottom: 16,
         }}
       >
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>{t(locale, "inv.title")}</h1>
+        <h1 className="sp-heading sp-heading--lg">{t(locale, "inv.title")}</h1>
         <DocForm
           locale={locale}
           customers={custOpts}

@@ -7,6 +7,7 @@ import { createCustomer, type ActionResult } from "./actions";
 import { t, sourceOptions, type Locale } from "@/lib/i18n";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import Modal from "@/components/Modal";
+import { Button, Label, Notice } from "@/components/ui";
 
 const initial: ActionResult = { ok: false };
 
@@ -35,9 +36,9 @@ export default function CustomerForm({
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} style={btn}>
+      <Button onClick={() => setOpen(true)}>
         <span aria-hidden="true">➕</span> {t(locale, "cust.new")}
-      </button>
+      </Button>
       {open && (
         <Modal onClose={() => setOpen(false)} labelledBy={titleId} width={480}>
           <form action={formAction}>
@@ -61,9 +62,9 @@ export default function CustomerForm({
             </div>
             <Field name="billing_address" label="Billing address" />
             <Field name="billing_city" label="Billing city" />
-            <label style={{ display: "block" }}>
-              <span style={lbl}>{t(locale, "form.source")}</span>
-              <select name="source" style={inp} defaultValue="">
+            <label className="sp-field">
+              <Label>{t(locale, "form.source")}</Label>
+              <select name="source" defaultValue="" className="sp-select">
                 <option value="">{t(locale, "form.source_choose")}</option>
                 {sources.map((s) => (
                   <option key={s.value} value={s.value}>
@@ -72,11 +73,11 @@ export default function CustomerForm({
                 ))}
               </select>
             </label>
-            <label style={{ display: "block" }}>
-              <span style={lbl}>{t(locale, "form.notes")}</span>
-              <textarea name="notes" rows={2} style={inp} />
+            <label className="sp-field">
+              <Label>{t(locale, "form.notes")}</Label>
+              <textarea name="notes" rows={2} className="sp-textarea" />
             </label>
-            {state.error && <div style={err}>{state.error}</div>}
+            {state.error && <Notice mt={5}>{state.error}</Notice>}
             <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
               <SubmitButton locale={locale} />
               <button
@@ -97,17 +98,17 @@ export default function CustomerForm({
 function SubmitButton({ locale }: { locale: Locale }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} style={btn}>
+    <Button type="submit" disabled={pending}>
       {pending ? t(locale, "common.saving") : `💾 ${t(locale, "common.save")}`}
-    </button>
+    </Button>
   );
 }
 
 function Field({ name, label, type = "text" }: { name: string; label: string; type?: string }) {
   return (
-    <label style={{ display: "block" }}>
-      <span style={lbl}>{label}</span>
-      <input name={name} type={type} style={inp} />
+    <label className="sp-field">
+      <Label>{label}</Label>
+      <input name={name} type={type} className="sp-input" />
     </label>
   );
 }
@@ -127,20 +128,4 @@ const lbl: React.CSSProperties = {
   color: "#334155",
   display: "block",
   margin: "10px 0 6px",
-};
-const inp: React.CSSProperties = {
-  width: "100%",
-  border: "1px solid #e2e8f0",
-  borderRadius: 10,
-  padding: "10px 12px",
-  fontSize: "0.875rem",
-  outline: "none",
-};
-const err: React.CSSProperties = {
-  background: "#fdeaea",
-  color: "#dc2626",
-  padding: "9px 12px",
-  borderRadius: 10,
-  fontSize: "0.8125rem",
-  marginTop: 12,
 };

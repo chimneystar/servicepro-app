@@ -41,9 +41,7 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
         <Link href="/estimates" style={back}>
           ‹ Estimates
         </Link>
-        <div style={{ padding: 40, textAlign: "center", color: "#5c6675" }}>
-          Estimate not found.
-        </div>
+        <div className="sp-empty">Estimate not found.</div>
       </div>
     );
   const activity = await loadActivity("estimates", id);

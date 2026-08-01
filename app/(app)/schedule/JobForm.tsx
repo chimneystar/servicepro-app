@@ -7,6 +7,7 @@ import { createJob, type ActionResult } from "./actions";
 import { t, type Locale } from "@/lib/i18n";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
 import Modal from "@/components/Modal";
+import { Button, Label, Notice } from "@/components/ui";
 
 const initial: ActionResult = { ok: false };
 const DEFAULT_SERVICES = [
@@ -88,22 +89,22 @@ export default function JobForm({
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} style={btn}>
+      <Button onClick={() => setOpen(true)}>
         <span aria-hidden="true">➕</span> {t(locale, "sched.new")}
-      </button>
+      </Button>
       {open && (
         <Modal onClose={() => setOpen(false)} labelledBy={titleId} width={500}>
           <form action={formAction}>
             <h3 id={titleId} style={{ fontSize: "1.125rem", fontWeight: 800, marginBottom: 14 }}>
               {t(locale, "sched.new")}
             </h3>
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <Label>{t(locale, "doc.customer")}</Label>
               <select
                 name="customer_id"
                 value={customer}
                 onChange={(e) => setCustomer(e.target.value)}
-                style={inp}
+                className="sp-select"
               >
                 <option value="__new__">➕ {t(locale, "cust.new")}</option>
                 {customers.map((c) => (
@@ -125,21 +126,21 @@ export default function JobForm({
               >
                 <Row>
                   <div>
-                    <label style={{ display: "block" }}>
+                    <label className="sp-field">
                       <Label>{t(locale, "form.name")}</Label>
-                      <input name="new_name" style={inp} />
+                      <input name="new_name" className="sp-input" />
                     </label>
                   </div>
                   <div>
-                    <label style={{ display: "block" }}>
+                    <label className="sp-field">
                       <Label>{t(locale, "form.phone")}</Label>
-                      <input name="new_phone" style={inp} />
+                      <input name="new_phone" className="sp-input" />
                     </label>
                   </div>
                 </Row>
-                <label style={{ display: "block" }}>
+                <label className="sp-field">
                   <Label>{t(locale, "form.email")}</Label>
-                  <input name="new_email" type="email" style={inp} />
+                  <input name="new_email" type="email" className="sp-input" />
                 </label>
                 <Label>{t(locale, "form.address")}</Label>
                 <AddressAutocomplete
@@ -154,13 +155,13 @@ export default function JobForm({
             )}
             <Row>
               <div>
-                <label style={{ display: "block" }}>
+                <label className="sp-field">
                   <Label>{t(locale, "job.service")}</Label>
                   <select
                     name="service"
                     value={service}
                     onChange={(e) => applyType(e.target.value)}
-                    style={inp}
+                    className="sp-select"
                   >
                     {types.map((s) => (
                       <option key={s.name}>{s.name}</option>
@@ -169,9 +170,9 @@ export default function JobForm({
                 </label>
               </div>
               <div>
-                <label style={{ display: "block" }}>
+                <label className="sp-field">
                   <Label>{t(locale, "job.tech")}</Label>
-                  <select name="assigned_to" style={inp}>
+                  <select name="assigned_to" className="sp-select">
                     <option value="">{t(locale, "job.unassigned")}</option>
                     {techs.map((tt) => (
                       <option key={tt.id} value={tt.id}>
@@ -184,7 +185,7 @@ export default function JobForm({
             </Row>
             <Row>
               <div>
-                <label style={{ display: "block" }}>
+                <label className="sp-field">
                   <Label>{t(locale, "job.date")}</Label>
                   <input
                     name="date"
@@ -194,13 +195,13 @@ export default function JobForm({
                       setJobDate(e.target.value);
                       if (!endDate || endDate < e.target.value) setEndDate(e.target.value);
                     }}
-                    style={inp}
                     required
+                    className="sp-input"
                   />
                 </label>
               </div>
               <div>
-                <label style={{ display: "block" }}>
+                <label className="sp-field">
                   <Label>{t(locale, "job.price")}</Label>
                   <input
                     name="price"
@@ -208,13 +209,13 @@ export default function JobForm({
                     step="0.01"
                     value={price}
                     onChange={(e) => setPrice(e.target.value)}
-                    style={inp}
                     placeholder="0.00"
+                    className="sp-input"
                   />
                 </label>
               </div>
             </Row>
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <Label>
                 {locale === "he"
                   ? "תאריך סיום (לעבודה של כמה ימים)"
@@ -226,31 +227,31 @@ export default function JobForm({
                 value={endDate}
                 min={jobDate || undefined}
                 onChange={(e) => setEndDate(e.target.value)}
-                style={inp}
+                className="sp-input"
               />
             </label>
             <Row>
               <div>
-                <label style={{ display: "block" }}>
+                <label className="sp-field">
                   <Label>{t(locale, "job.start")}</Label>
                   <input
                     name="start"
                     type="time"
                     value={start}
                     onChange={(e) => onStart(e.target.value)}
-                    style={inp}
+                    className="sp-input"
                   />
                 </label>
               </div>
               <div>
-                <label style={{ display: "block" }}>
+                <label className="sp-field">
                   <Label>{t(locale, "job.end")}</Label>
                   <input
                     name="end"
                     type="time"
                     value={end}
                     onChange={(e) => setEnd(e.target.value)}
-                    style={inp}
+                    className="sp-input"
                   />
                 </label>
               </div>
@@ -275,19 +276,19 @@ export default function JobForm({
             />
             {/* 6c.11 — what this job legally requires. Empty means no
                 restriction, which is every job that exists today. */}
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <Label>
                 {locale === "he"
                   ? "הסמכות נדרשות (מופרדות בפסיק)"
                   : "Certifications required (comma separated)"}
               </Label>
-              <input name="required_skills" placeholder="gas, hvac" style={inp} />
+              <input name="required_skills" placeholder="gas, hvac" className="sp-input" />
             </label>
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <Label>{t(locale, "form.notes")}</Label>
-              <textarea name="notes" rows={2} style={inp} />
+              <textarea name="notes" rows={2} className="sp-textarea" />
             </label>
-            {state.error && <div style={err}>{state.error}</div>}
+            {state.error && <Notice mt={5}>{state.error}</Notice>}
             <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
               <Save locale={locale} />
               <button
@@ -308,13 +309,10 @@ export default function JobForm({
 function Save({ locale }: { locale: Locale }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} style={btn}>
+    <Button type="submit" disabled={pending}>
       {pending ? t(locale, "common.saving") : `💾 ${t(locale, "common.save")}`}
-    </button>
+    </Button>
   );
-}
-function Label({ children }: { children: React.ReactNode }) {
-  return <span style={lbl}>{children}</span>;
 }
 function Row({ children }: { children: React.ReactNode }) {
   return <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>{children}</div>;
@@ -328,27 +326,4 @@ const btn: React.CSSProperties = {
   borderRadius: 10,
   fontWeight: 700,
   cursor: "pointer",
-};
-const lbl: React.CSSProperties = {
-  fontSize: "0.8125rem",
-  fontWeight: 700,
-  color: "#334155",
-  display: "block",
-  margin: "10px 0 6px",
-};
-const inp: React.CSSProperties = {
-  width: "100%",
-  border: "1px solid #e2e8f0",
-  borderRadius: 10,
-  padding: "10px 12px",
-  fontSize: "0.875rem",
-  outline: "none",
-};
-const err: React.CSSProperties = {
-  background: "#fdeaea",
-  color: "#dc2626",
-  padding: "9px 12px",
-  borderRadius: 10,
-  fontSize: "0.8125rem",
-  marginTop: 12,
 };

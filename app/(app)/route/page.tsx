@@ -62,7 +62,7 @@ export default async function RoutePage({
           flexWrap: "wrap",
         }}
       >
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>Today’s route</h1>
+        <h1 className="sp-heading sp-heading--lg">Today’s route</h1>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <Link href={`/route?date=${prev}`} style={navBtn}>
             ‹
@@ -128,18 +128,18 @@ export default async function RoutePage({
             >
               {i + 1}
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="sp-flex-fill">
               <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
                 <b style={{ fontSize: "0.9375rem" }}>
                   {s.time || "—"} · {s.name}
                 </b>
                 <b>{money(s.price, cur)}</b>
               </div>
-              <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>
+              <div className="sp-text-muted">
                 {s.service}
                 {s.tech ? ` · ${s.tech}` : ""}
               </div>
-              {s.addr && <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>📍 {s.addr}</div>}
+              {s.addr && <div className="sp-text-muted">📍 {s.addr}</div>}
               <div style={{ display: "flex", gap: 14, marginTop: 6 }}>
                 <Link href={`/jobs/${s.id}`} style={clink}>
                   Open job

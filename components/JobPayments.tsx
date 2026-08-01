@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { money } from "@/lib/format";
 import { recordJobPayment } from "@/app/(app)/jobs/[id]/actions";
+import { Button, Notice } from "@/components/ui";
 
 export type PayRow = {
   amount_minor: number;
@@ -107,7 +108,7 @@ export default function JobPayments({
               >
                 <div>
                   <b>Invoice #{inv.number}</b>
-                  <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>
+                  <div className="sp-text-muted">
                     {money(inv.paid_minor, currency)} paid of {money(inv.total_minor, currency)}
                   </div>
                 </div>
@@ -164,23 +165,23 @@ export default function JobPayments({
                   style={{ marginTop: 10, borderTop: "1px solid #eef1f6", paddingTop: 10 }}
                 >
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                    <label style={{ display: "block" }}>
+                    <label className="sp-field">
                       <span style={lbl}>Amount</span>
                       <input
                         name="amount"
                         type="number"
                         step="0.01"
                         defaultValue={(bal / 100).toFixed(2)}
-                        style={inp}
+                        className="sp-input sp-control--lg"
                       />
                     </label>
-                    <label style={{ display: "block" }}>
+                    <label className="sp-field">
                       <span style={lbl}>Method</span>
                       <select
                         name="method"
                         value={method}
                         onChange={(e) => setMethod(e.target.value)}
-                        style={inp}
+                        className="sp-select sp-control--lg"
                       >
                         {METHODS.map((m) => (
                           <option key={m}>{m}</option>
@@ -190,19 +191,19 @@ export default function JobPayments({
                   </div>
                   {NEEDS_REF.includes(method) && (
                     <div style={{ marginTop: 8 }}>
-                      <label style={{ display: "block" }}>
+                      <label className="sp-field">
                         <span style={lbl}>{REF_LABEL[method]}</span>
                         <input
                           name="reference"
-                          style={inp}
                           placeholder={`Enter ${method.toLowerCase()} reference`}
+                          className="sp-input sp-control--lg"
                         />
                       </label>
                     </div>
                   )}
-                  {err && <div style={errBox}>{err}</div>}
+                  {err && <Notice mt={3}>{err}</Notice>}
                   <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                    <button type="submit" disabled={pending} style={btn}>
+                    <Button type="submit" disabled={pending} size="md">
                       {pending ? (
                         "Saving…"
                       ) : (
@@ -210,7 +211,7 @@ export default function JobPayments({
                           <span aria-hidden="true">💾</span> Save payment
                         </>
                       )}
-                    </button>
+                    </Button>
                     <button
                       type="button"
                       onClick={() => setOpenId(null)}
@@ -244,20 +245,4 @@ const lbl: React.CSSProperties = {
   color: "#334155",
   display: "block",
   marginBottom: 5,
-};
-const inp: React.CSSProperties = {
-  width: "100%",
-  border: "1px solid #e2e8f0",
-  borderRadius: 10,
-  padding: "10px 12px",
-  fontSize: "1rem",
-  outline: "none",
-};
-const errBox: React.CSSProperties = {
-  background: "#fdeaea",
-  color: "#dc2626",
-  padding: "8px 12px",
-  borderRadius: 10,
-  fontSize: "0.8125rem",
-  marginTop: 8,
 };

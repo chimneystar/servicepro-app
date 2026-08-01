@@ -22,10 +22,7 @@ export default function DocLockedNotice({
   const label = kind === "estimate" ? "Estimate" : "Invoice";
   return (
     <div style={{ maxWidth: 640 }}>
-      <Link
-        href={`${base}/${id}`}
-        style={{ color: "#2563eb", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none" }}
-      >
+      <Link href={`${base}/${id}`} className="sp-link">
         ‹ Back
       </Link>
       <h1 style={{ fontSize: "1.5rem", fontWeight: 800, margin: "8px 0 14px" }}>

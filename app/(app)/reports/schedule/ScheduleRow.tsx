@@ -84,7 +84,7 @@ export default function ScheduleRow({
           <b style={{ color: "#b45309" }}>nobody — this will send nothing</b>
         )}
       </div>
-      <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>
+      <div className="sp-text-muted">
         {schedule.last_run_at
           ? `Last run ${schedule.last_run_at.slice(0, 10)}${schedule.last_period_key ? ` · covered ${schedule.last_period_key}` : ""}`
           : "Has not run yet"}

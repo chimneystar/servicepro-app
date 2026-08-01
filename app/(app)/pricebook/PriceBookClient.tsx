@@ -6,6 +6,7 @@ import { useFormState, useFormStatus } from "react-dom";
 import { savePriceItem, deletePriceItem, type ActionResult } from "./actions";
 import { t, type Locale } from "@/lib/i18n";
 import Modal from "@/components/Modal";
+import { Button, Grid, Label, Notice } from "@/components/ui";
 
 type Item = {
   id: string;
@@ -57,10 +58,10 @@ export default function PriceBookClient({
           marginBottom: 16,
         }}
       >
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>{t(locale, "pb.title")}</h1>
-        <button type="button" onClick={() => setEditing(null)} style={btn}>
+        <h1 className="sp-heading sp-heading--lg">{t(locale, "pb.title")}</h1>
+        <Button onClick={() => setEditing(null)}>
           <span aria-hidden="true">➕</span> {t(locale, "pb.new")}
-        </button>
+        </Button>
       </div>
 
       <div className="rlist">
@@ -77,14 +78,14 @@ export default function PriceBookClient({
             <div className="rend">
               <b style={{ fontSize: "0.9375rem" }}>{m(it.price_minor)}</b>
               <div style={{ display: "flex", gap: 6 }}>
-                <button
-                  type="button"
+                <Button
                   onClick={() => setEditing(it)}
-                  style={mini}
                   aria-label={he ? "עריכה" : "Edit"}
+                  variant="secondary"
+                  size="sm"
                 >
                   ✏️
-                </button>
+                </Button>
                 <button
                   type="button"
                   onClick={() => del(it.id)}
@@ -107,53 +108,57 @@ export default function PriceBookClient({
               {editing ? editing.name : t(locale, "pb.new")}
             </h3>
             {editing && <input type="hidden" name="id" value={editing.id} />}
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <L>{t(locale, "pb.name")}</L>
-              <input name="name" defaultValue={editing?.name ?? ""} style={inp} required />
+              <input name="name" defaultValue={editing?.name ?? ""} required className="sp-input" />
             </label>
-            <div style={two}>
+            <Grid cols={2}>
               <div>
-                <label style={{ display: "block" }}>
+                <label className="sp-field">
                   <L>{t(locale, "pb.category")}</L>
-                  <input name="category" defaultValue={editing?.category ?? ""} style={inp} />
+                  <input
+                    name="category"
+                    defaultValue={editing?.category ?? ""}
+                    className="sp-input"
+                  />
                 </label>
               </div>
               <div>
-                <label style={{ display: "block" }}>
+                <label className="sp-field">
                   <L>{t(locale, "pb.unit")}</L>
-                  <input name="unit" defaultValue={editing?.unit ?? "unit"} style={inp} />
+                  <input name="unit" defaultValue={editing?.unit ?? "unit"} className="sp-input" />
                 </label>
               </div>
-            </div>
-            <div style={two}>
+            </Grid>
+            <Grid cols={2}>
               <div>
-                <label style={{ display: "block" }}>
+                <label className="sp-field">
                   <L>{t(locale, "pb.price")}</L>
                   <input
                     name="price"
                     type="number"
                     step="0.01"
                     defaultValue={editing ? (editing.price_minor / 100).toFixed(2) : ""}
-                    style={inp}
                     placeholder="0.00"
+                    className="sp-input"
                   />
                 </label>
               </div>
               <div>
-                <label style={{ display: "block" }}>
+                <label className="sp-field">
                   <L>{t(locale, "pb.cost")}</L>
                   <input
                     name="cost"
                     type="number"
                     step="0.01"
                     defaultValue={editing ? (editing.cost_minor / 100).toFixed(2) : ""}
-                    style={inp}
                     placeholder="0.00"
+                    className="sp-input"
                   />
                 </label>
               </div>
-            </div>
-            {state.error && <div style={err}>{state.error}</div>}
+            </Grid>
+            {state.error && <Notice>{state.error}</Notice>}
             <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
               <Save locale={locale} />
               <button
@@ -174,13 +179,13 @@ export default function PriceBookClient({
 function Save({ locale }: { locale: Locale }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} style={btn}>
+    <Button type="submit" disabled={pending}>
       {pending ? t(locale, "common.saving") : `💾 ${t(locale, "common.save")}`}
-    </button>
+    </Button>
   );
 }
 function L({ children }: { children: React.ReactNode }) {
-  return <span style={lbl}>{children}</span>;
+  return <Label>{children}</Label>;
 }
 
 const btn: React.CSSProperties = {
@@ -199,28 +204,4 @@ const mini: React.CSSProperties = {
   padding: "5px 8px",
   cursor: "pointer",
   fontSize: "0.8125rem",
-};
-const two: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 };
-const lbl: React.CSSProperties = {
-  fontSize: "0.8125rem",
-  fontWeight: 700,
-  color: "#334155",
-  display: "block",
-  margin: "10px 0 6px",
-};
-const inp: React.CSSProperties = {
-  width: "100%",
-  border: "1px solid #e2e8f0",
-  borderRadius: 10,
-  padding: "10px 12px",
-  fontSize: "0.875rem",
-  outline: "none",
-};
-const err: React.CSSProperties = {
-  background: "#fdeaea",
-  color: "#dc2626",
-  padding: "9px 12px",
-  borderRadius: 10,
-  fontSize: "0.8125rem",
-  marginTop: 10,
 };

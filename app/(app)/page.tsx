@@ -572,7 +572,7 @@ export default async function DashboardPage() {
                 borderTop: i ? "1px solid #f1f4f9" : "none",
               }}
             >
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="sp-flex-fill">
                 <div
                   style={{
                     fontWeight: 700,
@@ -584,7 +584,7 @@ export default async function DashboardPage() {
                 >
                   {j.customers?.name ?? "—"}
                 </div>
-                <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>
+                <div className="sp-text-muted">
                   {j.service} · {fmtDate(j.scheduled_date)}
                 </div>
               </div>

@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { t, type Locale } from "@/lib/i18n";
 import type { ActionResult } from "@/lib/documents";
 import Modal from "@/components/Modal";
+import { Button, Notice } from "@/components/ui";
 
 type Opt = { id: string; label: string };
 type Action = (prev: ActionResult, formData: FormData) => Promise<ActionResult>;
@@ -115,18 +116,18 @@ export default function DocForm({
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} style={btn}>
+      <Button onClick={() => setOpen(true)}>
         <span aria-hidden="true">➕</span> {t(locale, newKey)}
-      </button>
+      </Button>
       {open && (
         <Modal onClose={() => setOpen(false)} labelledBy={titleId} width={580}>
           <form action={formAction}>
             <h3 id={titleId} style={{ fontSize: "1.125rem", fontWeight: 800, marginBottom: 14 }}>
               {t(locale, newKey)}
             </h3>
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <span style={lbl}>{t(locale, "doc.customer")}</span>
-              <select name="customer_id" style={inp} required>
+              <select name="customer_id" required className="sp-select sp-control--lg">
                 {customers.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.label}
@@ -193,7 +194,7 @@ export default function DocForm({
                   }}
                 >
                   <div>
-                    <label style={{ display: "block" }}>
+                    <label className="sp-field">
                       <span style={miniLbl}>Qty</span>
                       <input
                         name="qty"
@@ -206,7 +207,7 @@ export default function DocForm({
                     </label>
                   </div>
                   <div>
-                    <label style={{ display: "block" }}>
+                    <label className="sp-field">
                       <span style={miniLbl}>Unit price</span>
                       <input
                         name="price"
@@ -220,7 +221,7 @@ export default function DocForm({
                     </label>
                   </div>
                   <div>
-                    <label style={{ display: "block" }}>
+                    <label className="sp-field">
                       <span style={miniLbl}>Cost</span>
                       <input
                         name="cost"
@@ -303,9 +304,15 @@ export default function DocForm({
               style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 14 }}
             >
               <div>
-                <label style={{ display: "block" }}>
+                <label className="sp-field">
                   <span style={lbl}>{t(locale, "doc.discount")}</span>
-                  <input name="discount" type="number" step="0.01" defaultValue="0" style={inp} />
+                  <input
+                    name="discount"
+                    type="number"
+                    step="0.01"
+                    defaultValue="0"
+                    className="sp-input sp-control--lg"
+                  />
                 </label>
               </div>
               <div
@@ -321,15 +328,15 @@ export default function DocForm({
                 {(previewSubtotal / 100).toFixed(2)}
               </div>
             </div>
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <span style={lbl}>{t(locale, "form.notes")}</span>
-              <textarea name="notes" rows={2} style={inp} />
+              <textarea name="notes" rows={2} className="sp-textarea sp-control--lg" />
             </label>
             <div style={{ fontSize: "0.75rem", color: "#5c6675", marginTop: 8 }}>
               ℹ️ Tax & total are calculated on save (only taxable items are taxed). New items are
               saved to your library for reuse.
             </div>
-            {state.error && <div style={err}>{state.error}</div>}
+            {state.error && <Notice mt={5}>{state.error}</Notice>}
             <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
               <Save locale={locale} />
               <button
@@ -352,9 +359,9 @@ const SYM: Record<string, string> = { USD: "$", ILS: "₪", EUR: "€" };
 function Save({ locale }: { locale: Locale }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} style={btn}>
+    <Button type="submit" disabled={pending}>
       {pending ? t(locale, "common.saving") : `💾 ${t(locale, "common.save")}`}
-    </button>
+    </Button>
   );
 }
 
@@ -421,12 +428,4 @@ const xBtn: React.CSSProperties = {
   padding: "6px 9px",
   cursor: "pointer",
   flexShrink: 0,
-};
-const err: React.CSSProperties = {
-  background: "#fdeaea",
-  color: "#dc2626",
-  padding: "9px 12px",
-  borderRadius: 10,
-  fontSize: "0.8125rem",
-  marginTop: 12,
 };

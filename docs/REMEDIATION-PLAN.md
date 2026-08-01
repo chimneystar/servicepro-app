@@ -1375,7 +1375,7 @@ written.
 | 6.2 | `lib/data/*` repository modules; mandatory pagination | TODO |
 | 6.3 | One action contract; error/loading boundaries per route group; toast primitive | TODO |
 | 6.4 | De-minify the long-line files; Prettier + max-len lint | **DONE** — 383 files reformatted, proven semantics-preserving file by file. See note |
-| 6.5 | Design system: tokens + ~15 primitives; retire 871 inline style objects | TODO |
+| 6.5 | Design system: tokens + ~15 primitives; retire 871 inline style objects | **PARTIAL** — tokens, 18 primitives and Tailwind's removal are DONE and proven; the migration is 238 of 1,587 style objects (15%). See note |
 | 6.6 | Accessibility: label association (`htmlFor` is currently used **zero** times), focus visibility, dialog semantics, button types | **PARTIAL** — both halves are now closed: the typographic half (owner findings A1 + A2) and the four named non-typographic defects, everywhere except two quarantined directories. Remaining: only 15 of the plugin rules are on, and nothing has been tested with a real screen reader or axe. See both notes |
 | 6.7 | Consolidate overlapping tables (line items, assignment models, permission systems) | TODO |
 
@@ -1482,6 +1482,165 @@ purely visual regression in a route with no test would not have been caught; the
 (selectors, declarations and their order) is the substitute. `db/**`, `docs/**` and `*.md` are in
 `.prettierignore` on purpose — Prettier has no SQL parser, and reflowing this plan and the audit into
 a rewritten diff would destroy more review value than it creates.
+
+**Note on 6.5 — the design system. Foundation DONE and proven; migration 15% and honest about it.**
+
+*The scope, measured rather than assumed.* The ledger's "871 inline style objects" was an undercount by
+almost half. Parsing every `.tsx` under `app/` and `components/` with the TypeScript compiler API
+(`scripts/design-system-count.mjs`, which reproduces both numbers from any ref) finds **1,587** at
+`b37c024`: 1,354 `style={{…}}` attributes and 233 `const x: React.CSSProperties` declarations. The
+copy-paste is exactly where the row said it was — 36 copies of `inp`, 33 of `btn`, 24 of `lbl`, 22 of
+`err`/`errBox`, 8 of `mini`, 7 of `back`, 6 each of `card`, `two` and `xBtn`.
+
+*The tokens, and where they came from.* Every value is a literal the product already used, with its
+measured usage count kept beside it in the stylesheet: `#5c6675` (169 uses), `#e2e8f0` (134), `#2563eb`
+(127), `#fdeaea` (53), `#eef2f8` (45), `#dc2626` (41), `#15803d` (36); radius 10px (153), 12px (99), 8px
+(40), 14px (35); gap 10px (85), 8px (83). **Nothing was rounded to a nicer number.** A token whose value
+differs from the literal it replaces is a repaint, and there is no browser on this machine to check a
+repaint in. For the same reason the spacing scale is NOT an 8-point grid: the product is not on one, and
+forcing it onto one would move every edge in the app by a pixel or two.
+
+*The finding nobody had written down: there are TWO palettes.* The `--ink/--muted/--accent/--line` set
+at the top of `globals.css` dresses the 368 hand-written classes; the inline layer was painted with a
+different set. The accents are `#2b66f6` and `#2563eb`; the muteds are `#66728a` and `#5c6675`. They have
+drifted. Merging them would repaint several hundred elements by a few points of hue, so the drift is
+recorded in the stylesheet as a finding and left as follow-up. What this pass buys is that each side is
+now one declaration instead of hundreds of copies.
+
+*No dark-mode values, deliberately.* Inline styles could never respond to the theme, so all 1,587 of
+these elements are hardcoded light today and stay exactly that. Giving the tokens dark values would be a
+real improvement and is now a one-file change — but it is a change to what a person sees, and it needs an
+eye on it first.
+
+*Tailwind: REMOVED, and the "31 usages" were phantoms.* Zero of the 444 distinct class names used across
+`app/` and `components/` are Tailwind utilities. The handful the build emitted — `.flex`, `.block`,
+`.grid`, `.hidden`, `.transition` — were scraped by Tailwind's content extractor out of inline style
+VALUES like `display: "flex"` and matched no element; none of them collides with a real class name in the
+tree. The three custom theme colours (navy, brand, sky2) were referenced nowhere. What Tailwind DID
+contribute was Preflight, and that is load-bearing: this product was built on top of it, so its headings,
+lists, links, images and form controls all assume the browser defaults are already gone. So Preflight is
+inlined **verbatim** (444 lines, MIT, theme values already resolved) at the top of `globals.css`, the
+`--tw-*` defaults block (12.8KB, read by nothing) is dropped, and `tailwindcss`, `tailwind.config.ts` and
+the PostCSS plugin are gone. A dependency that ships a reset and nothing else is a reset with a build
+step, a config file and a supply chain attached.
+
+**Proven a no-op**, not asserted: compile `globals.css` at `b37c024` through Tailwind, compile it now
+through postcss + autoprefixer, and diff the flattened declaration set per selector. **0 unexplained
+removals, 0 unexplained additions, 0 unexplained changes** — everything that moved falls in one of three
+named buckets. The comparator carries its own cry-wolf guard (delete one `box-sizing` declaration and it
+must notice), and it needed it: the first version silently deduplicated same-selector rules and hid the
+only real difference it existed to find.
+
+*The primitives, and why they emit CLASSES.* Eighteen components in `components/ui/`, each the canonical
+form of a measured duplicate. The styling is not in them — it is in the PRIMITIVES block at the end of
+`globals.css`, built from the tokens. That split is the point: an inline style sits above the cascade,
+which is what let ~60 `outline: "none"` declarations silence the focus ring until 6.6 had to make it
+`!important`. A class can carry `:hover` and `:focus-visible`, can be moved by a media query, and can be
+changed once. `outline: "none"` is deliberately not carried into any primitive.
+
+**Every primitive selector repeats its class three times** (`.sp-btn.sp-btn.sp-btn`). This is not
+decoration. The sheet already contains 199 selectors that target a bare `button`, `input`, `select`,
+`textarea`, `table`, `th`, `td`, `a` or `label` — `.ops-form button`, `.booking-fields input`,
+`.tech-job-card > footer button` — and the most specific scores 0,2,3. An element that used to carry its
+own inline style ignored all 199; the same element wearing a plain `.sp-btn` (0,1,0) would suddenly lose
+to 183 of them, in files no test renders. 0,3,0 beats every one of them on class count alone, which
+reproduces the precedence the inline style had. It is a test, not a claim: the probe recomputes both
+sides from the real file, so a future 0,3,1 selector fails it.
+
+*Accessibility is enforced by the TYPE, not by a reminder.* `components/ui/Named.ts` is a three-arm union
+— `label`, `aria-label`, `aria-labelledby`, mutually exclusive — so `<Input />` with no name does not
+compile. Mutual exclusion matters in this product specifically: it stops a Hebrew visible label sitting
+under an English announced one. `jsx-a11y/anchor-has-content` refused `TextLink` while its children came
+through a spread and was right to; `children` became a required prop rather than a disable, and the tree
+still has zero `jsx-a11y` disables.
+
+*What was migrated, exactly.*
+
+| | before | after |
+|---|---|---|
+| `style={{…}}` attributes | 1,354 | **1,167** |
+| `const x: React.CSSProperties` | 233 | **182** |
+| **total style objects** | **1,587** | **1,349** (−238, 15%) |
+| design-system class usages | 2 (both false matches on an unrelated `sp-skill-codes`) | **339** |
+
+353 element call sites were rewritten across 70 files: 91 text controls, 90 field labels, 31 buttons to
+`<Button>`, 31 muted-text spans, 21 error boxes to `<Notice>`, 16 large headings, 16 flex cells, 12 links,
+11 labels, 9 two-column grids, 8 subtle-text, 5 empty states, 3 back-links. 51 duplicated `CSSProperties`
+declarations were deleted outright.
+
+*Why 15% and not 90%.* Only EXACT signature matches were rewritten. Beyond the shapes above, the tail is
+genuinely one-off compositions — a button with 11px padding, an input with a 9px radius, `display:flex`
+with a different gap and margin at each site. Reaching them needs one of two things, and both are wrong
+here: accept near-matches, which is a repaint in a screen nothing renders; or build a general utility
+layer keyed by every spacing and colour step, which is re-implementing the framework this same pass just
+removed for being dead weight. The honest remainder is recorded below rather than papered over.
+
+*The probes, each proven RED against a planted violation in real source.* `npm run prove:probes` is now
+**21/21** (16 existing + 5 new):
+
+| planted in | what breaks | which probe fires |
+|---|---|---|
+| `globals.css`: `background: var(--sp-accent)` → `#2563eb` | a primitive spells a colour out again | tokens are used, not duplicated |
+| `globals.css`: `--sp-text-muted: #5c6675` → `#66728a` | a token drifts from the value it replaced | every primitive still paints what it replaced |
+| `globals.css`: `.sp-notice.sp-notice.sp-notice` → `.sp-notice` | a primitive stops out-specifying the sheet | primitive rules out-specify every element selector |
+| `ui/Select.tsx`: drop `aria-label={ariaLabel}` | a control hides its name inside a spread | the name requirement is enforced by the type |
+| `globals.css`: `--sp-font-sm: 0.8125rem` → `13px` | the type scale leaves `rem` | three A2 assertions at once |
+
+The repaint check is the important one, because it is the only thing standing in for a browser: it holds
+the verbatim pre-change style object for each class, expands the CSS rule through the token table,
+canonicalises logical properties and shorthands into physical longhands, and compares property by
+property. **It has already caught a real repaint** — 0.75rem muted text had been mapped to a class
+painting `#94a3b8` instead of `#5c6675`, in 8 places — which is exactly the failure this row exists to
+prevent, found by the guard rather than by a person. It also refuses to cry wolf: `#fff` vs `#ffffff`,
+`fontWeight: 700` vs `700px`, and `padding: "10px 12px"` vs `padding-block/inline` all compare equal, each
+with its own assertion.
+
+*A bug this pass shipped into the tree and then had to prove it had fixed.* The first codemod run
+corrupted 54 files: `<label style={{ display: "block" }}>` became `<label{ display: "block" }}>`. An
+insertion and a deletion shared a start offset, the sort did not disambiguate them, the insertion landed
+first, and the deletion's now-stale end offset ate live source. Typecheck caught it only because the
+wreckage happened not to parse. The applier is now `scripts/lib/text-edits.mjs` — right-to-left, wider
+range first at an equal start, and it refuses overlapping ranges — with `tests/text-edits.test.mjs`
+pinning the exact shape that broke **and** asserting the naive order still corrupts, so the fix cannot
+become decorative.
+
+*Two probes in `tests/typography.test.mjs` were rebuilt rather than re-anchored, and one denominator was
+replaced.* The parser now resolves `var(--sp-font-*)` through the token table — without it the entire type
+scale would have been invisible to every check in that file, which is a probe covering less while staying
+green. It also distinguishes parent-relative units from absolute ones: inlining Preflight brought
+`code { font-size: 1em }` into the sheet and the old resolver reported it as a **1px font**. The four
+non-`rem` sizes the reset contributes are pinned by name, both ways, so the allowlist cannot become the
+hole a hand-written `0.6em` walks through. And the cry-wolf floor `INLINE_SIZES.length > 600` was replaced:
+retiring duplicates legitimately moves sizes out of the inline scan, and because 31 call sites collapse
+onto ONE rule the total falls too (1,110 → 1,021 by deleting 89 duplicates, not by losing 89 sizes). A
+floor on either number fails on progress, and lowering it until it passes is how a guard dies. It is now
+a COVERAGE argument: the walker must still reach the whole tree, both scans must still return hundreds,
+and every font size the primitives declare must be one of the declarations the stylesheet scan checks —
+that is what makes "the size moved" provably different from "the size vanished".
+
+*Ledger 6.6 and RTL are intact and asserted so.* The a11y counts did not move (28 quarantined controls,
+exact); the two quarantined directories were not touched. Because migrating `<input>` to `<Input>` would
+make a control invisible to 6.6's lowercase-tag scanner, text controls were migrated to a CLASS on the
+tag the author already wrote, so they stay inside 6.6's count — and `tests/design-system.test.mjs` asserts
+the denominator anyway. RTL logical properties went 56 → 66; the primitives use `padding-inline`,
+`margin-block`, `border-block-end` and `text-align: start` throughout, and a physical direction in a
+primitive would break everywhere at once.
+
+*What is NOT done.*
+1. **1,349 style objects remain**, 85% of the original. The next and highest-value transform is the
+   `<label><span/><input/></label>` sandwich → `<Input label=… />`, which is where the compile-time
+   accessible-name guarantee actually lands; it restructures markup rather than swapping an attribute, so
+   it was not attempted unattended. The machinery is committed and reusable:
+   `scripts/design-system-codemod-consts.mjs` and `-inline.mjs`, both `--dry`-able, both exact-match only.
+2. **Nothing has been rendered in a browser.** Still true, and it is the honest limit of everything above.
+   The Tailwind removal is proven at the level of compiled CSS declarations, and the migration at the
+   level of declared properties per class — neither is a screenshot. The `nav-reachability` headless probes
+   were not extended to the primitives; a real screen would be the first thing to look at.
+3. **The two palettes are still two.** Unifying `--accent` with `--sp-accent` is a repaint and needs eyes.
+4. **No dark-mode values on any `--sp-*` token**, for the same reason.
+5. Seven measured values (`#eef1f6`, `#f1f4f9`, `#f8fbff`, `#b91c1c`, `#b45309`, `#fed7aa`, the card
+   shadow) are documented in the stylesheet as prose rather than declared, because no primitive reads them
+   yet and the probe refuses a token nobody reads.
 
 **Note on 6.6 — the typographic half (owner findings A1 and A2). The rest of 6.6 is untouched.**
 

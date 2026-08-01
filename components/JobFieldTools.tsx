@@ -199,7 +199,7 @@ function SignModal({ jobId, onClose }: { jobId: string; onClose: () => void }) {
       <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 12 }}>
         Have the customer sign to confirm the work is done (optional).
       </p>
-      <label style={{ display: "block" }}>
+      <label className="sp-field">
         <span style={lbl}>Customer name</span>
         <input
           value={name}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
 import { saveMessageTemplate, type ActionResult } from "@/app/(app)/settings/messages-actions";
 import type { Locale } from "@/lib/i18n";
+import { Notice } from "@/components/ui";
 
 export type Template = { trigger: string; enabled: boolean; body: string };
 
@@ -99,9 +100,9 @@ function TemplateRow({ locale, trigger, tpl }: { locale: Locale; trigger: string
       <input type="hidden" name="trigger" value={trigger} />
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
         <span style={{ fontSize: "1.25rem" }}>{meta.icon}</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 800, fontSize: "0.9375rem" }}>{title}</div>
-          <div style={{ fontSize: "0.75rem", color: "#5c6675" }}>{when}</div>
+        <div className="sp-flex-fill">
+          <div className="sp-heading">{title}</div>
+          <div className="sp-text-muted-xs">{when}</div>
         </div>
         <label
           style={{
@@ -136,7 +137,7 @@ function TemplateRow({ locale, trigger, tpl }: { locale: Locale; trigger: string
           he ? "כתבו כאן את ההודעה שהלקוח יקבל…" : "Write the message your customer will receive…"
         }
       />
-      {state.error && <div style={err}>{state.error}</div>}
+      {state.error && <Notice mt={3}>{state.error}</Notice>}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
         <Save locale={locale} />
         {saved && (
@@ -175,12 +176,4 @@ const inp: React.CSSProperties = {
   fontSize: "0.875rem",
   outline: "none",
   resize: "vertical",
-};
-const err: React.CSSProperties = {
-  background: "#fdeaea",
-  color: "#dc2626",
-  padding: "9px 12px",
-  borderRadius: 10,
-  fontSize: "0.8125rem",
-  marginTop: 8,
 };

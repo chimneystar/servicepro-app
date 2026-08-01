@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addEquipment, deleteEquipment } from "@/app/(app)/jobs/[id]/actions";
 import { useAppLocale } from "@/components/LocaleProvider";
+import { Button, Notice } from "@/components/ui";
 
 export type Equip = { id: string; name: string; serial: string | null; notes: string | null };
 
@@ -66,15 +67,15 @@ export default function JobEquipment({ jobId, equipment }: { jobId: string; equi
       </div>
       {/* A failed delete used to leave the row on screen with no explanation. */}
       {err && !adding && (
-        <div role="alert" style={errBox}>
+        <Notice role="alert" mt={3}>
           {err}
-        </div>
+        </Notice>
       )}
 
       {!adding && (
-        <button type="button" onClick={() => setAdding(true)} style={btn}>
+        <Button onClick={() => setAdding(true)} size="md">
           {he ? "הוספת ציוד" : "Add equipment"}
-        </button>
+        </Button>
       )}
       {adding && (
         <form
@@ -91,8 +92,8 @@ export default function JobEquipment({ jobId, equipment }: { jobId: string; equi
             name="name"
             placeholder={he ? "שם הציוד או הדגם" : "Equipment name or model"}
             aria-label={he ? "שם הציוד או הדגם" : "Equipment name or model"}
-            style={inp}
             autoFocus
+            className="sp-input sp-control--lg"
           />
           <input
             name="serial"
@@ -106,11 +107,11 @@ export default function JobEquipment({ jobId, equipment }: { jobId: string; equi
             aria-label={he ? "הערות" : "Notes"}
             style={{ ...inp, marginTop: 8 }}
           />
-          {err && <div style={errBox}>{err}</div>}
+          {err && <Notice mt={3}>{err}</Notice>}
           <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-            <button type="submit" disabled={pending} style={btn}>
+            <Button type="submit" disabled={pending} size="md">
               {pending ? (he ? "שומרים…" : "Saving…") : he ? "שמירה" : "Save"}
-            </button>
+            </Button>
             <button
               type="button"
               onClick={() => setAdding(false)}
@@ -149,12 +150,4 @@ const inp: React.CSSProperties = {
   padding: "10px 12px",
   fontSize: "1rem",
   outline: "none",
-};
-const errBox: React.CSSProperties = {
-  background: "#fdeaea",
-  color: "#dc2626",
-  padding: "8px 12px",
-  borderRadius: 10,
-  fontSize: "0.8125rem",
-  marginTop: 8,
 };

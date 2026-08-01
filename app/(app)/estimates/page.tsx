@@ -51,7 +51,7 @@ export default async function EstimatesPage({
           marginBottom: 18,
         }}
       >
-        <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>{t(locale, "est.title")}</h1>
+        <h1 className="sp-heading sp-heading--lg">{t(locale, "est.title")}</h1>
         <DocForm
           locale={locale}
           customers={custOpts}

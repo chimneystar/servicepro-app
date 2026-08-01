@@ -58,15 +58,7 @@ export default async function JobReportPage({ params }: { params: Promise<{ id: 
           justifyContent: "space-between",
         }}
       >
-        <Link
-          href={`/jobs/${id}`}
-          style={{
-            color: "#2563eb",
-            fontWeight: 700,
-            fontSize: "0.875rem",
-            textDecoration: "none",
-          }}
-        >
+        <Link href={`/jobs/${id}`} className="sp-link">
           ‹ Back to job
         </Link>
         <PrintButton label="Save as PDF" />
@@ -142,20 +134,16 @@ export default async function JobReportPage({ params }: { params: Promise<{ id: 
             <div>
               <div style={cap}>Customer</div>
               <div style={{ fontSize: "1rem", fontWeight: 800 }}>{c?.name}</div>
-              <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>
+              <div className="sp-text-muted">
                 {[c?.address, c?.city].filter(Boolean).join(", ")}
               </div>
-              <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>{c?.phone}</div>
+              <div className="sp-text-muted">{c?.phone}</div>
             </div>
             <div style={{ textAlign: "end" }}>
               <div style={cap}>Service</div>
               <div style={{ fontSize: "1rem", fontWeight: 800 }}>{job.service}</div>
-              <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>
-                {fmtDate(job.scheduled_date)}
-              </div>
-              <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>
-                Tech: {(job as any).profiles?.full_name || "—"}
-              </div>
+              <div className="sp-text-muted">{fmtDate(job.scheduled_date)}</div>
+              <div className="sp-text-muted">Tech: {(job as any).profiles?.full_name || "—"}</div>
             </div>
           </div>
 

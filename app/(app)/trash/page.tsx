@@ -180,7 +180,7 @@ export default async function TrashPage({
 
   return (
     <div style={{ maxWidth: 820 }}>
-      <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>Trash</h1>
+      <h1 className="sp-heading sp-heading--lg">Trash</h1>
       <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginTop: 4 }}>
         {total} deleted {total === 1 ? "record" : "records"} · customers, jobs, estimates and
         invoices

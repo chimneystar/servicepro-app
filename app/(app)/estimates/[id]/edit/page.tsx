@@ -71,10 +71,7 @@ export default async function EditEstimatePage({ params }: { params: Promise<{ i
 
   return (
     <div>
-      <Link
-        href={`/estimates/${id}`}
-        style={{ color: "#2563eb", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none" }}
-      >
+      <Link href={`/estimates/${id}`} className="sp-link">
         ‹ Back
       </Link>
       <h1 style={{ fontSize: "1.5rem", fontWeight: 800, margin: "8px 0 14px" }}>

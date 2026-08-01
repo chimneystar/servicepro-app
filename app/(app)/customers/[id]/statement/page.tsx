@@ -39,9 +39,7 @@ export default async function StatementPage({
         <Link href="/customers" style={back}>
           ‹ Customers
         </Link>
-        <div style={{ padding: 40, textAlign: "center", color: "#5c6675" }}>
-          Customer not found.
-        </div>
+        <div className="sp-empty">Customer not found.</div>
       </div>
     );
   }
@@ -72,8 +70,8 @@ export default async function StatementPage({
         }}
       >
         <div>
-          <h1 style={{ fontSize: "1.5rem", fontWeight: 800 }}>Statement of account</h1>
-          <p style={{ color: "#5c6675", fontSize: "0.8125rem" }}>
+          <h1 className="sp-heading sp-heading--lg">Statement of account</h1>
+          <p className="sp-text-muted">
             As of {fmtDate(statement.asOf)}
             {statement.since ? ` · activity since ${fmtDate(statement.since)}` : ""}
           </p>

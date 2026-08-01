@@ -50,7 +50,7 @@ export default function JobActions({
 
   return (
     <div>
-      <label style={{ display: "block" }}>
+      <label className="sp-field">
         <span
           style={{
             fontSize: "0.8125rem",

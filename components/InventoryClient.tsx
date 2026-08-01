@@ -13,6 +13,7 @@ import {
 // @ts-ignore — pure logic, unit-tested in tests/inventory.test.mjs
 import { formatQtyMilli, isOversold } from "@/lib/core/inventory.mjs";
 import Modal from "@/components/Modal";
+import { Button, Grid, Label, Notice } from "@/components/ui";
 
 export type Item = {
   id: string;
@@ -76,7 +77,7 @@ export default function InventoryClient({ items, currency }: { items: Item[]; cu
           marginBottom: 12,
         }}
       >
-        <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>
+        <div className="sp-text-muted">
           {items.length} items{low.length ? ` · ${low.length} low` : ""}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -92,9 +93,9 @@ export default function InventoryClient({ items, currency }: { items: Item[]; cu
           >
             📦 Receiving
           </Link>
-          <button type="button" onClick={() => setEditing(null)} style={btn}>
+          <Button onClick={() => setEditing(null)} size="md">
             <span aria-hidden="true">➕</span> Add item
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -154,12 +155,12 @@ export default function InventoryClient({ items, currency }: { items: Item[]; cu
                 gap: 10,
               }}
             >
-              <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="sp-flex-fill">
                 <div style={{ fontWeight: 700 }}>
                   {it.name}{" "}
                   {isLow && <span style={{ color: "#b91c1c", fontSize: "0.75rem" }}>· low</span>}
                 </div>
-                <div style={{ fontSize: "0.8125rem", color: "#5c6675" }}>
+                <div className="sp-text-muted">
                   {[
                     it.sku && `SKU ${it.sku}`,
                     `${cur}${(it.cost_minor / 100).toFixed(2)}/${it.unit}`,
@@ -224,71 +225,84 @@ export default function InventoryClient({ items, currency }: { items: Item[]; cu
               {editing ? "Edit item" : "New item"}
             </h3>
             {editing && <input type="hidden" name="id" value={editing.id} />}
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <L>Name</L>
-              <input name="name" defaultValue={editing?.name ?? ""} style={inp} required />
+              <input
+                name="name"
+                defaultValue={editing?.name ?? ""}
+                required
+                className="sp-input sp-control--lg"
+              />
             </label>
-            <div style={two}>
+            <Grid cols={2}>
               <div>
-                <label style={{ display: "block" }}>
+                <label className="sp-field">
                   <L>SKU</L>
-                  <input name="sku" defaultValue={editing?.sku ?? ""} style={inp} />
+                  <input
+                    name="sku"
+                    defaultValue={editing?.sku ?? ""}
+                    className="sp-input sp-control--lg"
+                  />
                 </label>
               </div>
               <div>
-                <label style={{ display: "block" }}>
+                <label className="sp-field">
                   <L>Unit</L>
-                  <input name="unit" defaultValue={editing?.unit ?? "unit"} style={inp} />
+                  <input
+                    name="unit"
+                    defaultValue={editing?.unit ?? "unit"}
+                    className="sp-input sp-control--lg"
+                  />
                 </label>
               </div>
-            </div>
-            <div style={two}>
+            </Grid>
+            <Grid cols={2}>
               <div>
-                <label style={{ display: "block" }}>
+                <label className="sp-field">
                   <L>Quantity</L>
                   <input
                     name="quantity"
                     type="number"
                     step="0.001"
                     defaultValue={editing ? formatQtyMilli(editing.quantity_milli) : 0}
-                    style={inp}
+                    className="sp-input sp-control--lg"
                   />
                 </label>
               </div>
               <div>
-                <label style={{ display: "block" }}>
+                <label className="sp-field">
                   <L>Low-stock alert at</L>
                   <input
                     name="low"
                     type="number"
                     defaultValue={editing?.low_stock_threshold ?? 0}
-                    style={inp}
+                    className="sp-input sp-control--lg"
                   />
                 </label>
               </div>
-            </div>
+            </Grid>
             {editing && (
-              <label style={{ display: "block" }}>
+              <label className="sp-field">
                 <L>Why is the count changing?</L>
                 <input
                   name="reason"
-                  style={inp}
                   placeholder="Stocktake, breakage, returned to vendor…"
+                  className="sp-input sp-control--lg"
                 />
               </label>
             )}
-            <label style={{ display: "block" }}>
+            <label className="sp-field">
               <L>Cost per unit</L>
               <input
                 name="cost"
                 type="number"
                 step="0.01"
                 defaultValue={editing ? (editing.cost_minor / 100).toFixed(2) : ""}
-                style={inp}
                 placeholder="0.00"
+                className="sp-input sp-control--lg"
               />
             </label>
-            {state.error && <div style={err}>{state.error}</div>}
+            {state.error && <Notice>{state.error}</Notice>}
             <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
               <Save />
               <button
@@ -309,13 +323,13 @@ export default function InventoryClient({ items, currency }: { items: Item[]; cu
 function Save() {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} style={btn}>
+    <Button type="submit" disabled={pending} size="md">
       {pending ? "Saving…" : "💾 Save"}
-    </button>
+    </Button>
   );
 }
 function L({ children }: { children: React.ReactNode }) {
-  return <span style={lbl}>{children}</span>;
+  return <Label>{children}</Label>;
 }
 const btn: React.CSSProperties = {
   background: "#2563eb",
@@ -346,22 +360,6 @@ const mini: React.CSSProperties = {
   cursor: "pointer",
   fontSize: "0.8125rem",
   flexShrink: 0,
-};
-const two: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 };
-const lbl: React.CSSProperties = {
-  fontSize: "0.8125rem",
-  fontWeight: 700,
-  color: "#334155",
-  display: "block",
-  margin: "10px 0 6px",
-};
-const inp: React.CSSProperties = {
-  width: "100%",
-  border: "1px solid #e2e8f0",
-  borderRadius: 10,
-  padding: "10px 12px",
-  fontSize: "1rem",
-  outline: "none",
 };
 const err: React.CSSProperties = {
   background: "#fdeaea",
