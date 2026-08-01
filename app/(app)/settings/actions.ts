@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { isOneOf } from "@/lib/validation";
 import { requireProfile, assertRole } from "@/lib/auth";
 import { getLocale } from "@/lib/locale-server";
 import { t } from "@/lib/i18n";
@@ -28,7 +29,13 @@ export async function updateSettings(
   // layer refuses non-USD (Helcim) or violates a CHECK constraint (manual), so
   // any other value produces a business that cannot take payment at all.
   const currency = "USD";
-  const lang = String(formData.get("locale") ?? "en");
+  // `organizations.locale` is CHECK-constrained to 'en' and 'he'. This value
+  // was written UNVALIDATED — the `lang === "en" || lang === "he"` test below
+  // runs AFTER the update and only gates the cookie, so it has never protected
+  // the column. Anything else was refused by Postgres and surfaced as a raw
+  // constraint-violation message.
+  const langRaw = String(formData.get("locale") ?? "en");
+  const lang = isOneOf(["en", "he"], langRaw) ? langRaw : "en";
   const taxLabel = String(formData.get("tax_label") ?? "Sales Tax").trim() || "Sales Tax";
   const taxPct = Number(formData.get("tax_rate") ?? 0);
   const tax_rate_bps = Number.isFinite(taxPct)
@@ -39,7 +46,10 @@ export async function updateSettings(
   const estNext = parseInt(String(formData.get("estimate_next") ?? ""), 10);
 
   const accent = String(formData.get("accent_color") ?? "").trim();
-  const update: Record<string, unknown> = {
+  // Built in one expression rather than assigned into afterwards: a
+  // `Record<string, unknown>` matches every column name and every value, so it
+  // checked nothing about what this write actually sets.
+  const update = {
     name,
     tagline: String(formData.get("tagline") ?? "").trim() || null,
     phone: String(formData.get("phone") ?? "").trim() || null,
@@ -55,9 +65,9 @@ export async function updateSettings(
     invoice_terms: String(formData.get("invoice_terms") ?? "").trim() || null,
     document_footer: String(formData.get("document_footer") ?? "").trim() || null,
     review_url: String(formData.get("review_url") ?? "").trim() || null,
+    ...(Number.isFinite(invNext) && invNext > 0 ? { invoice_counter: invNext - 1 } : {}),
+    ...(Number.isFinite(estNext) && estNext > 0 ? { estimate_counter: estNext - 1 } : {}),
   };
-  if (Number.isFinite(invNext) && invNext > 0) update.invoice_counter = invNext - 1;
-  if (Number.isFinite(estNext) && estNext > 0) update.estimate_counter = estNext - 1;
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -66,8 +76,7 @@ export async function updateSettings(
     .eq("id", profile.organization_id!);
 
   if (error) return { ok: false, error: error.message };
-  if (lang === "en" || lang === "he")
-    (await cookies()).set("locale", lang, { path: "/", maxAge: 31536000, sameSite: "lax" });
+  (await cookies()).set("locale", lang, { path: "/", maxAge: 31536000, sameSite: "lax" });
   revalidatePath("/settings");
   return { ok: true };
 }

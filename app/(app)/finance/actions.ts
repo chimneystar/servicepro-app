@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { assertCapability, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getLocale } from "@/lib/locale-server";
+import { isOneOf } from "@/lib/validation";
 // @ts-ignore — integer-safe money engine (JS module, unit-tested in tests/money.test.mjs)
 import { parseAmountToMinor, parsePercentToBps } from "@/lib/core/money.mjs";
 
@@ -86,14 +87,24 @@ export async function createTaxJurisdiction(
       String(formData.get("effectiveFrom") ?? "").trim() || new Date().toISOString().slice(0, 10);
     const effectiveTo = String(formData.get("effectiveTo") ?? "").trim() || null;
     if (effectiveTo && effectiveTo < effectiveFrom) return { ok: false, error: dateOrderError(he) };
+    // Both columns are `text` with a CHECK constraint. Neither was validated,
+    // so a value outside the set reached Postgres and came back as a
+    // constraint violation the caller reported as a generic save failure.
+    const jurisdictionType = String(formData.get("type") ?? "state");
+    const appliesTo = String(formData.get("appliesTo") ?? "all");
+    if (
+      !isOneOf(["state", "county", "city", "district", "other"], jurisdictionType) ||
+      !isOneOf(["all", "labor", "materials", "custom"], appliesTo)
+    )
+      return { ok: false, error: initialError(he) };
 
     const supabase = await createClient();
     const { error } = await supabase.from("tax_jurisdictions").insert({
       organization_id: profile.organization_id,
       name,
       code: String(formData.get("code") ?? "").trim() || null,
-      jurisdiction_type: String(formData.get("type") ?? "state"),
-      applies_to: String(formData.get("appliesTo") ?? "all"),
+      jurisdiction_type: jurisdictionType,
+      applies_to: appliesTo,
       rate_bps,
       effective_from: effectiveFrom,
       effective_to: effectiveTo,
@@ -123,7 +134,7 @@ export async function setTaxMode(
   const locale = await getLocale(),
     he = locale === "he";
   const mode = String(formData.get("mode") ?? "");
-  if (!["flat", "jurisdictions"].includes(mode)) return { ok: false, error: initialError(he) };
+  if (!isOneOf(["flat", "jurisdictions"], mode)) return { ok: false, error: initialError(he) };
   try {
     const profile = await guardFinance();
     const supabase = await createClient();
@@ -174,6 +185,10 @@ export async function createTaxFiling(
     const start = String(formData.get("periodStart") ?? ""),
       end = String(formData.get("periodEnd") ?? "");
     if (!start || !end || end < start) return { ok: false, error: initialError(he) };
+    // `tax_filings.status` is CHECK-constrained and was written unvalidated.
+    const filingStatus = String(formData.get("status") ?? "open");
+    if (!isOneOf(["open", "ready", "filed", "paid", "overdue"], filingStatus))
+      return { ok: false, error: initialError(he) };
     const supabase = await createClient();
     const { error } = await supabase.from("tax_filings").insert({
       organization_id: profile.organization_id,
@@ -184,7 +199,7 @@ export async function createTaxFiling(
       exempt_sales_minor: minor(formData.get("exemptSales")),
       tax_collected_minor: minor(formData.get("taxCollected")),
       tax_remitted_minor: minor(formData.get("taxRemitted")),
-      status: String(formData.get("status") ?? "open"),
+      status: filingStatus,
       confirmation_reference: String(formData.get("reference") ?? "").trim() || null,
       created_by: profile.id,
     });
@@ -234,6 +249,11 @@ export async function createSettlement(
       };
     }
 
+    // `settlement_batches.status` is CHECK-constrained and was written unvalidated.
+    const batchStatus = String(formData.get("status") ?? "expected");
+    if (!isOneOf(["expected", "in_transit", "deposited", "reconciled", "exception"], batchStatus))
+      return { ok: false, error: initialError(he) };
+
     const supabase = await createClient();
     const { error } = await supabase.from("settlement_batches").insert({
       organization_id: profile.organization_id,
@@ -249,7 +269,7 @@ export async function createSettlement(
       chargebacks_minor: chargebacks,
       adjustments_minor: adjustments,
       net_minor: net,
-      status: String(formData.get("status") ?? "expected"),
+      status: batchStatus,
       bank_reference: String(formData.get("bankReference") ?? "").trim() || null,
       notes: String(formData.get("notes") ?? "").trim() || null,
       created_by: profile.id,
@@ -298,7 +318,7 @@ export async function createDispute(
 export async function updateSettlementStatus(id: string, status: string): Promise<FinanceResult> {
   const locale = await getLocale(),
     he = locale === "he";
-  if (!["expected", "in_transit", "deposited", "reconciled", "exception"].includes(status))
+  if (!isOneOf(["expected", "in_transit", "deposited", "reconciled", "exception"], status))
     return { ok: false, error: initialError(he) };
   try {
     const profile = await guardFinance();
@@ -327,7 +347,7 @@ export async function updateDispute(
 ): Promise<FinanceResult> {
   const locale = await getLocale(),
     he = locale === "he";
-  if (!["needs_response", "under_review", "won", "lost", "accepted", "closed"].includes(status))
+  if (!isOneOf(["needs_response", "under_review", "won", "lost", "accepted", "closed"], status))
     return { ok: false, error: initialError(he) };
   try {
     const profile = await guardFinance();

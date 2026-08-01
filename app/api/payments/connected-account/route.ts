@@ -27,7 +27,13 @@ export async function POST(request: NextRequest) {
     signature: request.headers.get("webhook-signature"),
     verifierToken,
   });
-  if (!valid) return NextResponse.json({ ok: false, reason: "bad signature" }, { status: 400 });
+  // `|| !webhookId` is a no-op at runtime: verifyHelcimWebhook returns false
+  // when the header is missing, so this branch was already taken. Stating it
+  // here is what lets the compiler see that `provider_event_id` — NOT NULL in
+  // `payment_events` — cannot be null below, and removes the two `!` the
+  // insert and the duplicate check needed.
+  if (!valid || !webhookId)
+    return NextResponse.json({ ok: false, reason: "bad signature" }, { status: 400 });
 
   let body: { apiToken?: unknown; event?: unknown; connectedAccountId?: unknown };
   try {
@@ -46,7 +52,7 @@ export async function POST(request: NextRequest) {
     .from("payment_events")
     .select("id")
     .eq("provider", "helcim")
-    .eq("provider_event_id", webhookId!)
+    .eq("provider_event_id", webhookId)
     .maybeSingle();
   if (duplicate) return NextResponse.json({ ok: true, duplicate: true });
 

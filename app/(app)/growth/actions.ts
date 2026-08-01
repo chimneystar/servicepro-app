@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireProfile, assertRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { isOneOf } from "@/lib/validation";
 import { getLocale } from "@/lib/locale-server";
 // @ts-ignore — integer-safe money engine (JS module, unit-tested)
 import { parseAmountToMinor } from "@/lib/core/money.mjs";
@@ -54,7 +55,14 @@ export async function createCampaign(_prev: ActionResult, data: FormData): Promi
   // sent or, worse, be interpreted later as "everyone".
   const channel = value(data, "channel") || "email";
   const segment = value(data, "segment") || "all_customers";
-  if (!campaignChannels(channel).length || !isKnownSegment(segment))
+  // `campaigns.channel` is CHECK-constrained to these three. `campaignChannels`
+  // already refuses anything else — it returns an empty list — so this is the
+  // same refusal, stated so the compiler can carry it to the INSERT.
+  if (
+    !isOneOf(["email", "sms", "both"], channel) ||
+    !campaignChannels(channel).length ||
+    !isKnownSegment(segment)
+  )
     return { ok: false, error: invalid(he) };
   const { error: dbError } = await ctx.supabase.from("campaigns").insert({
     organization_id: ctx.profile.organization_id,
@@ -320,12 +328,20 @@ export async function scheduleEstimateFollowup(
   if (!ctx) return { ok: false, error };
   const estimateId = value(data, "estimateId");
   const scheduledAt = value(data, "scheduledAt");
-  if (!estimateId || !scheduledAt || Number.isNaN(new Date(scheduledAt).getTime()))
+  // `estimate_followups.channel` is CHECK-constrained and was written with no
+  // validation at all — a crafted POST reached the constraint.
+  const followupChannel = value(data, "channel") || "email";
+  if (
+    !estimateId ||
+    !scheduledAt ||
+    Number.isNaN(new Date(scheduledAt).getTime()) ||
+    !isOneOf(["email", "sms"], followupChannel)
+  )
     return { ok: false, error: invalid(he) };
   const { error: dbError } = await ctx.supabase.from("estimate_followups").insert({
     organization_id: ctx.profile.organization_id,
     estimate_id: estimateId,
-    channel: value(data, "channel") || "email",
+    channel: followupChannel,
     scheduled_at: new Date(scheduledAt).toISOString(),
   });
   if (dbError) return { ok: false, error: saveFailed(he) };

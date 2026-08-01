@@ -215,13 +215,27 @@ export async function releaseBookingDeposit(
     return { released: true, reason: "estimate_only_service" };
   }
 
+  // `jobs.service` is NOT NULL; `leads.service` is nullable, and a booking made
+  // without a `booking_service_id` supplies neither. The insert below then
+  // failed with a not-null violation AFTER the customer had paid the deposit,
+  // and the failure was only visible as a console line — the caller returned
+  // `{ released: true, reason: "job_creation_failed" }` and the booking sat in
+  // Leads with nobody told why. This is the same gate the block above applies
+  // to a missing customer, date or time: the money is kept, the booking waits
+  // for a human, and nothing is invented from missing data.
+  const serviceName = service?.name_en ?? lead.service;
+  if (!serviceName) {
+    await admin.from("leads").update({ booking_status: "confirmed" }).eq("id", lead.id);
+    return { released: true, reason: "manual_scheduling_required" };
+  }
+
   const durationMin = Number(service?.duration_min ?? 60);
   const start = String(lead.preferred_start_time).slice(0, 5);
   const { error: jobError } = await admin.from("jobs").insert({
     organization_id: lead.organization_id,
     customer_id: lead.converted_customer_id,
     assigned_to: null,
-    service: service?.name_en ?? lead.service,
+    service: serviceName,
     status: "scheduled",
     price_minor: Number(service?.price_minor ?? 0),
     scheduled_date: lead.preferred_date,

@@ -18,7 +18,11 @@ export async function GET(
     .select("organization_id,role")
     .eq("id", user.id)
     .single();
-  if (!profile || profile.role !== "owner")
+  // `organization_id` is nullable in `profiles` — a row exists between signup
+  // and onboarding, and it defaults to role 'owner'. Such a user has no
+  // organisation and therefore no privacy requests; the query below used to run
+  // with a null filter, match nothing, and report the request as missing.
+  if (!profile || !profile.organization_id || profile.role !== "owner")
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const { data: privacyRequest } = await supabase
     .from("privacy_requests")

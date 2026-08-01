@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireProfile, assertRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { resolveTimeZone } from "@/lib/booking";
+import { isOneOf } from "@/lib/validation";
 
 const text = (data: FormData, key: string, max = 500) =>
   String(data.get(key) ?? "")
@@ -36,6 +37,17 @@ export async function saveBookingSettings(data: FormData) {
   // tampered form cannot write a zone the slot engine would then choke on. The
   // DB trigger from migration 029 is the second line of defence.
   const timezone = resolveTimeZone(text(data, "timezone", 64));
+  const slotIntervalRaw = number(data, "slotIntervalMin", 60);
+  const slotInterval = isOneOf([15, 30, 45, 60, 90, 120], slotIntervalRaw) ? slotIntervalRaw : 60;
+  const arrivalWindowRaw = number(data, "arrivalWindowMin", 120);
+  const arrivalWindow = isOneOf([30, 60, 90, 120, 180, 240], arrivalWindowRaw)
+    ? arrivalWindowRaw
+    : 120;
+  const paymentModeRaw = text(data, "paymentMode", 20) || "none";
+  const paymentMode = isOneOf(["none", "fixed", "percentage", "full"], paymentModeRaw)
+    ? paymentModeRaw
+    : "none";
+
   const settings = {
     organization_id: organizationId,
     timezone,
@@ -45,10 +57,14 @@ export async function saveBookingSettings(data: FormData) {
     use_team_capacity: data.get("useTeamCapacity") === "on",
     min_notice_hours: Math.max(0, Math.min(720, number(data, "minNoticeHours", 4))),
     max_days_ahead: Math.max(1, Math.min(365, number(data, "maxDaysAhead", 60))),
-    slot_interval_min: number(data, "slotIntervalMin", 60),
-    arrival_window_min: number(data, "arrivalWindowMin", 120),
+    // Both columns are CHECK-constrained to a fixed list of minute values, and
+    // both were written straight from the form. A slot interval of, say, 20
+    // was refused by Postgres and surfaced as a raw constraint-violation
+    // message; now it falls back to the same default the form ships with.
+    slot_interval_min: slotInterval,
+    arrival_window_min: arrivalWindow,
     hours_json: hours,
-    payment_mode: text(data, "paymentMode", 20) || "none",
+    payment_mode: paymentMode,
     deposit_value: Math.max(0, Math.round(number(data, "depositValue", 0))),
     success_message_en: text(data, "successMessageEn", 1000) || null,
     success_message_he: text(data, "successMessageHe", 1000) || null,
@@ -61,6 +77,10 @@ export async function saveBookingSettings(data: FormData) {
   for (const id of jobTypeIds) {
     const key = id.replaceAll("-", "");
     const price = Math.max(0, Math.round(number(data, `price_${key}`, 0) * 100));
+    // Read out of the object literal, and annotated: inside a literal, and
+    // without the annotation, the two branches would widen back to `string`.
+    const bookAs: "estimate" | "job" =
+      text(data, `bookAs_${key}`, 20) === "estimate" ? "estimate" : "job";
     const row = {
       organization_id: organizationId,
       job_type_id: id,
@@ -70,7 +90,7 @@ export async function saveBookingSettings(data: FormData) {
       description_he: text(data, `descriptionHe_${key}`, 700) || null,
       duration_min: Math.max(15, Math.min(1440, number(data, `duration_${key}`, 60))),
       price_minor: price,
-      book_as: text(data, `bookAs_${key}`, 20) === "estimate" ? "estimate" : "job",
+      book_as: bookAs,
       active: data.get(`enabled_${key}`) === "on",
     };
     await supabase
@@ -116,8 +136,11 @@ export async function addBookingQuestion(data: FormData) {
   const supabase = await createClient();
   const labelEn = text(data, "labelEn", 180);
   if (!labelEn) return { ok: false, error: "English question text is required" };
-  const fieldType = ["text", "textarea", "choice", "checkbox"].includes(text(data, "fieldType", 20))
-    ? text(data, "fieldType", 20)
+  // `text()` is pure, so reading it into a local changes nothing but gives the
+  // guard something to narrow — the same string was being computed twice.
+  const requestedFieldType = text(data, "fieldType", 20);
+  const fieldType = isOneOf(["text", "textarea", "choice", "checkbox"], requestedFieldType)
+    ? requestedFieldType
     : "text";
   const options = text(data, "options", 1000)
     .split(",")

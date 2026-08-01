@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { assertRole, requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { isOneOf } from "@/lib/validation";
 import { getLocale } from "@/lib/locale-server";
 import { runDataRetentionForOrganization } from "@/lib/data-retention";
 
@@ -70,11 +71,19 @@ export async function recordConsent(
     const profile = await guard(),
       customerId = String(formData.get("customerId") ?? "");
     if (!customerId) return { ok: false, error: message(he) };
+    // `consent_events.channel` is CHECK-constrained and was written with no
+    // validation at all: the value went straight from the form to Postgres,
+    // which refused it, and the caller reported a generic failure.
+    const channel = String(formData.get("channel") ?? "email");
+    if (
+      !isOneOf(["email", "sms", "phone", "location", "terms", "privacy", "payment_method"], channel)
+    )
+      return { ok: false, error: message(he) };
     const supabase = await createClient();
     const { error } = await supabase.from("consent_events").insert({
       organization_id: profile.organization_id,
       customer_id: customerId,
-      channel: String(formData.get("channel") ?? "email"),
+      channel,
       purpose: String(formData.get("purpose") ?? "").trim() || "customer communication",
       granted: formData.get("granted") === "yes",
       source: "staff",
@@ -100,12 +109,16 @@ export async function createPrivacyRequest(
       supabase = await createClient(),
       name = String(formData.get("requesterName") ?? "").trim();
     if (!name) return { ok: false, error: message(he) };
+    // `privacy_requests.request_type` is CHECK-constrained; same gap.
+    const requestType = String(formData.get("requestType") ?? "access");
+    if (!isOneOf(["access", "export", "correction", "deletion", "opt_out"], requestType))
+      return { ok: false, error: message(he) };
     const due = new Date();
     due.setDate(due.getDate() + 30);
     const { error } = await supabase.from("privacy_requests").insert({
       organization_id: profile.organization_id,
       customer_id: String(formData.get("customerId") ?? "") || null,
-      request_type: String(formData.get("requestType") ?? "access"),
+      request_type: requestType,
       requester_name: name,
       requester_email: String(formData.get("email") ?? "").trim() || null,
       requester_phone: String(formData.get("phone") ?? "").trim() || null,
@@ -171,11 +184,15 @@ export async function createRetentionHold(
     const profile = await guard(),
       reason = String(formData.get("reason") ?? "").trim();
     if (!reason) return { ok: false, error: message(he) };
+    // `retention_holds.category` is CHECK-constrained; same gap.
+    const category = String(formData.get("category") ?? "all");
+    if (!isOneOf(["all", "location", "calls", "communications", "media", "audit"], category))
+      return { ok: false, error: message(he) };
     const supabase = await createClient();
     const { error } = await supabase.from("retention_holds").insert({
       organization_id: profile.organization_id,
       customer_id: String(formData.get("customerId") ?? "") || null,
-      category: String(formData.get("category") ?? "all"),
+      category,
       reason,
       expires_at: String(formData.get("expiresAt") ?? "") || null,
       created_by: profile.id,
