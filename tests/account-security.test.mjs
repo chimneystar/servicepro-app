@@ -349,8 +349,14 @@ test("the audit log has a real reader with filters and pagination", () => {
     dataLayer.includes('from("audit_log")'),
     "this is the first reader beyond a single record's 30-row timeline",
   );
+  // The range is no longer written here at all: `listAuditLogPage` states a
+  // PAGE and lib/data/db.ts's `readPageWithTotal` applies the range and asks
+  // for the exact count in the same request. That is stronger than asserting
+  // `.range(` in this file, because a bound the query cannot write is one it
+  // cannot omit — tests/data-layer.test.mjs proves the gateway ranges, and
+  // proves no repository ranges for itself.
   assert.ok(
-    dataLayer.includes('count: "exact"') && dataLayer.includes(".range("),
+    dataLayer.includes('count: "exact"') && dataLayer.includes("readPageWithTotal("),
     "a log you cannot page through is a log you cannot read",
   );
   assert.ok(

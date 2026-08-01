@@ -9,7 +9,7 @@
  */
 
 import type { ServerClient } from "@/lib/supabase/server";
-import { readAll, readAtMost, DataError } from "./db";
+import { readAll, readAtMost, readPageWithTotal } from "./db";
 
 /** Job statuses with only the "done" flag — the commission report's completion test. */
 export function listJobStatusesForCommission(supabase: ServerClient) {
@@ -269,21 +269,35 @@ export async function listAuditLogPage(
   page: number,
   pageSize: number,
 ) {
-  let query = supabase
-    .from("audit_log")
-    .select("id, table_name, row_id, action, actor, at", { count: "exact" })
-    .eq("organization_id", organizationId);
-  if (filters.from) query = query.gte("at", `${filters.from}T00:00:00Z`);
-  if (filters.to) query = query.lte("at", `${filters.to}T23:59:59Z`);
-  if (filters.table) query = query.eq("table_name", filters.table);
-  if (filters.action) query = query.eq("action", filters.action);
-  if (filters.actor) query = query.eq("actor", filters.actor);
-  const offset = Math.max(0, page - 1) * pageSize;
-  const { data, count, error } = await query
-    .order("at", { ascending: false })
-    .range(offset, offset + pageSize - 1);
-  if (error) throw new DataError("reporting.listAuditLogPage", error);
-  return { rows: data ?? [], total: count ?? 0 };
+  // The builder is written INLINE in the gateway call rather than assigned to a
+  // local and passed by name. Both compile; only this one can be read as paged
+  // by tests/data-layer.test.mjs, which finds the call a query sits inside by
+  // walking to the enclosing parenthesis. Hoisting the builder out of the call
+  // hides that relationship from a lexical scan — so the guard reported this
+  // function as an unbounded read, correctly, and the code moved to the shape
+  // the guard can verify instead of the guard being taught to guess.
+  //
+  // The filters rebuild the query per call: `readPageWithTotal` invokes the
+  // builder itself, and a postgrest-js builder that has been awaited cannot be
+  // reused.
+  const { rows, total } = await readPageWithTotal(
+    "reporting.listAuditLogPage",
+    () => {
+      let query = supabase
+        .from("audit_log")
+        .select("id, table_name, row_id, action, actor, at", { count: "exact" })
+        .eq("organization_id", organizationId);
+      if (filters.from) query = query.gte("at", `${filters.from}T00:00:00Z`);
+      if (filters.to) query = query.lte("at", `${filters.to}T23:59:59Z`);
+      if (filters.table) query = query.eq("table_name", filters.table);
+      if (filters.action) query = query.eq("action", filters.action);
+      if (filters.actor) query = query.eq("actor", filters.actor);
+      return query.order("at", { ascending: false });
+    },
+    // The audit log screen is 1-based; the gateway is 0-based.
+    { page: Math.max(0, page - 1), size: pageSize },
+  );
+  return { rows, total };
 }
 
 // --- finance: tax, settlements, disputes -------------------------------------

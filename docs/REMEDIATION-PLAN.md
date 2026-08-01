@@ -1458,6 +1458,102 @@ item and each needs its own probe:
 * `app/(app)/finance/page.tsx:31-35` — a fallback for "migration 035 not applied" that can no longer
   fire, since `organizations.tax_mode` is in the derived schema.
 
+**Note on 6.2 — the data layer, and how an unpaged read was made impossible rather than discouraged.**
+
+*The problem, stated exactly.* PostgREST caps a response at 1000 rows and says nothing about it:
+HTTP 200, `error: null`, a thousand perfectly valid rows, and a missing remainder. Nothing above the
+wire can tell that answer from a complete one. `app/(app)/reports/export/actions.ts` was fixed for
+this once, with a `fetchAllPages` helper and a rule — "remember to page" — and
+`tests/export-and-currency.test.mjs` guards that one file. **130 other list reads across 70 files had
+the same defect and no test could see them.** A rule that must be remembered is not a mechanism; the
+130 are the evidence.
+
+*The mechanism, in three layers of decreasing strength.*
+
+1. **The caller never writes a bound, so it cannot omit one.** `lib/data/db.ts` is a gateway: a
+   repository passes a query SHAPE and the gateway applies the range. `readAll` runs the page loop;
+   `readPage`/`readPageWithTotal` apply one page; `readAtMost` applies the limit it was given.
+   Nothing else in `lib/data/` awaits a query at all. `fetchAllPages((a, b) => q.range(a, b))` still
+   let a caller hand over a builder it had never ranged; this does not.
+2. **There is no unbounded entry point to call.** `readAtMost(source, build, limit)` takes its limit
+   as a required positional parameter — omitting it is a compile error, not a default — and there is
+   deliberately no `read(build)`. `lib/data/type-contract.ts` asserts this with `@ts-expect-error`,
+   so if an unbounded call ever became legal `npm run typecheck` fails naming the broken contract.
+   (TypeScript reports an UNUSED `@ts-expect-error` as TS2578, which is what makes the file a real
+   check and not a comment.)
+3. **Anything that bypasses the gateway fails the build, anywhere in the tree.**
+   `tests/data-layer.test.mjs` scans every `.from(...).select(...)` in the source — **including
+   files not yet committed**, because a new screen arrives with its query and its file in the same
+   change — and requires each list read to be bounded. What is left is pinned in
+   `tests/unpaged-reads.json`, and `CEILING` in the test is a literal that
+   `scripts/unpaged-inventory.mjs --write` cannot touch, so regenerating the inventory can never
+   quietly raise what the build accepts.
+
+*Proven against a real database, because nothing else can prove it.* `tests/data-paging-db.test.mjs`
+applies all 41 migrations to PGlite, inserts 1001 customers, and reads them back through
+`tests/helpers/postgrest-fake.mjs` — an adapter whose only job is to truncate at 1000 the way
+Supabase truncates. It establishes, on real rows:
+
+* the unpaged read returns **exactly 1000 with `error === null`** — the defect, demonstrated, not asserted;
+* `readAll`'s loop returns **all 1001**, in order, no row twice, in **three ranged requests**;
+* a total that is an exact multiple of the page size still terminates and is still complete;
+* **row-level security still applies** across every page (tenant B pages through its own 3 rows while
+  tenant A's 600 sit beside them) — paging issues N requests where there was one, and none of them
+  may escape RLS. The fixture asserts RLS is genuinely in force before trusting that result, because
+  "B sees only 3 rows" is equally consistent with a bypassed policy and an empty fixture;
+* visible pagination walks a 300-row table exactly once and reports `hasMore: false` on the full
+  final page;
+* a limit above the cap is **paged, not clamped**.
+
+The loop under test lives in `lib/core/paging.mjs` precisely so the test runs the shipped code rather
+than a transcription of it.
+
+*A hole found in this work's own first draft, and closed.* `readAtMost` originally clamped the
+caller's limit to 999 and issued one request, so asking for 1500 returned 999 rows with no error —
+the very defect the module exists to remove, reintroduced inside it behind an explicit-looking
+number. Clamping is defensible for a REQUEST and not for an ANSWER. It now pages (`pageUpTo`).
+
+*How errors surface, and why.* Every read in the gateway **throws**; none returns `[]`. Measured with
+the same classifier the guard uses, **13 of 526 direct reads in this codebase looked at the `error`
+field at all** — so a failed query rendered as an empty screen and the operator concluded the data was
+gone. A repository that caught an error and returned `[]` would institutionalise exactly that, and
+`tests/data-layer.test.mjs` fails if one does. `app/error.tsx` is the app-wide boundary, so a throw in
+a server component becomes a visible failure with a digest, which is a true statement where an empty
+list is a false one. Background paths differ deliberately: a cron loop catches per organisation and
+continues, because one tenant's failure must not stop the other tenants' work.
+
+*Row-level security is not conflated with absence.* RLS filters rows; it does not error. A read that
+returns nothing means *either* "no such row" *or* "you may not see it", and PostgREST cannot say
+which. `readOne` returns `null` and lets the caller decide; the throwing variant raises
+`NotFoundOrForbiddenError`, named for both possibilities on purpose so nothing downstream can turn
+"denied" into "deleted".
+
+*The guard was pointed at this work too, and won an argument.* One migrated repository reached around
+the gateway to apply its own `.range()`, with a careful comment explaining that the exception was
+narrow and disciplined — the trash screen genuinely needs a row page AND a true total from one
+request, which `readPage` did not offer. The reason was real and the exception was still wrong: the
+moment one repository may bound itself for a good reason, the rule is advice, and advice is what
+produced the 130. The gateway grew `readPageWithTotal` instead.
+
+*Two false positives in the scanner, both fixed, because a false red is as damaging as a false
+green.* `readAll<{ customer_id: string | null }>(…)` contains a brace inside its TYPE ARGUMENT, so a
+"look back to the nearest brace" search began after the generic and reported two correctly-paged
+repositories as unbounded; the scanner now walks to the first unmatched paren and reads the callee.
+And a repository *documenting* why it does not call `.range()` failed the check that it does not call
+`.range()` — comments are stripped first.
+
+*A defect found while verifying the gates, deliberately NOT fixed here.* `tests/push.test.mjs` fails
+roughly one run in fifty, and it is **not flaky noise — it is intermittently catching a real bug.**
+Node's `ecdh.getPrivateKey()` returns the P-256 scalar with leading zero bytes stripped, so about
+1 pair in 256 is 31 bytes rather than 32 (measured: **78 of 20,000**, against the 1/256 the theory
+predicts). `checkVapidKeys` (`lib/core/push.mjs:63`) requires exactly 32 and therefore reports
+`private_key_length` for a **valid** key pair. The production consequence is real: an operator who
+generates VAPID keys with any tool that strips leading zeros — which is what Node's own API does — has
+push reported permanently unavailable for a working key. Padding the test helper would have made the
+suite green and hidden it, which is the "relax it until it passes" move this branch has refused three
+times already. It needs its own ledger row, a decision about whether `checkVapidKeys` should accept
+and left-pad a short scalar, and a probe.
+
 **Note on 6.4 — the real numbers, and how a 383-file diff was proven to change nothing.**
 
 *The scope, measured rather than assumed.* The audit's "78 of 222 source files (35%) contain a line

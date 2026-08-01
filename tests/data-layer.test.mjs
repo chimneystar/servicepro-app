@@ -208,6 +208,18 @@ test("the scanner can tell the three cases apart", () => {
   const paged = `return readAll("customers.listActive", () =>\n  supabase.from("customers").select("id").order("name"),\n);`;
   assert.equal(classify(chains(paged)[0], paged), "read-paged");
 
+  // EVERY gateway function must be recognised, not just the short-named ones.
+  // `readPageWithTotal(` briefly matched the `Page` alternative and then failed
+  // on the following `(`, so the newest primitive was invisible and every query
+  // using it was reported unbounded. A regex alternation is first-match.
+  for (const fn of ["readAll", "readAtMost", "readPage", "readPages", "readPageWithTotal"]) {
+    const src = `return ${fn}("x", () => supabase.from("jobs").select("id"), 10);`;
+    assert.equal(classify(chains(src)[0], src), "read-paged", `${fn} must be recognised`);
+  }
+  // ...and a lookalike must NOT be.
+  const impostor = `return readAllOfItUnbounded("x", () => supabase.from("jobs").select("id"));`;
+  assert.equal(classify(chains(impostor)[0], impostor), "read-unbounded");
+
   // And the exemption is NARROW: a `readAll` three statements earlier must not
   // launder an unpaged read that follows it.
   const laundered = `const a = readAll("x", () => s.from("jobs").select("id"));\nconst b = await supabase.from("customers").select("id");`;

@@ -51,8 +51,15 @@ export function chains(source) {
   return out;
 }
 
-/** The gateway functions in lib/data/db.ts that apply a bound themselves. */
-const GATEWAY = /\bread(All|AtMost|Page|Pages)\s*\(/;
+/**
+ * The gateway functions in lib/data/db.ts that apply a bound themselves.
+ *
+ * `PageWithTotal` and `Pages` are listed BEFORE `Page` because a regex
+ * alternation is first-match: with `Page` first, `readPageWithTotal(` matched
+ * `readPage` and then failed on `\s*\(`, so the newest primitive was invisible
+ * to the guard and every query using it reported as unbounded.
+ */
+const GATEWAY = /\bread(All|AtMost|PageWithTotal|Pages|Page)\s*\(/;
 
 /**
  * Whether this chain was handed to the gateway, which ranges it.

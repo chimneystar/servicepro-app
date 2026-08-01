@@ -70,7 +70,11 @@ const CASES = [
   {
     id: "booking-locale/settings-reads-both-translations",
     probe: "tests/booking-locale.test.mjs",
-    source: "app/(app)/settings/booking/page.tsx",
+    // The select moved into the data layer with ledger 6.2, so the violation is
+    // planted where the query now lives. The property is unchanged, and the
+    // probe reported BAD (anchor not found) rather than passing quietly when
+    // the text moved — which is the harness doing its job.
+    source: "lib/data/jobs.ts",
     find: `"id,name,name_en,name_he`,
     replace: `"id,name,name_en`,
     guards: "the booking settings screen reads the job type's own Hebrew name",
