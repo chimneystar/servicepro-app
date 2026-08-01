@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isProfileOff, describeUnavailable } from "@/lib/core/availability.mjs";
 // @ts-ignore -- pure logic, proven both ways in tests/skills.test.mjs
 import { checkSkillMatch, describeSkillGap } from "@/lib/core/skills.mjs";
+import * as techniciansData from "@/lib/data/technicians";
 
 /**
  * The two questions every assignment path has to ask before it writes, and the
@@ -50,17 +51,15 @@ export async function assertAssignable(
 
   // Time off. `profile_id is null` rows are business closures and apply to
   // everyone, so both are fetched in one query and separated by the pure rule.
-  const { data: timeOff } = await supabase
-    .from("technician_time_off")
-    .select("profile_id,starts_on,ends_on,start_time,end_time,status")
-    .eq("organization_id", input.organizationId)
-    .eq("status", "approved")
-    .lte("starts_on", input.date)
-    .gte("ends_on", input.date)
-    .or(`profile_id.eq.${input.profileId},profile_id.is.null`);
+  const timeOff = await techniciansData.listApprovedTimeOffFor(
+    supabase,
+    input.organizationId,
+    input.profileId,
+    input.date,
+  );
 
   const off = isProfileOff(
-    timeOff ?? [],
+    timeOff,
     input.profileId,
     input.date,
     input.startTime ?? null,
@@ -74,13 +73,13 @@ export async function assertAssignable(
   const required = (input.requiredSkills ?? []).filter(Boolean);
   if (!required.length) return { ok: true };
 
-  const { data: skills } = await supabase
-    .from("technician_skills")
-    .select("skill_code,label,issued_on,expires_on")
-    .eq("organization_id", input.organizationId)
-    .eq("profile_id", input.profileId);
+  const skills = await techniciansData.listSkillsFor(
+    supabase,
+    input.organizationId,
+    input.profileId,
+  );
 
-  const match = checkSkillMatch({ required, skills: skills ?? [], onDate: input.date });
+  const match = checkSkillMatch({ required, skills, onDate: input.date });
   if (!match.ok) return { ok: false, error: describeSkillGap(match, { locale, name }) };
   return { ok: true };
 }

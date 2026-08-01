@@ -283,6 +283,11 @@ const slotsRoute = readTs("app/api/booking/[org]/slots/route.ts");
 const submitRoute = readTs("app/api/booking/[org]/submit/route.ts");
 const dispatchPage = readTs("app/(app)/dispatch/page.tsx");
 const guard = readTs("app/(app)/dispatch/assignment-guard.ts");
+// The dispatch board and the assignment guard read time off through
+// lib/data/technicians.ts (ledger 6.2) rather than querying `technician_time_off`
+// inline, so the table name itself now lives there; the call sites are proven
+// against it by asserting they call the specific repository functions.
+const technicians = readTs("lib/data/technicians.ts");
 
 test("the booking SLOTS route reads time off", () => {
   assert.match(slotsRoute, /technician_time_off/);
@@ -301,10 +306,11 @@ test("the booking SUBMIT route applies the identical rule", () => {
 });
 
 test("the dispatch view surfaces time off, and the actions enforce it", () => {
-  assert.match(dispatchPage, /technician_time_off/);
+  assert.match(technicians, /technician_time_off/);
+  assert.match(dispatchPage, /listApprovedTimeOffOn/);
   assert.match(dispatchPage, /dayAvailability/);
   assert.match(guard, /isProfileOff/);
-  assert.match(guard, /technician_time_off/);
+  assert.match(guard, /listApprovedTimeOffFor/);
 });
 
 test("time off NEVER writes to jobs or job_assignments", () => {

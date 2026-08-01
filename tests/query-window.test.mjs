@@ -203,13 +203,24 @@ test("the comment stripper used below removes prose and keeps code", () => {
 });
 
 test("/schedule asks the database for the visible period only", () => {
+  // The calendar query now reads through field.listForCalendarWindow (ledger
+  // 6.2) rather than querying `jobs` inline, so the bound itself lives in
+  // lib/data/field.ts; the call site is proven against it by asserting it
+  // calls that function with the window and a ceiling.
   const src = read("app/(app)/schedule/page.tsx");
-  assert.ok(/from\("jobs"\)/.test(src));
+  assert.ok(/listForCalendarWindow/.test(src), "the calendar must read through the repository");
   assert.ok(
-    /\.gte\("scheduled_date"/.test(src) && /\.lte\("scheduled_date"/.test(src),
+    /listForCalendarWindow\(\s*supabase,\s*window\.from,\s*window\.to,\s*JOB_CEILING\s*\)/.test(
+      src,
+    ),
+    "the call must pass both ends of the visible window and a ceiling",
+  );
+  const repo = read("lib/data/field.ts");
+  assert.ok(/from\("jobs"\)/.test(repo));
+  assert.ok(
+    /\.gte\("scheduled_date"/.test(repo) && /\.lte\("scheduled_date"/.test(repo),
     "the job query must be bounded at both ends of the visible window",
   );
-  assert.ok(/\.limit\(/.test(src), "and still carry a ceiling");
   assert.ok(
     /fetchWindow\(/.test(src),
     "the window must come from the tested helper, not be recomputed inline",

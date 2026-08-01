@@ -2,6 +2,7 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { money, todayISO, fmtDate } from "@/lib/format";
 import Link from "next/link";
+import * as jobsData from "@/lib/data/jobs";
 
 export const dynamic = "force-dynamic";
 
@@ -15,19 +16,11 @@ export default async function RoutePage({
   const supabase = await createClient();
   const date = search.date || todayISO();
 
-  const { data: jobs } = await supabase
-    .from("jobs")
-    .select(
-      "id, service, status, price_minor, start_time, end_time, job_address, job_city, customers!jobs_customer_id_fkey(name, address, city, phone), profiles!jobs_assigned_to_fkey(full_name)",
-    )
-    .eq("scheduled_date", date)
-    .is("deleted_at", null)
-    .neq("status", "cancelled")
-    .order("start_time");
+  const jobs = await jobsData.listForRouteDay(supabase, date);
   const { data: org } = await supabase.from("organizations").select("currency").single();
   const cur = org?.currency ?? "USD";
 
-  const stops = (jobs ?? []).map((j: any) => {
+  const stops = jobs.map((j: any) => {
     const c = j.customers;
     const addr = [j.job_address || c?.address, j.job_city || c?.city].filter(Boolean).join(", ");
     return {
