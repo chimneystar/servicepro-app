@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getLocale } from "@/lib/locale-server";
 import AccountSecurity from "./AccountSecurity";
 import AuditLog, { type AuditRow, type AuditFilters } from "./AuditLog";
+import * as profilesRepo from "@/lib/data/profiles";
+import * as reporting from "@/lib/data/reporting";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +50,7 @@ export default async function SecurityPage({
     page: Math.max(1, Number(one("page") ?? 1) || 1),
   };
 
-  const [{ data: security }, { data: myEvents }] = await Promise.all([
+  const [{ data: security }, myEvents] = await Promise.all([
     supabase
       .from("profile_security")
       .select(
@@ -56,12 +58,7 @@ export default async function SecurityPage({
       )
       .eq("profile_id", profile.id)
       .maybeSingle(),
-    supabase
-      .from("account_security_events")
-      .select("id, event_type, ip, ip_trusted, device_label, details, at")
-      .eq("profile_id", profile.id)
-      .order("at", { ascending: false })
-      .limit(40),
+    reporting.listAccountSecurityEvents(supabase, profile.id, 40),
   ]);
 
   let audit: AuditRow[] = [];
@@ -72,51 +69,26 @@ export default async function SecurityPage({
   let people: { id: string; full_name: string }[] = [];
 
   if (isOwner) {
-    let auditQuery = supabase
-      .from("audit_log")
-      .select("id, table_name, row_id, action, actor, at", { count: "exact" })
-      .eq("organization_id", profile.organization_id!);
-    if (filters.from) auditQuery = auditQuery.gte("at", `${filters.from}T00:00:00Z`);
-    if (filters.to) auditQuery = auditQuery.lte("at", `${filters.to}T23:59:59Z`);
-    if (filters.table) auditQuery = auditQuery.eq("table_name", filters.table);
-    if (filters.action) auditQuery = auditQuery.eq("action", filters.action);
-    if (filters.actor) auditQuery = auditQuery.eq("actor", filters.actor);
-    const offset = (filters.page - 1) * PAGE_SIZE;
-
     const [auditResult, permissions, attempts, signed, members] = await Promise.all([
-      auditQuery.order("at", { ascending: false }).range(offset, offset + PAGE_SIZE - 1),
-      supabase
-        .from("permission_change_log")
-        .select(
-          "id, subject_profile_id, actor_profile_id, source_table, operation, changes, ip, at",
-        )
-        .order("at", { ascending: false })
-        .limit(60),
-      supabase
-        .from("auth_login_attempts")
-        .select("id, email_key, success, reason, ip, ip_trusted, device_label, at")
-        .order("at", { ascending: false })
-        .limit(60),
-      supabase
-        .from("document_signature_events")
-        .select(
-          "id, document_type, document_id, signer_name, capture, ip, ip_trusted, device_label, signature_sha256, signed_at",
-        )
-        .order("signed_at", { ascending: false })
-        .limit(30),
-      supabase
-        .from("profiles")
-        .select("id, full_name")
-        .eq("organization_id", profile.organization_id!)
-        .order("full_name"),
+      reporting.listAuditLogPage(
+        supabase,
+        filters,
+        profile.organization_id!,
+        filters.page,
+        PAGE_SIZE,
+      ),
+      reporting.listRecentPermissionChanges(supabase, 60),
+      reporting.listRecentLoginAttempts(supabase, 60),
+      reporting.listRecentSignatureEvents(supabase, 30),
+      profilesRepo.listInOrganization(supabase, profile.organization_id!),
     ]);
 
-    audit = (auditResult.data ?? []) as AuditRow[];
-    auditTotal = auditResult.count ?? 0;
-    permissionChanges = permissions.data ?? [];
-    loginAttempts = attempts.data ?? [];
-    signatures = signed.data ?? [];
-    people = (members.data ?? []) as { id: string; full_name: string }[];
+    audit = auditResult.rows as AuditRow[];
+    auditTotal = auditResult.total;
+    permissionChanges = permissions;
+    loginAttempts = attempts;
+    signatures = signed;
+    people = members as { id: string; full_name: string }[];
   }
 
   return (
@@ -139,7 +111,7 @@ export default async function SecurityPage({
       <AccountSecurity
         locale={locale}
         security={security ?? null}
-        events={(myEvents ?? []) as any[]}
+        events={myEvents as any[]}
         role={profile.role}
       />
 

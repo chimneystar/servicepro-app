@@ -15,6 +15,7 @@ import { applyPaymentToDeposits, releaseBookingDeposit } from "@/lib/payments/bo
 import { parseAmountToMinor } from "@/lib/core/money.mjs";
 // @ts-ignore — pure logic, proven both ways in tests/tips.test.mjs
 import { sanitizeTipPercents } from "@/lib/core/tips.mjs";
+import * as reporting from "@/lib/data/reporting";
 
 export type PaymentSettingsResult = { ok: boolean; error?: string };
 
@@ -265,19 +266,27 @@ export async function reviewManualPayment(formData: FormData) {
   ]);
 
   if (request.invoice_id) {
-    const [{ data: invoice }, { data: payments }] = await Promise.all([
-      admin.from("invoices").select("total_minor").eq("id", request.invoice_id).single(),
-      admin
-        .from("payments")
-        .select("base_amount_minor, refunded_minor, normalized_status")
-        .eq("invoice_id", request.invoice_id)
-        .in("normalized_status", ["settled", "partially_refunded"]),
-    ]);
-    const paid = (payments ?? []).reduce(
-      (sum, payment) =>
-        sum + Math.max(0, Number(payment.base_amount_minor) - Number(payment.refunded_minor ?? 0)),
-      0,
-    );
+    // Best-effort: this only decides whether the invoice is ALSO marked paid.
+    // The payment itself is already recorded above, so a read failure here
+    // must not surface as a crashed action — it just leaves the invoice's own
+    // status for a later payment or a manual update to settle.
+    let invoice: { total_minor: number } | null = null;
+    let paid = 0;
+    try {
+      const [invoiceResult, payments] = await Promise.all([
+        admin.from("invoices").select("total_minor").eq("id", request.invoice_id).single(),
+        reporting.listSettledPaymentAmountsForInvoice(admin, request.invoice_id),
+      ]);
+      invoice = invoiceResult.data;
+      paid = payments.reduce(
+        (sum, payment) =>
+          sum +
+          Math.max(0, Number(payment.base_amount_minor) - Number(payment.refunded_minor ?? 0)),
+        0,
+      );
+    } catch {
+      /* leave invoice/paid at their defaults — see comment above */
+    }
     if (invoice && paid >= Number(invoice.total_minor)) {
       await admin
         .from("invoices")

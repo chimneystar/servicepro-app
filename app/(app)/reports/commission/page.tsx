@@ -4,7 +4,11 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import CommissionClient, { type TechRow } from "@/components/CommissionClient";
 // @ts-ignore — shared, unit-tested reporting arithmetic (tests/reporting.test.mjs)
-import { collectedMinor, COLLECTED_STATUSES } from "@/lib/core/reporting.mjs";
+import { collectedMinor } from "@/lib/core/reporting.mjs";
+import * as jobsRepo from "@/lib/data/jobs";
+import * as invoicesRepo from "@/lib/data/invoices";
+import * as paymentsRepo from "@/lib/data/payments";
+import * as reporting from "@/lib/data/reporting";
 
 export const dynamic = "force-dynamic";
 
@@ -23,20 +27,15 @@ export default async function CommissionPage({
   const to =
     search.to || new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
 
-  const [{ data: statuses }, { data: profiles }, { data: org }] = await Promise.all([
-    supabase.from("job_statuses").select("name, is_done"),
-    supabase.from("profiles").select("id, full_name, commission_pct").eq("active", true),
+  const [statuses, profiles, { data: org }] = await Promise.all([
+    reporting.listJobStatusesForCommission(supabase),
+    reporting.listActiveProfilesForCommission(supabase),
     supabase.from("organizations").select("currency").single(),
   ]);
-  const doneNames = (statuses ?? []).filter((s) => s.is_done).map((s) => s.name);
+  const doneNames = statuses.filter((s) => s.is_done).map((s) => s.name);
   const doneSet = new Set(doneNames.length ? doneNames : ["Done"]);
 
-  const { data: jobs } = await supabase
-    .from("jobs")
-    .select("id, assigned_to, price_minor, job_expenses_minor, stage, status, scheduled_date")
-    .is("deleted_at", null)
-    .gte("scheduled_date", from)
-    .lte("scheduled_date", to);
+  const jobs = await jobsRepo.listForCommission(supabase, from, to);
 
   // Commission is paid on money COLLECTED, not on what was quoted.
   //
@@ -44,32 +43,16 @@ export default async function CommissionPage({
   // earned commission on work the business was never paid for — an unpaid or
   // partly-paid invoice still generated a full payout, and a refund never
   // clawed anything back.
-  const completedJobs = (jobs ?? []).filter(
+  const completedJobs = jobs.filter(
     (j: any) => (doneSet.has(j.stage) || j.status === "done") && j.assigned_to,
   );
   const jobIds = completedJobs.map((j: any) => j.id);
 
   // Invoices raised against those jobs, and the settled payments against them.
-  let invoiceRows: any[] = [],
-    paymentRows: any[] = [];
-  if (jobIds.length) {
-    const { data: invs } = await supabase
-      .from("invoices")
-      .select("id, job_id")
-      .in("job_id", jobIds)
-      .is("deleted_at", null);
-    invoiceRows = invs ?? [];
-    const invoiceIds = invoiceRows.map((i) => i.id);
-    if (invoiceIds.length) {
-      const { data: pays } = await supabase
-        .from("payments")
-        .select("invoice_id, base_amount_minor, amount_minor, refunded_minor, normalized_status")
-        .in("invoice_id", invoiceIds)
-        .in("normalized_status", COLLECTED_STATUSES);
-      paymentRows = pays ?? [];
-    }
-  }
-  const jobByInvoice: Record<string, string> = {};
+  const invoiceRows = await invoicesRepo.listByJobIds(supabase, jobIds);
+  const invoiceIds = invoiceRows.map((i) => i.id);
+  const paymentRows = await paymentsRepo.listCollectedForInvoices(supabase, invoiceIds);
+  const jobByInvoice: Record<string, string | null> = {};
   invoiceRows.forEach((i) => {
     jobByInvoice[i.id] = i.job_id;
   });
@@ -91,7 +74,7 @@ export default async function CommissionPage({
     a.revenue += collectedMinor([p]);
   });
 
-  const rows: TechRow[] = (profiles ?? [])
+  const rows: TechRow[] = profiles
     .filter((p) => agg[p.id])
     .map((p) => ({
       profileId: p.id,

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import MessageTemplatesEditor, { type Template } from "@/components/MessageTemplatesEditor";
 import { getLocale } from "@/lib/locale-server";
+import * as operationsRepo from "@/lib/data/operations";
 
 export const dynamic = "force-dynamic";
 
@@ -13,8 +14,7 @@ export default async function MessagesSettingsPage() {
   const locale = await getLocale();
   const he = locale === "he";
   const supabase = await createClient();
-  const { data } = await supabase.from("message_templates").select("trigger, enabled, body");
-  const templates = (data ?? []) as Template[];
+  const templates = (await operationsRepo.listMessageTemplates(supabase)) as Template[];
 
   return (
     <div style={{ maxWidth: 640 }}>

@@ -6,6 +6,7 @@ import { providers } from "@/lib/providers";
 import ActionForm from "@/components/ActionForm";
 import ScheduleRow, { type Schedule } from "./ScheduleRow";
 import { createReportSchedule } from "./actions";
+import * as reporting from "@/lib/data/reporting";
 
 /**
  * Scheduled / emailed reports (ledger 6c.9).
@@ -22,27 +23,14 @@ export default async function ReportSchedulePage() {
   if (profile.role !== "owner") redirect("/reports");
 
   const supabase = await createClient();
-  const [{ data: schedules }, { data: members }, { data: recent }] = await Promise.all([
-    supabase
-      .from("report_schedules")
-      .select(
-        "id, name, frequency, enabled, recipient_profile_ids, last_period_key, last_run_at, last_error",
-      )
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("profiles")
-      .select("id, full_name, role, active, notify_email_opt_in")
-      .eq("active", true)
-      .order("full_name"),
-    supabase
-      .from("report_deliveries")
-      .select("id, period_key, status, reason, recipients, created_at")
-      .order("created_at", { ascending: false })
-      .limit(10),
+  const [schedules, members, recent] = await Promise.all([
+    reporting.listReportSchedules(supabase),
+    reporting.listActiveProfilesForReportSchedules(supabase),
+    reporting.listRecentReportDeliveries(supabase, 10),
   ]);
 
   const names: Record<string, string> = {};
-  for (const member of members ?? []) names[member.id] = member.full_name || member.id.slice(0, 8);
+  for (const member of members) names[member.id] = member.full_name || member.id.slice(0, 8);
 
   return (
     <div style={{ maxWidth: 760 }}>
@@ -115,7 +103,7 @@ export default async function ReportSchedulePage() {
                 gap: 4,
               }}
             >
-              {(members ?? []).map((member) => (
+              {members.map((member) => (
                 <label
                   key={member.id}
                   style={{
@@ -156,19 +144,17 @@ export default async function ReportSchedulePage() {
         </div>
       </ActionForm>
 
-      <h3 style={h3}>Schedules ({(schedules ?? []).length})</h3>
-      {(schedules ?? []).map((schedule) => (
+      <h3 style={h3}>Schedules ({schedules.length})</h3>
+      {schedules.map((schedule) => (
         <ScheduleRow key={schedule.id} schedule={schedule as Schedule} names={names} />
       ))}
-      {(schedules ?? []).length === 0 && (
-        <div className="rempty">No reports are scheduled yet.</div>
-      )}
+      {schedules.length === 0 && <div className="rempty">No reports are scheduled yet.</div>}
 
-      {(recent ?? []).length > 0 && (
+      {recent.length > 0 && (
         <>
           <h3 style={h3}>Recent runs</h3>
           <div className="rlist">
-            {(recent ?? []).map((run) => (
+            {recent.map((run) => (
               <div className="ritem" key={run.id}>
                 <div className="rmain">
                   <div className="rtitle">{run.period_key}</div>
