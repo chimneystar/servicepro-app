@@ -4,7 +4,8 @@ import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getLocale } from "@/lib/locale-server";
 import PaymentSettingsForm from "./PaymentSettingsForm";
-import { beginHelcimOnboarding, releaseAchHold, reviewManualPayment } from "./actions";
+import { beginHelcimOnboarding, releaseAchHold } from "./actions";
+import ManualPaymentReview from "./ManualPaymentReview";
 import { heldDeposits, mayOverrideAchHold } from "@/lib/payments/deposits";
 import type { PaymentSettings } from "@/lib/payments/types";
 import * as reporting from "@/lib/data/reporting";
@@ -238,12 +239,7 @@ export default async function PaymentSettingsPage() {
             ) : (
               <div className="manual-review-list">
                 {submissions.map((submission) => (
-                  <form
-                    action={reviewManualPayment}
-                    key={submission.id}
-                    className="manual-review-card"
-                  >
-                    <input type="hidden" name="submission_id" value={submission.id} />
+                  <ManualPaymentReview key={submission.id} submissionId={submission.id} he={he}>
                     <div>
                       <span className={`manual-method ${submission.method}`}>
                         {submission.method === "zelle" ? "Zelle" : he ? "צ׳ק" : "Check"}
@@ -263,15 +259,7 @@ export default async function PaymentSettingsPage() {
                       placeholder={he ? "הערה פנימית, אם צריך" : "Internal note, if needed"}
                       aria-label={he ? "הערה פנימית, אם צריך" : "Internal note, if needed"}
                     />
-                    <div className="manual-review-actions">
-                      <button type="submit" name="decision" value="confirm">
-                        {he ? "אישור קבלה" : "Confirm received"}
-                      </button>
-                      <button type="submit" name="decision" value="reject" className="reject">
-                        {he ? "דחייה" : "Reject"}
-                      </button>
-                    </div>
-                  </form>
+                  </ManualPaymentReview>
                 ))}
               </div>
             )}

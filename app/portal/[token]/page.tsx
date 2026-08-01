@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { money } from "@/lib/format";
-import { submitPortalRequest } from "./actions";
+import PortalRequestForm from "./PortalRequestForm";
 
 export const dynamic = "force-dynamic";
 const SC: Record<string, string> = {
@@ -82,7 +82,16 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
                 <Pill s={upcoming[0].status} />
                 <details>
                   <summary>{he ? "בקשה לשינוי מועד" : "Request a different date"}</summary>
-                  <form action={submitPortalRequest.bind(null, token)}>
+                  <PortalRequestForm
+                    token={token}
+                    he={he}
+                    submitLabel={he ? "שליחת הבקשה" : "Send request"}
+                    successMessage={
+                      he
+                        ? "הבקשה נשלחה לעסק. הם יחזרו אליכם."
+                        : "Your request has been sent to the business. They'll be in touch."
+                    }
+                  >
                     <input type="hidden" name="type" value="reschedule" />
                     <input type="hidden" name="jobId" value={upcoming[0].id} />
                     <input
@@ -105,8 +114,7 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
                           : "Preferred time or anything we should know"
                       }
                     />
-                    <button type="submit">{he ? "שליחת הבקשה" : "Send request"}</button>
-                  </form>
+                  </PortalRequestForm>
                 </details>
               </article>
             </Section>
@@ -153,7 +161,13 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
             </div>
           </Section>
           <Section title={he ? "איך נוח לקבל עדכונים?" : "How should we keep you updated?"}>
-            <form className="portal-preferences" action={submitPortalRequest.bind(null, token)}>
+            <PortalRequestForm
+              token={token}
+              he={he}
+              className="portal-preferences"
+              submitLabel={he ? "שמירת העדפות" : "Save preferences"}
+              successMessage={he ? "ההעדפות נשמרו." : "Your preferences have been saved."}
+            >
               <input type="hidden" name="type" value="preferences" />
               <label>
                 <input
@@ -173,8 +187,7 @@ export default async function PortalPage({ params }: { params: Promise<{ token: 
                   <small>{d.customer?.phone}</small>
                 </span>
               </label>
-              <button type="submit">{he ? "שמירת העדפות" : "Save preferences"}</button>
-            </form>
+            </PortalRequestForm>
           </Section>
           <p className="portal-contact">
             {he ? "יש שאלה? אפשר לפנות אלינו" : "Questions? Contact us"}:{" "}

@@ -154,7 +154,19 @@ export async function beginHelcimOnboarding() {
   redirect(url);
 }
 
-export async function reviewManualPayment(formData: FormData) {
+/**
+ * Confirm or reject a manual (Zelle / cheque) payment.
+ *
+ * Every refusal below used to be a bare `return;`. Because
+ * `actionFailureMessage` treats an absent result as SUCCESS — deliberately, so
+ * that pre-contract actions do not cry wolf — an office user without
+ * `can_confirm_manual_payments` clicked "Confirm received", the spinner
+ * stopped, the page refreshed, and nothing had happened. On a payment. With no
+ * message.
+ *
+ * Now every path says what it decided.
+ */
+export async function reviewManualPayment(formData: FormData): Promise<PaymentSettingsResult> {
   const profile = await requireProfile();
   const submissionId = String(formData.get("submission_id") ?? "");
   const decision = String(formData.get("decision") ?? "");
@@ -162,7 +174,8 @@ export async function reviewManualPayment(formData: FormData) {
     String(formData.get("reason") ?? "")
       .trim()
       .slice(0, 500) || null;
-  if (!submissionId || !["confirm", "reject"].includes(decision)) return;
+  if (!submissionId || !["confirm", "reject"].includes(decision))
+    return { ok: false, error: "Choose confirm or reject." };
 
   let allowed = profile.role === "owner";
   if (!allowed && profile.role === "office") {
@@ -174,7 +187,8 @@ export async function reviewManualPayment(formData: FormData) {
       .maybeSingle();
     allowed = !!data?.can_confirm_manual_payments;
   }
-  if (!allowed) return;
+  if (!allowed)
+    return { ok: false, error: "You do not have permission to review manual payments." };
 
   const admin = createAdminClient();
   const { data: submission } = await admin
@@ -185,14 +199,15 @@ export async function reviewManualPayment(formData: FormData) {
     .eq("id", submissionId)
     .eq("organization_id", profile.organization_id!)
     .maybeSingle();
-  if (!submission || submission.status !== "verification_pending") return;
+  if (!submission || submission.status !== "verification_pending")
+    return { ok: false, error: "That payment has already been reviewed." };
   const { data: request } = await admin
     .from("payment_requests")
     .select("id, estimate_id, invoice_id, currency")
     .eq("id", submission.payment_request_id)
     .eq("organization_id", profile.organization_id!)
     .maybeSingle();
-  if (!request) return;
+  if (!request) return { ok: false, error: "The payment request no longer exists." };
 
   const now = new Date().toISOString();
   if (decision === "reject") {
@@ -217,7 +232,8 @@ export async function reviewManualPayment(formData: FormData) {
       }),
     ]);
     revalidatePath("/settings/payments");
-    return;
+    // Rejecting IS the successful outcome of a review; it is not a refusal.
+    return { ok: true };
   }
 
   const { data: recordedPayment, error: paymentError } = await admin
@@ -243,7 +259,8 @@ export async function reviewManualPayment(formData: FormData) {
     })
     .select("id")
     .single();
-  if (paymentError || !recordedPayment) return;
+  if (paymentError || !recordedPayment)
+    return { ok: false, error: "The payment could not be recorded. Nothing was changed." };
   await Promise.all([
     admin
       .from("manual_payment_submissions")
@@ -308,6 +325,7 @@ export async function reviewManualPayment(formData: FormData) {
   }
   revalidatePath("/settings/payments");
   revalidatePath("/invoices");
+  return { ok: true };
 }
 
 /**
