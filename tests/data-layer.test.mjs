@@ -9,12 +9,27 @@ import { chains, classify, unboundedReads } from "./helpers/reads.mjs";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (p) => readFileSync(join(ROOT, p), "utf8");
 
-const sourceFiles = () =>
-  execSync('git ls-files "*.ts" "*.tsx"', { cwd: ROOT, encoding: "utf8" })
-    .trim()
-    .split("\n")
-    .filter((f) => f && !f.startsWith("tests/"))
+/**
+ * Every source file, INCLUDING ones not yet committed.
+ *
+ * `git ls-files` alone lists only tracked files, which leaves the guard blind
+ * to exactly the case that matters most: a brand-new file. Somebody adding a
+ * screen writes the unpaged read and the new file in the same change, and a
+ * tracked-only scan would pass right up until the commit that introduced the
+ * defect had already been made. `--others --exclude-standard` adds the
+ * untracked, non-ignored files; `.claude/worktrees/` and `.next/` are in
+ * .gitignore, so other agents' checkouts and build output stay out.
+ */
+const sourceFiles = () => {
+  const list = (args) =>
+    execSync(`git ls-files ${args} "*.ts" "*.tsx"`, { cwd: ROOT, encoding: "utf8" })
+      .trim()
+      .split("\n")
+      .filter(Boolean);
+  return [...new Set([...list(""), ...list("--others --exclude-standard")])]
+    .filter((f) => !f.startsWith("tests/"))
     .map((f) => join(ROOT, f));
+};
 
 // ---------------------------------------------------------------------------
 // THE RATCHET.

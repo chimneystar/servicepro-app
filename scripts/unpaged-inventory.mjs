@@ -22,10 +22,17 @@ import { unboundedReads, tally } from "../tests/helpers/reads.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-const files = execSync('git ls-files "*.ts" "*.tsx"', { cwd: ROOT, encoding: "utf8" })
-  .trim()
-  .split("\n")
-  .filter((f) => f && !f.startsWith("tests/"))
+// Tracked AND untracked-but-not-ignored, matching tests/data-layer.test.mjs
+// exactly. If the two disagreed about which files exist, regenerating the
+// inventory would produce a file that immediately fails its own test.
+const list = (args) =>
+  execSync(`git ls-files ${args} "*.ts" "*.tsx"`, { cwd: ROOT, encoding: "utf8" })
+    .trim()
+    .split("\n")
+    .filter(Boolean);
+
+const files = [...new Set([...list(""), ...list("--others --exclude-standard")])]
+  .filter((f) => !f.startsWith("tests/"))
   .map((f) => path.join(ROOT, f));
 
 const found = unboundedReads(files, ROOT);
