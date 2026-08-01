@@ -8,6 +8,7 @@ import { getLocale } from "@/lib/locale-server";
 import { t } from "@/lib/i18n";
 import { appUrl, providers, sendEmail } from "@/lib/providers";
 import { getRequestContext } from "@/lib/request-context";
+import { isOneOf } from "@/lib/validation";
 // @ts-ignore -- pure logic, proven both ways in tests/invitations.test.mjs
 import { invitationAcceptUrl, invitationEmail } from "@/lib/core/invitations.mjs";
 // @ts-ignore -- integer-safe money math
@@ -288,7 +289,7 @@ export async function changeRole(memberId: string, role: string): Promise<Action
   } catch {
     return { ok: false, error: t(locale, "err.forbidden") };
   }
-  if (!["owner", "office", "tech"].includes(role))
+  if (!isOneOf(["owner", "office", "tech"], role))
     return { ok: false, error: t(locale, "err.invalid") };
   const supabase = await createClient();
   const since = new Date(Date.now() - 5_000).toISOString();
@@ -606,8 +607,16 @@ export async function addTimeOff(values: {
           : "Enter both a start and an end time, or neither.",
     };
   }
-  const kinds = ["time_off", "vacation", "sick", "personal", "training", "holiday", "other"];
-  const kind = kinds.includes(values.kind ?? "") ? values.kind! : "time_off";
+  const kinds = [
+    "time_off",
+    "vacation",
+    "sick",
+    "personal",
+    "training",
+    "holiday",
+    "other",
+  ] as const;
+  const kind = isOneOf(kinds, values.kind) ? values.kind : "time_off";
 
   const supabase = await createClient();
   if (values.memberId) {

@@ -253,3 +253,39 @@ test("a booking deposit does not create a job until the money is in", () => {
     "a redelivered webhook must not put a second job on the calendar",
   );
 });
+
+test("a booking with no service name waits for a human instead of failing the insert", () => {
+  // FOUND BY THE TYPE SYSTEM (ledger 6.1). `jobs.service` is NOT NULL;
+  // `leads.service` is nullable, and a booking taken without a
+  // `booking_service_id` supplies neither — so `service: service?.name_en ??
+  // lead.service` was null and the INSERT was rejected by Postgres AFTER the
+  // customer had paid their deposit. The only trace was a console line: the
+  // function returned `{ released: true, reason: "job_creation_failed" }` and
+  // the booking sat in Leads with nobody told why.
+  //
+  // The fix routes it to the same gate the function already applies to a
+  // missing customer, date or time — `manual_scheduling_required` — so the
+  // money is kept and a human finishes the booking.
+  const src = read("lib/payments/booking-deposit.ts");
+
+  // `read` is codeShape(), which strips whitespace next to punctuation, so
+  // these are the canonical forms rather than the source spelling.
+  assert.ok(
+    /const serviceName=service\?\.name_en\?\?lead\.service;/.test(src),
+    "the service name must be resolved once, before the insert",
+  );
+  assert.ok(
+    /if\(!serviceName\)\{[\s\S]{0,220}manual_scheduling_required/.test(src),
+    "a booking with no service name must fall back to manual scheduling, not to a failed insert",
+  );
+  assert.ok(
+    /service:serviceName,/.test(src),
+    "and the insert must use the checked value, not re-derive it",
+  );
+
+  // The guard has to come BEFORE the insert or it guards nothing.
+  assert.ok(
+    src.indexOf("if(!serviceName)") < src.indexOf('.from("jobs").insert'),
+    "the check must precede the insert it protects",
+  );
+});

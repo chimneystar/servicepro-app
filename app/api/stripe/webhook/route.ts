@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import crypto from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { TablesUpdate } from "@/lib/supabase/database.types";
 
 export const dynamic = "force-dynamic";
 
@@ -142,7 +143,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, reason: "record failed" }, { status: 500 });
   }
 
-  const update: Record<string, unknown> = { stripe_session_id: session.id, paid_online: true };
+  const update: TablesUpdate<"invoices"> = { stripe_session_id: session.id, paid_online: true };
   if (receivedMinor >= totalMinor) {
     update.status = "paid";
     update.paid_at = new Date().toISOString();

@@ -235,7 +235,7 @@ async function notifyOwnerOfPayment(
     const [{ data: invoice }, { data: org }] = await Promise.all([
       supabase
         .from("invoices")
-        .select("id, number, total_minor, customers(name)")
+        .select("id, number, total_minor, customers!invoices_customer_id_fkey(name)")
         .eq("id", invoiceId)
         .maybeSingle(),
       supabase.from("organizations").select("currency").single(),
@@ -322,6 +322,13 @@ async function recordBulk(
 }
 
 /**
+ * What `contactEligibility` answers. The two shapes are exclusive — a recipient
+ * comes back with `ok: true`, a refusal reason with `ok: false`, never a mix —
+ * which is what lets the `to_email`/`to_phone` writes below see a plain string.
+ */
+type Eligibility = { ok: true; to: string } | { ok: false; reason: string };
+
+/**
  * Email (or text) a payment link for each selected invoice.
  *
  * Consent is decided by `contactEligibility` — the single shared rule, which
@@ -346,7 +353,7 @@ export async function bulkSendInvoices(rawIds: string[]): Promise<BulkActionResu
     supabase
       .from("invoices")
       .select(
-        "id, number, total_minor, public_token, customer_id, customers(id, name, phone, email, sms_opt_in, email_opt_in, deleted_at)",
+        "id, number, total_minor, public_token, customer_id, customers!invoices_customer_id_fkey(id, name, phone, email, sms_opt_in, email_opt_in, deleted_at)",
       )
       .in("id", selection.ids!)
       .is("deleted_at", null),
@@ -379,13 +386,9 @@ export async function bulkSendInvoices(rawIds: string[]): Promise<BulkActionResu
       });
       continue;
     }
-    const eligibility = contactEligibility(customer, channel) as {
-      ok: boolean;
-      to?: string;
-      reason?: string;
-    };
+    const eligibility = contactEligibility(customer, channel) as Eligibility;
     if (!eligibility.ok) {
-      results.push({ id, label, ok: false, skipped: true, reason: eligibility.reason! });
+      results.push({ id, label, ok: false, skipped: true, reason: eligibility.reason });
       continue;
     }
 

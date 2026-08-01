@@ -3,10 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile, assertRole } from "@/lib/auth";
+import { isOneOf } from "@/lib/validation";
 
 export type ActionResult = { ok: boolean; error?: string; customerId?: string };
 
-const STATUSES = ["new", "contacted", "quoted", "won", "lost"];
+const STATUSES = ["new", "contacted", "quoted", "won", "lost"] as const;
 
 export async function updateLeadStatus(id: string, status: string): Promise<ActionResult> {
   let profile;
@@ -16,7 +17,7 @@ export async function updateLeadStatus(id: string, status: string): Promise<Acti
   } catch {
     return { ok: false, error: "forbidden" };
   }
-  if (!STATUSES.includes(status)) return { ok: false, error: "invalid status" };
+  if (!isOneOf(STATUSES, status)) return { ok: false, error: "invalid status" };
   const supabase = await createClient();
   const { error } = await supabase
     .from("leads")

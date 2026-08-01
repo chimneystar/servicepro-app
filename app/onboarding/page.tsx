@@ -49,7 +49,12 @@ export default async function OnboardingPage() {
     "use server";
     const orgName = String(formData.get("orgName") ?? "").trim();
     const ownerName = String(formData.get("ownerName") ?? "").trim();
-    const lang = String(formData.get("locale") ?? "en");
+    // `organizations.locale` is CHECK-constrained to 'en' and 'he'; this write
+    // was unvalidated, same as the one in settings/actions.ts. `isLocale` is
+    // this codebase's own guard for exactly that set — it was imported here
+    // already and used for the page's own locale, just not for the write.
+    const langRaw = String(formData.get("locale") ?? "en");
+    const lang = isLocale(langRaw) ? langRaw : DEFAULT_LOCALE;
     // USD only — see the note on the currency field below.
     const currency = "USD";
     const taxLabel = String(formData.get("taxLabel") ?? "Sales Tax").trim() || "Sales Tax";

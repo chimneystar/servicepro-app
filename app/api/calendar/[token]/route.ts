@@ -75,8 +75,12 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
     .eq("token", token)
     .maybeSingle();
 
+  // `mine` is spelled out separately because calendarFeedAccess refuses a
+  // `mine` feed with no profile_id ("not_found"), so on that branch the id the
+  // scope filter below needs is always present.
   const access = calendarFeedAccess(feed, new Date().toISOString()) as
-    | { ok: true; scope: string; organizationId: string; profileId: string | null }
+    | { ok: true; scope: "mine"; organizationId: string; profileId: string }
+    | { ok: true; scope: "organization"; organizationId: string; profileId: string | null }
     | { ok: false; reason: string };
   if (!access.ok) {
     // Logged server-side with the real reason; the caller is told nothing.
@@ -95,7 +99,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
   let query = admin
     .from("jobs")
     .select(
-      "id, service, status, scheduled_date, end_date, start_time, end_time, job_address, job_city, updated_at, customers(name)",
+      "id, service, status, scheduled_date, end_date, start_time, end_time, job_address, job_city, updated_at, customers!jobs_customer_id_fkey(name)",
     )
     .eq("organization_id", access.organizationId)
     .is("deleted_at", null)

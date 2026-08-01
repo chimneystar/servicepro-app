@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { TablesUpdate } from "@/lib/supabase/database.types";
 import { formRecord, validateTwilioSignature, webhookUrl } from "@/lib/voice-provider";
 // @ts-ignore - shared pure JavaScript is also exercised directly by Node tests.
 import { callNeedsFollowUp, mapVoiceStatus } from "@/lib/core/calls.mjs";
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
       Number(params.DialCallDuration || params.CallDuration || params.RecordingDuration || 0),
     ),
   );
-  const update: Record<string, unknown> = {
+  const update: TablesUpdate<"call_events"> = {
     status,
     duration_seconds: Number.isFinite(seconds) ? seconds : 0,
     needs_follow_up: callNeedsFollowUp(status),

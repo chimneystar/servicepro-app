@@ -38,7 +38,9 @@ export async function notifyOnMyWay(
   const supabase = await createClient();
   const { data: job } = await supabase
     .from("jobs")
-    .select("service, scheduled_date, start_time, organization_id, customers(name, phone)")
+    .select(
+      "service, scheduled_date, start_time, organization_id, customers!jobs_customer_id_fkey(name, phone)",
+    )
     .eq("id", jobId)
     .maybeSingle();
   if (!job) return;
@@ -111,15 +113,23 @@ export async function sendReviewRequest(jobId: string): Promise<{
   const supabase = await createClient();
   const { data: job } = await supabase
     .from("jobs")
-    .select("organization_id, customers(name, phone, email)")
+    .select("organization_id, customers!jobs_customer_id_fkey(name, phone, email)")
     .eq("id", jobId)
     .maybeSingle();
-  const cust: any = job?.customers;
-  const { data: org } = await supabase
-    .from("organizations")
-    .select("name, review_url")
-    .eq("id", job?.organization_id)
-    .single();
+  const cust = job?.customers ?? null;
+  // The organisation lookup is skipped when there is no job. It used to run
+  // with `.eq("id", undefined)`, which PostgREST rejects as an invalid uuid, so
+  // `org` came back null and the function returned the same
+  // `{ sent: false, reviewUrl: null, … }` it returns now — one wasted round
+  // trip later. Same result, one fewer request, and `.eq()` gets a defined
+  // value, which is what the typed client asks for.
+  const { data: org } = job
+    ? await supabase
+        .from("organizations")
+        .select("name, review_url")
+        .eq("id", job.organization_id)
+        .single()
+    : { data: null };
   const reviewUrl = org?.review_url ?? null;
   const phone = cust?.phone && cust.phone !== "—" ? cust.phone : null;
   const email = cust?.email ?? null;
@@ -435,7 +445,7 @@ export async function notifyStaff(input: StaffNotifyInput): Promise<StaffNotifyR
       inapp: { recorded: Boolean(rowId) },
       push: { delivered: push.delivered },
       email: { sent: emailSent },
-    }) as { ok: boolean; reached: string[]; status: string };
+    });
 
     const reason =
       emailError ||
@@ -491,7 +501,7 @@ export async function notifyJobAssignedStaff(input: {
     const admin = createAdminClient();
     const { data: job } = await admin
       .from("jobs")
-      .select("id, service, scheduled_date, start_time, customers(name)")
+      .select("id, service, scheduled_date, start_time, customers!jobs_customer_id_fkey(name)")
       .eq("id", input.jobId)
       .eq("organization_id", input.organizationId)
       .maybeSingle();

@@ -248,7 +248,6 @@ export async function bulkOptOut(
   if (!selection.ok) return refuseBulk(selectionError(selection) as string);
 
   const supabase = await createClient();
-  const column = channel === "sms" ? "sms_opt_in" : "email_opt_in";
   const { data: customers } = await supabase
     .from("customers")
     .select("id, name")
@@ -266,9 +265,12 @@ export async function bulkOptOut(
       results.push({ id, label, ok: false, reason: "customer not found" });
       continue;
     }
+    // Naming the column in each branch rather than computing the key: a computed
+    // key of union type widens the object to `{ [x: string]: boolean }`, which
+    // says nothing about which column is being cleared. Same write either way.
     const { error } = await supabase
       .from("customers")
-      .update({ [column]: false })
+      .update(channel === "sms" ? { sms_opt_in: false } : { email_opt_in: false })
       .eq("id", id);
     if (error) results.push({ id, label, ok: false, reason: error.message });
     else results.push({ id, label, ok: true });

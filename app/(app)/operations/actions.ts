@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireProfile, assertRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getLocale } from "@/lib/locale-server";
+import { isOneOf } from "@/lib/validation";
 // @ts-ignore — integer-safe money engine (JS module, unit-tested)
 import { parseAmountToMinor, parseQtyToMilli, lineSubtotalMinor } from "@/lib/core/money.mjs";
 // @ts-ignore — purchase-order lifecycle rules (JS module, unit-tested)
@@ -353,7 +354,7 @@ export async function advancePurchaseOrderStatus(
     .eq("id", purchaseOrderId)
     .maybeSingle();
   if (!order) return { ok: false, error: saveFailed(he) };
-  if (!PO_STATUSES.includes(status)) return { ok: false, error: invalid(he) };
+  if (!isOneOf(PO_STATUSES, status)) return { ok: false, error: invalid(he) };
   if (!canTransitionPurchaseOrder(order.status, status)) {
     return {
       ok: false,

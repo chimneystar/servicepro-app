@@ -8,6 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { helcimRegistrationUrl } from "@/lib/payments/helcim";
 import { sendPaymentReceipt } from "@/lib/payments/receipts";
 import { getLocale } from "@/lib/locale-server";
+import { isOneOf } from "@/lib/validation";
 import { mayOverrideAchHold } from "@/lib/payments/deposits";
 import { applyPaymentToDeposits, releaseBookingDeposit } from "@/lib/payments/booking-deposit";
 // @ts-ignore — this shared money module is plain ESM with runtime tests.
@@ -38,9 +39,7 @@ export async function updatePaymentSettings(
     };
 
   const depositType = String(formData.get("default_deposit_type") ?? "none");
-  if (
-    !(["none", "percent", "fixed"] as const).includes(depositType as "none" | "percent" | "fixed")
-  ) {
+  if (!isOneOf(["none", "percent", "fixed"], depositType)) {
     return { ok: false, error: he ? "יש לבחור סוג מקדמה תקין." : "Choose a valid deposit type." };
   }
   const depositPercent = Math.max(0, Math.min(100, Number(formData.get("deposit_percent") ?? 0)));

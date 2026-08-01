@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, type ServerClient } from "@/lib/supabase/server";
 import { t, type Locale } from "@/lib/i18n";
 import type { Profile } from "@/lib/auth";
 // @ts-ignore -- integer-safe money engine (JS module, unit-tested)
@@ -27,8 +27,14 @@ export type ActionResult = { ok: boolean; error?: string };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Settled statuses. Same definition as lib/core/refunds.mjs REFUNDABLE_STATUSES. */
-const SETTLED = ["settled", "partially_refunded"];
+/**
+ * Settled statuses. Same definition as lib/core/refunds.mjs REFUNDABLE_STATUSES.
+ *
+ * `as const` so these reach `.in("normalized_status", …)` as the two literals
+ * the column's CHECK constraint allows rather than as `string[]`. A typo here
+ * would otherwise match no rows and report that nothing had been collected.
+ */
+const SETTLED = ["settled", "partially_refunded"] as const;
 
 /**
  * Money actually received against a document, net of refunds.
@@ -38,7 +44,7 @@ const SETTLED = ["settled", "partially_refunded"];
  * lib/payments/server.ts, which is why a part-paid estimate is locked too.
  */
 async function collectedMinor(
-  supabase: any,
+  supabase: ServerClient,
   kind: "estimate" | "invoice",
   id: string,
   estimateId?: string | null,
@@ -58,7 +64,7 @@ async function collectedMinor(
   }
   const { data } = await query;
   return (data ?? []).reduce(
-    (sum: number, p: any) =>
+    (sum: number, p) =>
       sum +
       Math.max(
         0,
@@ -85,7 +91,7 @@ export async function collectedOnDocument(
  * from migration 036 and the release-on-failure behaviour below.
  */
 async function allocateNumber(
-  supabase: any,
+  supabase: ServerClient,
   orgId: string,
   kind: "estimate" | "invoice" | "credit_note",
 ): Promise<{ number?: number; error?: string }> {
@@ -109,7 +115,7 @@ async function allocateNumber(
  * error about bookkeeping would bury the first.
  */
 async function releaseNumber(
-  supabase: any,
+  supabase: ServerClient,
   orgId: string,
   kind: "estimate" | "invoice" | "credit_note",
   numberValue: number,
@@ -126,6 +132,22 @@ async function releaseNumber(
 }
 
 /**
+ * The insert itself, supplied by the caller.
+ *
+ * It used to be `table: "estimates" | "invoices"` plus a
+ * `row: Record<string, unknown>` — which is what "one function for both kinds"
+ * costs once the client is typed: a union table name and an untyped bag mean
+ * neither the column names nor their types are checked, in the two tables
+ * where a wrong column is a wrong invoice. Handing the insert in as a callback
+ * moves the choice of table to the call site, where `kind` is a literal and
+ * every column is checked against the right table. The retry loop below is
+ * unchanged.
+ */
+type NumberedInsert = (
+  numberValue: number,
+) => PromiseLike<{ data: { id: string } | null; error: { message: string } | null }>;
+
+/**
  * Insert a numbered document, re-allocating if the number collided.
  *
  * A collision is possible even with the row lock — the /settings next-number
@@ -133,11 +155,10 @@ async function releaseNumber(
  * migration 036 the caller saw a raw `23505` it could do nothing with.
  */
 async function insertNumbered(
-  supabase: any,
-  table: "estimates" | "invoices",
+  supabase: ServerClient,
   orgId: string,
   kind: "estimate" | "invoice",
-  row: Record<string, unknown>,
+  insert: NumberedInsert,
 ): Promise<{ id?: string; number?: number; error?: string }> {
   let lastError = "";
   for (let attempt = 0; attempt <= NUMBER_COLLISION_RETRIES; attempt++) {
@@ -145,12 +166,9 @@ async function insertNumbered(
     if (allocated.error || !allocated.number)
       return { error: allocated.error ?? "numbering failed" };
 
-    const { data, error } = await supabase
-      .from(table)
-      .insert({ ...row, number: allocated.number })
-      .select("id")
-      .single();
-    if (!error) return { id: data.id, number: allocated.number };
+    const { data, error } = await insert(allocated.number);
+    if (!error && data) return { id: data.id, number: allocated.number };
+    if (!error) return { error: "the document was inserted but returned no id" };
 
     lastError = error.message;
     if (!isUniqueViolation(error)) {
@@ -188,7 +206,7 @@ export type DocumentTax = {
  * back to the flat rate, which is exactly the behaviour before this feature.
  */
 export async function resolveDocumentTax(
-  supabase: any,
+  supabase: ServerClient,
   orgId: string,
   customerId: string,
   onDate: string,
@@ -296,36 +314,39 @@ export async function createDocument(
     taxExempt: tax.taxExempt,
   });
 
-  const table = kind === "invoice" ? "invoices" : "estimates";
-  const doc = await insertNumbered(supabase, table, profile.organization_id!, kind, {
+  const shared = {
     organization_id: profile.organization_id,
     created_by: profile.id,
     customer_id,
-    status: kind === "invoice" ? "unpaid" : "draft",
     discount_minor: totals.discountMinor,
     // The rate ACTUALLY applied — 0 for an exempt customer — so the stored
     // document is internally consistent with its own total.
     tax_rate_bps: totals.taxRateBps,
     total_minor: totals.totalMinor,
     notes: String(formData.get("notes") ?? "").trim() || null,
-  });
+  };
+  const doc = await insertNumbered(supabase, profile.organization_id, kind, (number) =>
+    kind === "invoice"
+      ? supabase
+          .from("invoices")
+          .insert({ ...shared, status: "unpaid", number })
+          .select("id")
+          .single()
+      : supabase
+          .from("estimates")
+          .insert({ ...shared, status: "draft", number })
+          .select("id")
+          .single(),
+  );
   if (doc.error || !doc.id) return { ok: false, error: doc.error };
 
-  const itemsTable = kind === "invoice" ? "invoice_items" : "estimate_items";
-  const parentKey = kind === "invoice" ? "invoice_id" : "estimate_id";
-  const { error: itErr } = await supabase.from(itemsTable).insert(
-    items.map((it, idx) => ({
-      organization_id: profile.organization_id,
-      [parentKey]: doc.id,
-      title: it.title,
-      description: it.description || it.title,
-      qty_milli: it.qtyMilli,
-      unit_price_minor: it.unitPriceMinor,
-      cost_minor: it.costMinor,
-      taxable: it.taxable,
-      image_path: it.imagePath,
-      sort: idx,
-    })),
+  const docId = doc.id;
+  const { error: itErr } = await insertDocumentItems(
+    supabase,
+    kind,
+    docId,
+    profile,
+    items.map((it) => ({ ...it, description: it.description || it.title })),
   );
   if (itErr) return { ok: false, error: itErr.message };
 
@@ -333,6 +354,47 @@ export async function createDocument(
   await saveItemsToLibrary(supabase, profile.organization_id!, items);
 
   return { ok: true };
+}
+
+/**
+ * Write the line items of one document.
+ *
+ * The parent column differs by kind (`invoice_id` / `estimate_id`) and used to
+ * be written as a computed key, `{ [parentKey]: id }`. A computed key is
+ * uncheckable: TypeScript cannot tell which column it names, so nothing
+ * verified that an invoice's items went to `invoice_items` with `invoice_id`
+ * set. Branching once here keeps both column sets checked and produces exactly
+ * the same two inserts.
+ */
+async function insertDocumentItems(
+  supabase: ServerClient,
+  kind: "estimate" | "invoice",
+  parentId: string,
+  profile: Profile,
+  // `title` is nullable in both item tables and duplicateDocument copies
+  // whatever is there, so it is widened rather than coerced: a legacy row with
+  // no title copies across as it always has. `description` is NOT NULL, so it
+  // stays `string` and each caller supplies its own fallback — the create and
+  // edit paths fall back to the title (which is non-null there), and the
+  // duplicate path copies the source description, which cannot be null either.
+  items: (Omit<LineItem, "title"> & { title: string | null })[],
+): Promise<{ error: { message: string } | null }> {
+  const rows = items.map((it, idx) => ({
+    organization_id: profile.organization_id,
+    title: it.title,
+    description: it.description,
+    qty_milli: it.qtyMilli,
+    unit_price_minor: it.unitPriceMinor,
+    cost_minor: it.costMinor,
+    taxable: it.taxable,
+    image_path: it.imagePath,
+    sort: idx,
+  }));
+  return kind === "invoice"
+    ? await supabase.from("invoice_items").insert(rows.map((r) => ({ ...r, invoice_id: parentId })))
+    : await supabase
+        .from("estimate_items")
+        .insert(rows.map((r) => ({ ...r, estimate_id: parentId })));
 }
 
 /** Parse the parallel line-item arrays out of a form (shared by create + edit). */
@@ -366,16 +428,46 @@ function parseDocItems(formData: FormData): LineItem[] {
 const INTEGRITY_COLUMNS =
   "id, number, status, version, signed_at, sent_at, voided_at, void_reason, deleted_at";
 
+/**
+ * The lock/version state of one document, common to both kinds.
+ *
+ * `paid_at` and `estimate_id` exist only on invoices, so they are optional
+ * here — which is the honest shape, and is what makes the `estimate_id` read
+ * in updateDocument safe without the `(current as any)` it used to need.
+ */
+export type DocumentIntegrityRow = {
+  id: string;
+  number: number;
+  status: string;
+  version: number;
+  signed_at: string | null;
+  sent_at: string | null;
+  voided_at: string | null;
+  void_reason: string | null;
+  deleted_at: string | null;
+  paid_at?: string | null;
+  estimate_id?: string | null;
+};
+
 /** Read the lock/version state of one document. */
 async function loadIntegrityRow(
-  supabase: any,
+  supabase: ServerClient,
   kind: "estimate" | "invoice",
-  table: "estimates" | "invoices",
   id: string,
-): Promise<any | null> {
-  const cols =
-    kind === "invoice" ? `${INTEGRITY_COLUMNS}, paid_at, estimate_id` : INTEGRITY_COLUMNS;
-  const { data } = await supabase.from(table).select(cols).eq("id", id).maybeSingle();
+): Promise<DocumentIntegrityRow | null> {
+  if (kind === "invoice") {
+    const { data } = await supabase
+      .from("invoices")
+      .select(`${INTEGRITY_COLUMNS}, paid_at, estimate_id`)
+      .eq("id", id)
+      .maybeSingle();
+    return data ?? null;
+  }
+  const { data } = await supabase
+    .from("estimates")
+    .select(INTEGRITY_COLUMNS)
+    .eq("id", id)
+    .maybeSingle();
   return data ?? null;
 }
 
@@ -400,19 +492,16 @@ export async function updateDocument(
   profile: Profile,
   locale: Locale,
 ): Promise<ActionResult> {
-  const table = kind === "invoice" ? "invoices" : "estimates";
-  const itemsTable = kind === "invoice" ? "invoice_items" : "estimate_items";
-  const parentKey = kind === "invoice" ? "invoice_id" : "estimate_id";
   const he = locale === "he";
   const supabase = await createClient();
 
   const customer_id = String(formData.get("customer_id") ?? "");
   if (!customer_id) return { ok: false, error: t(locale, "err.invalid") };
 
-  const current = await loadIntegrityRow(supabase, kind, table, id);
+  const current = await loadIntegrityRow(supabase, kind, id);
   if (!current || current.deleted_at) return { ok: false, error: t(locale, "err.invalid") };
 
-  const collected = await collectedMinor(supabase, kind, id, (current as any).estimate_id);
+  const collected = await collectedMinor(supabase, kind, id, current.estimate_id);
   const editable = editableRule(kind, { ...current, collected_minor: collected }, { he });
   if (!editable.ok) return { ok: false, error: editable.error };
 
@@ -461,47 +550,51 @@ export async function updateDocument(
   // version on every update, so a second writer matches ZERO rows rather than
   // overwriting the first. `.select()` is what makes that visible — without it
   // an update matching nothing is indistinguishable from one that worked.
-  const { data: saved, error: upErr } = await supabase
-    .from(table)
-    .update({
-      customer_id,
-      discount_minor: totals.discountMinor,
-      tax_rate_bps: totals.taxRateBps,
-      total_minor: totals.totalMinor,
-      notes: String(formData.get("notes") ?? "").trim() || null,
-      ...(issue ? { issue_date: issue } : {}),
-      ...(kind === "estimate" ? { deposit_minor: Math.min(depositMinor, totals.totalMinor) } : {}),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id)
-    .eq("version", version.version)
-    .select("id, version");
+  const patch = {
+    customer_id,
+    discount_minor: totals.discountMinor,
+    tax_rate_bps: totals.taxRateBps,
+    total_minor: totals.totalMinor,
+    notes: String(formData.get("notes") ?? "").trim() || null,
+    ...(issue ? { issue_date: issue } : {}),
+    updated_at: new Date().toISOString(),
+  };
+  const { data: saved, error: upErr } =
+    kind === "invoice"
+      ? await supabase
+          .from("invoices")
+          .update(patch)
+          .eq("id", id)
+          .eq("version", version.version)
+          .select("id, version")
+      : await supabase
+          .from("estimates")
+          // deposit_minor exists on estimates only. It used to be spread in
+          // conditionally, which meant nothing checked that it was a real
+          // column of whichever table `table` happened to name.
+          .update({ ...patch, deposit_minor: Math.min(depositMinor, totals.totalMinor) })
+          .eq("id", id)
+          .eq("version", version.version)
+          .select("id, version");
   if (upErr) return { ok: false, error: upErr.message };
   if (!saved || saved.length === 0) {
-    const { data: now } = await supabase.from(table).select("version").eq("id", id).maybeSingle();
+    const now = await loadIntegrityRow(supabase, kind, id);
+    const recheck = assertVersionMatch(kind, version.version, now?.version ?? null, { he });
     return {
       ok: false,
-      error:
-        assertVersionMatch(kind, version.version, now?.version ?? null, { he }).error ??
-        t(locale, "err.invalid"),
+      error: recheck.ok ? t(locale, "err.invalid") : recheck.error,
     };
   }
 
   // Replace items.
-  await supabase.from(itemsTable).delete().eq(parentKey, id);
-  const { error: itErr } = await supabase.from(itemsTable).insert(
-    items.map((it, idx) => ({
-      organization_id: profile.organization_id,
-      [parentKey]: id,
-      title: it.title,
-      description: it.description || it.title,
-      qty_milli: it.qtyMilli,
-      unit_price_minor: it.unitPriceMinor,
-      cost_minor: it.costMinor,
-      taxable: it.taxable,
-      image_path: it.imagePath,
-      sort: idx,
-    })),
+  if (kind === "invoice") await supabase.from("invoice_items").delete().eq("invoice_id", id);
+  else await supabase.from("estimate_items").delete().eq("estimate_id", id);
+  const { error: itErr } = await insertDocumentItems(
+    supabase,
+    kind,
+    id,
+    profile,
+    items.map((it) => ({ ...it, description: it.description || it.title })),
   );
   if (itErr) return { ok: false, error: itErr.message };
   await saveItemsToLibrary(supabase, profile.organization_id!, items);
@@ -514,54 +607,85 @@ export async function duplicateDocument(
   id: string,
   profile: Profile,
 ): Promise<{ ok: boolean; error?: string; newId?: string; number?: number }> {
-  const table = kind === "invoice" ? "invoices" : "estimates";
-  const itemsTable = kind === "invoice" ? "invoice_items" : "estimate_items";
-  const parentKey = kind === "invoice" ? "invoice_id" : "estimate_id";
   const supabase = await createClient();
 
-  const { data: src } = await supabase.from(table).select("*").eq("id", id).single();
-  if (!src) return { ok: false, error: "not found" };
-  const { data: items } = await supabase
-    .from(itemsTable)
-    .select("*")
-    .eq(parentKey, id)
-    .order("sort");
+  // Both branches are `select("*")` on the source and its items, in the same
+  // order, exactly as before — only now the compiler knows which table each
+  // one is, so `src.deposit_minor` is a column of `estimates` rather than a
+  // property of `any`.
+  const source =
+    kind === "invoice"
+      ? await (async () => {
+          const { data: src } = await supabase.from("invoices").select("*").eq("id", id).single();
+          if (!src) return null;
+          const { data: items } = await supabase
+            .from("invoice_items")
+            .select("*")
+            .eq("invoice_id", id)
+            .order("sort");
+          return { src, items: items ?? [], deposit: null };
+        })()
+      : await (async () => {
+          const { data: src } = await supabase.from("estimates").select("*").eq("id", id).single();
+          if (!src) return null;
+          const { data: items } = await supabase
+            .from("estimate_items")
+            .select("*")
+            .eq("estimate_id", id)
+            .order("sort");
+          // Carried over deliberately: duplicating an estimate used to silently
+          // drop its deposit request, so the copy asked for nothing up front.
+          // Reported as a known gap in docs/REMEDIATION-PLAN.md §5.7 and fixed
+          // here because this file is in scope for the document-integrity pass.
+          return { src, items: items ?? [], deposit: src.deposit_minor ?? 0 };
+        })();
+  if (!source) return { ok: false, error: "not found" };
+  const { src, items, deposit } = source;
 
-  const doc = await insertNumbered(supabase, table, profile.organization_id!, kind, {
+  const shared = {
     organization_id: profile.organization_id,
     created_by: profile.id,
     customer_id: src.customer_id,
-    status: kind === "invoice" ? "unpaid" : "draft",
     discount_minor: src.discount_minor,
     tax_rate_bps: src.tax_rate_bps,
     total_minor: src.total_minor,
     notes: src.notes,
-    // Carried over deliberately: duplicating an estimate used to silently drop
-    // its deposit request, so the copy asked for nothing up front. Reported as a
-    // known gap in docs/REMEDIATION-PLAN.md §5.7 and fixed here because this
-    // file is in scope for the document-integrity pass.
-    ...(kind === "estimate" ? { deposit_minor: src.deposit_minor ?? 0 } : {}),
-  });
+  };
+  const doc = await insertNumbered(supabase, profile.organization_id, kind, (number) =>
+    kind === "invoice"
+      ? supabase
+          .from("invoices")
+          .insert({ ...shared, status: "unpaid", number })
+          .select("id")
+          .single()
+      : supabase
+          .from("estimates")
+          .insert({ ...shared, status: "draft", deposit_minor: deposit ?? 0, number })
+          .select("id")
+          .single(),
+  );
   if (doc.error || !doc.id) return { ok: false, error: doc.error };
+  const newId = doc.id;
   const number = doc.number;
 
-  if (items && items.length) {
-    await supabase.from(itemsTable).insert(
-      items.map((it: any, idx: number) => ({
-        organization_id: profile.organization_id,
-        [parentKey]: doc.id,
+  if (items.length) {
+    await insertDocumentItems(
+      supabase,
+      kind,
+      newId,
+      profile,
+      items.map((it) => ({
         title: it.title,
-        description: it.description,
-        qty_milli: it.qty_milli,
-        unit_price_minor: it.unit_price_minor,
-        cost_minor: it.cost_minor ?? 0,
+        description: it.description ?? "",
+        qtyMilli: it.qty_milli,
+        unitPriceMinor: it.unit_price_minor,
+        costMinor: it.cost_minor ?? 0,
         taxable: it.taxable ?? true,
-        image_path: it.image_path ?? null,
-        sort: idx,
+        imagePath: it.image_path ?? null,
       })),
     );
   }
-  return { ok: true, newId: doc.id, number: number as number };
+  return { ok: true, newId, number };
 }
 
 /**
@@ -581,14 +705,13 @@ export async function softDeleteDocument(
   id: string,
   locale: Locale = "en" as Locale,
 ): Promise<ActionResult> {
-  const table = kind === "invoice" ? "invoices" : "estimates";
   const he = locale === "he";
   const supabase = await createClient();
 
-  const current = await loadIntegrityRow(supabase, kind, table, id);
+  const current = await loadIntegrityRow(supabase, kind, id);
   if (!current) return { ok: false, error: "not found" };
 
-  const collected = await collectedMinor(supabase, kind, id, (current as any).estimate_id);
+  const collected = await collectedMinor(supabase, kind, id, current.estimate_id);
   const lock = documentLock(kind, { ...current, collected_minor: collected });
   if (lock.locked && lock.code !== "voided") {
     return {
@@ -599,10 +722,11 @@ export async function softDeleteDocument(
     };
   }
 
-  const { error } = await supabase
-    .from(table)
-    .update({ deleted_at: new Date().toISOString() })
-    .eq("id", id);
+  const deletedAt = new Date().toISOString();
+  const { error } =
+    kind === "invoice"
+      ? await supabase.from("invoices").update({ deleted_at: deletedAt }).eq("id", id)
+      : await supabase.from("estimates").update({ deleted_at: deletedAt }).eq("id", id);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
@@ -650,14 +774,22 @@ export async function markDocumentSent(
   kind: "estimate" | "invoice",
   id: string,
 ): Promise<ActionResult> {
-  const table = kind === "invoice" ? "invoices" : "estimates";
   const supabase = await createClient();
-  const { error } = await supabase
-    .from(table)
-    .update({ sent_at: new Date().toISOString() })
-    .eq("id", id)
-    .is("sent_at", null)
-    .is("deleted_at", null);
+  const sentAt = new Date().toISOString();
+  const { error } =
+    kind === "invoice"
+      ? await supabase
+          .from("invoices")
+          .update({ sent_at: sentAt })
+          .eq("id", id)
+          .is("sent_at", null)
+          .is("deleted_at", null)
+      : await supabase
+          .from("estimates")
+          .update({ sent_at: sentAt })
+          .eq("id", id)
+          .is("sent_at", null)
+          .is("deleted_at", null);
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
@@ -678,29 +810,40 @@ export async function voidDocument(
   profile: Profile,
   locale: Locale,
 ): Promise<ActionResult> {
-  const table = kind === "invoice" ? "invoices" : "estimates";
   const he = locale === "he";
   const supabase = await createClient();
 
-  const current = await loadIntegrityRow(supabase, kind, table, id);
+  const current = await loadIntegrityRow(supabase, kind, id);
   if (!current) return { ok: false, error: t(locale, "err.invalid") };
 
-  const collected = await collectedMinor(supabase, kind, id, (current as any).estimate_id);
+  const collected = await collectedMinor(supabase, kind, id, current.estimate_id);
   const check = validateVoid(kind, current, { reason, collectedMinor: collected, he });
   if (!check.ok) return { ok: false, error: check.error };
 
-  const { data: saved, error } = await supabase
-    .from(table)
-    .update({
-      voided_at: new Date().toISOString(),
-      void_reason: check.reason,
-      voided_by: profile.id,
-      ...(kind === "invoice" ? { status: "void" } : {}),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id)
-    .is("voided_at", null)
-    .select("id");
+  const now = new Date().toISOString();
+  const voidPatch = {
+    voided_at: now,
+    void_reason: check.reason,
+    voided_by: profile.id,
+    updated_at: now,
+  };
+  // `status: "void"` is an invoices-only value: the `invoice_status` enum has
+  // it and `estimate_status` does not. It used to be spread in conditionally,
+  // against a table name the compiler could not resolve.
+  const { data: saved, error } =
+    kind === "invoice"
+      ? await supabase
+          .from("invoices")
+          .update({ ...voidPatch, status: "void" })
+          .eq("id", id)
+          .is("voided_at", null)
+          .select("id")
+      : await supabase
+          .from("estimates")
+          .update(voidPatch)
+          .eq("id", id)
+          .is("voided_at", null)
+          .select("id");
   if (error) return { ok: false, error: error.message };
   if (!saved || saved.length === 0) {
     return { ok: false, error: he ? "המסמך כבר בוטל." : "This document is already voided." };
@@ -726,7 +869,8 @@ export async function reopenEstimate(
   const he = locale === "he";
   const supabase = await createClient();
 
-  const { data: current } = await (supabase.from("estimates") as any)
+  const { data: current } = await supabase
+    .from("estimates")
     .select(`${INTEGRITY_COLUMNS}, reopen_count`)
     .eq("id", id)
     .maybeSingle();
@@ -766,7 +910,10 @@ export type CreditNote = {
 };
 
 /** Every credit note against an invoice, newest first. */
-export async function loadCreditNotes(supabase: any, invoiceId: string): Promise<CreditNote[]> {
+export async function loadCreditNotes(
+  supabase: ServerClient,
+  invoiceId: string,
+): Promise<CreditNote[]> {
   const { data } = await supabase
     .from("credit_notes")
     .select(
@@ -875,14 +1022,14 @@ export async function cancelCreditNote(
   return { ok: true };
 }
 
-async function saveItemsToLibrary(supabase: any, orgId: string, items: LineItem[]) {
+async function saveItemsToLibrary(supabase: ServerClient, orgId: string, items: LineItem[]) {
   try {
     const { data: existing } = await supabase
       .from("price_book")
       .select("name")
       .eq("organization_id", orgId);
     const have = new Set(
-      (existing ?? []).map((r: any) =>
+      (existing ?? []).map((r) =>
         String(r.name ?? "")
           .trim()
           .toLowerCase(),

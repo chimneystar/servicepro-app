@@ -18,26 +18,42 @@
 > the files aside or read them out of git with `git show <ref>:<path>` — never
 > stash.
 
-> **A file read while another agent is writing it is a TORN READ, not corruption.**
-> An agent fanning work out to sub-agents kept editing the files it had just
-> handed them. One sub-agent read `app/api/calendar/[token]/route.ts` part-way
-> through an edit that was adding a foreign-key hint to a `.select(...)` string,
-> saw `"iid, organization_id, ...label)` — a leading `iid` and a dropped closing
-> quote — concluded the tree was corrupted, and halted with 19 files of finished
-> analysis undelivered. Nothing was damaged: the file was correct, unmodified per
-> `git status`, and the worktree had zero syntax errors.
+> **Serialise writes against fan-out: do not keep editing files a sub-agent is
+> reading.** An agent fanning work out to sub-agents kept editing the files it
+> had just handed them. One sub-agent read
+> `app/api/calendar/[token]/route.ts`, saw `"iid, organization_id, ...label)` — a
+> leading `iid` and a dropped closing quote — and halted with 19 files of
+> finished analysis undelivered.
 >
-> Two rules follow. **Writers:** commit a coherent checkpoint before dispatching
-> readers, and do not keep editing files a sub-agent is reading. **Readers:**
-> before concluding a tree is corrupt, re-read the file and check `git status`
-> and `tsc`. One file containing an impossible string literal, in a tree where
-> nothing else is broken, is almost always a race — and halting on it costs more
-> than the re-read.
+> **CORRECTION, and it is the instructive part.** I diagnosed this as a torn
+> read: a reader catching a writer mid-edit, with nothing actually damaged. That
+> was WRONG. The writer's own codemod had an off-by-one (`sel[0]` included the
+> closing quote), which duplicated each literal's first character and ate its
+> closing quote, and it wrote **114 files** where about 28 should have changed.
+> The damage was real and was visible in `git diff` on files nobody was
+> concurrently editing.
+>
+> I reached the wrong answer by a plausible route: I inspected the tree AFTER the
+> writer had already restored from its checkpoint, found it clean, found `iid`
+> nowhere in any of the 26 worktrees, and read "clean now" as "never broken".
+> A clean tree is consistent with *no damage* and equally with *damage already
+> repaired*, and I did not distinguish them. The one question that would have
+> separated them — "did you change anything between my check and your report?" —
+> is the one I did not ask, because I had already formed an explanation that fit.
+>
+> The rules stand, and the first one is what actually prevented a recurrence.
+> **Writers:** commit a coherent checkpoint before dispatching readers, and do
+> not keep editing files a sub-agent is reading. **Readers:** before concluding a
+> tree is corrupt, re-read the file and check `git status` and `tsc`; but note
+> that here the reader was RIGHT and the coordinator was wrong, so a reader's
+> corruption report is evidence, not noise. **Coordinators:** a tree that is
+> clean when you look at it tells you nothing about the tree ten minutes ago. Ask
+> what changed in between before you contradict the agent that was there.
 >
 > This is the third hazard of this shape: the shared stash stack, eslint scanning
-> other agents' `.next` output, and now torn reads. Parallelism buys wall-clock
-> at the cost of shared-resource discipline, and the discipline has to be written
-> down each time it is learned.
+> other agents' `.next` output, and now a codemod writing four times the files it
+> should. Parallelism buys wall-clock at the cost of shared-resource discipline,
+> and the discipline has to be written down each time it is learned.
 
 
 
@@ -1371,15 +1387,76 @@ written.
 ### Phase 7 — architecture + maintainability
 | # | Task | Status |
 |---|---|---|
-| 6.1 | Generate Supabase types; remove `any` at the DB boundary | TODO |
+| 6.1 | Generate Supabase types; remove `any` at the DB boundary | **PARTIAL** — the type system is installed and guarded: a `Database` type GENERATED from the migrations, all three clients typed against it, drift caught by a test. `any` as a type is **248 -> 152**. The remaining 152 are catalogued below; none of them is a `from()`/`select()` that is now unchecked. See note |
 | 6.2 | `lib/data/*` repository modules; mandatory pagination | TODO |
 | 6.3 | One action contract; error/loading boundaries per route group; toast primitive | TODO |
 | 6.4 | De-minify the long-line files; Prettier + max-len lint | **DONE** — 383 files reformatted, proven semantics-preserving file by file. See note |
 | 6.5 | Design system: tokens + ~15 primitives; retire 871 inline style objects | **PARTIAL** — tokens, 18 primitives and Tailwind's removal are DONE and proven; the migration is 238 of 1,587 style objects (15%). See note |
 | 6.6 | Accessibility: label association (`htmlFor` is currently used **zero** times), focus visibility, dialog semantics, button types | **PARTIAL** — both halves are now closed: the typographic half (owner findings A1 + A2) and the four named non-typographic defects, everywhere except two quarantined directories. Remaining: only 15 of the plugin rules are on, and nothing has been tested with a real screen reader or axe. See both notes |
-| 6.8 | **Thirteen unvalidated writes reach CHECK-constrained columns.** Found by the 6.1 typing work: `String(formData.get(...) ?? "default")` lands in a column with a database CHECK and nothing tests the value in between. A crafted POST — a server action is a public endpoint, the `<select>` in the UI is not the boundary — hits the constraint and the user gets a generic "couldn’t save". Sites: `support_cases.severity`, `support_sessions.access_level`, `release_records.risk_level`, `tax_jurisdictions.jurisdiction_type`, `tax_jurisdictions.applies_to`, `tax_filings.status`, `settlement_batches.status`, `estimate_followups.channel`, `consent_events.channel`, `privacy_requests.request_type`, `retention_holds.category`, `organizations.locale` (x2), plus `booking_settings.slot_interval_min` (CHECK 15/30/45/60/90/120 while every neighbouring field is clamped and this one is not). **`organizations.locale` is the sharpest**: `updateSettings` writes `locale: lang` and THEN tests `lang === "en" || lang === "he"` — the check runs after the write and only gates the cookie, so it never protects the column; `onboarding/page.tsx` validates the same value for the catalogue pack on one line and writes the raw value on the next. Both found independently by two agents. The update result is never checked, so the failure is silent: onboarding continues and the organisation keeps the default locale. | TODO |
+| 6.8 | **Thirteen unvalidated writes reach CHECK-constrained columns.** Found by the 6.1 typing work: `String(formData.get(...) ?? "default")` lands in a column with a database CHECK and nothing tests the value in between. A crafted POST — a server action is a public endpoint, the `<select>` in the UI is not the boundary — hits the constraint and the user gets a generic "couldn’t save". Sites: `support_cases.severity`, `support_sessions.access_level`, `release_records.risk_level`, `tax_jurisdictions.jurisdiction_type`, `tax_jurisdictions.applies_to`, `tax_filings.status`, `settlement_batches.status`, `estimate_followups.channel`, `consent_events.channel`, `privacy_requests.request_type`, `retention_holds.category`, `organizations.locale` (x2), plus `booking_settings.slot_interval_min` (CHECK 15/30/45/60/90/120 while every neighbouring field is clamped and this one is not). **`organizations.locale` is the sharpest**: `updateSettings` writes `locale: lang` and THEN tests `lang === "en" || lang === "he"` — the check runs after the write and only gates the cookie, so it never protects the column; `onboarding/page.tsx` validates the same value for the catalogue pack on one line and writes the raw value on the next. Both found independently by two agents. The update result is never checked, so the failure is silent: onboarding continues and the organisation keeps the default locale. | **DONE** — all fourteen validated before the write; see the 6.1 note |
 | 6.9 | **Component prop types claim non-null where the schema is nullable — one of them is reachable by an ordinary action.** `booking_services.job_type_id` is `uuid references job_types(id) **on delete set null**` (db/020:32), but `BookingSettingsForm.tsx:57` declares `job_type_id: string`. `deleteJobType` (settings/jobtypes-actions.ts:49) exists and does exactly what the FK anticipates, so a null genuinely arrives. Line 371 then does `String(row.job_type_id)` → the literal `"null"`, which becomes the React `key`, the `enabled_*` checkbox name, and the value of a hidden `jobTypeId` input. Two orphaned services collide on `key="null"` and the form posts a non-UUID. Same class, not yet traced: `hours_json` and `options_json` are jsonb (can be null) but typed `Record<...>`/`string[] | undefined`. Also here: `app/api/privacy/export/[requestId]/route.ts` does not use `requireProfile()` — it reads `profiles` directly, and since `organization_id` is nullable while `role` defaults to `owner`, a user who signed up without joining an organisation reaches it as an “owner” with a null org and hits `.eq("organization_id", null)`. Degrades to a 409 today rather than leaking, because the reads go through the RLS client. | TODO |
 | 6.7 | Consolidate overlapping tables (line items, assignment models, permission systems) | TODO |
+
+
+**Note on 6.1 — what was generated, what it caught, and the 152 `any` that remain.**
+
+*The types are derived, not written.* `npm run db:types` applies every migration to an empty
+PostgreSQL (the PGlite harness from ledger 0.6) and reads the catalogue into
+`lib/supabase/database.types.ts`: 124 tables, 6 enums, 324 foreign keys, 38 callable functions.
+`tests/db-types.test.mjs` rebuilds it and fails when the committed file and the migrations disagree,
+plus a determinism check so it cannot fail at random. This is deliberately the same shape as the
+Supabase CLI's output, so the CLI could replace the file without touching a call site — but the CLI
+needs a linked cloud project and cannot run in CI here.
+
+It reads four things the CLI's generator does not:
+
+| what | count | why it matters |
+|---|---|---|
+| columns narrowed by a CHECK constraint | **99** | `check (col = any (array[...]))` is an enum written the long way, and it is most of the status columns in this product |
+| NOT NULL columns a BEFORE INSERT trigger supplies | **5** | `payments.provider`/`.normalized_status`/`.base_amount_minor` have their default dropped and are filled by `prepare_payment_row()`; demanding them would have broken four INSERT sites including the Stripe webhook |
+| STORED generated columns | **2** | `jobs.slot`, `industry_pack_items.pack_item_key` — naming one in an INSERT is a compile error, as the database already made it a runtime one |
+| function arguments as nullable unless STRICT | **38 functions** | Postgres has no NOT NULL on a parameter; `stamp_permission_change_context` is written entirely around nulls |
+
+*What it caught.* Three defect classes, each fixed in its own commit because each changes behaviour:
+
+1. **37 queries were returning HTTP 300 and nobody knew.** Migration 014's composite tenant-isolation
+   foreign keys made every `customers(...)` embed ambiguous to PostgREST (PGRST201). The dashboard,
+   jobs list, job detail, dispatch board, schedule, route sheet, tech screen, search, calendar feed,
+   reminder cron and push notifier were all affected. Guarded by `tests/postgrest-embeds.test.mjs`,
+   which re-derives the ambiguous pairs from the generated types, so a future migration that adds a
+   second foreign key between two tables names the queries it has just broken.
+2. **The 14 unvalidated writes of 6.8**, now validated before the write rather than by it.
+3. **A deposit could be taken and the job never created** — `jobs.service` is NOT NULL and
+   `leads.service` is not; the INSERT failed after payment and left only a console line.
+
+*The dependency pair was also wrong.* `@supabase/ssr@0.5.2` type-imports a path that
+`@supabase/supabase-js@2.110` no longer ships and calls `SupabaseClient` with the pre-2.5x generic
+order. `skipLibCheck` plus `Database = any` hid both; typed, every query collapsed to `never`
+(1,139 errors, none about our code). Realigned to `ssr@^0.12.4` + `supabase-js@^2.111.0`.
+
+*The 152 `any` that remain*, counted by `npm run count:any` (which strips comments and strings — a
+plain grep counts the English word and goes UP when someone explains a removal). **None of them is a
+`from()` or `select()` that has gone unchecked**; they are downstream of a typed read:
+
+| category | ~count | what it would take |
+|---|---|---|
+| `catch (e: any)` | 19 | mechanical: the repo's own `cause instanceof Error ? cause.message : String(cause)` idiom |
+| a `jsonb` column consumed as a typed record by a client component | ~12 | the fix belongs in the component (`AdminConsole`, `PrivacyCenter`, `AuditLog`), not the page: `retention_runs.summary`, `release_records.regression_checklist`, `permission_change_log.changes` are `Json` and are indexed as `Record<string, …>` with no validation anywhere on the path |
+| `(row: any) =>` in a callback over a typed read | ~60 | mechanical, one file at a time; the row type already infers |
+| a shared `.mjs` helper whose return type is still `string` | ~25 | a JSDoc `@returns` per helper, as was done for `assertVersionMatch`, `notificationOutcome`, `DUNNING_LADDER`, `JOB_STATUSES` and `KIND_TABLE` |
+| genuinely dynamic | 3 | `app/api/export/business/route.ts` walks ~120 tables from a manifest. It uses `createUntypedClient`, which `tests/db-types.test.mjs` pins to that one caller |
+
+*Three defects found and deliberately NOT fixed*, because they are behaviour changes outside this
+item and each needs its own probe:
+
+* `app/(app)/jobs/[id]/actions.ts:110` — **the AI job summary never names the customer.**
+  `Array.isArray(job.customers) ? job.customers[0]?.name : null` on a many-to-one embed: the embed is
+  an object, so the array branch is never taken and `customer` is always null. Line 833 of the same
+  file takes the object branch, which is the correct one.
+* `app/(app)/reports/commission/page.tsx:72-79` — `jobByInvoice` and `techByJob` are declared
+  `Record<string, string>` and fed `invoices.job_id` and `jobs.assigned_to`, both nullable.
+* `app/(app)/finance/page.tsx:31-35` — a fallback for "migration 035 not applied" that can no longer
+  fire, since `organizations.tax_mode` is in the derived schema.
 
 **Note on 6.4 — the real numbers, and how a 383-file diff was proven to change nothing.**
 

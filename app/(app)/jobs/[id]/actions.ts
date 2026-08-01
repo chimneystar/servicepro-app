@@ -98,7 +98,7 @@ export async function generateJobSummary(jobId: string): Promise<PhotoResult> {
   const [{ data: job }, { data: tasks }, { data: checks }, { data: photos }] = await Promise.all([
     supabase
       .from("jobs")
-      .select("id,service,status,notes,assigned_to,customers(name)")
+      .select("id,service,status,notes,assigned_to,customers!jobs_customer_id_fkey(name)")
       .eq("id", jobId)
       .maybeSingle(),
     supabase.from("job_tasks").select("title,done").eq("job_id", jobId),
@@ -811,7 +811,7 @@ export async function sendAppointmentConfirmation(jobId: string): Promise<Appoin
   const { data: job } = await supabase
     .from("jobs")
     .select(
-      "id, service, scheduled_date, start_time, organization_id, customers(name, phone, sms_opt_in)",
+      "id, service, scheduled_date, start_time, organization_id, customers!jobs_customer_id_fkey(name, phone, sms_opt_in)",
     )
     .eq("id", jobId)
     .is("deleted_at", null)

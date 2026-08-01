@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireProfile } from "@/lib/auth";
 import { getLocale } from "@/lib/locale-server";
 import { getRequestContext, contextColumns } from "@/lib/request-context";
+import type { Json } from "@/lib/supabase/database.types";
 // @ts-ignore -- pure logic, proven both ways in tests/password-policy.test.mjs
 import { evaluatePassword, describePasswordFailures } from "@/lib/core/password-policy.mjs";
 // @ts-ignore -- pure logic, proven both ways in tests/rate-limit.test.mjs
@@ -18,7 +19,10 @@ async function logEvent(
   profileId: string,
   organizationId: string | null,
   eventType: string,
-  details: Record<string, unknown> | null,
+  // `details` lands in a jsonb column, so it is typed as JSON rather than as an
+  // arbitrary record — `Record<string, unknown>` admits values that cannot be
+  // serialised and would be silently dropped or rejected on the way in.
+  details: Json,
 ) {
   try {
     const context = await getRequestContext();

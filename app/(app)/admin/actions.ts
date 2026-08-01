@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireProfile } from "@/lib/auth";
 import { getLocale } from "@/lib/locale-server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isOneOf } from "@/lib/validation";
 import {
   authorizeSupportAccess,
   getPlatformAdmin,
@@ -34,11 +35,19 @@ export async function createSupportCase(
     const { profile, admin } = await guard();
     const subject = String(formData.get("subject") ?? "").trim();
     if (!subject) return { ok: false, error: initialError };
+    // Validated before the write, not by the write. `support_cases.severity`
+    // is `text` with a CHECK constraint, so an unexpected value used to reach
+    // Postgres and come back as a constraint violation the caller reported as
+    // the same generic `initialError` — one round trip later, with a failed
+    // statement in the log and nothing to explain it.
+    const severity = String(formData.get("severity") ?? "normal");
+    if (!isOneOf(["low", "normal", "high", "critical"], severity))
+      return { ok: false, error: initialError };
     const { error } = await admin.from("support_cases").insert({
       organization_id: String(formData.get("organizationId") ?? "") || null,
       subject,
       description: String(formData.get("description") ?? "").trim() || null,
-      severity: String(formData.get("severity") ?? "normal"),
+      severity,
       opened_by: profile.id,
       assigned_to: profile.id,
     });
@@ -52,7 +61,7 @@ export async function createSupportCase(
 export async function updateSupportCase(id: string, status: string): Promise<AdminResult> {
   try {
     const { admin } = await guard();
-    if (!["open", "investigating", "waiting", "resolved", "closed"].includes(status))
+    if (!isOneOf(["open", "investigating", "waiting", "resolved", "closed"], status))
       return { ok: false, error: initialError };
     const { error } = await admin
       .from("support_cases")
@@ -85,12 +94,16 @@ export async function createSupportSession(
       .single();
     if (!supportCase?.organization_id)
       return { ok: false, error: "The case must be linked to a business." };
+    // `support_sessions.access_level` is CHECK-constrained; see createSupportCase.
+    const accessLevel = String(formData.get("accessLevel") ?? "read_only");
+    if (!isOneOf(["read_only", "guided_write"], accessLevel))
+      return { ok: false, error: initialError };
     const { error } = await admin.from("support_sessions").insert({
       case_id: caseId,
       organization_id: supportCase.organization_id,
       admin_user_id: profile.id,
       reason,
-      access_level: String(formData.get("accessLevel") ?? "read_only"),
+      access_level: accessLevel,
       expires_at: new Date(Date.now() + hours * 3600000).toISOString(),
     });
     if (error) return { ok: false, error: initialError };
@@ -196,7 +209,12 @@ export async function openBusinessSnapshot(organizationId: string): Promise<Snap
     .select("name")
     .eq("id", organizationId)
     .maybeSingle();
-  const count = async (table: string, apply?: (query: any) => any) => {
+  // Named tables rather than `string`: the client only accepts a table it knows,
+  // and every caller below passes one of these four.
+  const count = async (
+    table: "customers" | "jobs" | "invoices" | "profiles",
+    apply?: (query: any) => any,
+  ) => {
     let query = admin
       .from(table)
       .select("id", { count: "exact", head: true })
@@ -380,7 +398,9 @@ export async function rotatePaymentSecretsKey(_previous: RotationState): Promise
     .from("secret_key_rotations")
     .insert({
       target: "merchant_secrets",
-      from_versions: [...new Set(plan.toRotate.map((entry: any) => entry.keyVersion))],
+      // `plan` comes from the untyped keyring module, so the Set has to be told
+      // what it holds: planRotation only ever puts key versions in `toRotate`.
+      from_versions: [...new Set<number>(plan.toRotate.map((entry: any) => entry.keyVersion))],
       to_version: keyring.activeVersion,
       rows_total: (rows ?? []).length,
       actor: profile.id,
@@ -484,13 +504,16 @@ export async function createRelease(
     const version = String(formData.get("version") ?? "").trim(),
       title = String(formData.get("title") ?? "").trim();
     if (!version || !title) return { ok: false, error: initialError };
+    // `release_records.risk_level` is CHECK-constrained; see createSupportCase.
+    const risk = String(formData.get("risk") ?? "standard");
+    if (!isOneOf(["low", "standard", "high"], risk)) return { ok: false, error: initialError };
     const { error } = await admin.from("release_records").insert({
       version,
       title,
       summary: String(formData.get("summary") ?? "").trim() || null,
       git_sha: String(formData.get("gitSha") ?? "").trim() || null,
       deployment_url: String(formData.get("deploymentUrl") ?? "").trim() || null,
-      risk_level: String(formData.get("risk") ?? "standard"),
+      risk_level: risk,
       regression_checklist: {
         features_preserved: formData.get("featuresPreserved") === "on",
         bilingual_checked: formData.get("bilingualChecked") === "on",

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import type { Enums, TablesUpdate } from "@/lib/supabase/database.types";
 
 type Event = { clientEventId?: unknown; jobId?: unknown; action?: unknown; createdAt?: unknown };
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -108,14 +109,14 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date().toISOString();
-    const values =
+    const values: TablesUpdate<"jobs"> =
       action === "start"
         ? { status: "in_progress", stage: progressStage, started_at: now }
         : { status: "done", stage: doneStage, completed_at: now };
 
     // The transition rules apply to the offline path too. A queued "start" for a
     // job that was completed while the device was offline must not reopen it.
-    const allowedFrom =
+    const allowedFrom: Enums<"job_status">[] =
       action === "start" ? ["scheduled", "in_progress"] : ["scheduled", "in_progress"];
     const { data: updated, error } = await supabase
       .from("jobs")

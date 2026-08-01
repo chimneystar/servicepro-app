@@ -18,7 +18,7 @@ export default async function RoutePage({
   const { data: jobs } = await supabase
     .from("jobs")
     .select(
-      "id, service, status, price_minor, start_time, end_time, job_address, job_city, customers(name, address, city, phone), profiles!jobs_assigned_to_fkey(full_name)",
+      "id, service, status, price_minor, start_time, end_time, job_address, job_city, customers!jobs_customer_id_fkey(name, address, city, phone), profiles!jobs_assigned_to_fkey(full_name)",
     )
     .eq("scheduled_date", date)
     .is("deleted_at", null)

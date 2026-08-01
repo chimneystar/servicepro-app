@@ -18,7 +18,11 @@ export async function GET(
     .select("organization_id,role")
     .eq("id", user.id)
     .single();
-  if (!profile || profile.role !== "owner")
+  // `organization_id` is nullable in `profiles` — a row exists between signup
+  // and onboarding, and it defaults to role 'owner'. Such a user has no
+  // organisation and therefore no privacy requests; the query below used to run
+  // with a null filter, match nothing, and report the request as missing.
+  if (!profile || !profile.organization_id || profile.role !== "owner")
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const { data: privacyRequest } = await supabase
     .from("privacy_requests")
@@ -46,8 +50,14 @@ export async function GET(
   ] = await Promise.all([
     supabase.from("customers").select("*").eq("id", customerId).single(),
     supabase.from("jobs").select("*").eq("customer_id", customerId),
-    supabase.from("estimates").select("*,estimate_items(*)").eq("customer_id", customerId),
-    supabase.from("invoices").select("*,invoice_items(*)").eq("customer_id", customerId),
+    supabase
+      .from("estimates")
+      .select("*,estimate_items!estimate_items_estimate_id_fkey(*)")
+      .eq("customer_id", customerId),
+    supabase
+      .from("invoices")
+      .select("*,invoice_items!invoice_items_invoice_id_fkey(*)")
+      .eq("customer_id", customerId),
     supabase.from("messages").select("*").eq("customer_id", customerId),
     supabase
       .from("sms_messages")

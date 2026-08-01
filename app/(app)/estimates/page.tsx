@@ -22,7 +22,7 @@ export default async function EstimatesPage({
       supabase
         .from("estimates")
         .select(
-          "id, number, status, total_minor, issue_date, public_token, voided_at, customers(name, email, phone)",
+          "id, number, status, total_minor, issue_date, public_token, voided_at, customers!estimates_customer_id_fkey(name, email, phone)",
         )
         .is("deleted_at", null)
         .eq("archived", false)

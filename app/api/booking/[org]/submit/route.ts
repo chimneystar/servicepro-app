@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { TablesInsert } from "@/lib/supabase/database.types";
 import {
   addMinutes,
   buildBookingSlots,
@@ -203,7 +204,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ org
         ? { deposit_required_minor: depositMinor, auto_release_on_deposit: autoRelease }
         : {}),
     };
-    const leadPayload = {
+    const leadPayload: TablesInsert<"leads"> = {
       organization_id: org,
       name,
       phone,

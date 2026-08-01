@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireProfile } from "@/lib/auth";
+import { isOneOf } from "@/lib/validation";
 import { createClient } from "@/lib/supabase/server";
 // @ts-ignore -- shared JS module, proven both ways in tests/calendar-feed.test.mjs
 import {
@@ -26,7 +27,13 @@ export async function createCalendarFeed(
   formData: FormData,
 ): Promise<ActionResult> {
   const profile = await requireProfile();
+  // `calendar_feed_tokens.scope` is CHECK-constrained to these two. The
+  // `canCreateFeed` guard below already refuses anything else with
+  // "scope_not_permitted"; this states the same set in a form the compiler can
+  // carry through to the INSERT.
   const scope = String(formData.get("scope") ?? "mine");
+  if (!isOneOf(["mine", "organization"], scope))
+    return { ok: false, error: "That feed scope does not exist." };
   const label = String(formData.get("label") ?? "")
     .trim()
     .slice(0, 80);

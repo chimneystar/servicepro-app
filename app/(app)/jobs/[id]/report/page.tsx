@@ -13,7 +13,7 @@ export default async function JobReportPage({ params }: { params: Promise<{ id: 
   const { data: job } = await supabase
     .from("jobs")
     .select(
-      "id, service, scheduled_date, price_minor, notes, on_my_way_at, started_at, completed_at, completion_signature, completion_signed_by, customers(name, phone, address, city), profiles!jobs_assigned_to_fkey(full_name)",
+      "id, service, scheduled_date, price_minor, notes, on_my_way_at, started_at, completed_at, completion_signature, completion_signed_by, customers!jobs_customer_id_fkey(name, phone, address, city), profiles!jobs_assigned_to_fkey(full_name)",
     )
     .eq("id", id)
     .maybeSingle();

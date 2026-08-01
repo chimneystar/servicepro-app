@@ -1,5 +1,6 @@
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import type { Tables } from "@/lib/supabase/database.types";
 import { getLocale } from "@/lib/locale-server";
 import { t } from "@/lib/i18n";
 import { money, todayISO, monthBounds, fmtDate } from "@/lib/format";
@@ -79,7 +80,7 @@ export default async function DashboardPage() {
     supabase
       .from("jobs")
       .select(
-        "id, assigned_to, service, source, status, price_minor, scheduled_date, start_time, customer_id, customers(name)",
+        "id, assigned_to, service, source, status, price_minor, scheduled_date, start_time, customer_id, customers!jobs_customer_id_fkey(name)",
       )
       .is("deleted_at", null)
       .gte("scheduled_date", windowStart)
@@ -194,7 +195,7 @@ export default async function DashboardPage() {
     const dt = new Date(base.getFullYear(), base.getMonth() - (5 - k), 1);
     const ym = dt.toISOString().slice(0, 7);
     const inMonth = (windowPayments ?? []).filter(
-      (p: any) => String(p.paid_at ?? "").slice(0, 7) === ym,
+      (p) => String(p.paid_at ?? "").slice(0, 7) === ym,
     );
     return {
       label: dt.toLocaleString(he ? "he-IL" : "en-US", { month: "short" }),
@@ -235,23 +236,23 @@ export default async function DashboardPage() {
     .slice(0, 5);
   const srcMax = Math.max(...topSrc.map((s) => s[1]), 1);
   const unassigned = jb.filter(
-    (job: any) => !job.assigned_to && job.status !== "cancelled" && job.scheduled_date >= today,
+    (job) => !job.assigned_to && job.status !== "cancelled" && job.scheduled_date >= today,
   );
-  const waitingEstimates = est.filter((estimate: any) => estimate.status === "sent");
+  const waitingEstimates = est.filter((estimate) => estimate.status === "sent");
   const newLeadsTotal = newLeadCount ?? 0;
   const nextAssigned = jb
     .filter(
-      (job: any) =>
+      (job) =>
         job.assigned_to === profile.id &&
         job.status !== "cancelled" &&
         job.status !== "done" &&
         job.scheduled_date >= today,
     )
-    .sort((a: any, b: any) =>
+    .sort((a, b) =>
       (a.scheduled_date + (a.start_time ?? "")).localeCompare(
         b.scheduled_date + (b.start_time ?? ""),
       ),
-    )[0] as any;
+    )[0];
   const focus =
     profile.role === "owner"
       ? {
@@ -405,7 +406,7 @@ export default async function DashboardPage() {
       )}
 
       <section className="dashboard-now">
-        <JobPulse jobs={todayJobs as any[]} he={he} />
+        <JobPulse jobs={todayJobs} he={he} />
         <AttentionQueue rows={attention} he={he} />
       </section>
 
@@ -533,7 +534,7 @@ export default async function DashboardPage() {
           {todayJobs.length === 0 ? (
             <Sub>{he ? "אין עבודות היום" : "No jobs today"}</Sub>
           ) : (
-            todayJobs.map((j: any, i) => (
+            todayJobs.map((j, i) => (
               <div key={i} style={rowLine}>
                 <b style={{ minWidth: 48 }}>{(j.start_time ?? "").slice(0, 5) || "—"}</b>
                 <span style={{ flex: 1 }}>
@@ -548,7 +549,7 @@ export default async function DashboardPage() {
           {upcoming.length === 0 ? (
             <Sub>{he ? "אין עבודות מתוכננות" : "Nothing scheduled"}</Sub>
           ) : (
-            upcoming.map((j: any, i) => (
+            upcoming.map((j, i) => (
               <div key={i} style={rowLine}>
                 <span style={{ flex: 1 }}>{j.customers?.name ?? "—"}</span>
                 <Sub>{fmtDate(j.scheduled_date)}</Sub>
@@ -561,7 +562,7 @@ export default async function DashboardPage() {
           {recent.length === 0 && (
             <div style={{ color: "#5c6675", fontSize: "0.8125rem", padding: 8 }}>—</div>
           )}
-          {recent.map((j: any, i) => (
+          {recent.map((j, i) => (
             <div
               key={i}
               style={{
@@ -644,7 +645,16 @@ const grid: React.CSSProperties = {
   gridTemplateColumns: "repeat(12,1fr)",
   gap: 14,
 };
-function JobPulse({ jobs, he }: { jobs: any[]; he: boolean }) {
+/** The five columns the pulse strip reads, from the dashboard's jobs query. */
+type PulseJob = {
+  id: string;
+  status: Tables<"jobs">["status"];
+  service: string;
+  start_time: string | null;
+  customers: { name: string } | null;
+};
+
+function JobPulse({ jobs, he }: { jobs: PulseJob[]; he: boolean }) {
   return (
     <article className="job-pulse">
       <header>

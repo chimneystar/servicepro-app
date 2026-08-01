@@ -34,7 +34,7 @@ export default async function CallsPage() {
         .limit(1000),
       supabase
         .from("jobs")
-        .select("id,service,customer_id,scheduled_date,customers(name)")
+        .select("id,service,customer_id,scheduled_date,customers!jobs_customer_id_fkey(name)")
         .is("deleted_at", null)
         .order("scheduled_date", { ascending: false })
         .limit(300),

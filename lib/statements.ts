@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { TablesInsert } from "@/lib/supabase/database.types";
 import { providers, sendSms, sendEmail } from "@/lib/providers";
 // @ts-ignore -- shared JS module, proven both ways in tests/statements.test.mjs
 import { buildStatement, statementMessage } from "@/lib/core/statements.mjs";
@@ -201,7 +202,13 @@ export async function sendStatement(input: {
   const currency = org.currency || "USD";
   const balanceLabel = formatMoney(statement.balanceMinor, { currency }) as string;
 
-  const record = async (status: string, reason: string | null, sentTo: string | null) => {
+  // `status` takes the column's own type rather than `string`, so the four
+  // call sites below cannot record a state `customer_statements` would reject.
+  const record = async (
+    status: NonNullable<TablesInsert<"customer_statements">["status"]>,
+    reason: string | null,
+    sentTo: string | null,
+  ) => {
     const { error } = await supabase.from("customer_statements").insert({
       organization_id: input.organizationId,
       customer_id: input.customerId,
@@ -232,11 +239,18 @@ export async function sendStatement(input: {
     return { ok: false, skipped: true, channel: input.channel, reason: "provider_not_configured" };
   }
 
-  const eligibility = contactEligibility(customer, input.channel) as {
-    ok: boolean;
-    to?: string;
-    reason?: string;
-  };
+  // A DISCRIMINATED union, not `{ ok: boolean; to?: string }`.
+  //
+  // `lib/core/outreach.mjs` has always documented this shape and has always
+  // returned it: every `ok: false` path carries a `reason`, both `ok: true`
+  // paths carry a `to`, and there is no path that returns `ok: true` without
+  // one. The local assertion here overrode that with a weaker shape — and an
+  // `as` beats whatever the module infers — so `eligibility.to` stayed
+  // `string | undefined` and the four writes below to `sms_messages.to_phone`
+  // and `email_messages.to_email`, both NOT NULL, needed `!` to compile.
+  // Telling the truth about the return type removes all four.
+  const eligibility = contactEligibility(customer, input.channel) as
+    { ok: true; to: string } | { ok: false; reason: string };
   if (!eligibility.ok) {
     await record("skipped", eligibility.reason ?? "not_eligible", null);
     return { ok: false, skipped: true, channel: input.channel, reason: eligibility.reason };
@@ -266,7 +280,7 @@ export async function sendStatement(input: {
 
   try {
     if (input.channel === "sms") {
-      const sid = await sendSms(eligibility.to!, truncateForSms(message.body) as string);
+      const sid = await sendSms(eligibility.to, truncateForSms(message.body) as string);
       await supabase.from("sms_messages").insert({
         organization_id: input.organizationId,
         customer_id: input.customerId,
@@ -282,7 +296,7 @@ export async function sendStatement(input: {
         `<p>${escapeHtml(message.body)}</p>` +
         (detail ? `<pre style="font-family:inherit">${escapeHtml(detail)}</pre>` : "") +
         `<p><b>${escapeHtml(`Balance: ${balanceLabel}`)}</b></p>`;
-      const id = await sendEmail(eligibility.to!, message.subject, html);
+      const id = await sendEmail(eligibility.to, message.subject, html);
       await supabase.from("email_messages").insert({
         organization_id: input.organizationId,
         related_type: "statement",

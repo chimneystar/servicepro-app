@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getLocale } from "@/lib/locale-server";
+import { isOneOf } from "@/lib/validation";
 
 export type AppearanceResult = { ok: boolean; error?: string };
 
@@ -20,9 +21,9 @@ export async function saveAppearance(
   const reduceMotion = formData.get("reduceMotion") === "on";
 
   if (
-    !["light", "dark", "system"].includes(theme) ||
-    !["normal", "high"].includes(contrast) ||
-    !["normal", "large"].includes(textScale)
+    !isOneOf(["light", "dark", "system"], theme) ||
+    !isOneOf(["normal", "high"], contrast) ||
+    !isOneOf(["normal", "large"], textScale)
   ) {
     return {
       ok: false,

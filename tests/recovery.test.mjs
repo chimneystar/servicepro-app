@@ -257,9 +257,14 @@ test("trash and archive are kept apart", () => {
 
 test("the restore action re-checks the rules and cannot be called by a technician", () => {
   const actions = readCode("app/(app)/trash/actions.ts");
+  // `[...RESTORE_ROLES]` is the same list, spread into a mutable array because
+  // ledger 6.1 annotated RESTORE_ROLES as a readonly tuple (that annotation is
+  // what lets `KIND_TABLE[kind]` reach `supabase.from()` as a literal table
+  // name). Either spelling passes the same list to the same server-side check;
+  // deleting the call still fails this assertion.
   assert.match(
     actions,
-    /assertRole\(profile, RESTORE_ROLES/,
+    /assertRole\(profile, \[?\.{0,3}RESTORE_ROLES/,
     "role is checked server-side, not in the component",
   );
   assert.match(

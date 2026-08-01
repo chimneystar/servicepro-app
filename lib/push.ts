@@ -289,7 +289,9 @@ export async function notifyJobAssigned(input: {
     const admin = createAdminClient();
     const { data: job } = await admin
       .from("jobs")
-      .select("id, service, scheduled_date, start_time, organization_id, customers(name)")
+      .select(
+        "id, service, scheduled_date, start_time, organization_id, customers!jobs_customer_id_fkey(name)",
+      )
       .eq("id", input.jobId)
       .eq("organization_id", input.organizationId)
       .maybeSingle();

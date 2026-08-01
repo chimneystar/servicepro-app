@@ -39,7 +39,7 @@ export default async function WarrantiesPage() {
   const { data: jobs } = jobIds.length
     ? await supabase
         .from("jobs")
-        .select("id,service,scheduled_date,customer_id,customers(name)")
+        .select("id,service,scheduled_date,customer_id,customers!jobs_customer_id_fkey(name)")
         .in("id", jobIds)
     : { data: [] };
   const jobMap = new Map((jobs ?? []).map((job) => [job.id, job]));
