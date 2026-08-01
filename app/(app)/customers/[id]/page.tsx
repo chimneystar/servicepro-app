@@ -6,7 +6,7 @@ import Link from "next/link";
 import ReviewForm from "@/components/ReviewForm";
 import CustomerEditForm from "@/components/CustomerEditForm";
 import CopyLinkButton from "@/components/CopyLinkButton";
-import DocForm from "@/components/DocForm";
+import DocForm, { type CatalogItem } from "@/components/DocForm";
 import { createEstimate } from "@/app/(app)/estimates/actions";
 import { createInvoice } from "@/app/(app)/invoices/actions";
 import ActivityTimeline from "@/components/ActivityTimeline";
@@ -14,6 +14,11 @@ import { loadActivity } from "@/lib/activity";
 import CustomFieldValues from "@/app/(app)/settings/custom-fields/CustomFieldValues";
 import { loadCustomFields } from "@/app/(app)/settings/custom-fields/load";
 import TaxExemptionPanel, { type Exemption } from "./TaxExemptionPanel";
+import * as customersRepo from "@/lib/data/customers";
+import * as jobsRepo from "@/lib/data/jobs";
+import * as invoicesRepo from "@/lib/data/invoices";
+import * as estimatesRepo from "@/lib/data/estimates";
+import * as priceBookRepo from "@/lib/data/price-book";
 
 export const dynamic = "force-dynamic";
 const tel = (p?: string | null) => "tel:" + (p ?? "").replace(/[^0-9+]/g, "");
@@ -38,34 +43,12 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
     );
   const activity = await loadActivity("customers", id);
 
-  const [
-    { data: jobs },
-    { data: invoices },
-    { data: estimates },
-    { data: reviews },
-    { data: catalog },
-  ] = await Promise.all([
-    supabase
-      .from("jobs")
-      .select("id, service, scheduled_date, price_minor, status")
-      .eq("customer_id", id)
-      .is("deleted_at", null)
-      .order("scheduled_date", { ascending: false }),
-    supabase
-      .from("invoices")
-      .select("total_minor, status")
-      .eq("customer_id", id)
-      .is("deleted_at", null),
-    supabase.from("estimates").select("id").eq("customer_id", id).is("deleted_at", null),
-    supabase
-      .from("reviews")
-      .select("id, rating, body, review_date")
-      .eq("customer_id", id)
-      .order("review_date", { ascending: false }),
-    supabase
-      .from("price_book")
-      .select("id, name, description, price_minor, cost_minor, taxable, image_path")
-      .order("name"),
+  const [jobs, invoices, estimates, reviews, catalog] = await Promise.all([
+    jobsRepo.listForCustomer(supabase, id),
+    invoicesRepo.listTotalsForCustomer(supabase, id),
+    estimatesRepo.listIdsForCustomer(supabase, id),
+    customersRepo.listReviews(supabase, id),
+    priceBookRepo.listForPicker(supabase),
   ]);
   const custOpt = [{ id: c.id, label: c.name }];
 
@@ -76,22 +59,18 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
   const capabilities = await loadCapabilities(profile);
   const canManageFinance = capabilities.has("payments.manage");
   const canEditRecord = profile.role !== "tech";
-  const [customFields, { data: exemptions }] = await Promise.all([
+  const [customFields, exemptions] = await Promise.all([
     loadCustomFields("customer", id),
     canManageFinance
-      ? supabase
-          .from("customer_tax_exemptions")
-          .select("id, certificate_number, reason, document_url, expires_on, active")
-          .eq("customer_id", id)
-          .order("created_at", { ascending: false })
-      : Promise.resolve({ data: [] as Exemption[] }),
+      ? customersRepo.listTaxExemptions(supabase, id)
+      : Promise.resolve([] as Exemption[]),
   ]);
   const today = new Date().toISOString().slice(0, 10);
 
-  const revenue = (invoices ?? [])
+  const revenue = invoices
     .filter((i) => i.status === "paid")
     .reduce((s, i) => s + i.total_minor, 0);
-  const revs = reviews ?? [];
+  const revs = reviews;
   const avg = revs.length ? revs.reduce((s, r) => s + r.rating, 0) / revs.length : 0;
   const stars = (n: number) => "★".repeat(Math.round(n)) + "☆".repeat(5 - Math.round(n));
 
@@ -122,7 +101,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           customers={custOpt}
           action={createEstimate}
           newKey="est.new"
-          catalog={catalog ?? []}
+          catalog={catalog as unknown as CatalogItem[]}
           orgId={profile.organization_id!}
         />
         <DocForm
@@ -130,7 +109,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
           customers={custOpt}
           action={createInvoice}
           newKey="inv.new"
-          catalog={catalog ?? []}
+          catalog={catalog as unknown as CatalogItem[]}
           orgId={profile.organization_id!}
         />
         {c.portal_token && (
@@ -173,7 +152,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
       <div
         style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 18 }}
       >
-        <Kpi value={String((jobs ?? []).length)} label="Jobs" />
+        <Kpi value={String(jobs.length)} label="Jobs" />
         <Kpi value={money(revenue, cur)} label="Revenue" tone="#15803d" />
         <Kpi value={avg ? avg.toFixed(1) : "—"} label={`${revs.length} reviews`} tone="#eab308" />
       </div>
@@ -228,14 +207,14 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         <TaxExemptionPanel
           locale={locale}
           customerId={id}
-          exemptions={(exemptions ?? []) as Exemption[]}
+          exemptions={exemptions as Exemption[]}
           today={today}
         />
       )}
 
-      <h3 style={h3}>Job history ({(jobs ?? []).length})</h3>
+      <h3 style={h3}>Job history ({jobs.length})</h3>
       <div className="rlist">
-        {(jobs ?? []).map((j) => (
+        {jobs.map((j) => (
           <Link key={j.id} href={`/jobs/${j.id}`} className="ritem">
             <div className="rmain">
               <div className="rtitle">{j.service}</div>
@@ -248,7 +227,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
             </div>
           </Link>
         ))}
-        {(jobs ?? []).length === 0 && <div className="rempty">No jobs yet</div>}
+        {jobs.length === 0 && <div className="rempty">No jobs yet</div>}
       </div>
 
       <h3 style={h3}>

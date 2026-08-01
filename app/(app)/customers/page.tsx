@@ -6,6 +6,7 @@ import Link from "next/link";
 import CustomerForm from "./CustomerForm";
 import CustomerList, { type Cust } from "@/components/CustomerList";
 import CustomerBulkBar from "./CustomerBulkBar";
+import * as customersRepo from "@/lib/data/customers";
 
 export const dynamic = "force-dynamic";
 
@@ -18,12 +19,7 @@ export default async function CustomersPage({
   const profile = await requireProfile();
   const locale = await getLocale();
   const supabase = await createClient();
-  const { data: customers } = await supabase
-    .from("customers")
-    .select("id, name, phone, city, address, email, source")
-    .is("deleted_at", null)
-    .eq("archived", false)
-    .order("name", { ascending: true });
+  const customers = await customersRepo.listActive(supabase);
 
   return (
     <div>
@@ -38,7 +34,7 @@ export default async function CustomersPage({
       >
         <div>
           <h1 className="sp-heading sp-heading--lg">{t(locale, "cust.title")}</h1>
-          <p className="sp-text-muted">{t(locale, "cust.count", { n: customers?.length ?? 0 })}</p>
+          <p className="sp-text-muted">{t(locale, "cust.count", { n: customers.length })}</p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <Link
@@ -75,11 +71,11 @@ export default async function CustomersPage({
 
       {/* Ledger 6c.10 + 6c.6 — multi-select, bulk statements and bulk opt-out.
           Owner/office only, matching the actions' own guard. */}
-      {profile.role !== "tech" && (customers ?? []).length > 0 && (
-        <CustomerBulkBar rows={(customers ?? []).map((c) => ({ id: c.id, label: c.name }))} />
+      {profile.role !== "tech" && customers.length > 0 && (
+        <CustomerBulkBar rows={customers.map((c) => ({ id: c.id, label: c.name }))} />
       )}
 
-      <CustomerList customers={(customers ?? []) as Cust[]} emptyText={t(locale, "cust.empty")} />
+      <CustomerList customers={customers as Cust[]} emptyText={t(locale, "cust.empty")} />
     </div>
   );
 }
