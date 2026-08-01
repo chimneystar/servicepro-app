@@ -17,6 +17,7 @@
     "db:docs": "node scripts/db-docs.mjs",
     "verify": "npm run typecheck && npm run lint && npm test",
     "db:schema": "node scripts/db-schema.mjs",
+    "db:types": "node scripts/db-types.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prove:probes": "node scripts/prove-probes-red.mjs"

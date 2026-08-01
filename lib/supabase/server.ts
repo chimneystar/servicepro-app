@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import type { Database } from "./database.types";
 
 type CookieToSet = { name: string; value: string; options?: CookieOptions };
 
@@ -7,10 +8,14 @@ type CookieToSet = { name: string; value: string; options?: CookieOptions };
  * Supabase client for Server Components / Server Actions / Route Handlers.
  * Uses the anon key. All access is still constrained by Row-Level Security
  * to the currently logged-in user's organization.
+ *
+ * The `Database` generic is generated from the migrations (`npm run db:types`),
+ * so a column that a migration renamed stops compiling here instead of
+ * returning `undefined` on a screen.
  */
 export async function createClient() {
   const cookieStore = await cookies();
-  return createServerClient(
+  return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
