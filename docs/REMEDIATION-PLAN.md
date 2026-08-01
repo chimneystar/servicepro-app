@@ -1553,6 +1553,20 @@ expenses `.limit(2000)`, unpaid invoices `.limit(2000)`, `invoice_items` `.limit
 `.limit(5000)` at line 791. Every one silently returns 1000. This is the same class as the accountant's
 truncated export, in the report the owner reads monthly.
 
+*Two residual risks of the same family, recorded rather than changed.*
+
+* `EXPORT_PAGE_SIZE = 1000` (`lib/core/export-manifest.mjs:298`) is exactly the assumed cap. It is
+  **correct today** — requesting rows 0-999 returns 1000, a full page, and the loop continues until a
+  short one arrives — but it is correct by coincidence of the two numbers matching. If a deployment
+  ever set `db-max-rows` BELOW 1000, every page would come back short, `isLastPage` would fire on the
+  first one, and the accountant's export would truncate again with no error. `lib/core/paging.mjs`
+  uses 500 deliberately for this reason and says so. The fix is a one-line change to that constant;
+  it is not made here because it touches the export path's page arithmetic and belongs with its own
+  probe.
+* `CALENDAR_MAX_EVENTS = 2000` (`lib/core/calendar.mjs:40`), used by
+  `app/api/calendar/[token]/route.ts`, is a ceiling above the cap — the subscribed calendar feed
+  stops at 1000 events. Left because that route was being edited concurrently.
+
 *A defect found while verifying the gates, deliberately NOT fixed here.* `tests/push.test.mjs` fails
 roughly one run in fifty, and it is **not flaky noise — it is intermittently catching a real bug.**
 Node's `ecdh.getPrivateKey()` returns the P-256 scalar with leading zero bytes stripped, so about
