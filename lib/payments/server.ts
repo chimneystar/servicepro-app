@@ -20,6 +20,8 @@ import {
   sanitizeTipPercents,
 } from "@/lib/core/tips.mjs";
 import { applyPaymentToDeposits } from "@/lib/payments/booking-deposit";
+import * as backendData from "@/lib/data/backend";
+import { readAll } from "@/lib/data/db";
 
 type PublicDocument = {
   id: string;
@@ -114,28 +116,44 @@ async function resolvePublicDocument(
  * was invisible here and the customer was asked for the full amount again.
  */
 async function openBalance(admin: ReturnType<typeof createAdminClient>, document: PublicDocument) {
-  let query = admin
-    .from("payments")
-    .select("base_amount_minor, refunded_minor, normalized_status")
-    .eq("organization_id", document.organizationId)
-    .in("normalized_status", ["settled", "partially_refunded"]);
+  // Kept INLINE (readAll rather than lib/data/backend.ts) on purpose:
+  // tests/deposit-credit.test.mjs reads this file's own source for the literal
+  // "partially_refunded" and "refunded_minor" text to prove the two balance
+  // readers (this one and the invoice screen) agree on what counts as paid.
+  // Still paged through the same gateway as everything else in this pass, so
+  // an invoice with more than 1000 payment rows is no longer under-credited.
+  let data: {
+    base_amount_minor: number | null;
+    refunded_minor: number | null;
+    normalized_status: string;
+  }[];
+  try {
+    data = await readAll("payments.openBalance", () => {
+      let query = admin
+        .from("payments")
+        .select("base_amount_minor, refunded_minor, normalized_status")
+        .eq("organization_id", document.organizationId)
+        .in("normalized_status", ["settled", "partially_refunded"]);
 
-  if (document.invoiceId && document.estimateId) {
-    // Converted invoice: credit the invoice's own payments and the estimate's deposit.
-    query = query.or(`invoice_id.eq.${document.invoiceId},estimate_id.eq.${document.estimateId}`);
-  } else if (document.invoiceId) {
-    query = query.eq("invoice_id", document.invoiceId);
-  } else {
-    query = query.eq("estimate_id", document.estimateId!);
-  }
-
-  const { data, error } = await query;
-  if (error)
+      if (document.invoiceId && document.estimateId) {
+        // Converted invoice: credit the invoice's own payments and the estimate's deposit.
+        query = query.or(
+          `invoice_id.eq.${document.invoiceId},estimate_id.eq.${document.estimateId}`,
+        );
+      } else if (document.invoiceId) {
+        query = query.eq("invoice_id", document.invoiceId);
+      } else {
+        query = query.eq("estimate_id", document.estimateId!);
+      }
+      return query;
+    });
+  } catch {
     throw new PaymentError(
       "Payment balance is temporarily unavailable",
       "balance_unavailable",
       503,
     );
+  }
   return Math.max(0, document.amountMinor - creditedMinor(data));
 }
 
@@ -565,15 +583,39 @@ async function refreshInvoicePaidState(
   // Must agree with openBalance: a deposit paid on the originating estimate
   // counts towards this invoice, otherwise an invoice fully covered by a
   // deposit plus a final payment would never flip to paid.
-  let query = admin
-    .from("payments")
-    .select("base_amount_minor, refunded_minor, normalized_status")
-    .in("normalized_status", ["settled", "partially_refunded"]);
-  query = invoice.estimate_id
-    ? query.or(`invoice_id.eq.${invoiceId},estimate_id.eq.${invoice.estimate_id}`)
-    : query.eq("invoice_id", invoiceId);
-
-  const { data: payments } = await query;
+  //
+  // Kept INLINE (readAll rather than lib/data/backend.ts) on purpose:
+  // tests/deposit-credit.test.mjs reads this file's own source for the literal
+  // "partially_refunded" and "refunded_minor" text.
+  //
+  // The payment this runs after has ALREADY been recorded — this only flips
+  // the invoice's status to match it. A read failure here must not report the
+  // caller's checkout confirmation or reconciliation as failed (the payment
+  // itself already succeeded), so it is caught and logged: the invoice simply
+  // stays in whatever state it was in, to be corrected the next time this runs.
+  let payments: {
+    base_amount_minor: number | null;
+    refunded_minor: number | null;
+    normalized_status: string;
+  }[];
+  try {
+    payments = await readAll("payments.refreshInvoicePaidState", () => {
+      let query = admin
+        .from("payments")
+        .select("base_amount_minor, refunded_minor, normalized_status")
+        .in("normalized_status", ["settled", "partially_refunded"]);
+      query = invoice.estimate_id
+        ? query.or(`invoice_id.eq.${invoiceId},estimate_id.eq.${invoice.estimate_id}`)
+        : query.eq("invoice_id", invoiceId);
+      return query;
+    });
+  } catch (cause: unknown) {
+    console.error(
+      `[payments] could not re-check invoice ${invoiceId}'s paid status:`,
+      cause instanceof Error ? cause.message : String(cause),
+    );
+    return;
+  }
   if (creditedMinor(payments) >= Number(invoice.total_minor)) {
     await admin
       .from("invoices")
@@ -609,17 +651,14 @@ export async function submitManualPayment(input: {
   if (!enabled)
     throw new PaymentError("That payment method is not available", "method_disabled", 409);
 
-  let existingRequestQuery = admin
-    .from("payment_requests")
-    .select("id")
-    .eq("organization_id", document.organizationId)
-    .contains("allowed_methods", [input.method])
-    .in("status", ["submitted", "processing"]);
-  existingRequestQuery = document.invoiceId
-    ? existingRequestQuery.eq("invoice_id", document.invoiceId)
-    : existingRequestQuery.eq("estimate_id", document.estimateId!);
-  const { data: existingRequests } = await existingRequestQuery.limit(1);
-  if (existingRequests?.[0]) {
+  const existingRequests = await backendData.listExistingManualPaymentRequests(
+    admin,
+    document.organizationId,
+    input.method,
+    { invoiceId: document.invoiceId, estimateId: document.estimateId },
+    1,
+  );
+  if (existingRequests[0]) {
     const { data: existingSubmission } = await admin
       .from("manual_payment_submissions")
       .select("id, status")
@@ -735,19 +774,15 @@ export async function reconcileHelcimTransaction(transactionId: string) {
 
 export async function reconcilePendingHelcimPayments(limit = 50) {
   const admin = createAdminClient();
-  const { data, error } = await admin
-    .from("payments")
-    .select("provider_transaction_id")
-    .eq("provider", "helcim")
-    .eq("normalized_status", "processing")
-    .order("submitted_at", { ascending: true })
-    .limit(Math.max(1, Math.min(limit, 100)));
-  if (error) throw error;
+  const data = await backendData.listPendingHelcimPayments(
+    admin,
+    Math.max(1, Math.min(limit, 100)),
+  );
 
   let settled = 0;
   let processing = 0;
   let failed = 0;
-  for (const payment of data ?? []) {
+  for (const payment of data) {
     if (!payment.provider_transaction_id) continue;
     try {
       const result = await reconcileHelcimTransaction(payment.provider_transaction_id);
@@ -758,5 +793,5 @@ export async function reconcilePendingHelcimPayments(limit = 50) {
       processing += 1;
     }
   }
-  return { checked: data?.length ?? 0, settled, processing, failed };
+  return { checked: data.length, settled, processing, failed };
 }

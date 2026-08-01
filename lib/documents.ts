@@ -1,6 +1,8 @@
 import { createClient, type ServerClient } from "@/lib/supabase/server";
 import { t, type Locale } from "@/lib/i18n";
 import type { Profile } from "@/lib/auth";
+import * as backendData from "@/lib/data/backend";
+import * as estimatesData from "@/lib/data/estimates";
 // @ts-ignore -- integer-safe money engine (JS module, unit-tested)
 import {
   computeDocument,
@@ -28,15 +30,6 @@ export type ActionResult = { ok: boolean; error?: string };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
- * Settled statuses. Same definition as lib/core/refunds.mjs REFUNDABLE_STATUSES.
- *
- * `as const` so these reach `.in("normalized_status", …)` as the two literals
- * the column's CHECK constraint allows rather than as `string[]`. A typo here
- * would otherwise match no rows and report that nothing had been collected.
- */
-const SETTLED = ["settled", "partially_refunded"] as const;
-
-/**
  * Money actually received against a document, net of refunds.
  *
  * A deposit paid against an estimate counts for BOTH the estimate and the
@@ -50,20 +43,13 @@ async function collectedMinor(
   estimateId?: string | null,
 ): Promise<number> {
   if (!UUID.test(id)) return 0;
-  let query = supabase
-    .from("payments")
-    .select("amount_minor, base_amount_minor, refunded_minor")
-    .in("normalized_status", SETTLED);
-  if (kind === "invoice") {
-    query =
-      estimateId && UUID.test(estimateId)
-        ? query.or(`invoice_id.eq.${id},estimate_id.eq.${estimateId}`)
-        : query.eq("invoice_id", id);
-  } else {
-    query = query.eq("estimate_id", id);
-  }
-  const { data } = await query;
-  return (data ?? []).reduce(
+  const data = await backendData.listSettledPaymentAmountsForDocument(
+    supabase,
+    kind,
+    id,
+    kind === "invoice" && estimateId && UUID.test(estimateId) ? estimateId : null,
+  );
+  return data.reduce(
     (sum: number, p) =>
       sum +
       Math.max(
@@ -618,26 +604,18 @@ export async function duplicateDocument(
       ? await (async () => {
           const { data: src } = await supabase.from("invoices").select("*").eq("id", id).single();
           if (!src) return null;
-          const { data: items } = await supabase
-            .from("invoice_items")
-            .select("*")
-            .eq("invoice_id", id)
-            .order("sort");
-          return { src, items: items ?? [], deposit: null };
+          const items = await backendData.listInvoiceItemsFull(supabase, id);
+          return { src, items, deposit: null };
         })()
       : await (async () => {
           const { data: src } = await supabase.from("estimates").select("*").eq("id", id).single();
           if (!src) return null;
-          const { data: items } = await supabase
-            .from("estimate_items")
-            .select("*")
-            .eq("estimate_id", id)
-            .order("sort");
+          const items = await estimatesData.listItemsFull(supabase, id);
           // Carried over deliberately: duplicating an estimate used to silently
           // drop its deposit request, so the copy asked for nothing up front.
           // Reported as a known gap in docs/REMEDIATION-PLAN.md §5.7 and fixed
           // here because this file is in scope for the document-integrity pass.
-          return { src, items: items ?? [], deposit: src.deposit_minor ?? 0 };
+          return { src, items, deposit: src.deposit_minor ?? 0 };
         })();
   if (!source) return { ok: false, error: "not found" };
   const { src, items, deposit } = source;
@@ -914,14 +892,8 @@ export async function loadCreditNotes(
   supabase: ServerClient,
   invoiceId: string,
 ): Promise<CreditNote[]> {
-  const { data } = await supabase
-    .from("credit_notes")
-    .select(
-      "id, number, amount_minor, reason, status, issue_date, created_at, cancelled_at, cancel_reason",
-    )
-    .eq("invoice_id", invoiceId)
-    .order("number", { ascending: false });
-  return (data ?? []) as CreditNote[];
+  const data = await backendData.listCreditNotesForInvoice(supabase, invoiceId);
+  return data as CreditNote[];
 }
 
 /**
@@ -1024,12 +996,9 @@ export async function cancelCreditNote(
 
 async function saveItemsToLibrary(supabase: ServerClient, orgId: string, items: LineItem[]) {
   try {
-    const { data: existing } = await supabase
-      .from("price_book")
-      .select("name")
-      .eq("organization_id", orgId);
+    const existing = await backendData.listPriceBookNames(supabase, orgId);
     const have = new Set(
-      (existing ?? []).map((r) =>
+      existing.map((r) =>
         String(r.name ?? "")
           .trim()
           .toLowerCase(),

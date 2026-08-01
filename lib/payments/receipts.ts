@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { appUrl, providers, sendEmail, sendSms } from "@/lib/providers";
+import * as backendData from "@/lib/data/backend";
 
 type Channel = "email" | "sms";
 
@@ -231,15 +232,11 @@ export async function sendPaymentReceipt(paymentId: string) {
 
 export async function retryFailedPaymentReceipts(limit = 40) {
   const admin = createAdminClient();
-  const { data, error } = await admin
-    .from("payment_notifications")
-    .select("payment_id")
-    .eq("status", "failed")
-    .lt("attempts", 3)
-    .order("updated_at", { ascending: true })
-    .limit(Math.max(1, Math.min(limit, 100)));
-  if (error) throw error;
-  const paymentIds = [...new Set((data ?? []).map((item) => item.payment_id as string))];
+  const data = await backendData.listFailedReceiptNotifications(
+    admin,
+    Math.max(1, Math.min(limit, 100)),
+  );
+  const paymentIds = [...new Set(data.map((item) => item.payment_id as string))];
   for (const paymentId of paymentIds) {
     try {
       await sendPaymentReceipt(paymentId);

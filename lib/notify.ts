@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import * as backendData from "@/lib/data/backend";
 import { providers, sendSms, sendEmail, appUrl } from "@/lib/providers";
 import { pushDelivery, sendPushToProfile } from "@/lib/push";
 // @ts-ignore -- shared JS module, proven both ways in tests/staff-notifications.test.mjs
@@ -542,26 +543,15 @@ export async function notifyPaymentReceived(input: {
 }): Promise<{ notified: number; results: StaffNotifyResult[] }> {
   try {
     const admin = createAdminClient();
-    const { data: team } = await admin
-      .from("profiles")
-      .select("id, role, active")
-      .eq("organization_id", input.organizationId)
-      .limit(200);
-    const ids = (team ?? []).map((row: { id: string }) => row.id);
-    const { data: capabilities } = ids.length
-      ? await admin
-          .from("profile_capabilities")
-          .select("profile_id, can_manage_payments")
-          .in("profile_id", ids)
-      : { data: [] as { profile_id: string; can_manage_payments: boolean }[] };
+    const team = await backendData.listOrgProfilesForNotify(admin, input.organizationId, 200);
+    const ids = team.map((row: { id: string }) => row.id);
+    const capabilities = await backendData.listPaymentCapabilities(admin, ids);
     const canPay = new Map(
-      ((capabilities ?? []) as { profile_id: string; can_manage_payments: boolean }[]).map(
-        (row) => [String(row.profile_id), row.can_manage_payments === true],
-      ),
+      capabilities.map((row) => [String(row.profile_id), row.can_manage_payments === true]),
     );
 
     const recipients = paymentNotificationRecipients(
-      (team ?? []).map((row: { id: string; role: string; active: boolean }) => ({
+      team.map((row: { id: string; role: string; active: boolean }) => ({
         ...row,
         can_manage_payments: canPay.get(String(row.id)) === true,
       })),

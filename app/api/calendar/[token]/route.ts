@@ -10,6 +10,8 @@ import {
 } from "@/lib/core/calendar.mjs";
 // @ts-ignore -- shared JS module
 import { clientKey, consume } from "@/lib/core/rate-limit.mjs";
+import * as backendData from "@/lib/data/backend";
+import { DataError } from "@/lib/data/db";
 
 /**
  * Subscribable iCal feed (ledger 6c.7).
@@ -96,23 +98,18 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
   // ONLY these columns. Adding `price_minor`, `notes` or `public_token` here
   // would put them in a passwordless URL; tests/calendar-feed.test.mjs asserts
   // this select does not.
-  let query = admin
-    .from("jobs")
-    .select(
-      "id, service, status, scheduled_date, end_date, start_time, end_time, job_address, job_city, updated_at, customers!jobs_customer_id_fkey(name)",
-    )
-    .eq("organization_id", access.organizationId)
-    .is("deleted_at", null)
-    .gte("scheduled_date", window.start)
-    .lte("scheduled_date", window.end)
-    .order("scheduled_date", { ascending: true })
-    .limit(CALENDAR_MAX_EVENTS);
-
-  if (access.scope === "mine") query = query.eq("assigned_to", access.profileId);
-
-  const { data: jobs, error } = await query;
-  if (error) {
-    console.error(`[calendar] feed query failed: ${error.message}`);
+  let jobs: Awaited<ReturnType<typeof backendData.listJobsForCalendarFeed>>;
+  try {
+    jobs = await backendData.listJobsForCalendarFeed(admin, {
+      organizationId: access.organizationId,
+      start: window.start,
+      end: window.end,
+      profileId: access.scope === "mine" ? access.profileId : null,
+      limit: CALENDAR_MAX_EVENTS,
+    });
+  } catch (e: unknown) {
+    const message = e instanceof DataError ? e.message : e instanceof Error ? e.message : String(e);
+    console.error(`[calendar] feed query failed: ${message}`);
     return new NextResponse(null, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
 
@@ -128,7 +125,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ tok
   ).replace(/\/$/, "");
 
   const body = buildCalendar({
-    events: (jobs ?? []).map((job) => redactEvent(job)),
+    events: jobs.map((job) => redactEvent(job)),
     name:
       access.scope === "mine"
         ? `${org?.name ?? "ServicePro"} — my schedule`
