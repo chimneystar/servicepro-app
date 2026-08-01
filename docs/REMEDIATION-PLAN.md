@@ -1542,6 +1542,17 @@ repositories as unbounded; the scanner now walks to the first unmatched paren an
 And a repository *documenting* why it does not call `.range()` failed the check that it does not call
 `.range()` — comments are stripped first.
 
+*An explicit limit is not automatically a bound, and that cost real money.* The migration turned up
+`.limit(2000)` on `/reports`' aging report. PostgREST honours `min(limit, db-max-rows)`, so that read
+returned **1000 rows and no error** — the business was shown what it was owed on its first thousand
+unpaid invoices, and the deliberate-looking `2000` is precisely why nobody questioned it. The guard
+had classified it as "bounded" and walked past. It now treats a literal `.limit(N >= 1000)` as
+unbounded, which immediately found **six more**, all in `lib/cron-tasks.ts` and all inside the
+**scheduled financial report emailed to the owner**: invoices `.limit(2000)`, payments `.limit(5000)`,
+expenses `.limit(2000)`, unpaid invoices `.limit(2000)`, `invoice_items` `.limit(10000)`, plus
+`.limit(5000)` at line 791. Every one silently returns 1000. This is the same class as the accountant's
+truncated export, in the report the owner reads monthly.
+
 *A defect found while verifying the gates, deliberately NOT fixed here.* `tests/push.test.mjs` fails
 roughly one run in fifty, and it is **not flaky noise — it is intermittently catching a real bug.**
 Node's `ecdh.getPrivateKey()` returns the P-256 scalar with leading zero bytes stripped, so about
