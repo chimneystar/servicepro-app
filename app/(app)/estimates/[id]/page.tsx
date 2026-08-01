@@ -15,6 +15,7 @@ import { assertDocumentEditable, collectedOnDocument } from "@/lib/documents";
 // @ts-ignore -- document integrity rules (JS module, unit-tested)
 import { documentLock, canReopen } from "@/lib/core/documents.mjs";
 import EstimateOptionsEditor, { type OptionRow, type OptionItemRow } from "./EstimateOptionsEditor";
+import { listItems as listEstimateItems, listOptions, listOptionItems } from "@/lib/data/estimates";
 
 export const dynamic = "force-dynamic";
 
@@ -46,12 +47,8 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
     );
   const activity = await loadActivity("estimates", id);
 
-  const { data: rows } = await supabase
-    .from("estimate_items")
-    .select("title, description, qty_milli, unit_price_minor, taxable, image_path")
-    .eq("estimate_id", id)
-    .order("sort");
-  const items: ViewItem[] = (rows ?? []).map((r) => ({
+  const rows = await listEstimateItems(supabase, id);
+  const items: ViewItem[] = rows.map((r) => ({
     title: r.title,
     description: r.description,
     qty_milli: r.qty_milli,
@@ -81,19 +78,16 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
   const reopenable = canReopen("estimate", est, { collectedMinor: collected });
 
   // 6c.4 — the good/better/best bundles for this estimate.
-  const [{ data: optionRows }, { data: optionItemRows }] = await Promise.all([
-    supabase
-      .from("estimate_options")
-      .select("id, tier, title, description, recommended, deposit_minor, total_minor, sort")
-      .eq("estimate_id", id)
-      .order("sort"),
-    supabase
-      .from("estimate_option_items")
-      .select("id, option_id, title, description, qty_milli, unit_price_minor, cost_minor, taxable")
-      .order("sort"),
-  ]);
-  const optionIds = new Set((optionRows ?? []).map((row) => row.id));
-  const optionItems = (optionItemRows ?? []).filter((row) => optionIds.has(row.option_id));
+  //
+  // `listOptionItems` must run AFTER `listOptions` resolves: it needs this
+  // estimate's option ids to filter by. The previous query read
+  // `estimate_option_items` with no filter at all — every option line in the
+  // whole organisation — and filtered to this estimate's rows in JavaScript.
+  // Past 1000 rows the cap could silently drop THIS estimate's own tiers, so
+  // the two reads can no longer run in parallel.
+  const optionRows = await listOptions(supabase, id);
+  const optionIds = optionRows.map((row) => row.id);
+  const optionItems = await listOptionItems(supabase, optionIds);
 
   return (
     <div style={{ maxWidth: 680 }}>
@@ -186,7 +180,7 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
           locale={locale}
           currency={org?.currency ?? "USD"}
           estimateId={est.id}
-          options={(optionRows ?? []) as OptionRow[]}
+          options={optionRows as OptionRow[]}
           items={optionItems as OptionItemRow[]}
           selectedOptionId={est.selected_option_id ?? null}
           signed={!!est.signed_at}

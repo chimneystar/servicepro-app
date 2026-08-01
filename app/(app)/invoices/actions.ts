@@ -26,6 +26,8 @@ import { contactEligibility, truncateForSms } from "@/lib/core/outreach.mjs";
 import { escapeHtml } from "@/lib/core/security.mjs";
 // @ts-ignore -- shared JS module
 import { formatMoney } from "@/lib/core/money.mjs";
+import { listByIds as listInvoicesByIds } from "@/lib/data/invoices";
+import { listPaymentIdsForInvoice, listInvoicesForBulkSend } from "@/lib/data/documents-extra";
 
 export async function createInvoice(
   _prev: ActionResult,
@@ -189,12 +191,13 @@ export async function setInvoicePaid(invoiceId: string, paid: boolean): Promise<
 
   if (paid) {
     // Record a manual payment for the full balance (if none logged yet).
-    const { data: existing } = await supabase
-      .from("payments")
-      .select("id")
-      .eq("invoice_id", invoiceId)
-      .limit(1);
-    if (!existing || existing.length === 0) {
+    let existing;
+    try {
+      existing = await listPaymentIdsForInvoice(supabase, invoiceId, 1);
+    } catch (cause: unknown) {
+      return { ok: false, error: cause instanceof Error ? cause.message : String(cause) };
+    }
+    if (existing.length === 0) {
       const { data: created } = await supabase
         .from("payments")
         .insert({
@@ -349,19 +352,20 @@ export async function bulkSendInvoices(rawIds: string[]): Promise<BulkActionResu
   if (!selection.ok) return refuse(selectionError(selection) as string);
 
   const supabase = await createClient();
-  const [{ data: invoices }, { data: org }] = await Promise.all([
-    supabase
-      .from("invoices")
-      .select(
-        "id, number, total_minor, public_token, customer_id, customers!invoices_customer_id_fkey(id, name, phone, email, sms_opt_in, email_opt_in, deleted_at)",
-      )
-      .in("id", selection.ids!)
-      .is("deleted_at", null),
-    supabase.from("organizations").select("name, currency").single(),
-  ]);
+  let invoices, org;
+  try {
+    const [inv, orgRes] = await Promise.all([
+      listInvoicesForBulkSend(supabase, selection.ids!),
+      supabase.from("organizations").select("name, currency").single(),
+    ]);
+    invoices = inv;
+    org = orgRes.data;
+  } catch (cause: unknown) {
+    return refuse(cause instanceof Error ? cause.message : String(cause));
+  }
 
   const origin = appUrl().replace(/\/$/, "");
-  const byId = new Map((invoices ?? []).map((row: { id: string }) => [row.id, row]));
+  const byId = new Map(invoices.map((row: { id: string }) => [row.id, row]));
   const results: { id: string; label: string; ok: boolean; skipped?: boolean; reason?: string }[] =
     [];
 
@@ -491,12 +495,13 @@ export async function bulkSetInvoicePaid(
   if (!selection.ok) return refuse(selectionError(selection) as string);
 
   const supabase = await createClient();
-  const { data: invoices } = await supabase
-    .from("invoices")
-    .select("id, number, status")
-    .in("id", selection.ids!)
-    .is("deleted_at", null);
-  const byId = new Map((invoices ?? []).map((row: { id: string }) => [row.id, row]));
+  let invoices;
+  try {
+    invoices = await listInvoicesByIds(supabase, selection.ids!);
+  } catch (cause: unknown) {
+    return refuse(cause instanceof Error ? cause.message : String(cause));
+  }
+  const byId = new Map(invoices.map((row: { id: string }) => [row.id, row]));
 
   const results: { id: string; label: string; ok: boolean; skipped?: boolean; reason?: string }[] =
     [];

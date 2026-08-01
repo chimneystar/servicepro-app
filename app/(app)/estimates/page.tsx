@@ -5,6 +5,9 @@ import { t } from "@/lib/i18n";
 import DocForm from "@/components/DocForm";
 import { createEstimate } from "./actions";
 import DocList from "@/components/DocList";
+import { listEstimatesForListPage } from "@/lib/data/documents-extra";
+import * as customersData from "@/lib/data/customers";
+import * as priceBookData from "@/lib/data/price-book";
 
 export const dynamic = "force-dynamic";
 
@@ -17,29 +20,18 @@ export default async function EstimatesPage({
   const profile = await requireProfile();
   const locale = await getLocale();
   const supabase = await createClient();
-  const [{ data: estimates }, { data: customers }, { data: org }, { data: catalog }] =
-    await Promise.all([
-      supabase
-        .from("estimates")
-        .select(
-          "id, number, status, total_minor, issue_date, public_token, voided_at, customers!estimates_customer_id_fkey(name, email, phone)",
-        )
-        .is("deleted_at", null)
-        .eq("archived", false)
-        .order("number", { ascending: false }),
-      supabase
-        .from("customers")
-        .select("id, name")
-        .is("deleted_at", null)
-        .eq("archived", false)
-        .order("name"),
-      supabase.from("organizations").select("currency, name").single(),
-      supabase
-        .from("price_book")
-        .select("id, name, description, price_minor, cost_minor, taxable, image_path")
-        .order("name"),
-    ]);
-  const custOpts = (customers ?? []).map((c) => ({ id: c.id, label: c.name }));
+  const [estimates, customers, { data: org }, catalog] = await Promise.all([
+    listEstimatesForListPage(supabase),
+    customersData.listPickable(supabase),
+    supabase.from("organizations").select("currency, name").single(),
+    // `PriceBookRow.cost_minor` is typed nullable in lib/data/price-book.ts even
+    // though the column is NOT NULL; coerced here to match `CatalogItem` without
+    // touching a file this migration doesn't own.
+    priceBookData
+      .listForPicker(supabase)
+      .then((rows) => rows.map((r) => ({ ...r, cost_minor: r.cost_minor ?? 0 }))),
+  ]);
+  const custOpts = customers.map((c) => ({ id: c.id, label: c.name }));
 
   return (
     <div>
@@ -57,13 +49,13 @@ export default async function EstimatesPage({
           customers={custOpts}
           action={createEstimate}
           newKey="est.new"
-          catalog={catalog ?? []}
+          catalog={catalog}
           orgId={profile.organization_id!}
           initialOpen={search.new === "1"}
         />
       </div>
       <DocList
-        rows={(estimates ?? []).map((e: any) => ({
+        rows={estimates.map((e: any) => ({
           id: e.id,
           number: e.number,
           status: e.status,

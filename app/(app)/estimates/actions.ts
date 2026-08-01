@@ -22,6 +22,7 @@ import { documentLock } from "@/lib/core/documents.mjs";
 import { parseAmountToMinor, parseQtyToMilli } from "@/lib/core/money.mjs";
 // @ts-ignore -- pure logic, proven both ways in tests/estimate-options.test.mjs
 import { isTier, tierRank, conversionReadiness } from "@/lib/core/estimate-options.mjs";
+import { listItemsFull } from "@/lib/data/estimates";
 
 export async function createEstimate(
   _prev: ActionResult,
@@ -246,11 +247,12 @@ export async function convertEstimateToInvoice(estimateId: string): Promise<Conv
     };
   }
 
-  const { data: items } = await supabase
-    .from("estimate_items")
-    .select("*")
-    .eq("estimate_id", estimateId)
-    .order("sort");
+  let items;
+  try {
+    items = await listItemsFull(supabase, estimateId);
+  } catch (cause: unknown) {
+    return { ok: false, error: cause instanceof Error ? cause.message : String(cause) };
+  }
   const { data: number, error: numErr } = await supabase.rpc("next_document_number", {
     p_org: profile.organization_id,
     p_kind: "invoice",
@@ -278,7 +280,7 @@ export async function convertEstimateToInvoice(estimateId: string): Promise<Conv
     .single();
   if (error) return { ok: false, error: error.message };
 
-  if (items && items.length) {
+  if (items.length) {
     await supabase.from("invoice_items").insert(
       items.map((it: any, idx: number) => ({
         organization_id: profile.organization_id,
