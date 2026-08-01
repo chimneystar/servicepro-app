@@ -61,6 +61,27 @@ jobs:
           NEXT_PUBLIC_SITE_URL: http://localhost:3000
           NEXT_PUBLIC_APP_URL: http://localhost:3000
 
+      # The browser suite existed, was wired to `npm run test:e2e`, and ran
+      # NOWHERE — not here, not anywhere. It was also broken: the boot-time env
+      # validation added in ledger 3.3 fails closed, `playwright.config.ts` did
+      # not pass SUPABASE_SERVICE_ROLE_KEY, so the server never started and
+      # every test timed out. Both are fixed, and this step is what stops it
+      # rotting again: on 2026-08-01 the first successful run immediately found
+      # that the CSP was blocking the app's own Google Fonts in production.
+      #
+      # The public pages are checked here. The 12 authenticated routes SKIP
+      # without STORAGE_STATE (a signed-in session needs a real Supabase
+      # project) — that remains the largest untested surface on this branch and
+      # is called out in docs/REMEDIATION-PLAN.md.
+      - name: Browser tests (public pages)
+        run: npm run test:e2e
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+
   migrations:
     name: Migration hygiene
     runs-on: ubuntu-latest

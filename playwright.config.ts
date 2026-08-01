@@ -35,11 +35,25 @@ export default defineConfig({
         url: `http://localhost:${PORT}`,
         reuseExistingServer: !process.env.CI,
         timeout: 180_000,
+        // Ledger 3.3 added boot-time env validation (`instrumentation.ts` →
+        // `lib/core/env-check.mjs`), and it fails CLOSED: the required
+        // "Server-side data access" group wants SUPABASE_SERVICE_ROLE_KEY, so
+        // without it `npm run start` aborts on the instrumentation hook and
+        // EVERY browser test times out waiting for a server that will never
+        // come up. That is what this config did until 2026-08-01 — the harness
+        // was wired but dead, and nothing noticed because no CI job runs it.
+        // These are placeholders, never contacted: the specs here load pages
+        // and watch for console errors, and the authed routes skip unless a
+        // real STORAGE_STATE is supplied.
         env: {
           NEXT_PUBLIC_SUPABASE_URL:
             process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://placeholder.supabase.co",
           NEXT_PUBLIC_SUPABASE_ANON_KEY:
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "placeholder-anon-key",
+          SUPABASE_SERVICE_ROLE_KEY:
+            process.env.SUPABASE_SERVICE_ROLE_KEY ?? "placeholder-service-role-key",
+          NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL ?? `http://localhost:${PORT}`,
+          NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL ?? `http://localhost:${PORT}`,
         },
       },
 });

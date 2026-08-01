@@ -2049,19 +2049,51 @@ action, previously **mouse-only** — works from a keyboard.
 4. **Typography (A1, A2) is untouched by this pass** and is the larger half of
    what a user would call "accessibility" on this product.
 
-## STATE AT THE SESSION LIMIT — 2026-07-31, ~23:00 Asia/Jerusalem
+## STATE — 2026-08-01, re-measured after a restart
 
-Read this first if you are picking this up cold.
+Read this first if you are picking this up cold. **Every number below was
+measured on 2026-08-01, not carried forward.**
 
-**Branch `fix/production-hardening`, 45 commits ahead of `main`. 883 tests
-passing, typecheck / lint / build all clean, working tree clean, no unmerged
-agent work outstanding.** Ledger: 71 done · 8 partial · 1 rejected · 16 open.
+**Branch `fix/production-hardening`, 116 commits ahead of `main` (561 files,
++128,442 / −7,255). 1,248 tests passing, typecheck clean, lint 0 errors (13
+pre-existing `no-img-element` / `exhaustive-deps` warnings), `prettier --check`
+clean, `next build` succeeds, working tree clean.** Ledger: 111 rows — **85 done
+· 23 partial · 3 rejected · 0 open**. There is no `TODO`, `WIP` or `BLOCKED` row
+left, and no `FIXME`/`TODO` marker anywhere in `app/`, `lib/` or `components/`.
 
-### Stopped, not finished
-Three agents were dispatched on the owner's P0 UX findings and **all three died on
-the session limit having done nothing** (they had only read files). Their
-worktrees were empty and have been pruned. Nothing is half-applied — the tree is
-consistent.
+**The 23 PARTIAL rows are deliberate, and each one states its own boundary in its
+note.** They are not unfinished work that was forgotten; they are work that
+cannot be finished in this environment (no Supabase project, no Helcim sandbox,
+no geocoder, no OAuth app, no browser) or that was scoped out on purpose. The
+list: 4.8, 5.1, 5.3, 5.5, 5.9, 5.12, 5.16, 5.17, 6a.3, 6b.5, 6b.6, 6b.7, 6b.9,
+6c.1, 6c.2, 6c.5, 6c.7, 6c.8, 6c.10, 6c.12, 6.1, 6.5, 6.6.
+
+### Nothing is outstanding in git
+
+Verified on 2026-08-01, because the earlier note on this was written before the
+last 71 commits landed:
+
+* **No unmerged agent work.** `git branch --no-merged HEAD` is empty — all 15
+  agent branches (`feat/6-*`, `fix/production-hardening-*`) and every
+  `worktree-agent-*` branch are ancestors of `HEAD`.
+* **32 agent worktrees are still registered** under `.claude/worktrees/`. They
+  hold nothing that is not in `HEAD`. They are disk clutter, not risk, and
+  `git worktree prune` plus a branch cleanup is a safe post-merge chore.
+* **Three stashes survive from the shared-stash incident** described in the
+  ground rules. **All three are stale residue, and this was checked rather than
+  assumed:** `stash@{1}` is ledger 4.13's onboarding/pack work, and `HEAD`'s
+  `lib/industry-packs.ts` contains `packItemKey`, `GENERIC_PACK_KEY` and
+  `GENERIC_SERVICES`; `stash@{0}` and `stash@{2}` are duplicates of the A2
+  px→rem conversion, and `grep -rE "fontSize: *[0-9]+[,}]" app components lib`
+  now returns **0**. A byte-diff against `HEAD` differs on all 119 files only
+  because the 6.4 formatting pass reformatted 383 files afterwards. Nothing was
+  lost; the stashes can be dropped.
+
+### The former "stopped, not finished"
+Three agents dispatched on the owner's P0 UX findings died on the session limit
+having done nothing. **That is now closed:** A1, A2 and A3 were all subsequently
+fixed (see the A1/A2 and A3 notes under 6.6). Their worktrees were empty and were
+pruned.
 
 ### The owner's bundle — `owner-needed-stuff/`
 He sent a complete LOCAL Supabase stack instead of credentials: all 21 migrations
@@ -2076,7 +2108,57 @@ machine.** Two of the three gaps this used to describe are now closed by PGlite:
 * ~~every one of the 38 migrations is verified by inspection only~~ — all 42 are
   applied to an empty database by `tests/migrations-apply.test.mjs`;
 * **no authenticated browser test has ever run.** This one still stands, and it
-  is now the single largest gap on this branch.
+  is now the single largest gap on this branch. The 12 authenticated routes in
+  `tests/e2e/console-errors.spec.ts` SKIP without `STORAGE_STATE`, which needs a
+  real Supabase project and a seeded user. **The public half now runs** — see
+  the browser-harness note below.
+
+### The browser harness was wired but DEAD, and what it found on its first run
+
+Found 2026-08-01 while establishing whether this branch is PR-ready. Two
+defects, one hiding the other.
+
+1. **`npx playwright test` could not start the app at all.** Ledger 3.3 added
+   boot-time env validation that fails closed, and `playwright.config.ts` passed
+   the server only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   — not the required `SUPABASE_SERVICE_ROLE_KEY`. `npm run start` aborted on the
+   instrumentation hook and every browser test timed out after 180s. Nothing
+   caught this because **no CI job ran the e2e suite**; `npm run test:e2e`
+   existed and executed nowhere. The `test-results/.last-run.json` on disk
+   recorded a failure from 2026-07-31 for a *different* reason (a Playwright
+   update had left the browser binary uninstalled), which masked it.
+
+2. **The CSP was blocking the app's own web fonts in production.** With the
+   harness alive, the very first successful run failed `/login` on two console
+   errors: `style-src 'self' 'unsafe-inline'` blocked
+   `app/layout.tsx`'s Google Fonts stylesheet, and `font-src 'self' data:`
+   blocked the font files. So from the day the 1.16 security headers shipped,
+   **every page in production rendered in fallback system faces — including the
+   Hebrew UI, whose face is Heebo.** The two origins are now named exactly
+   (`https://fonts.googleapis.com` in `style-src`,
+   `https://fonts.gstatic.com` in `font-src`); `https:` is deliberately not used.
+
+*Why no existing test could have found it.* `tests/security.test.mjs` asserted
+that the CSP header *exists* — and a header that blocks your own fonts is a
+perfectly well-formed header. The new probe is **derived**: it parses the `csp`
+array out of `next.config.mjs`, extracts the external origins `app/layout.tsx`
+actually references, and requires every stylesheet origin to be in `style-src`
+and every preconnect origin to be allowed by some directive. Add a third font
+host tomorrow and it fails until the CSP names it. It also refuses `https:` as a
+value in either directive, so the fix cannot be "widen it". Proven both ways: it
+fires on the pre-fix CSP with the exact sentence above, and is silent on the
+fixed tree. It is guarded against passing vacuously if the layout ever stops
+loading anything external.
+
+*Wired in, so it cannot rot again.* `.github/workflows/ci.yml` now runs
+`npm run test:e2e` on every push and PR. Before this, the suite's only reader was
+a human who chose to run it.
+
+*Recommended follow-up, not done here:* self-host Heebo and Rubik through
+`next/font`. That removes both CSP entries, removes a render-blocking
+third-party request, and stops leaking a visitor's IP to Google — which matters
+on a product with a privacy centre. It is not a hotfix because it touches the
+typography A1/A2 just rebuilt.
 And what PGlite still cannot prove stands too: it is Postgres, not Supabase, so
 `auth.uid()`, `auth.users` and `storage.objects` are shims. Nothing here proves
 GoTrue issues the claims these policies read, or that Supabase Storage enforces
@@ -2093,6 +2175,51 @@ A4 (Invoices unreachable on mobile) and B1 (`merchant_accounts` does not exist)
 were verified and FIXED — see commit `eea4048`. **A5 (Hebrew service names) and
 A6 (the hardcoded HVAC menu) were verified and FIXED** — ledger 4.12 / 4.13 and
 migration `db/041_booking_locale_packs.sql`, which must be RUN.
+
+## Is this branch ready for a PR? — assessed 2026-08-01
+
+**Yes, on the code. The remaining risk is not in the diff; it is that nothing on
+this branch has ever met a real Supabase project.**
+
+*Ready:* 0 open ledger rows, every automated gate green (1,250 unit tests
+including the RLS assertions against real Postgres, typecheck, lint, format,
+build, and now the public browser suite), working tree clean, no unmerged agent
+work, no `TODO`/`FIXME` markers, and the 23 PARTIAL rows each state their own
+boundary rather than hiding one.
+
+*What a reviewer must be told, in the PR description, because a green CI badge
+does not say it:*
+
+1. **Twenty-one migrations must be RUN before or with the merge, and the code
+   assumes them.** Measured, not recalled — `git diff --name-only main...HEAD --
+   db/` lists `023` through `043` as new on this branch (`001_schema.sql` also
+   appears, but that is the baseline *rename* described under 3.1, not new DDL).
+   Several ledger rows single one out as "must be RUN" (`028`, `032`, `033`,
+   `036`, `039`, `041`); that is not a shorter list, it is those rows naming
+   their own dependency. Use `npm run db:plan` then `db:migrate`; an existing
+   production database is `adopt`ed, never re-run. `db/MIGRATIONS.md` is the
+   runbook and is generated from the files on disk.
+2. **Nothing here has run against Supabase.** PGlite proves the SQL, the
+   policies and the guards; it shims `auth.uid()`, `auth.users` and
+   `storage.objects`. GoTrue's claims, Supabase Storage's enforcement of the
+   `storage.objects` policies, MFA (6b.5) and the Helcim provider calls (5.1) are
+   all verified by inspection only.
+3. **No authenticated browser test has ever run** — 12 of the 13 e2e checks skip
+   without a signed-in `STORAGE_STATE`. This is the largest untested surface.
+   The first *public* browser run found a live production defect within seconds
+   (see the browser-harness note above), which is the fairest available estimate
+   of what the authenticated half would find.
+4. **The schema drift in point 2 of "Two things to raise with the owner" below is
+   unresolved** and is a merge hazard, not a curiosity.
+
+*Recommended sequence:* raise the PR, get the migrations run against a staging
+Supabase project, produce a `STORAGE_STATE` there, and run the authenticated
+browser suite before the branch reaches production. That is the one gap that
+cannot be closed on this machine.
+
+*Housekeeping that is safe after merge, not before:* `git worktree prune` plus
+deletion of the 32 agent worktrees and their branches, and dropping the three
+stale stashes (all verified to contain nothing that is not in `HEAD`).
 
 ### Two things to raise with the owner
 1. The `MIGRATIONS.md` correction exists only on this unpushed branch, so anyone

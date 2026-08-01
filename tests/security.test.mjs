@@ -271,3 +271,101 @@ test("security response headers are configured", () => {
   }
   assert.ok(/frame-ancestors 'none'/.test(src), "payment and signing pages must not be framable");
 });
+
+// ---------------------------------------------------------------------------
+// A CSP that blocks the app's OWN assets is a well-formed header and a live
+// defect. From the day the security headers shipped until 2026-08-01 this one
+// blocked `app/layout.tsx`'s Google Fonts stylesheet (style-src) and its font
+// files (font-src), so production rendered in fallback faces — including the
+// Hebrew UI, whose face is Heebo. The test above could not see it: it asserts
+// the header EXISTS. Nothing asserted that what the document loads is what the
+// policy permits, and only a browser loading a real page found it.
+//
+// So this probe is DERIVED, not a hardcoded pair of origins: it reads the
+// origins the layout actually references and requires the policy to allow each
+// one. Add a third font host tomorrow and this fails until the CSP names it.
+// ---------------------------------------------------------------------------
+
+/** The CSP directive values, parsed out of the `csp` array in next.config.mjs. */
+function cspDirectives() {
+  const src = readRaw("next.config.mjs");
+  const block = src.match(/const csp = \[([\s\S]*?)\]\.join/);
+  assert.ok(block, "next.config.mjs must still declare the CSP as a `csp` array");
+  // Parse line by line, NOT with a quote-delimited regex: every entry contains
+  // inner single quotes (`'self'`, `'unsafe-inline'`), so a naive quote match
+  // stops at the first keyword and silently loses the origins — which would
+  // make this whole probe report a false RED.
+  const entries = block[1]
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("//"))
+    .map((line) =>
+      line
+        .replace(/,$/, "")
+        .replace(/\.trim\(\)$/, "")
+        .trim(),
+    )
+    .map((line) => (/^["'`]/.test(line) ? line.slice(1, -1) : line));
+  const out = {};
+  for (const entry of entries) {
+    const [name, ...values] = entry.trim().split(/\s+/);
+    if (name) out[name] = (out[name] ?? []).concat(values);
+  }
+  return out;
+}
+
+/** External origins `app/layout.tsx` references, by the `rel` that pulls them. */
+function layoutExternalOrigins() {
+  const src = readRaw("app/layout.tsx");
+  const stylesheets = new Set();
+  const preconnects = new Set();
+  for (const tag of src.match(/<link[^>]*>/g) ?? []) {
+    const href = tag.match(/href=["']?(https:\/\/[^"'\s}]+)/)?.[1];
+    if (!href) continue;
+    const origin = new URL(href).origin;
+    if (/rel=["']?stylesheet/.test(tag)) stylesheets.add(origin);
+    if (/rel=["']?preconnect/.test(tag)) preconnects.add(origin);
+  }
+  return { stylesheets, preconnects };
+}
+
+test("the CSP permits every external origin the layout actually loads", () => {
+  const csp = cspDirectives();
+  const { stylesheets, preconnects } = layoutExternalOrigins();
+
+  // Guard the guard: if the layout stops loading anything external this test
+  // must say so rather than pass vacuously on two empty sets.
+  assert.ok(
+    stylesheets.size > 0 || preconnects.size > 0,
+    "layout.tsx references no external origin — if that is now true, delete this probe deliberately",
+  );
+
+  for (const origin of stylesheets) {
+    assert.ok(
+      (csp["style-src"] ?? []).includes(origin),
+      `layout.tsx loads a stylesheet from ${origin} but style-src does not allow it — ` +
+        `the browser will block it and the page will render unstyled`,
+    );
+  }
+
+  // A preconnect names a host the document is about to fetch from. If no
+  // directive allows it, that fetch is blocked — which is exactly how the font
+  // files were lost while the stylesheet reference looked fine.
+  const allowed = new Set(Object.values(csp).flat());
+  for (const origin of preconnects) {
+    assert.ok(
+      allowed.has(origin),
+      `layout.tsx preconnects to ${origin} but no CSP directive allows it`,
+    );
+  }
+});
+
+test("the font origins are named exactly, never widened to all of https:", () => {
+  const csp = cspDirectives();
+  for (const directive of ["style-src", "font-src"]) {
+    assert.ok(
+      !(csp[directive] ?? []).includes("https:"),
+      `${directive} must name its origins, not allow every https host`,
+    );
+  }
+});
