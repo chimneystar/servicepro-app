@@ -27,9 +27,9 @@ as fixes land. See `docs/REMEDIATION-PLAN.md` for what is still open._
 | Multi-day jobs (`end_date`) | `/schedule` | owner/office | PARTIAL — honoured by dispatch, but the calendar renders the job only on its start date |
 | Double-booking prevention | DB exclusion constraint | — | REAL — enforced by DB constraint for the lead technician AND for crew (migration 028); the conflict is surfaced clearly on create and on dispatch reassignment |
 | Job detail with 11 tabs (details, items, payments, estimates, invoices, attachments, history, warranty, tasks, equipment, checklists) | `/jobs/[id]` | owner/office/tech | REAL |
-| Change job stage (+ legacy enum sync, `stage_changed_at`) | `/jobs/[id]` | owner/office/tech | REAL — but no role check and no transition guard |
+| Change job stage (+ legacy enum sync, `stage_changed_at`) | `/jobs/[id]` | owner/office/tech | REAL — a technician may only move a job assigned to them, and the terminal-status rule is enforced on this path (it derives the enum status from the stage, so a completed job could previously be reopened by moving it back) |
 | Create invoice from job (line items or fallback, real numbering) | `/jobs/[id]` | owner/office | REAL |
-| Service-address override per job | `/jobs/[id]` | owner/office | PARTIAL — action has no role gate |
+| Service-address override per job | `/jobs/[id]` | owner/office/tech | REAL — a technician may only edit a job assigned to them (`assertJobAccess`); owner and office are unrestricted |
 | Job line items: add / delete | `/jobs/[id]` | owner/office | REAL |
 | Job tasks: add / toggle / delete | `/jobs/[id]` | owner/office/tech | REAL |
 | Checklists: add / toggle / delete | `/jobs/[id]` | owner/office/tech | REAL |

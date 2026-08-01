@@ -90,6 +90,41 @@ export type PhotoResult = {
   availableMilli?: number;
 };
 
+/**
+ * A technician may only act on a job assigned to them. Owner and office are
+ * unrestricted.
+ *
+ * WHY THIS EXISTS. Nine write actions in this file were gated by
+ * `await requireProfile()` with the result DISCARDED — that authenticates the
+ * caller and authorises nothing. Any signed-in technician could toggle another
+ * technician's checklist, mark someone else's job as arrived, retag it, rewrite
+ * its expenses, or delete its tasks and equipment. Row-level security did not
+ * help: these rows belong to the same organisation, which is exactly what RLS
+ * checks.
+ *
+ * The rule is not invented here — `setJobStage` already enforced it. These
+ * actions simply never got it. Deliberately scoped to jobs: it removes nothing
+ * from anyone who legitimately had it, because a technician acting on their own
+ * job still passes.
+ */
+async function assertJobAccess(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  profile: { id: string; role: string },
+  jobId: string,
+): Promise<PhotoResult | null> {
+  if (profile.role !== "tech") return null;
+  const { data: job } = await supabase
+    .from("jobs")
+    .select("assigned_to")
+    .eq("id", jobId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!job) return { ok: false, error: "Job not found." };
+  if (job.assigned_to !== profile.id)
+    return { ok: false, error: "This job is not assigned to you." };
+  return null;
+}
+
 export async function generateJobSummary(jobId: string): Promise<PhotoResult> {
   const profile = await requireProfile();
   const locale = await getLocale();
@@ -311,8 +346,10 @@ export async function createInvoiceFromJob(jobId: string): Promise<PhotoResult> 
 
 /** Save the job's service address. */
 export async function updateJobAddress(jobId: string, formData: FormData): Promise<PhotoResult> {
-  await requireProfile();
+  const profile = await requireProfile();
   const supabase = await createClient();
+  const denied = await assertJobAccess(supabase, profile, jobId);
+  if (denied) return denied;
   const { error } = await supabase
     .from("jobs")
     .update({
@@ -495,16 +532,20 @@ export async function toggleJobTask(
   done: boolean,
   jobId: string,
 ): Promise<PhotoResult> {
-  await requireProfile();
+  const profile = await requireProfile();
   const supabase = await createClient();
+  const denied = await assertJobAccess(supabase, profile, jobId);
+  if (denied) return denied;
   const { error } = await supabase.from("job_tasks").update({ done }).eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/jobs/${jobId}`);
   return { ok: true };
 }
 export async function deleteJobTask(id: string, jobId: string): Promise<PhotoResult> {
-  await requireProfile();
+  const profile = await requireProfile();
   const supabase = await createClient();
+  const denied = await assertJobAccess(supabase, profile, jobId);
+  if (denied) return denied;
   const { error } = await supabase.from("job_tasks").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/jobs/${jobId}`);
@@ -528,16 +569,20 @@ export async function toggleChecklistItem(
   checked: boolean,
   jobId: string,
 ): Promise<PhotoResult> {
-  await requireProfile();
+  const profile = await requireProfile();
   const supabase = await createClient();
+  const denied = await assertJobAccess(supabase, profile, jobId);
+  if (denied) return denied;
   const { error } = await supabase.from("job_checklist_items").update({ checked }).eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/jobs/${jobId}`);
   return { ok: true };
 }
 export async function deleteChecklistItem(id: string, jobId: string): Promise<PhotoResult> {
-  await requireProfile();
+  const profile = await requireProfile();
   const supabase = await createClient();
+  const denied = await assertJobAccess(supabase, profile, jobId);
+  if (denied) return denied;
   const { error } = await supabase.from("job_checklist_items").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/jobs/${jobId}`);
@@ -562,8 +607,10 @@ export async function addEquipment(jobId: string, formData: FormData): Promise<P
   return { ok: true };
 }
 export async function deleteEquipment(id: string, jobId: string): Promise<PhotoResult> {
-  await requireProfile();
+  const profile = await requireProfile();
   const supabase = await createClient();
+  const denied = await assertJobAccess(supabase, profile, jobId);
+  if (denied) return denied;
   const { error } = await supabase.from("job_equipment").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/jobs/${jobId}`);
@@ -981,8 +1028,10 @@ export async function setOnMyWay(
 
 /** Record the arrival, so the customer's page stops saying "on the way". */
 export async function markArrived(jobId: string): Promise<PhotoResult> {
-  await requireProfile();
+  const profile = await requireProfile();
   const supabase = await createClient();
+  const denied = await assertJobAccess(supabase, profile, jobId);
+  if (denied) return denied;
   const { error } = await supabase
     .from("jobs")
     .update({ arrived_at: new Date().toISOString() })
@@ -1139,9 +1188,11 @@ export async function setJobStage(jobId: string, stage: string): Promise<PhotoRe
 
 /** Add/remove tags on a job (free-form labels like "Follow up", "Waiting for payment"). */
 export async function setJobTags(jobId: string, tags: string[]): Promise<PhotoResult> {
-  await requireProfile();
+  const profile = await requireProfile();
   const clean = Array.from(new Set(tags.map((t) => t.trim()).filter(Boolean))).slice(0, 20);
   const supabase = await createClient();
+  const denied = await assertJobAccess(supabase, profile, jobId);
+  if (denied) return denied;
   const { error } = await supabase.from("jobs").update({ tags: clean }).eq("id", jobId);
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/jobs/${jobId}`);
@@ -1151,8 +1202,10 @@ export async function setJobTags(jobId: string, tags: string[]): Promise<PhotoRe
 
 /** Set the manually-entered job costs used by the commission report. */
 export async function setJobExpenses(jobId: string, amountStr: string): Promise<PhotoResult> {
-  await requireProfile();
+  const profile = await requireProfile();
   const supabase = await createClient();
+  const denied = await assertJobAccess(supabase, profile, jobId);
+  if (denied) return denied;
   let cents = 0;
   try {
     cents = parseAmountToMinor(amountStr);
