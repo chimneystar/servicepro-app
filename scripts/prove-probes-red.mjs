@@ -245,13 +245,14 @@ const CASES = [
     id: "data-layer/the-gateway-must-actually-range",
     probe: "tests/data-layer.test.mjs",
     source: "lib/data/db.ts",
-    // readAll, readPages and readPage all range; sabotaging one would leave the
-    // others to satisfy the assertion, so all three must go. The count is
-    // pinned: this case reported BAD when it was written as 2, which is the
-    // harness refusing to let a planted edit silently become a partial one.
+    // readAll, readPages, readPage and readAtMost's paging path all range;
+    // sabotaging one would leave the others to satisfy the assertion, so all of
+    // them must go. The count is pinned, and has already earned its keep twice:
+    // this case reported BAD at 2 and again at 3 as the gateway grew. That is
+    // the harness refusing to let a planted edit silently become a partial one.
     find: `build().range(from, to)`,
     replace: `build().limit(1000)`,
-    expectHits: 3,
+    expectHits: 4,
     guards:
       "the one place a range is applied still applies one — without this the whole " +
       "design is a naming convention",
