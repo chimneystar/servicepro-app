@@ -9,6 +9,7 @@ import { parseAmountToMinor } from "@/lib/core/money.mjs";
 import { RECURRING_JOB_SOURCE, nextDueAfter, recurringJobKey } from "@/lib/core/recurring.mjs";
 // @ts-ignore -- shared JS module
 import { isUniqueViolation } from "@/lib/core/db-errors.mjs";
+import * as operationsRepo from "@/lib/data/operations";
 
 export type ActionResult = { ok: boolean; error?: string; created?: number };
 
@@ -84,13 +85,14 @@ export async function generateDuePlans(): Promise<ActionResult> {
   }
   const supabase = await createClient();
   const today = new Date().toISOString().slice(0, 10);
-  const { data: due } = await supabase
-    .from("recurring_plans")
-    .select("*")
-    .eq("active", true)
-    .lte("next_due", today);
+  let due;
+  try {
+    due = await operationsRepo.listDueRecurringPlans(supabase, today);
+  } catch (cause: unknown) {
+    return { ok: false, error: cause instanceof Error ? cause.message : String(cause) };
+  }
   let created = 0;
-  for (const p of due ?? []) {
+  for (const p of due) {
     const dueDate = String(p.next_due);
     const { error } = await supabase.from("jobs").insert({
       organization_id: profile.organization_id,

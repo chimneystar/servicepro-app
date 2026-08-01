@@ -3,6 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import RecurringClient, { type Plan } from "@/components/RecurringClient";
 import { getLocale } from "@/lib/locale-server";
+import * as operationsRepo from "@/lib/data/operations";
+import * as customersRepo from "@/lib/data/customers";
+import * as profilesRepo from "@/lib/data/profiles";
 
 export const dynamic = "force-dynamic";
 
@@ -11,20 +14,10 @@ export default async function RecurringPage() {
   const he = (await getLocale()) === "he";
   if (profile.role === "tech") redirect("/");
   const supabase = await createClient();
-  const [{ data: plans }, { data: customers }, { data: techs }] = await Promise.all([
-    supabase
-      .from("recurring_plans")
-      .select(
-        "id, customer_id, service, interval_months, price_minor, next_due, assigned_to, customers!recurring_plans_customer_id_fkey(name)",
-      )
-      .order("next_due"),
-    supabase
-      .from("customers")
-      .select("id, name")
-      .is("deleted_at", null)
-      .eq("archived", false)
-      .order("name"),
-    supabase.from("profiles").select("id, full_name").eq("active", true).order("full_name"),
+  const [plans, customers, techs] = await Promise.all([
+    operationsRepo.listRecurringPlans(supabase),
+    customersRepo.listPickable(supabase),
+    profilesRepo.listActive(supabase),
   ]);
   const { data: org } = await supabase.from("organizations").select("currency").single();
 
@@ -40,7 +33,7 @@ export default async function RecurringPage() {
       </p>
       <RecurringClient
         plans={
-          (plans ?? []).map((p: any) => ({
+          plans.map((p: any) => ({
             id: p.id,
             customer_id: p.customer_id,
             customer_name: p.customers?.name ?? "—",
@@ -51,8 +44,8 @@ export default async function RecurringPage() {
             assigned_to: p.assigned_to,
           })) as Plan[]
         }
-        customers={(customers ?? []).map((c) => ({ id: c.id, label: c.name }))}
-        techs={(techs ?? []).map((t) => ({
+        customers={customers.map((c) => ({ id: c.id, label: c.name }))}
+        techs={techs.map((t) => ({
           id: t.id,
           label: t.full_name || (he ? "טכנאי" : "Technician"),
         }))}

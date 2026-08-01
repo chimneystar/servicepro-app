@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import LeadsBoard, { type Lead } from "./LeadsBoard";
 import { getLocale } from "@/lib/locale-server";
+import * as operationsRepo from "@/lib/data/operations";
 
 export const dynamic = "force-dynamic";
 
@@ -11,12 +12,7 @@ export default async function LeadsPage() {
   const he = (await getLocale()) === "he";
   if (profile.role === "tech") redirect("/");
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("leads")
-    .select(
-      "id, name, phone, email, address, city, service, notes, status, source, preferred_date, created_at",
-    )
-    .order("created_at", { ascending: false });
+  const data = await operationsRepo.listLeads(supabase);
 
   return (
     <div style={{ maxWidth: 780 }}>
@@ -28,7 +24,7 @@ export default async function LeadsPage() {
           ? "פניות חדשות והתקדמות המכירה, עד שהלקוח קובע עבודה."
           : "New requests and sales progress until a job is booked."}
       </p>
-      <LeadsBoard leads={(data ?? []) as Lead[]} orgId={profile.organization_id!} />
+      <LeadsBoard leads={data as Lead[]} orgId={profile.organization_id!} />
     </div>
   );
 }

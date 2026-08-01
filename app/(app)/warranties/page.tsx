@@ -3,6 +3,8 @@ import Link from "next/link";
 import { requireProfile } from "@/lib/auth";
 import { getLocale } from "@/lib/locale-server";
 import { createClient } from "@/lib/supabase/server";
+import * as crmRepo from "@/lib/data/crm";
+import * as jobsRepo from "@/lib/data/jobs";
 
 export const dynamic = "force-dynamic";
 
@@ -13,40 +15,24 @@ export default async function WarrantiesPage() {
   const he = locale === "he";
   const supabase = await createClient();
   const today = new Date().toISOString().slice(0, 10);
-  const [{ data: callbacks }, { data: warranties }] = await Promise.all([
-    supabase
-      .from("warranty_callbacks")
-      .select(
-        "id,original_job_id,callback_job_id,issue,priority,responsibility,status,scheduled_for,resolution,reported_at",
-      )
-      .order("reported_at", { ascending: false })
-      .limit(250),
-    supabase
-      .from("job_warranties")
-      .select("id,job_id,coverage_type,starts_on,expires_on,status")
-      .eq("status", "active")
-      .order("expires_on", { ascending: true, nullsFirst: false })
-      .limit(250),
+  const [callbacks, warranties] = await Promise.all([
+    crmRepo.listCallbacks(supabase, 250),
+    crmRepo.listActiveWarranties(supabase, 250),
   ]);
   const jobIds = [
     ...new Set(
       [
-        ...(callbacks ?? []).flatMap((row) => [row.original_job_id, row.callback_job_id]),
-        ...(warranties ?? []).map((row) => row.job_id),
+        ...callbacks.flatMap((row) => [row.original_job_id, row.callback_job_id]),
+        ...warranties.map((row) => row.job_id),
       ].filter(Boolean),
     ),
   ] as string[];
-  const { data: jobs } = jobIds.length
-    ? await supabase
-        .from("jobs")
-        .select("id,service,scheduled_date,customer_id,customers!jobs_customer_id_fkey(name)")
-        .in("id", jobIds)
-    : { data: [] };
-  const jobMap = new Map((jobs ?? []).map((job) => [job.id, job]));
-  const open = (callbacks ?? []).filter((row) => !["resolved", "denied"].includes(row.status));
+  const jobs = await jobsRepo.listByIdsWithCustomer(supabase, jobIds);
+  const jobMap = new Map(jobs.map((job) => [job.id, job]));
+  const open = callbacks.filter((row) => !["resolved", "denied"].includes(row.status));
   const urgent = open.filter((row) => row.priority === "urgent");
   const scheduled = open.filter((row) => row.callback_job_id);
-  const expiring = (warranties ?? []).filter(
+  const expiring = warranties.filter(
     (row) => row.expires_on && row.expires_on >= today && row.expires_on <= addDays(today, 30),
   );
   return (

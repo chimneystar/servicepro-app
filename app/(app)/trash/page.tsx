@@ -5,6 +5,8 @@ import Link from "next/link";
 import TrashList, { type TrashRow } from "./TrashList";
 // @ts-ignore — pure, unit-tested restore rules, proven both ways (tests/recovery.test.mjs)
 import { restoreBlockers } from "@/lib/core/recovery.mjs";
+import * as crmRepo from "@/lib/data/crm";
+import type { RecoverableTable } from "@/lib/data/crm";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +15,7 @@ const PAGE_SIZE = 50;
 type Supa = Awaited<ReturnType<typeof createClient>>;
 
 /** The four tables with a trash screen — lib/core/recovery.mjs KIND_TABLE. */
-type TrashTable = "customers" | "jobs" | "estimates" | "invoices";
+type TrashTable = RecoverableTable;
 
 /**
  * Trash (ledger 6a.4).
@@ -305,29 +307,14 @@ async function deletedRows(
   // as a union rather than `string` so `.from()` is checked; `columns` stays a
   // string because this function deliberately retries with a DIFFERENT column
   // list when `deleted_by` is absent, which is a runtime decision no type can
-  // express. That is the one genuinely dynamic select left in the tree.
+  // express. That is the one genuinely dynamic select left in the tree. See
+  // lib/data/crm.ts `pageDeletedRows` for why this goes around readAll/readPage.
   table: TrashTable,
   columns: string,
   from: number,
   to: number,
 ) {
-  const run = (cols: string) =>
-    supabase
-      .from(table)
-      .select(`${cols}, deleted_at`, { count: "exact" })
-      .eq("organization_id", orgId)
-      .not("deleted_at", "is", null)
-      .order("deleted_at", { ascending: false })
-      .range(from, to);
-
-  let { data, error, count } = await run(`${columns}, deleted_by`);
-  if (error) ({ data, error, count } = await run(columns));
-  return {
-    table,
-    rows: (data ?? []) as unknown as Record<string, unknown>[],
-    total: count ?? 0,
-    error: error ? String((error as { message?: string }).message ?? error) : null,
-  };
+  return crmRepo.pageDeletedRows(supabase, orgId, table, columns, { from, to });
 }
 
 /**
@@ -342,12 +329,7 @@ async function lookup(
   ids: string[],
   columns: string,
 ) {
-  const map = new Map<string, Record<string, unknown>>();
-  if (!ids.length) return map;
-  const { data } = await supabase.from(table).select(columns).in("id", ids);
-  for (const row of (data ?? []) as unknown as Record<string, unknown>[])
-    map.set(String(row.id), row);
-  return map;
+  return crmRepo.lookupByIds(supabase, table, ids, columns);
 }
 
 /**
@@ -355,16 +337,5 @@ async function lookup(
  * one would undo a legal erasure, so the button is refused rather than shown.
  */
 async function privacyErasedCustomers(supabase: Supa, orgId: string, customerIds: string[]) {
-  const erased = new Set<string>();
-  if (!customerIds.length) return erased;
-  const { data } = await supabase
-    .from("privacy_requests")
-    .select("customer_id")
-    .eq("organization_id", orgId)
-    .eq("request_type", "deletion")
-    .eq("status", "completed")
-    .in("customer_id", customerIds);
-  for (const row of (data ?? []) as { customer_id: string | null }[])
-    if (row.customer_id) erased.add(row.customer_id);
-  return erased;
+  return crmRepo.listPrivacyErasedCustomerIds(supabase, orgId, customerIds);
 }
