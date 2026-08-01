@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { Tables } from "@/lib/supabase/database.types";
 import { providers, sendSms, sendEmail } from "@/lib/providers";
 import { fillTemplate } from "@/lib/notify";
 import { featureFlagEvaluator } from "@/lib/feature-flags";
@@ -105,7 +106,7 @@ export async function runReminders(): Promise<{ appointments: number; overdue: n
     .eq("status", "scheduled")
     .is("deleted_at", null);
   for (const j of jobs ?? []) {
-    const cust: any = (j as any).customers;
+    const cust = j.customers;
     if (!cust?.phone || cust.phone === "—") continue;
     if (cust.sms_opt_in === false) continue; // customer replied STOP
     const { data: tpl } = await admin
@@ -175,7 +176,7 @@ export async function runReminders(): Promise<{ appointments: number; overdue: n
     .is("deleted_at", null)
     .lte("issue_date", dayISO(-14));
   for (const inv of invs ?? []) {
-    const cust: any = (inv as any).customers;
+    const cust = inv.customers;
     if (!cust?.phone || cust.phone === "—") continue;
     if (cust.sms_opt_in === false) continue; // customer replied STOP
     const { data: recent } = await admin
@@ -368,9 +369,30 @@ const CUSTOMER_CONTACT = "id, name, phone, email, sms_opt_in, email_opt_in, dele
 /** Bound on rows examined per rule per night. A cron that scans without a limit is a future outage. */
 const AUTOMATION_SOURCE_LIMIT = 200;
 
+/**
+ * The columns of `automation_rules` this file reads, taken from the generated
+ * Row type rather than declared as `rule: any`. It is what the select at the
+ * top of `runAutomations` asks for, so removing a column from the select or
+ * from the table breaks this instead of producing `undefined` at 3am.
+ */
+type AutomationRule = Pick<
+  Tables<"automation_rules">,
+  | "id"
+  | "organization_id"
+  | "trigger_type"
+  | "action_type"
+  | "action_json"
+  | "condition_json"
+  | "created_at"
+>;
+
 type AutomationSource = {
   id: string;
-  customer: any;
+  /** The contact columns in CUSTOMER_CONTACT, as the embed returns them. */
+  customer: Pick<
+    Tables<"customers">,
+    "id" | "name" | "phone" | "email" | "sms_opt_in" | "email_opt_in" | "deleted_at"
+  > | null;
   vars: Record<string, string>;
   jobId: string | null;
   label: string;
@@ -387,7 +409,7 @@ type AutomationSource = {
  */
 async function automationSources(
   admin: Admin,
-  rule: any,
+  rule: AutomationRule,
   overdueDays: number,
   windowStart: string,
   nowISO: string,
@@ -406,7 +428,7 @@ async function automationSources(
       .lte("updated_at", nowISO)
       .order("updated_at", { ascending: false })
       .limit(AUTOMATION_SOURCE_LIMIT);
-    return (data ?? []).map((row: any) => ({
+    return (data ?? []).map((row) => ({
       id: row.id,
       customer: row.customers,
       jobId: row.id,
@@ -433,7 +455,7 @@ async function automationSources(
       .lte("updated_at", nowISO)
       .order("updated_at", { ascending: false })
       .limit(AUTOMATION_SOURCE_LIMIT);
-    return (data ?? []).map((row: any) => ({
+    return (data ?? []).map((row) => ({
       id: row.id,
       customer: row.customers,
       jobId: null,
@@ -457,7 +479,7 @@ async function automationSources(
     .lte("issue_date", isoDaysBefore(nowISO.slice(0, 10), overdueDays))
     .order("issue_date", { ascending: false })
     .limit(AUTOMATION_SOURCE_LIMIT);
-  return (data ?? []).map((row: any) => ({
+  return (data ?? []).map((row) => ({
     id: row.id,
     customer: row.customers,
     jobId: row.job_id ?? null,
@@ -474,7 +496,7 @@ async function automationSources(
  */
 async function runAutomationAction(
   admin: Admin,
-  rule: any,
+  rule: AutomationRule,
   message: string,
   source: AutomationSource,
   businessName: string,
@@ -745,7 +767,7 @@ async function campaignAudience(
       .is("deleted_at", null)
       .lte("issue_date", isoDaysBefore(today, PAST_DUE_AFTER_DAYS))
       .limit(CAMPAIGN_RECIPIENT_LIMIT);
-    const ids = [...new Set((invoices ?? []).map((row: any) => row.customer_id).filter(Boolean))];
+    const ids = [...new Set((invoices ?? []).map((row) => row.customer_id).filter(Boolean))];
     if (!ids.length) return [];
     const { data } = await admin
       .from("customers")
@@ -767,7 +789,7 @@ async function campaignAudience(
       .is("deleted_at", null)
       .gte("scheduled_date", isoDaysBefore(today, INACTIVE_AFTER_DAYS))
       .limit(5000);
-    const active = new Set((recent ?? []).map((row: any) => row.customer_id));
+    const active = new Set((recent ?? []).map((row) => row.customer_id));
     const { data } = await admin
       .from("customers")
       .select(`${CUSTOMER_CONTACT}`)
@@ -775,7 +797,7 @@ async function campaignAudience(
       .is("deleted_at", null)
       .eq("archived", false)
       .limit(CAMPAIGN_RECIPIENT_LIMIT);
-    return (data ?? []).filter((row: any) => !active.has(row.id));
+    return (data ?? []).filter((row) => !active.has(row.id));
   }
   const { data } = await admin
     .from("customers")
@@ -1075,7 +1097,7 @@ export async function runGrowthOutreach(): Promise<OutreachSummary> {
         await release("estimate not found");
         continue;
       }
-      const eligibility = contactEligibility((estimate as any).customers, channel);
+      const eligibility = contactEligibility(estimate.customers, channel);
       if (!eligibility.ok) {
         // Consent refusal is terminal and named — not a retry, not a silence.
         await admin
@@ -1086,13 +1108,10 @@ export async function runGrowthOutreach(): Promise<OutreachSummary> {
         continue;
       }
       const businessName = await nameOf(followup.organization_id);
-      const link =
-        origin && (estimate as any).public_token
-          ? `${origin}/p/${(estimate as any).public_token}`
-          : "";
-      const first = String((estimate as any).customers?.name ?? "").split(" ")[0] ?? "";
+      const link = origin && estimate.public_token ? `${origin}/p/${estimate.public_token}` : "";
+      const first = String(estimate.customers?.name ?? "").split(" ")[0] ?? "";
       const body =
-        `Hi ${first}, just following up on estimate #${(estimate as any).number} from ${businessName}.` +
+        `Hi ${first}, just following up on estimate #${estimate.number} from ${businessName}.` +
         (link ? ` You can review and approve it here: ${link}` : "") +
         " Let us know if you have any questions — thank you!";
       await deliver(admin, {
@@ -1100,8 +1119,8 @@ export async function runGrowthOutreach(): Promise<OutreachSummary> {
         channel,
         to: eligibility.to,
         body,
-        subject: `${businessName} — estimate #${(estimate as any).number}`,
-        customerId: (estimate as any).customer_id ?? null,
+        subject: `${businessName} — estimate #${estimate.number}`,
+        customerId: estimate.customer_id ?? null,
         relatedType: "estimate_followup",
         relatedId: followup.estimate_id,
       });
@@ -1209,7 +1228,7 @@ export async function runDunning(): Promise<DunningSummary> {
       .eq("invoice_id", invoice.id)
       .in("normalized_status", COLLECTED_STATUSES);
     const collected = (paid ?? []).reduce(
-      (sum: number, row: any) =>
+      (sum: number, row) =>
         sum +
         Math.max(
           0,
@@ -1233,12 +1252,14 @@ export async function runDunning(): Promise<DunningSummary> {
     // Only a rung that actually WENT OUT (or was terminally skipped) counts as
     // sent. A rung left 'failed' must remain retryable.
     const done = (history ?? [])
-      .filter((row: any) => row.status === "sent" || row.status === "skipped")
-      .map((row: any) => row.stage);
-    const rung = nextDunningStage({ ageDays, outstandingMinor: outstanding }, done) as {
-      stage: string;
-      channel: "sms" | "email";
-    } | null;
+      .filter((row) => row.status === "sent" || row.status === "skipped")
+      .map((row) => row.stage);
+    // No cast: `nextDunningStage` returns a rung of DUNNING_LADDER, whose
+    // `stage` and `channel` are annotated in lib/core/statements.mjs with the
+    // exact values `dunning_events` allows. The `as { stage: string; ... }`
+    // that used to be here widened `stage` back to `string` and was the reason
+    // the write below could not be checked.
+    const rung = nextDunningStage({ ageDays, outstandingMinor: outstanding }, done);
     if (!rung) continue;
     summary.invoices++;
 
@@ -1251,7 +1272,7 @@ export async function runDunning(): Promise<DunningSummary> {
       continue;
     }
 
-    const existing = (history ?? []).find((row: any) => row.stage === rung.stage);
+    const existing = (history ?? []).find((row) => row.stage === rung.stage);
     let eventId: string | null = null;
     if (!existing) {
       const { data: claimed, error: claimError } = await admin
@@ -1299,7 +1320,7 @@ export async function runDunning(): Promise<DunningSummary> {
     }
     if (!eventId) continue;
 
-    const customer: any = (invoice as any).customers;
+    const customer = invoice.customers;
     const eligibility = contactEligibility(customer, rung.channel);
     if (!eligibility.ok) {
       // Consent refusal is TERMINAL and named. A customer who replied STOP must
@@ -1495,7 +1516,7 @@ export async function runScheduledReports(): Promise<ReportRunSummary> {
           .limit(2000),
       ]);
 
-      const invoiceIds = (invoices ?? []).map((row: any) => row.id);
+      const invoiceIds = (invoices ?? []).map((row) => row.id);
       const { data: items } = invoiceIds.length
         ? await admin
             .from("invoice_items")
@@ -1513,7 +1534,7 @@ export async function runScheduledReports(): Promise<ReportRunSummary> {
         invoices: invoices ?? [],
         itemsByInvoice,
         expensesMinor: (expenses ?? []).reduce(
-          (sum: number, row: any) => sum + Number(row.amount_minor ?? 0),
+          (sum: number, row) => sum + Number(row.amount_minor ?? 0),
           0,
         ),
       });
@@ -1537,7 +1558,7 @@ export async function runScheduledReports(): Promise<ReportRunSummary> {
         counts: {
           openInvoices: (open ?? []).length,
           outstandingMinor: (open ?? []).reduce(
-            (sum: number, row: any) => sum + Number(row.total_minor ?? 0),
+            (sum: number, row) => sum + Number(row.total_minor ?? 0),
             0,
           ),
           jobsCompleted: jobsCompleted ?? 0,

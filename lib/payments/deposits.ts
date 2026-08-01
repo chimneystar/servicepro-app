@@ -2,6 +2,7 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
+import type { TablesInsert } from "@/lib/supabase/database.types";
 // @ts-ignore — pure logic, proven both ways in tests/schedules.test.mjs
 import {
   planDepositSchedule,
@@ -123,27 +124,38 @@ export async function ensureEstimateSchedule(
   }
 
   const { amounts } = allocateMilestones(input.totalMinor, plan.milestones);
+  // The shape `depositMilestonePlan` produces, stated with the same literal
+  // unions the two CHECK constraints on `payment_milestones` enforce, rather
+  // than as `string`. The plan is built in lib/core/deposits.mjs from a fixed
+  // set of milestone kinds; if one of them ever names a value the table does
+  // not allow, this is where it stops rather than at the insert.
   type PlannedMilestone = {
     label: string;
-    calculation_type: string;
+    calculation_type: TablesInsert<"payment_milestones">["calculation_type"];
     amount_minor: number | null;
     percent_bps: number | null;
-    due_trigger: string;
+    due_trigger: NonNullable<TablesInsert<"payment_milestones">["due_trigger"]>;
     sort: number;
   };
-  const rows = (plan.milestones as PlannedMilestone[]).map((milestone, index: number) => ({
-    organization_id: input.organizationId,
-    schedule_id: schedule.id,
-    label: milestone.label,
-    calculation_type: milestone.calculation_type,
-    // `remaining` carries no stored amount on purpose: it is recomputed if the
-    // estimate total changes, so the schedule cannot drift from the document.
-    amount_minor: milestone.calculation_type === "remaining" ? null : amounts[index],
-    percent_bps: milestone.percent_bps,
-    due_trigger: milestone.due_trigger,
-    sort: milestone.sort,
-    status: milestone.calculation_type === "fixed" ? "due" : "pending",
-  }));
+  // Annotated, so every column below is checked against the table rather than
+  // inferred: without it a string literal like "due" widens to `string` and
+  // the CHECK constraint on `status` becomes the only thing that would notice
+  // a typo — at runtime, after the schedule row is already committed.
+  const rows: TablesInsert<"payment_milestones">[] = (plan.milestones as PlannedMilestone[]).map(
+    (milestone, index: number) => ({
+      organization_id: input.organizationId,
+      schedule_id: schedule.id,
+      label: milestone.label,
+      calculation_type: milestone.calculation_type,
+      // `remaining` carries no stored amount on purpose: it is recomputed if the
+      // estimate total changes, so the schedule cannot drift from the document.
+      amount_minor: milestone.calculation_type === "remaining" ? null : amounts[index],
+      percent_bps: milestone.percent_bps,
+      due_trigger: milestone.due_trigger,
+      sort: milestone.sort,
+      status: milestone.calculation_type === "fixed" ? "due" : "pending",
+    }),
+  );
   const { error: milestoneError } = await admin.from("payment_milestones").insert(rows);
   if (milestoneError)
     console.error("[deposits] schedule created without milestones:", milestoneError.message);

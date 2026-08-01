@@ -43,3 +43,29 @@ export function isOneOf<const T extends readonly (string | number)[]>(
 ): candidate is T[number] {
   return (values as readonly unknown[]).includes(candidate);
 }
+
+/**
+ * A `jsonb` column read as an object, or null when it is not one.
+ *
+ * A jsonb column can hold a string, a number, a list or null as legitimately as
+ * it can hold an object, so the generated types spell it `Json`. Several
+ * screens hand one straight to a component that declares
+ * `Record<string, number>` and index into it — `migration_batches.counts_json`,
+ * `booking_settings.hours_json`, `retention_runs.summary`,
+ * `release_records.regression_checklist`,
+ * `permission_change_log.changes`. Nothing on any of those paths validates the
+ * shape; the declaration was simply asserted.
+ *
+ * This does not invent a value or coerce one. Every row those screens read is
+ * written as an object by this codebase, so for real data it returns exactly
+ * what was passed; it only decides what happens to a row that is NOT an object,
+ * which previously reached the component and was indexed as if it were.
+ *
+ * The element type is the caller's claim about the values, and is still a
+ * claim — this checks the container, not what is inside it.
+ */
+export function asJsonRecord<T>(value: unknown): Record<string, T> | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, T>)
+    : null;
+}

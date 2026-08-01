@@ -59,7 +59,17 @@ test("both status actions route through the guard", () => {
 
 test("the guard checks membership, the status set, and the transition", () => {
   const src = readCode("lib/job-status.ts");
-  assert.ok(/JOB_STATUSES\.includes\(target\)/.test(src), "an arbitrary string must be refused");
+  // Two spellings of ONE test: membership of `target` in `JOB_STATUSES`.
+  // `isOneOf(...)` is that same `Array.includes` call — see lib/validation.ts —
+  // written as a TypeScript type guard so the value can then be written to
+  // `jobs.status`, which ledger 6.1 typed as the `job_status` enum. Accepting
+  // either spelling is not a loosening: both name the same array and the same
+  // variable, and deleting the guard still fails this assertion. Proven in
+  // scripts/prove-probes-red.mjs, which plants a violation here.
+  assert.ok(
+    /(?:JOB_STATUSES\.includes\(target\)|isOneOf\(\s*JOB_STATUSES,\s*target\s*\))/.test(src),
+    "an arbitrary string must be refused",
+  );
   assert.ok(/canTransition\(/.test(src), "the transition must be legal for the CURRENT status");
   assert.ok(
     /role === "tech"[\s\S]{0,120}assigned_to/.test(src),

@@ -322,6 +322,13 @@ async function recordBulk(
 }
 
 /**
+ * What `contactEligibility` answers. The two shapes are exclusive — a recipient
+ * comes back with `ok: true`, a refusal reason with `ok: false`, never a mix —
+ * which is what lets the `to_email`/`to_phone` writes below see a plain string.
+ */
+type Eligibility = { ok: true; to: string } | { ok: false; reason: string };
+
+/**
  * Email (or text) a payment link for each selected invoice.
  *
  * Consent is decided by `contactEligibility` — the single shared rule, which
@@ -379,13 +386,9 @@ export async function bulkSendInvoices(rawIds: string[]): Promise<BulkActionResu
       });
       continue;
     }
-    const eligibility = contactEligibility(customer, channel) as {
-      ok: boolean;
-      to?: string;
-      reason?: string;
-    };
+    const eligibility = contactEligibility(customer, channel) as Eligibility;
     if (!eligibility.ok) {
-      results.push({ id, label, ok: false, skipped: true, reason: eligibility.reason! });
+      results.push({ id, label, ok: false, skipped: true, reason: eligibility.reason });
       continue;
     }
 

@@ -48,12 +48,24 @@ export async function runDataRetentionForOrganization(
       .or(`expires_at.is.null,expires_at.gt.${now.toISOString()}`);
     const held = (category: string) =>
       (holds ?? []).some((row: any) => row.category === "all" || row.category === category);
-    const count = async (table: string, column: string, cutoff: string) => {
+    // Five tables, one age column each — written out rather than taken as
+    // `table: string`, which the typed client cannot check at all (`from()`
+    // needs a literal). `merchant_accounts`, a table that never existed, sat in
+    // production code for months precisely because a dynamic table name is
+    // unverifiable. Behaviour is identical; the set is the same five.
+    const AGE_COLUMN = {
+      technician_locations: "recorded_at",
+      sms_messages: "created_at",
+      email_messages: "created_at",
+      job_photos: "created_at",
+      audit_log: "at",
+    } as const;
+    const count = async (table: keyof typeof AGE_COLUMN, cutoff: string) => {
       const { count, error } = await admin
         .from(table)
         .select("*", { head: true, count: "exact" })
         .eq("organization_id", organizationId)
-        .lt(column, cutoff);
+        .lt(AGE_COLUMN[table], cutoff);
       if (error) throw error;
       return count ?? 0;
     };
@@ -62,9 +74,7 @@ export async function runDataRetentionForOrganization(
       communicationCutoff = before(settings.communication_retention_days);
     const summary: any = {
       preview: !enforce,
-      locationPoints: held("location")
-        ? 0
-        : await count("technician_locations", "recorded_at", locationCutoff),
+      locationPoints: held("location") ? 0 : await count("technician_locations", locationCutoff),
       callRecordings: 0,
       smsMessages: 0,
       emailMessages: 0,
@@ -83,16 +93,16 @@ export async function runDataRetentionForOrganization(
       summary.callRecordings = count ?? 0;
     }
     if (!held("communications")) {
-      summary.smsMessages = await count("sms_messages", "created_at", communicationCutoff);
-      summary.emailMessages = await count("email_messages", "created_at", communicationCutoff);
+      summary.smsMessages = await count("sms_messages", communicationCutoff);
+      summary.emailMessages = await count("email_messages", communicationCutoff);
     }
     if (!held("media")) {
       const mediaCutoff = before(settings.job_media_retention_days);
-      summary.mediaRowsDue = await count("job_photos", "created_at", mediaCutoff);
+      summary.mediaRowsDue = await count("job_photos", mediaCutoff);
     }
     if (!held("audit")) {
       const auditCutoff = before(settings.audit_retention_days);
-      summary.auditRowsDue = await count("audit_log", "at", auditCutoff);
+      summary.auditRowsDue = await count("audit_log", auditCutoff);
     }
     if (enforce) {
       if (!held("location"))

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { asJsonRecord } from "@/lib/validation";
 import { getLocale } from "@/lib/locale-server";
 import MigrationCenter from "@/components/MigrationCenter";
 
@@ -19,7 +20,10 @@ export default async function MigrationPage() {
   return (
     <MigrationCenter
       locale={locale}
-      batches={batches ?? []}
+      batches={(batches ?? []).map((b) => ({
+        ...b,
+        counts_json: asJsonRecord<number>(b.counts_json),
+      }))}
       canRollback={profile.role === "owner"}
     />
   );

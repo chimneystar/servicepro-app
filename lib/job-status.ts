@@ -1,6 +1,8 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
+import type { TablesUpdate } from "@/lib/supabase/database.types";
+import { isOneOf } from "@/lib/validation";
 // @ts-ignore — pure logic, unit-tested in tests/scheduling.test.mjs
 import { JOB_STATUSES, canTransition } from "@/lib/core/scheduling.mjs";
 
@@ -30,7 +32,10 @@ export type StatusChange = { ok: boolean; error?: string };
 export async function changeJobStatus(jobId: string, target: string): Promise<StatusChange> {
   const profile = await requireProfile();
 
-  if (!JOB_STATUSES.includes(target)) {
+  // Same test as before — `JOB_STATUSES.includes(target)` — but as a type
+  // guard, so `target` is a `job_status` value from here on rather than a
+  // string the compiler has to take on trust all the way to the UPDATE.
+  if (!isOneOf(JOB_STATUSES, target)) {
     return { ok: false, error: `"${target}" is not a job status.` };
   }
 
@@ -64,7 +69,10 @@ export async function changeJobStatus(jobId: string, target: string): Promise<St
     };
   }
 
-  const patch: Record<string, unknown> = { status: target };
+  // `TablesUpdate<"jobs">` rather than `Record<string, unknown>`: the bag was
+  // the reason nothing checked that `started_at` and `completed_at` are real
+  // columns of `jobs`, or that `target` is a value `job_status` allows.
+  const patch: TablesUpdate<"jobs"> = { status: target };
   if (target === "in_progress") patch.started_at = new Date().toISOString();
   if (target === "done") patch.completed_at = new Date().toISOString();
 

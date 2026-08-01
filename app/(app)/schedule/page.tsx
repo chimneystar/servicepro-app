@@ -61,7 +61,7 @@ export default async function SchedulePage({
         .order("name"),
     ]);
 
-  const calJobs: CalJob[] = (jobs ?? []).map((j: any) => ({
+  const calJobs: CalJob[] = (jobs ?? []).map((j) => ({
     id: j.id,
     title: j.customers?.name ?? "—",
     service: j.service,
@@ -75,7 +75,7 @@ export default async function SchedulePage({
   const custOpts = (customers ?? []).map((c) => ({ id: c.id, label: c.name }));
   const techOpts = (profiles ?? []).map((p) => ({ id: p.id, label: p.full_name || "—" }));
   const typeColors: Record<string, string> = Object.fromEntries(
-    (jobTypes ?? []).map((tp: any) => [tp.name, tp.color]),
+    (jobTypes ?? []).map((tp) => [tp.name, tp.color]),
   );
   const truncated: boolean = isTruncated(calJobs.length, JOB_CEILING);
 

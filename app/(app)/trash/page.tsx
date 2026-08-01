@@ -12,6 +12,9 @@ const PAGE_SIZE = 50;
 
 type Supa = Awaited<ReturnType<typeof createClient>>;
 
+/** The four tables with a trash screen — lib/core/recovery.mjs KIND_TABLE. */
+type TrashTable = "customers" | "jobs" | "estimates" | "invoices";
+
 /**
  * Trash (ledger 6a.4).
  *
@@ -298,7 +301,12 @@ function unique(values: unknown[]): string[] {
 async function deletedRows(
   supabase: Supa,
   orgId: string,
-  table: string,
+  // The four recoverable tables, from lib/core/recovery.mjs KIND_TABLE. Typed
+  // as a union rather than `string` so `.from()` is checked; `columns` stays a
+  // string because this function deliberately retries with a DIFFERENT column
+  // list when `deleted_by` is absent, which is a runtime decision no type can
+  // express. That is the one genuinely dynamic select left in the tree.
+  table: TrashTable,
   columns: string,
   from: number,
   to: number,
@@ -322,8 +330,18 @@ async function deletedRows(
   };
 }
 
-/** id -> row, for a bounded set of ids (at most one page's worth). */
-async function lookup(supabase: Supa, table: string, ids: string[], columns: string) {
+/**
+ * id -> row, for a bounded set of ids (at most one page's worth).
+ *
+ * `profiles` is here too — it is the source of the "deleted by" name — so the
+ * table union is the four recoverable tables plus it.
+ */
+async function lookup(
+  supabase: Supa,
+  table: TrashTable | "profiles",
+  ids: string[],
+  columns: string,
+) {
   const map = new Map<string, Record<string, unknown>>();
   if (!ids.length) return map;
   const { data } = await supabase.from(table).select(columns).in("id", ids);

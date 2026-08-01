@@ -295,7 +295,11 @@ export async function startHelcimCheckout(
       amount_minor: amountMinor,
       tip_minor: tipMinor,
       currency: "USD",
-      allowed_methods: [card ? "card" : null, ach ? "ach" : null].filter(Boolean),
+      // Built by pushing rather than filtering nulls: `.filter(Boolean)` does
+      // not narrow `(string | null)[]`, and `allowed_methods` is `text[] not
+      // null` whose elements a CHECK constrains to 'card' and 'ach'. Same two
+      // values, same order.
+      allowed_methods: [...(card ? ["card"] : []), ...(ach ? ["ach"] : [])],
       status: "created",
       fee_saver_requested: feeSaver,
       expires_at: expiresAt,
@@ -505,7 +509,13 @@ export async function confirmHelcimCheckout(input: {
   await Promise.all([
     admin
       .from("payment_requests")
-      .update({ status: settled ? "paid" : normalized.status })
+      // `payment_requests.status` has no 'settled' value — that word belongs to
+      // `payments.normalized_status`. Narrowing on `normalized.status` here
+      // rather than on the `settled` boolean is what lets the compiler see
+      // that only 'paid', 'processing' and 'failed' can reach the column;
+      // through the boolean it could not, and the CHECK constraint was the
+      // only thing standing between a mapping mistake and a rejected write.
+      .update({ status: normalized.status === "settled" ? "paid" : normalized.status })
       .eq("id", request.id),
     admin.from("payment_checkout_secrets").delete().eq("payment_request_id", request.id),
     admin.from("payment_events").upsert(
@@ -693,7 +703,13 @@ export async function reconcileHelcimTransaction(transactionId: string) {
   if (payment.payment_request_id) {
     await admin
       .from("payment_requests")
-      .update({ status: settled ? "paid" : normalized.status })
+      // `payment_requests.status` has no 'settled' value — that word belongs to
+      // `payments.normalized_status`. Narrowing on `normalized.status` here
+      // rather than on the `settled` boolean is what lets the compiler see
+      // that only 'paid', 'processing' and 'failed' can reach the column;
+      // through the boolean it could not, and the CHECK constraint was the
+      // only thing standing between a mapping mistake and a rejected write.
+      .update({ status: normalized.status === "settled" ? "paid" : normalized.status })
       .eq("id", payment.payment_request_id);
   }
   if (settled && payment.invoice_id) await refreshInvoicePaidState(admin, payment.invoice_id);

@@ -1,12 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, type ServerClient } from "@/lib/supabase/server";
 import { requireProfile, assertRole } from "@/lib/auth";
 // @ts-ignore — pure, unit-tested restore rules, proven both ways (tests/recovery.test.mjs)
 import {
   isRecoverableKind,
-  tableForKind,
+  KIND_TABLE,
   restoreBlockers,
   restoreFailureMessage,
   RESTORE_ROLES,
@@ -37,7 +37,7 @@ export async function restoreRecord(kind: string, id: string): Promise<RestoreRe
   let profile;
   try {
     profile = await requireProfile();
-    assertRole(profile, RESTORE_ROLES as ("owner" | "office" | "tech")[]);
+    assertRole(profile, [...RESTORE_ROLES]);
   } catch {
     return { ok: false, error: "You do not have permission to restore records." };
   }
@@ -46,27 +46,55 @@ export async function restoreRecord(kind: string, id: string): Promise<RestoreRe
     return { ok: false, error: "That kind of record cannot be restored." };
   if (!/^[0-9a-f-]{36}$/i.test(id)) return { ok: false, error: "Unknown record." };
 
-  const table = tableForKind(kind) as string;
   const supabase = await createClient();
+  const orgId = profile.organization_id;
 
   // Read the row and its parents so the refusal can name what is wrong.
-  const columns =
-    kind === "invoice"
-      ? "id, deleted_at, customer_id, job_id, estimate_id"
-      : kind === "customer"
-        ? "id, deleted_at"
-        : "id, deleted_at, customer_id";
-
-  const { data: row, error: readError } = await supabase
-    .from(table)
-    .select(columns)
-    .eq("id", id)
-    .eq("organization_id", profile.organization_id!)
-    .maybeSingle();
+  //
+  // One branch per kind. `tableForKind(kind)` still exists and is still the
+  // single source of the mapping, but a table name has to reach `.from()` as a
+  // literal before the client can check anything about the query — the columns
+  // below differ per kind, and this is the only shape in which that is
+  // verified rather than asserted.
+  const read = async () => {
+    if (kind === "invoice")
+      return await supabase
+        .from("invoices")
+        .select("id, deleted_at, customer_id, job_id, estimate_id")
+        .eq("id", id)
+        .eq("organization_id", orgId)
+        .maybeSingle();
+    if (kind === "customer")
+      return await supabase
+        .from("customers")
+        .select("id, deleted_at")
+        .eq("id", id)
+        .eq("organization_id", orgId)
+        .maybeSingle();
+    if (kind === "job")
+      return await supabase
+        .from("jobs")
+        .select("id, deleted_at, customer_id")
+        .eq("id", id)
+        .eq("organization_id", orgId)
+        .maybeSingle();
+    return await supabase
+      .from("estimates")
+      .select("id, deleted_at, customer_id")
+      .eq("id", id)
+      .eq("organization_id", orgId)
+      .maybeSingle();
+  };
+  const { data: row, error: readError } = await read();
   if (readError) return { ok: false, error: restoreFailureMessage(readError).message };
   if (!row) return { ok: false, error: "That record no longer exists." };
 
-  const record = row as unknown as Record<string, string | null>;
+  const record: {
+    deleted_at: string | null;
+    customer_id?: string | null;
+    job_id?: string | null;
+    estimate_id?: string | null;
+  } = row;
   const context: Record<string, unknown> = { deleted: record.deleted_at != null };
 
   if (kind === "customer") {
@@ -78,14 +106,13 @@ export async function restoreRecord(kind: string, id: string): Promise<RestoreRe
       .eq("status", "completed");
     context.privacyErased = (count ?? 0) > 0;
   } else {
-    context.customer = await parentState(supabase, "customers", record.customer_id, "name");
+    context.customer = await parentState(supabase, record.customer_id ?? null, "customer");
     if (kind === "invoice") {
-      if (record.job_id)
-        context.job = await parentState(supabase, "jobs", record.job_id, "service");
+      if (record.job_id) context.job = await parentState(supabase, record.job_id ?? null, "job");
       // invoices.estimate_id carries no FK (migration 024), so it is resolved
       // by explicit lookup rather than an embed that PostgREST cannot build.
       if (record.estimate_id)
-        context.estimate = await parentState(supabase, "estimates", record.estimate_id, "number");
+        context.estimate = await parentState(supabase, record.estimate_id ?? null, "estimate");
     }
   }
 
@@ -94,13 +121,15 @@ export async function restoreRecord(kind: string, id: string): Promise<RestoreRe
 
   // `.not("deleted_at", "is", null)` makes the write itself conditional: two
   // people clicking Restore at once cannot both be told it worked.
-  const { data: updated, error } = await supabase
-    .from(table)
-    .update({ deleted_at: null })
-    .eq("id", id)
-    .eq("organization_id", profile.organization_id!)
-    .not("deleted_at", "is", null)
-    .select("id");
+  const restore = (table: "customers" | "jobs" | "estimates" | "invoices") =>
+    supabase
+      .from(table)
+      .update({ deleted_at: null })
+      .eq("id", id)
+      .eq("organization_id", orgId)
+      .not("deleted_at", "is", null)
+      .select("id");
+  const { data: updated, error } = await restore(KIND_TABLE[kind]);
   if (error) return { ok: false, error: restoreFailureMessage(error).message };
   if (!updated?.length) return { ok: false, error: "That record was already restored." };
 
@@ -110,19 +139,27 @@ export async function restoreRecord(kind: string, id: string): Promise<RestoreRe
 
 /** deleted_at + a human label for one parent row, or null when it is gone. */
 async function parentState(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  table: string,
+  supabase: ServerClient,
   parentId: string | null,
-  labelColumn: string,
+  parent: "customer" | "job" | "estimate",
 ): Promise<{ deleted: boolean; name: string | null } | null> {
   if (!parentId) return null;
-  const { data } = await supabase
-    .from(table)
-    .select(`deleted_at, ${labelColumn}`)
-    .eq("id", parentId)
-    .maybeSingle();
-  if (!data) return null;
-  const parent = data as unknown as Record<string, unknown>;
-  const label = parent[labelColumn];
-  return { deleted: parent.deleted_at != null, name: label == null ? null : String(label) };
+  // The label column differs per parent (`name`, `service`, `number`), which is
+  // why this used to interpolate a column name into the select string. A
+  // literal per branch is the only form the typed client can check, and the
+  // three queries it produces are the three it produced before.
+  const row =
+    parent === "customer"
+      ? await supabase.from("customers").select("deleted_at, name").eq("id", parentId).maybeSingle()
+      : parent === "job"
+        ? await supabase.from("jobs").select("deleted_at, service").eq("id", parentId).maybeSingle()
+        : await supabase
+            .from("estimates")
+            .select("deleted_at, number")
+            .eq("id", parentId)
+            .maybeSingle();
+  if (!row.data) return null;
+  const label =
+    "name" in row.data ? row.data.name : "service" in row.data ? row.data.service : row.data.number;
+  return { deleted: row.data.deleted_at != null, name: label == null ? null : String(label) };
 }

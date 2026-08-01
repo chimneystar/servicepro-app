@@ -50,7 +50,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
     .select("title, description, qty_milli, unit_price_minor, taxable, image_path")
     .eq("invoice_id", id)
     .order("sort");
-  const items: ViewItem[] = (rows ?? []).map((r: any) => ({
+  const items: ViewItem[] = (rows ?? []).map((r) => ({
     title: r.title,
     description: r.description,
     qty_milli: r.qty_milli,
@@ -81,7 +81,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   //   2. Refunds were never subtracted.
   // It also now credits a deposit paid against the originating estimate, matching
   // openBalance() in lib/payments/server.ts. See db/024_deposit_credit.sql.
-  const SETTLED = ["settled", "partially_refunded"];
+  const SETTLED = ["settled", "partially_refunded"] as const;
   let paymentQuery = supabase
     .from("payments")
     .select(
@@ -95,7 +95,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   const { data: pays } = await paymentQuery;
 
   const paid = (pays ?? []).reduce(
-    (s: number, p: any) =>
+    (s: number, p) =>
       s +
       Math.max(
         0,
@@ -113,7 +113,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   const balance = Math.max(0, billed - paid);
   const lockState = documentLock("invoice", { ...inv, collected_minor: paid });
   const editable = await assertDocumentEditable("invoice", inv, locale);
-  const c: any = inv.customers;
+  const c = inv.customers;
   const accent = org?.accent_color || "#2563eb";
   const cur = org?.currency ?? "USD";
 

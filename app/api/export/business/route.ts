@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createUntypedClient } from "@/lib/supabase/server";
 import { pageThrough } from "@/lib/export";
 // @ts-ignore — pure, unit-tested manifest and redaction (tests/business-export.test.mjs)
 import {
@@ -94,6 +94,14 @@ export async function GET(_request: NextRequest) {
         write(`"organizationId": ${JSON.stringify(orgId)},\n`);
         write('"tables": {\n');
 
+        // The one place in this codebase that reads a table name from data
+        // rather than writing it as a literal, so the one place that uses the
+        // deliberately untyped client. See createUntypedClient for why, and
+        // what protects this route instead: RLS, the explicit org filter on
+        // every query, and tests/business-export.test.mjs checking the
+        // manifest against db/*.sql.
+        const everyTable = await createUntypedClient();
+
         let firstTable = true;
         for (const entry of EXPORT_TABLES as { table: string; orgKey: string; order: string }[]) {
           if (!firstTable) write(",\n");
@@ -103,7 +111,7 @@ export async function GET(_request: NextRequest) {
           let count = 0;
           try {
             const pages = pageThrough<Record<string, unknown>>((from, to) =>
-              supabase
+              everyTable
                 .from(entry.table)
                 .select("*")
                 .eq(entry.orgKey, orgId)

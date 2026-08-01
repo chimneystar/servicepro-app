@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile, assertRole } from "@/lib/auth";
 import { getLocale } from "@/lib/locale-server";
+import { isOneOf } from "@/lib/validation";
 // @ts-ignore — pure, unit-tested in tests/custom-fields.test.mjs
 import {
   ENTITY_TYPES,
@@ -152,7 +153,7 @@ export async function saveCustomFieldValues(
 
   const entityType = String(formData.get("entityType") ?? "");
   const entityId = String(formData.get("entityId") ?? "");
-  if (!ENTITY_TYPES.includes(entityType) || !entityId) return { ok: false, error: failed(he) };
+  if (!isOneOf(ENTITY_TYPES, entityType) || !entityId) return { ok: false, error: failed(he) };
 
   const supabase = await createClient();
   const table = entityType === "customer" ? "customers" : "jobs";
@@ -189,7 +190,7 @@ export async function saveCustomFieldValues(
   const now = new Date().toISOString();
   if (writes.length) {
     const { error } = await supabase.from("custom_field_values").upsert(
-      writes.map((write: { definitionId: string; value: unknown }) => ({
+      writes.map((write) => ({
         organization_id: profile!.organization_id,
         definition_id: write.definitionId,
         entity_type: entityType,

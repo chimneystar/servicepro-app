@@ -5,6 +5,7 @@ import { requireProfile, assertRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getLocale } from "@/lib/locale-server";
 import { t } from "@/lib/i18n";
+import { isOneOf } from "@/lib/validation";
 import {
   createDocument,
   updateDocument,
@@ -93,7 +94,7 @@ export async function setEstimateStatus(id: string, status: string): Promise<Act
   } catch {
     return { ok: false, error: t(locale, "err.forbidden") };
   }
-  if (!["draft", "sent", "approved", "rejected"].includes(status))
+  if (!isOneOf(["draft", "sent", "approved", "rejected"], status))
     return { ok: false, error: "invalid" };
   const supabase = await createClient();
 

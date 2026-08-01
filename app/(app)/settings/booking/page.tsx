@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { asJsonRecord } from "@/lib/validation";
 import { getLocale } from "@/lib/locale-server";
 import BookingSettingsForm from "./BookingSettingsForm";
 import { serviceAreaEnforcementGaps, type ServiceArea } from "@/lib/booking";
@@ -45,10 +46,23 @@ export default async function BookingSettingsPage() {
     <BookingSettingsForm
       locale={locale}
       orgId={profile.organization_id!}
-      settings={settings ?? {}}
+      // `hours_json` and `options_json` are jsonb columns, so the generated
+      // type is `Json`. The form indexes into both, so the shape is checked
+      // here rather than asserted inside the component.
+      settings={
+        settings
+          ? {
+              ...settings,
+              hours_json: asJsonRecord<[string, string] | null>(settings.hours_json) ?? undefined,
+            }
+          : {}
+      }
       services={services ?? []}
       jobTypes={jobTypes ?? []}
-      questions={questions ?? []}
+      questions={(questions ?? []).map((q) => ({
+        ...q,
+        options_json: Array.isArray(q.options_json) ? q.options_json.map(String) : undefined,
+      }))}
       hasServiceAreas={(areas ?? []).length > 0}
       areaEnforcement={areaEnforcement}
     />

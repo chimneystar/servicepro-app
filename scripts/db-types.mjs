@@ -236,6 +236,7 @@ async function readCatalogue(db) {
            p.proretset as returns_set,
            p.pronargs as nargs,
            p.pronargdefaults as ndefaults,
+           p.proisstrict as strict,
            coalesce(p.proallargtypes::int[], p.proargtypes::int[]) as argtypes,
            p.proargmodes::text[] as argmodes,
            p.proargnames::text[] as argnames,
@@ -531,13 +532,26 @@ export async function buildTypes() {
       // `rpc("login_throttle_counts", { p_email })` compile — it is a real
       // call site, and the CLI's generator gets this wrong.
       const firstOptional = inArgs.length - (f.ndefaults ?? 0);
+      // NULL is allowed for every argument of a non-STRICT function. Postgres
+      // has no NOT NULL on a parameter, so a type that refused null would be a
+      // claim about the world rather than a reading of it — and a wrong one
+      // here: `stamp_permission_change_context` has no defaults at all and its
+      // body is `subject_profile_id is not distinct from p_subject`,
+      // `coalesce(p_user_agent,'')`, `coalesce(p_since, …)`. It is written to
+      // take nulls, and its callers pass them.
+      //
+      // A STRICT function is the exception worth expressing, because there a
+      // null argument means the body never runs and the call returns null. No
+      // function in this schema is STRICT today.
+      const nullSuffix = f.strict ? "" : " | null";
       argShapes.push(
         inArgs.length === 0
           ? "Record<PropertyKey, never>"
           : `{ ${inArgs
               .map(
                 (a, idx) =>
-                  `${key(a.argName)}${idx >= firstOptional ? "?" : ""}: ${tsTypeFor(a.oid)}`,
+                  `${key(a.argName)}${idx >= firstOptional ? "?" : ""}: ` +
+                  `${tsTypeFor(a.oid)}${nullSuffix}`,
               )
               .join("; ")} }`,
       );
@@ -567,7 +581,7 @@ export async function buildTypes() {
 
   // --- convenience aliases, so call sites do not spell the path out --------
   out.push(
-    "/** A row as it comes back from a plain `select()` — e.g. `Tables<\"invoices\">`. */",
+    '/** A row as it comes back from a plain `select()` — e.g. `Tables<"invoices">`. */',
     'export type Tables<T extends keyof Database["public"]["Tables"]> =',
     '  Database["public"]["Tables"][T]["Row"];',
     "",

@@ -8311,28 +8311,28 @@ export type Database = {
     Views: {};
     Functions: {
       accept_invitation: {
-        Args: Record<PropertyKey, never> | { invite_token: string };
+        Args: Record<PropertyKey, never> | { invite_token: string | null };
         Returns: string;
       };
       allocate_document_number: {
-        Args: { p_org: string; p_kind: string };
+        Args: { p_org: string | null; p_kind: string | null };
         Returns: number;
       };
       approve_document: {
-        Args: { p_token: string; p_name: string; p_sig: string };
+        Args: { p_token: string | null; p_name: string | null; p_sig: string | null };
         Returns: boolean;
       };
       approve_document_with_evidence: {
         Args: {
-          p_token: string;
-          p_name: string;
-          p_sig: string;
-          p_ip?: string;
-          p_ip_source?: string;
-          p_ip_trusted?: boolean;
-          p_user_agent?: string;
-          p_device?: string;
-          p_sig_sha256?: string;
+          p_token: string | null;
+          p_name: string | null;
+          p_sig: string | null;
+          p_ip?: string | null;
+          p_ip_source?: string | null;
+          p_ip_trusted?: boolean | null;
+          p_user_agent?: string | null;
+          p_device?: string | null;
+          p_sig_sha256?: string | null;
         };
         Returns: Json;
       };
@@ -8341,11 +8341,11 @@ export type Database = {
         Returns: boolean;
       };
       create_org_and_owner: {
-        Args: { org_name: string; owner_name: string };
+        Args: { org_name: string | null; owner_name: string | null };
         Returns: string;
       };
       crew_double_booked: {
-        Args: { p_job_id: string; p_profile_id: string };
+        Args: { p_job_id: string | null; p_profile_id: string | null };
         Returns: boolean;
       };
       current_org_id: {
@@ -8353,7 +8353,7 @@ export type Database = {
         Returns: string;
       };
       current_user_can: {
-        Args: { p_capability: string };
+        Args: { p_capability: string | null };
         Returns: boolean;
       };
       current_user_role: {
@@ -8362,29 +8362,33 @@ export type Database = {
       };
       document_lock_code: {
         Args: {
-          p_kind: string;
-          p_status: string;
-          p_signed_at: string;
-          p_sent_at: string;
-          p_paid_at: string;
-          p_voided_at: string;
+          p_kind: string | null;
+          p_status: string | null;
+          p_signed_at: string | null;
+          p_sent_at: string | null;
+          p_paid_at: string | null;
+          p_voided_at: string | null;
         };
         Returns: string;
       };
       document_tax_context: {
-        Args: { p_customer: string };
+        Args: { p_customer: string | null };
         Returns: Json;
       };
       job_labour_cost: {
-        Args: { p_job: string };
+        Args: { p_job: string | null };
         Returns: Json;
       };
       login_throttle_counts: {
-        Args: { p_email: string; p_network?: string; p_window_minutes?: number };
+        Args: {
+          p_email: string | null;
+          p_network?: string | null;
+          p_window_minutes?: number | null;
+        };
         Returns: Json;
       };
       next_document_number: {
-        Args: { p_org: string; p_kind: string };
+        Args: { p_org: string | null; p_kind: string | null };
         Returns: number;
       };
       pending_invitation_hint: {
@@ -8392,120 +8396,130 @@ export type Database = {
         Returns: { organization_name: string; invited_email: string; expires_at: string }[];
       };
       public_appointment: {
-        Args: { p_token: string };
+        Args: { p_token: string | null };
         Returns: Json;
       };
       public_booking_info: {
-        Args: { p_org: string };
+        Args: { p_org: string | null };
         Returns: Json;
       };
       public_booking_info_v2: {
-        Args: { p_org: string };
+        Args: { p_org: string | null };
         Returns: Json;
       };
       public_customer_portal: {
-        Args: { p_token: string };
+        Args: { p_token: string | null };
         Returns: Json;
       };
       public_document: {
-        Args: { p_token: string };
+        Args: { p_token: string | null };
         Returns: Json;
       };
       public_document_correction: {
-        Args: { p_token: string };
+        Args: { p_token: string | null };
         Returns: Json;
       };
       public_payment_options: {
-        Args: { p_token: string };
+        Args: { p_token: string | null };
         Returns: Json;
       };
       public_tip_options: {
-        Args: { p_token: string };
+        Args: { p_token: string | null };
         Returns: Json;
       };
       receive_purchase_order_line: {
-        Args: { p_line: string; p_qty_milli: number };
+        Args: { p_line: string | null; p_qty_milli: number | null };
         Returns: { line_received_qty_milli: number; po_status: string }[];
       };
       record_login_attempt: {
         Args: {
-          p_email: string;
-          p_success: boolean;
-          p_reason?: string;
-          p_ip?: string;
-          p_ip_source?: string;
-          p_ip_trusted?: boolean;
-          p_network?: string;
-          p_user_agent?: string;
-          p_device?: string;
+          p_email: string | null;
+          p_success: boolean | null;
+          p_reason?: string | null;
+          p_ip?: string | null;
+          p_ip_source?: string | null;
+          p_ip_trusted?: boolean | null;
+          p_network?: string | null;
+          p_user_agent?: string | null;
+          p_device?: string | null;
         };
         Returns: number;
       };
       release_document_number: {
-        Args: { p_org: string; p_kind: string; p_number: number };
+        Args: { p_org: string | null; p_kind: string | null; p_number: number | null };
         Returns: boolean;
       };
       repair_booking_service_names: {
-        Args: { p_org?: string };
+        Args: { p_org?: string | null };
         Returns: number;
       };
       resolve_booking_service_names: {
-        Args: { p_name: string; p_name_en: string; p_name_he: string; p_pack_item_key: string };
+        Args: {
+          p_name: string | null;
+          p_name_en: string | null;
+          p_name_he: string | null;
+          p_pack_item_key: string | null;
+        };
         Returns: { resolved_en: string; resolved_he: string }[];
       };
       respond_to_appointment: {
-        Args: { p_token: string; p_response: string; p_note?: string };
+        Args: { p_token: string | null; p_response: string | null; p_note?: string | null };
         Returns: Json;
       };
       rotate_customer_portal_token: {
-        Args: { p_customer: string };
+        Args: { p_customer: string | null };
         Returns: string;
       };
       safe_inet: {
-        Args: { p_value: string };
+        Args: { p_value: string | null };
         Returns: string;
       };
       schedule_warranty_callback: {
         Args: {
-          p_callback_id: string;
-          p_date: string;
-          p_start?: string;
-          p_end?: string;
-          p_assigned_to?: string;
+          p_callback_id: string | null;
+          p_date: string | null;
+          p_start?: string | null;
+          p_end?: string | null;
+          p_assigned_to?: string | null;
         };
         Returns: string;
       };
       select_estimate_option: {
-        Args: { p_token: string; p_option: string; p_by?: string };
+        Args: { p_token: string | null; p_option: string | null; p_by?: string | null };
         Returns: Json;
       };
       stamp_permission_change_context: {
-        Args: { p_subject: string; p_since: string; p_ip: string; p_user_agent: string };
+        Args: {
+          p_subject: string | null;
+          p_since: string | null;
+          p_ip: string | null;
+          p_user_agent: string | null;
+        };
         Returns: number;
       };
       submit_booking: {
         Args: {
-          p_org: string;
-          p_name: string;
-          p_phone: string;
-          p_email: string;
-          p_address: string;
-          p_city: string;
-          p_service: string;
-          p_notes: string;
-          p_date: string;
+          p_org: string | null;
+          p_name: string | null;
+          p_phone: string | null;
+          p_email: string | null;
+          p_address: string | null;
+          p_city: string | null;
+          p_service: string | null;
+          p_notes: string | null;
+          p_date: string | null;
         };
         Returns: boolean;
       };
       submit_customer_portal_request: {
         Args: {
-          p_token: string;
-          p_type: string;
-          p_job?: string;
-          p_date?: string;
-          p_message?: string;
-          p_email_opt_in?: boolean;
-          p_sms_opt_in?: boolean;
+          p_token: string | null;
+          p_type: string | null;
+          p_job?: string | null;
+          p_date?: string | null;
+          p_message?: string | null;
+          p_email_opt_in?: boolean | null;
+          p_sms_opt_in?: boolean | null;
         };
         Returns: boolean;
       };

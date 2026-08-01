@@ -1,5 +1,6 @@
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import type { Tables } from "@/lib/supabase/database.types";
 import { getLocale } from "@/lib/locale-server";
 import { money, fmtDate } from "@/lib/format";
 import Link from "next/link";
@@ -57,7 +58,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   ]);
   const cur = org?.currency ?? "USD";
   const stages = (stageRows ?? []) as { name: string; color: string }[];
-  const stageColor = stages.find((s) => s.name === (job as any)?.stage)?.color ?? "#2563eb";
+  const stageColor = stages.find((s) => s.name === job?.stage)?.color ?? "#2563eb";
 
   if (!job)
     return (
@@ -156,14 +157,16 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const invList = invoices ?? [];
   const invIds = invList.map((i) => i.id);
   let paidByInvoice: Record<string, number> = {};
-  let paysByInvoice: Record<string, any[]> = {};
+  /** The payment columns this page renders, per invoice. */
+  type PaymentLine = Pick<Tables<"payments">, "amount_minor" | "method" | "reference" | "paid_at">;
+  let paysByInvoice: Record<string, PaymentLine[]> = {};
   if (invIds.length) {
     const { data: pays } = await supabase
       .from("payments")
       .select("invoice_id, amount_minor, method, reference, paid_at")
       .in("invoice_id", invIds)
       .order("paid_at");
-    (pays ?? []).forEach((p: any) => {
+    (pays ?? []).forEach((p) => {
       if (!p.invoice_id) return;
       paidByInvoice[p.invoice_id] = (paidByInvoice[p.invoice_id] ?? 0) + p.amount_minor;
       (paysByInvoice[p.invoice_id] ??= []).push({
@@ -201,13 +204,13 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   // eslint-disable-next-line react-hooks/purity
   const nowMs = Date.now();
   const totalMinutes = Math.round(
-    (timeEntries ?? []).reduce((s: number, e: any) => {
+    (timeEntries ?? []).reduce((s: number, e) => {
       const st = new Date(e.started_at).getTime();
       const en = e.ended_at ? new Date(e.ended_at).getTime() : nowMs;
       return s + Math.max(0, en - st);
     }, 0) / 60000,
   );
-  const clockedIn = (timeEntries ?? []).some((e: any) => e.user_id === profile.id && !e.ended_at);
+  const clockedIn = (timeEntries ?? []).some((e) => e.user_id === profile.id && !e.ended_at);
 
   // 6c.2 — job costing including labour, and 6c.8 — the customer's appointment
   // link. Both are management information, so they are loaded only for
@@ -232,15 +235,21 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         .is("revoked_at", null)
         .maybeSingle(),
     ]);
-    if (labourRow) {
-      const row: any = labourRow;
+    // `job_labour_cost` returns jsonb, so it arrives as `Json` — which may be
+    // a scalar or an array as well as an object. Narrowing to an object is the
+    // shape the reads below actually need; `as any` asserted it instead.
+    const row =
+      labourRow !== null && typeof labourRow === "object" && !Array.isArray(labourRow)
+        ? labourRow
+        : null;
+    if (row) {
       labourFigures = {
         minutes: Number(row.minutes ?? 0),
         costMinor: Number(row.cost_minor ?? 0),
         unpriced: Number(row.unpriced_technicians ?? 0),
         openEntries: Number(row.open_entries ?? 0),
         available: true,
-        costedAt: (job as any).labour_costed_at ?? null,
+        costedAt: job.labour_costed_at ?? null,
       };
     }
     if (tokenRow)
@@ -265,8 +274,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
     0,
   );
 
-  const c: any = job.customers;
-  const techName = (job as any).profiles?.full_name;
+  const c = job.customers;
+  const techName = job.profiles?.full_name;
   const custOpt = [{ id: job.customer_id, label: c?.name ?? (he ? "לקוח" : "Customer") }];
   const serviceAddr = [job.job_address || c?.address, job.job_city || c?.city]
     .filter(Boolean)
@@ -363,7 +372,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
       >
         <JobActions
           jobId={job.id}
-          stage={(job as any).stage ?? "Scheduled"}
+          stage={job.stage ?? "Scheduled"}
           stages={stages}
           canInvoice={canEdit}
         />
@@ -372,16 +381,16 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         <JobAppointment
           locale={locale}
           jobId={job.id}
-          confirmation={(job as any).customer_confirmation_status ?? "pending"}
-          confirmedAt={(job as any).customer_confirmed_at ?? null}
-          declinedAt={(job as any).customer_declined_at ?? null}
-          note={(job as any).customer_confirmation_note ?? null}
+          confirmation={job.customer_confirmation_status ?? "pending"}
+          confirmedAt={job.customer_confirmed_at ?? null}
+          declinedAt={job.customer_declined_at ?? null}
+          note={job.customer_confirmation_note ?? null}
           link={appointmentLink}
-          arrivedAt={(job as any).arrived_at ?? null}
+          arrivedAt={job.arrived_at ?? null}
           onMyWayAt={job.on_my_way_at}
         />
       )}
-      {((job as any).required_skills ?? []).length > 0 && (
+      {(job.required_skills ?? []).length > 0 && (
         <div
           style={{
             background: "#e0ebff",
@@ -393,7 +402,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           }}
         >
           <b>{he ? "הסמכות נדרשות" : "Certifications required"}:</b>{" "}
-          {((job as any).required_skills as string[]).join(", ")}
+          {(job.required_skills as string[]).join(", ")}
         </div>
       )}
       {canEdit && (
@@ -403,12 +412,12 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           jobId={job.id}
           revenueMinor={jobRevenueMinor}
           materialsMinor={jobMaterialsMinor}
-          expensesMinor={(job as any).job_expenses_minor ?? 0}
+          expensesMinor={job.job_expenses_minor ?? 0}
           labour={labourFigures}
         />
       )}
-      {canEdit && <JobTagsEditor jobId={job.id} tags={(job as any).tags ?? []} />}
-      {canEdit && <JobExpensesField jobId={job.id} value={(job as any).job_expenses_minor ?? 0} />}
+      {canEdit && <JobTagsEditor jobId={job.id} tags={job.tags ?? []} />}
+      {canEdit && <JobExpensesField jobId={job.id} value={job.job_expenses_minor ?? 0} />}
       {job.completed_at && canEdit && <ReviewButton jobId={job.id} />}
       <a
         href={`/jobs/${job.id}/report`}
@@ -452,7 +461,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         </div>
       )}
       <div className="rlist">
-        {(estimates ?? []).map((d: any) => (
+        {(estimates ?? []).map((d) => (
           <DocRow key={d.id} kind={he ? "הצעת מחיר" : "Estimate"} d={d} cur={cur} he={he} />
         ))}
         {(estimates ?? []).length === 0 && (
@@ -479,7 +488,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
         </div>
       )}
       <div className="rlist">
-        {invList.map((d: any) => (
+        {invList.map((d) => (
           <DocRow key={d.id} kind={he ? "חשבונית" : "Invoice"} d={d} cur={cur} he={he} />
         ))}
         {invList.length === 0 && (
@@ -531,7 +540,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
     />
   );
 
-  const openTasks = (tasks ?? []).filter((t: any) => !t.done).length;
+  const openTasks = (tasks ?? []).filter((t) => !t.done).length;
 
   return (
     <div style={{ maxWidth: 860 }}>
@@ -549,13 +558,13 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
       >
         <h1 className="sp-heading sp-heading--lg">{job.service}</h1>
         <span className="pill" style={{ background: stageColor + "22", color: stageColor }}>
-          {(job as any).stage ?? "Scheduled"}
+          {job.stage ?? "Scheduled"}
         </span>
       </div>
       <p style={{ color: "#5c6675", marginBottom: 6 }}>{c?.name ?? "—"}</p>
-      {((job as any).tags ?? []).length > 0 && (
+      {(job.tags ?? []).length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>
-          {((job as any).tags as string[]).map((t) => (
+          {(job.tags as string[]).map((t) => (
             <span key={t} className="pill" style={{ background: "#eef2f8", color: "#5c6675" }}>
               {t}
             </span>
@@ -628,7 +637,30 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   );
 }
 
-function DocRow({ kind, d, cur, he }: { kind: string; d: any; cur: string; he: boolean }) {
+/**
+ * One estimate or invoice, as a link to the customer's public copy.
+ *
+ * `d` used to be `any`. Estimates and invoices are different tables with
+ * different status enums, so the shared shape is spelled out: exactly the four
+ * columns this component reads, and a `status` wide enough for both.
+ */
+function DocRow({
+  kind,
+  d,
+  cur,
+  he,
+}: {
+  kind: string;
+  d: {
+    id: string;
+    number: number;
+    public_token: string | null;
+    total_minor: number;
+    status: Tables<"estimates">["status"] | Tables<"invoices">["status"];
+  };
+  cur: string;
+  he: boolean;
+}) {
   const colors: Record<string, string> = {
     draft: "#eef1f6|#57606f",
     sent: "#e0ebff|#2563eb",

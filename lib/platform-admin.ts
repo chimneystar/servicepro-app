@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { Json } from "@/lib/supabase/database.types";
 // @ts-ignore -- pure rules, proven both ways in tests/support-access.test.mjs
 import { selectGrantingSession, supportAccessMessage } from "@/lib/core/support-access.mjs";
 
@@ -122,7 +123,9 @@ export async function recordSupportAccess(input: {
   organizationId: string;
   action: string;
   verdict: SupportAccessVerdict;
-  details?: Record<string, unknown>;
+  // `Json`, not `Record<string, unknown>`: the column is jsonb, and an
+  // arbitrary `unknown` value is not something PostgREST can serialise.
+  details?: Json;
 }): Promise<void> {
   try {
     const admin = createAdminClient();
@@ -151,7 +154,7 @@ export async function authorizeSupportAccess(input: {
   action: string;
   requiredLevel?: SupportAccessLevel;
   locale?: "en" | "he";
-  details?: Record<string, unknown>;
+  details?: Json;
 }): Promise<SupportAccessVerdict> {
   const verdict = await getSupportAccess(input);
   await recordSupportAccess({

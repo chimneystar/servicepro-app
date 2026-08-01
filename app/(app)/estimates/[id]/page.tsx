@@ -51,7 +51,7 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
     .select("title, description, qty_milli, unit_price_minor, taxable, image_path")
     .eq("estimate_id", id)
     .order("sort");
-  const items: ViewItem[] = (rows ?? []).map((r: any) => ({
+  const items: ViewItem[] = (rows ?? []).map((r) => ({
     title: r.title,
     description: r.description,
     qty_milli: r.qty_milli,
@@ -70,7 +70,7 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
     discountMinor: est.discount_minor,
     taxRateBps: est.tax_rate_bps,
   });
-  const c: any = est.customers;
+  const c = est.customers;
   const accent = org?.accent_color || "#2563eb";
   const cur = org?.currency ?? "USD";
   // A paid deposit is money collected against the estimate, and it is why an
@@ -188,8 +188,8 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
           estimateId={est.id}
           options={(optionRows ?? []) as OptionRow[]}
           items={optionItems as OptionItemRow[]}
-          selectedOptionId={(est as any).selected_option_id ?? null}
-          signed={!!(est as any).signed_at}
+          selectedOptionId={est.selected_option_id ?? null}
+          signed={!!est.signed_at}
           discountMinor={est.discount_minor ?? 0}
           taxRateBps={est.tax_rate_bps ?? 0}
           estimateDeposit={est.deposit_minor ?? 0}

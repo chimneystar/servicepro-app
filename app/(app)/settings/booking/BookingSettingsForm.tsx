@@ -54,7 +54,10 @@ const US_TIMEZONES = [
   ["UTC", "UTC"],
 ];
 type Service = {
-  job_type_id: string;
+  // Nullable in `booking_services`, so nullable here. It was declared `string`,
+  // which meant a service row with no job type arrived as null wearing a string
+  // type and `String(row.job_type_id)` rendered it as the text "null".
+  job_type_id: string | null;
   name_en: string;
   name_he?: string | null;
   description_en?: string | null;
@@ -78,6 +81,8 @@ type Question = {
   label_en: string;
   label_he?: string | null;
   field_type: "text" | "textarea" | "choice" | "checkbox";
+  // `options_json` is jsonb. The page narrows it to a string list before it
+  // gets here; anything else arrives as undefined rather than being indexed.
   options_json?: string[];
   required: boolean;
   active: boolean;

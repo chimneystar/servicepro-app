@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile, assertRole } from "@/lib/auth";
+import { isOneOf } from "@/lib/validation";
 
 export type ActionResult = { ok: boolean; error?: string };
 
@@ -22,7 +23,7 @@ export async function saveMessageTemplate(
   }
 
   const trigger = String(formData.get("trigger") ?? "");
-  if (!TRIGGERS.includes(trigger as any)) return { ok: false, error: "Invalid trigger" };
+  if (!isOneOf(TRIGGERS, trigger)) return { ok: false, error: "Invalid trigger" };
   const enabled = String(formData.get("enabled") ?? "") === "on";
   const body = String(formData.get("body") ?? "").trim();
 

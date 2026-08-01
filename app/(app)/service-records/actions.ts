@@ -5,6 +5,8 @@ import { requireProfile, assertRole } from "@/lib/auth";
 import { getLocale } from "@/lib/locale-server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { TablesUpdate } from "@/lib/supabase/database.types";
+import { isOneOf } from "@/lib/validation";
 // @ts-ignore - shared pure JavaScript is also exercised directly by Node tests.
 import { callNeedsFollowUp, normalizeUsPhone, phoneSearchSuffix } from "@/lib/core/calls.mjs";
 
@@ -75,7 +77,7 @@ export async function completeJobAction(
     .maybeSingle();
   if (!action || action.organization_id !== profile.organization_id)
     return { ok: false, error: invalid(he) };
-  const patch = {
+  const patch: TablesUpdate<"job_actions"> = {
     status: "done",
     completed_by: profile.id,
     completed_at: new Date().toISOString(),
@@ -115,10 +117,9 @@ export async function saveJobWarranty(jobId: string, data: FormData): Promise<Se
   const expiresOn = value(data, "expiresOn", 10) || null;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(startsOn) || (expiresOn && expiresOn < startsOn))
     return { ok: false, error: invalid(he) };
-  const coverageType = ["workmanship", "manufacturer", "custom"].includes(
-    value(data, "coverageType", 30),
-  )
-    ? value(data, "coverageType", 30)
+  const coverageInput = value(data, "coverageType", 30);
+  const coverageType = isOneOf(["workmanship", "manufacturer", "custom"], coverageInput)
+    ? coverageInput
     : "workmanship";
   const { error } = await supabase.from("job_warranties").upsert(
     {
@@ -165,13 +166,14 @@ export async function reportWarrantyCallback(
     .select("id")
     .eq("job_id", jobId)
     .maybeSingle();
-  const priority = ["low", "normal", "urgent"].includes(value(data, "priority", 20))
-    ? value(data, "priority", 20)
-    : "normal";
-  const responsibility = ["review", "covered", "customer", "manufacturer", "third_party"].includes(
-    value(data, "responsibility", 30),
+  const priorityInput = value(data, "priority", 20);
+  const priority = isOneOf(["low", "normal", "urgent"], priorityInput) ? priorityInput : "normal";
+  const responsibilityInput = value(data, "responsibility", 30);
+  const responsibility = isOneOf(
+    ["review", "covered", "customer", "manufacturer", "third_party"],
+    responsibilityInput,
   )
-    ? value(data, "responsibility", 30)
+    ? responsibilityInput
     : "review";
   const { error } = await supabase.from("warranty_callbacks").insert({
     organization_id: profile.organization_id,
@@ -284,7 +286,7 @@ export async function logCall(data: FormData): Promise<ServiceRecordResult> {
         : "Enter a valid United States phone number.",
     };
   const statusInput = value(data, "status", 30);
-  const status = ["completed", "missed", "failed", "voicemail"].includes(statusInput)
+  const status = isOneOf(["completed", "missed", "failed", "voicemail"], statusInput)
     ? statusInput
     : "completed";
   const duration = Math.max(0, Math.round(Number(data.get("durationSeconds") ?? 0)));

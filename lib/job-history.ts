@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import type { Locale } from "@/lib/i18n";
+import type { Json } from "@/lib/supabase/database.types";
 // @ts-ignore - shared pure JavaScript is also exercised directly by Node tests.
 import { formatUsPhone } from "@/lib/core/calls.mjs";
 
@@ -45,11 +46,19 @@ const ignored = new Set([
   "sample_batch_id",
 ]);
 
-function changedFields(
-  oldData: Record<string, unknown> | null,
-  newData: Record<string, unknown> | null,
-  locale: Locale,
-) {
+/**
+ * `audit_log.old_data` / `.new_data` are jsonb, so they arrive as `Json` —
+ * which may be a scalar or an array as well as an object. Taking `Json` and
+ * narrowing here rather than declaring `Record<string, unknown>` is the honest
+ * shape: a hand-written audit row containing a bare string or a list is legal
+ * in the column, and the old signature simply asserted it could not happen.
+ */
+const asObject = (value: Json | null): Record<string, Json | undefined> | null =>
+  value !== null && typeof value === "object" && !Array.isArray(value) ? value : null;
+
+function changedFields(rawOld: Json | null, rawNew: Json | null, locale: Locale) {
+  const oldData = asObject(rawOld);
+  const newData = asObject(rawNew);
   if (!newData) return [];
   return Object.keys(newData)
     .filter(

@@ -54,8 +54,8 @@ export default async function InvoicesPage({
   // nothing — counting it here would keep a withdrawn invoice in the
   // receivables for ever. A credit note reduces what is still owed without
   // touching the invoice, so it is netted off the same way.
-  const live = all.filter((i: any) => !i.voided_at);
-  const billed = (i: any) =>
+  const live = all.filter((i) => !i.voided_at);
+  const billed = (i: (typeof all)[number]) =>
     Math.max(0, Number(i.total_minor ?? 0) - Number(i.credited_minor ?? 0));
   const outstanding = live.filter((i) => i.status === "unpaid").reduce((s, i) => s + billed(i), 0);
   const collected = live.filter((i) => i.status === "paid").reduce((s, i) => s + billed(i), 0);
@@ -153,7 +153,7 @@ export default async function InvoicesPage({
           own guard, so a technician is not shown buttons that would be refused. */}
       {profile.role !== "tech" && shown.length > 0 && (
         <InvoiceBulkBar
-          rows={shown.map((i: any) => ({
+          rows={shown.map((i) => ({
             id: i.id,
             label: `#${i.number} · ${i.customers?.name ?? "—"}`,
           }))}
@@ -161,7 +161,7 @@ export default async function InvoicesPage({
       )}
 
       <DocList
-        rows={shown.map((e: any) => ({
+        rows={shown.map((e) => ({
           id: e.id,
           number: e.number,
           status: e.status,

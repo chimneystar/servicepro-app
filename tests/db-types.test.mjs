@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { dirname, join, resolve } from "node:path";
 import { buildTypes, TYPES_PATH } from "../scripts/db-types.mjs";
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 // ---------------------------------------------------------------------------
 // THE TYPES ARE DERIVED, NOT TRANSCRIBED — AND THIS IS WHAT KEEPS THEM SO.
@@ -101,4 +106,42 @@ test("no table typed here is missing from the derived schema snapshot", async ()
   );
   const missing = [...inSnapshot].filter((t) => !typed.has(t));
   assert.deepEqual(missing, [], "every table in the schema snapshot must have a generated type");
+});
+
+test("the typed clients are the only way into the database, bar one declared exception", () => {
+  // The point of ledger 6.1 is that `supabase.from("x")` is checked. Two things
+  // would quietly undo it: creating a client without the `Database` generic,
+  // and reintroducing an untyped one. Both are cheap and invisible in review,
+  // because neither changes what the code DOES.
+  //
+  // `createUntypedClient` is the single declared exception — the whole-business
+  // export walks ~120 tables from a manifest, so its table name is data. This
+  // pins it to that one caller.
+  const files = execSync('git ls-files "*.ts" "*.tsx"', { cwd: ROOT, encoding: "utf8" })
+    .trim()
+    .split("\n")
+    .filter((f) => f && !f.startsWith("tests/"));
+
+  const callers = files.filter((f) =>
+    /\bcreateUntypedClient\b/.test(readFileSync(join(ROOT, f), "utf8")),
+  );
+  assert.deepEqual(
+    callers.sort(),
+    ["app/api/export/business/route.ts", "lib/supabase/server.ts"],
+    "createUntypedClient is deliberately confined to the whole-business export. Anywhere else, " +
+      "use createClient() — a table name written as a literal is checkable and should be checked.",
+  );
+
+  // And the three factories must still carry the generic.
+  for (const [file, needle] of [
+    ["lib/supabase/client.ts", "createBrowserClient<Database>"],
+    ["lib/supabase/server.ts", "createServerClient<Database>"],
+    ["lib/supabase/admin.ts", "createClient<Database>"],
+  ]) {
+    assert.ok(
+      readFileSync(join(ROOT, file), "utf8").includes(needle),
+      `${file} must create its client with the generated Database generic; without it every ` +
+        "query in every caller silently returns `any` again",
+    );
+  }
 });

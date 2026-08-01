@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { Json } from "@/lib/supabase/database.types";
 import { getLocale } from "@/lib/locale-server";
 import { getRequestContext, contextColumns, type RequestContext } from "@/lib/request-context";
 import { appUrl, providers, sendEmail } from "@/lib/providers";
@@ -229,7 +230,8 @@ async function recordSecurityEvent(
   profileId: string,
   eventType: string,
   context: RequestContext,
-  details: Record<string, unknown> | null,
+  // `details` lands in a jsonb column, so it is bounded by what JSON can hold.
+  details: Json,
 ) {
   if (!admin) return;
   try {
