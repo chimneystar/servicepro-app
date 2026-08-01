@@ -57,8 +57,18 @@ const sourceFiles = () => {
 // Raising it should require an argument.
 // ---------------------------------------------------------------------------
 
-/** The most unpaged list reads this build accepts. Only ever goes DOWN. */
-const CEILING = 130;
+/**
+ * The most unpaged list reads this build accepts. Only ever goes DOWN.
+ *
+ * It started at 130 and is now ZERO: there is no list read left in this
+ * codebase that PostgREST can silently truncate. That makes the inventory an
+ * empty file and this assertion an absolute one — the next unpaged read written
+ * anywhere fails the build, with nowhere to be filed away.
+ *
+ * If a future read genuinely cannot be paged, raising this is a deliberate,
+ * reviewable act that has to be argued for in a diff. It should be hard.
+ */
+const CEILING = 0;
 
 const inventory = JSON.parse(read("tests/unpaged-reads.json"));
 
@@ -230,6 +240,32 @@ test("the scanner can tell the three cases apart", () => {
   // ...and a lookalike must NOT be.
   const impostor = `return readAllOfItUnbounded("x", () => supabase.from("jobs").select("id"));`;
   assert.equal(classify(chains(impostor)[0], impostor), "read-unbounded");
+
+  // A query assembled in steps and bounded at the END is bounded. The chain
+  // extractor stops at the first `;`, so without this it reads as unbounded —
+  // a false red, which costs the guard its credibility exactly as a miss costs
+  // it its purpose. lib/payments/server.ts builds a conditional query this way.
+  const staged =
+    `let query = admin\n  .from("payment_requests")\n  .select("id")\n  .in("status", ["created"]);\n` +
+    `query = doc.invoiceId ? query.eq("invoice_id", doc.invoiceId) : query.eq("estimate_id", e);\n` +
+    `const { data } = await query.order("created_at").limit(1).maybeSingle();`;
+  assert.equal(classify(chains(staged)[0], staged), "read-bounded");
+
+  // The exemption must depend on the bound EXISTING, not on the shape looking
+  // familiar: the same code with no terminal bound is still the defect.
+  const stagedUnbounded =
+    `let query = admin\n  .from("payment_requests")\n  .select("id")\n  .in("status", ["created"]);\n` +
+    `query = doc.invoiceId ? query.eq("invoice_id", doc.invoiceId) : query.eq("estimate_id", e);\n` +
+    `const { data } = await query.order("created_at");`;
+  assert.equal(classify(chains(stagedUnbounded)[0], stagedUnbounded), "read-unbounded");
+
+  // And a bound applied to a same-named variable in a LATER function must not
+  // vouch for this one.
+  const otherFunction =
+    `let query = admin\n  .from("jobs")\n  .select("id");\n` +
+    `const { data } = await query;\n` +
+    `\nasync function elsewhere() {\n  let query = admin.from("x").select("y");\n  return query.limit(5);\n}`;
+  assert.equal(classify(chains(otherFunction)[0], otherFunction), "read-unbounded");
 
   // And the exemption is NARROW: a `readAll` three statements earlier must not
   // launder an unpaged read that follows it.

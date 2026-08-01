@@ -122,6 +122,43 @@ function enclosingCallee(source, index) {
   return source.slice(j + 1, end) || null;
 }
 
+/**
+ * A query assigned to a variable and bounded LATER, in another statement.
+ *
+ * `lib/payments/server.ts` builds a conditional query this way:
+ *
+ *     let query = admin.from("payment_requests").select(...).in(...);
+ *     query = document.invoiceId ? query.eq(...) : query.eq(...);
+ *     const { data } = await query.order(...).limit(1).maybeSingle();
+ *
+ * The chain extractor stops at the first `;`, so it sees a `.select()` with no
+ * bound and reports a read that is in fact bounded — a FALSE RED, which costs
+ * this guard its credibility just as surely as a miss costs it its purpose.
+ *
+ * So: if the chain is assigned to a name, and that name is later given a bound
+ * within the same function, the read is bounded. The window ends at the next
+ * top-level `function`/`export`, so a bound applied to a same-named variable in
+ * a DIFFERENT function cannot vouch for this one.
+ */
+function boundedLaterViaVariable(source, chain) {
+  // A window, not just the current line: the client is routinely on its own
+  // line, so `let query = admin\n    .from(...)` puts the assignment one line
+  // above the chain.
+  const before = source.slice(Math.max(0, chain.index - 120), chain.index);
+  const assigned = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*[\w$.]*\s*$/.exec(before);
+  if (!assigned) return false;
+  const name = assigned[1];
+
+  const after = source.slice(chain.index);
+  const stop = after.search(/\n(?:export\s|async\s+function\s|function\s)/);
+  const scope = stop === -1 ? after : after.slice(0, stop);
+
+  const bound = new RegExp(
+    `\\b${name}\\b[\\s\\S]{0,400}?\\.(limit|range|single|maybeSingle)\\s*\\(`,
+  );
+  return bound.test(scope.slice(chain.text.length));
+}
+
 function insideGatewayCall(source, index) {
   // The chain sits inside the `build` callback, which sits inside the gateway
   // call: `readAll(source, () => supabase.from(...))`. An arrow function's own
@@ -197,6 +234,7 @@ export function classify(chain, source, constants) {
   }
   if (/\.(limit|range)\s*\(/.test(t)) return "read-bounded";
   if (source !== undefined && insideGatewayCall(source, chain.index)) return "read-paged";
+  if (source !== undefined && boundedLaterViaVariable(source, chain)) return "read-bounded";
   return "read-unbounded";
 }
 
