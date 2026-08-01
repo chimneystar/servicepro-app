@@ -12,7 +12,16 @@
  */
 
 import type { ServerClient } from "@/lib/supabase/server";
+import type { AdminClient } from "@/lib/supabase/admin";
 import { readAll, readAtMost, readOne } from "./db";
+
+/**
+ * A statement is read by BOTH the session client (a person opening the screen,
+ * bounded by RLS) and the service-role client (the nightly dunning run, which
+ * has no session). The query shape must be identical or the letter a customer
+ * receives and the balance the cron chases them for can disagree.
+ */
+type AnyClient = ServerClient | AdminClient;
 
 const CUSTOMER = "customers!invoices_customer_id_fkey";
 
@@ -95,6 +104,33 @@ export function listForExport(supabase: ServerClient, from: string, to: string) 
       .lte("issue_date", to)
       .order("number"),
   );
+}
+
+/**
+ * Every invoice on one customer's statement, up to `asOf`.
+ *
+ * Paged. This previously carried `.limit(STATEMENT_ROW_LIMIT)` where the
+ * constant was 1000 — exactly PostgREST's cap, so it was not a bound at all,
+ * and a long-standing customer's statement silently stopped at a thousand
+ * invoices. `ordered` is false for the cron, which does not render the letter
+ * and was not sorting.
+ */
+export function listForStatement(
+  client: AnyClient,
+  customerId: string,
+  asOf: string,
+  { ordered }: { ordered: boolean },
+) {
+  const columns = "id, number, issue_date, total_minor, status, deleted_at, public_token";
+  return readAll("invoices.listForStatement", () => {
+    const query = client
+      .from("invoices")
+      .select(columns)
+      .eq("customer_id", customerId)
+      .is("deleted_at", null)
+      .lte("issue_date", asOf);
+    return ordered ? query.order("issue_date", { ascending: true }) : query;
+  });
 }
 
 /** One invoice, or null. */

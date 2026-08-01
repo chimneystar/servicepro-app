@@ -135,19 +135,48 @@ function insideGatewayCall(source, index) {
 }
 
 /**
+ * Numeric constants a file declares exactly once, so `.limit(ROW_CEILING)` can
+ * be judged the same way `.limit(2000)` is.
+ *
+ * A named ceiling hides the defect better than a literal does: the dashboard
+ * reads five tables at `ROW_CEILING = 2000` and the schedule at
+ * `JOB_CEILING = 2000`, all of which PostgREST answers with 1000 rows. The name
+ * makes it look considered.
+ *
+ * ONLY names declared once, and only in the same file. A name assigned twice is
+ * skipped rather than guessed at, because picking the wrong one would produce a
+ * false red — and this guard's credibility is worth more than the extra catch.
+ * A constant imported from another module (`CALENDAR_MAX_EVENTS` lives in
+ * lib/core/calendar.mjs) is therefore NOT resolved; that limitation is real and
+ * is recorded in the ledger rather than papered over.
+ */
+export function numericConstants(source) {
+  const seen = new Map();
+  const dup = new Set();
+  const re = /\b([A-Za-z_$][\w$]*)\s*=\s*(\d+)\s*[,;\n]/g;
+  let m;
+  while ((m = re.exec(source))) {
+    if (seen.has(m[1]) && seen.get(m[1]) !== Number(m[2])) dup.add(m[1]);
+    seen.set(m[1], Number(m[2]));
+  }
+  for (const name of dup) seen.delete(name);
+  return seen;
+}
+
+/**
  * What kind of database access a chain is.
  *
  *   write           an insert/upsert/update/delete (its `.select()` returns the
  *                   row just written, which is one row and needs no bound)
  *   read-one        `.single()` / `.maybeSingle()`
  *   read-count      `head: true, count: "exact"` — transfers no rows
- *   read-bounded    carries an explicit `.limit()` or `.range()`
+ *   read-bounded    carries a bound BELOW the server cap
  *   read-paged      handed to the lib/data gateway, which ranges it
- *   read-unbounded  THE DEFECT: a list read with no bound, silently capped at
- *                   1000 rows by PostgREST with no error
+ *   read-unbounded  THE DEFECT: a list read with no bound — or one at or above
+ *                   the cap, which the server silently reduces to 1000 rows
  *   not-a-read      `.from()` with no `.select()` at all
  */
-export function classify(chain, source) {
+export function classify(chain, source, constants) {
   const t = chain.text;
   if (/\.(insert|upsert|update|delete)\s*\(/.test(t)) return "write";
   if (!/\.select\s*\(/.test(t)) return "not-a-read";
@@ -159,8 +188,13 @@ export function classify(chain, source) {
   // min(2000, 1000): the business was told what it was owed on its first
   // thousand unpaid invoices, and the deliberate-looking 2000 is exactly why
   // nobody questioned it.
-  const literalLimit = /\.limit\(\s*(\d+)\s*\)/.exec(t);
-  if (literalLimit && Number(literalLimit[1]) >= 1000) return "read-unbounded";
+  const limitArg = /\.limit\(\s*([A-Za-z_$][\w$]*|\d+)\s*\)/.exec(t);
+  if (limitArg) {
+    const n = /^\d+$/.test(limitArg[1])
+      ? Number(limitArg[1])
+      : (constants ?? new Map()).get(limitArg[1]);
+    if (n !== undefined && n >= 1000) return "read-unbounded";
+  }
   if (/\.(limit|range)\s*\(/.test(t)) return "read-bounded";
   if (source !== undefined && insideGatewayCall(source, chain.index)) return "read-paged";
   return "read-unbounded";
@@ -180,8 +214,10 @@ export function unboundedReads(files, root) {
   for (const file of files) {
     const rel = file.slice(root.length + 1).replace(/\\/g, "/");
     const source = readFileSync(file, "utf8");
+    const constants = numericConstants(source);
     for (const chain of chains(source)) {
-      if (classify(chain, source) === "read-unbounded") found.push(`${rel} ${chain.table}`);
+      if (classify(chain, source, constants) === "read-unbounded")
+        found.push(`${rel} ${chain.table}`);
     }
   }
   return found.sort();
@@ -192,8 +228,9 @@ export function tally(files) {
   const counts = {};
   for (const file of files) {
     const source = readFileSync(file, "utf8");
+    const constants = numericConstants(source);
     for (const chain of chains(source)) {
-      const kind = classify(chain, source);
+      const kind = classify(chain, source, constants);
       counts[kind] = (counts[kind] ?? 0) + 1;
     }
   }

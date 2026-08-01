@@ -15,7 +15,11 @@
  */
 
 import type { ServerClient } from "@/lib/supabase/server";
+import type { AdminClient } from "@/lib/supabase/admin";
 import { readAll, readAtMost, readOne } from "./db";
+
+/** See lib/data/invoices.ts — a statement is read by the session client and by the cron. */
+type AnyClient = ServerClient | AdminClient;
 
 /** The statuses that represent money actually received. */
 export const COLLECTED_STATUSES = ["settled", "partially_refunded"] as const;
@@ -101,6 +105,28 @@ export function listForEstimate(supabase: ServerClient, estimateId: string) {
       .from("payments")
       .select("id, amount_minor, base_amount_minor, refunded_minor, normalized_status, paid_at")
       .eq("estimate_id", estimateId),
+  );
+}
+
+/**
+ * Every payment against the invoices on a statement.
+ *
+ * Paged, and this is the one that decides what a customer is CHASED for: the
+ * same read feeds the nightly dunning run. It previously carried
+ * `.limit(STATEMENT_ROW_LIMIT)` with the constant set to 1000 — exactly the
+ * server's cap, so it bounded nothing — and a truncated payment list makes paid
+ * invoices look unpaid. The customer is then asked for money they have already
+ * sent.
+ */
+export function listForStatement(client: AnyClient, invoiceIds: string[]) {
+  if (!invoiceIds.length) return Promise.resolve([]);
+  return readAll("payments.listForStatement", () =>
+    client
+      .from("payments")
+      .select(
+        "invoice_id, paid_at, base_amount_minor, amount_minor, refunded_minor, normalized_status, method, reference",
+      )
+      .in("invoice_id", invoiceIds),
   );
 }
 
