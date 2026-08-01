@@ -1,6 +1,476 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* ===========================================================================
+   BASE RESET — ledger 6.5
+   ===========================================================================
+   This block used to be three lines: `@tailwind base/components/utilities`.
+   Tailwind has been removed from this project (see docs/REMEDIATION-PLAN.md,
+   note on 6.5) because it contributed exactly ONE thing — this reset. There
+   were zero Tailwind utility classes in the 444 distinct class names used
+   across app/ and components/; the handful the build emitted were phantoms,
+   scraped by Tailwind's content extractor out of inline style VALUES like
+   `display: "flex"` and matched by no element. The three custom theme colours
+   (navy, brand, sky2) were referenced nowhere.
+
+   The reset itself is load-bearing and could not simply be deleted: this
+   product was built on top of it, so its headings, lists, links, images and
+   form controls all assume browser defaults are already gone. What follows is
+   Tailwind Preflight v3.4.19 (MIT) inlined VERBATIM as the build emitted it,
+   with the theme values already resolved. Nothing is edited. The dead
+   `--tw-*` custom-property defaults that accompanied it are dropped: they exist
+   only to be read by utilities, and there are none.
+
+   Keeping the reset while dropping the framework is deliberate. A dependency
+   that ships a reset and nothing else is a reset with a build step, a config
+   file and a supply chain attached to it. Now it is 440 lines of CSS that can
+   be read, diffed and changed like the rest of this file.
+   =========================================================================== */
+/*
+1. Prevent padding and border from affecting element width. (https://github.com/mozdevs/cssremedy/issues/4)
+2. Allow adding a border to an element by just adding a border-width. (https://github.com/tailwindcss/tailwindcss/pull/116)
+*/
+
+*,
+::before,
+::after {
+  box-sizing: border-box;
+  /* 1 */
+  border-width: 0;
+  /* 2 */
+  border-style: solid;
+  /* 2 */
+  border-color: #e5e7eb;
+  /* 2 */
+}
+
+::before,
+::after {
+  --tw-content: "";
+}
+
+/*
+1. Use a consistent sensible line-height in all browsers.
+2. Prevent adjustments of font size after orientation changes in iOS.
+3. Use a more readable tab size.
+4. Use the user's configured `sans` font-family by default.
+5. Use the user's configured `sans` font-feature-settings by default.
+6. Use the user's configured `sans` font-variation-settings by default.
+7. Disable tap highlights on iOS
+*/
+
+html,
+:host {
+  line-height: 1.5;
+  /* 1 */
+  -webkit-text-size-adjust: 100%;
+  /* 2 */
+  -moz-tab-size: 4;
+  /* 3 */
+  -o-tab-size: 4;
+  tab-size: 4;
+  /* 3 */
+  font-family:
+    ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+    "Noto Color Emoji";
+  /* 4 */
+  font-feature-settings: normal;
+  /* 5 */
+  font-variation-settings: normal;
+  /* 6 */
+  -webkit-tap-highlight-color: transparent;
+  /* 7 */
+}
+
+/*
+1. Remove the margin in all browsers.
+2. Inherit line-height from `html` so users can set them as a class directly on the `html` element.
+*/
+
+body {
+  margin: 0;
+  /* 1 */
+  line-height: inherit;
+  /* 2 */
+}
+
+/*
+1. Add the correct height in Firefox.
+2. Correct the inheritance of border color in Firefox. (https://bugzilla.mozilla.org/show_bug.cgi?id=190655)
+3. Ensure horizontal rules are visible by default.
+*/
+
+hr {
+  height: 0;
+  /* 1 */
+  color: inherit;
+  /* 2 */
+  border-top-width: 1px;
+  /* 3 */
+}
+
+/*
+Add the correct text decoration in Chrome, Edge, and Safari.
+*/
+
+abbr:where([title]) {
+  -webkit-text-decoration: underline dotted;
+  text-decoration: underline dotted;
+}
+
+/*
+Remove the default font size and weight for headings.
+*/
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+/*
+Reset links to optimize for opt-in styling instead of opt-out.
+*/
+
+a {
+  color: inherit;
+  text-decoration: inherit;
+}
+
+/*
+Add the correct font weight in Edge and Safari.
+*/
+
+b,
+strong {
+  font-weight: bolder;
+}
+
+/*
+1. Use the user's configured `mono` font-family by default.
+2. Use the user's configured `mono` font-feature-settings by default.
+3. Use the user's configured `mono` font-variation-settings by default.
+4. Correct the odd `em` font sizing in all browsers.
+*/
+
+code,
+kbd,
+samp,
+pre {
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
+  /* 1 */
+  font-feature-settings: normal;
+  /* 2 */
+  font-variation-settings: normal;
+  /* 3 */
+  font-size: 1em;
+  /* 4 */
+}
+
+/*
+Add the correct font size in all browsers.
+*/
+
+small {
+  font-size: 80%;
+}
+
+/*
+Prevent `sub` and `sup` elements from affecting the line height in all browsers.
+*/
+
+sub,
+sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+
+sub {
+  bottom: -0.25em;
+}
+
+sup {
+  top: -0.5em;
+}
+
+/*
+1. Remove text indentation from table contents in Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=999088, https://bugs.webkit.org/show_bug.cgi?id=201297)
+2. Correct table border color inheritance in all Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=935729, https://bugs.webkit.org/show_bug.cgi?id=195016)
+3. Remove gaps between table borders by default.
+*/
+
+table {
+  text-indent: 0;
+  /* 1 */
+  border-color: inherit;
+  /* 2 */
+  border-collapse: collapse;
+  /* 3 */
+}
+
+/*
+1. Change the font styles in all browsers.
+2. Remove the margin in Firefox and Safari.
+3. Remove default padding in all browsers.
+*/
+
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit;
+  /* 1 */
+  font-feature-settings: inherit;
+  /* 1 */
+  font-variation-settings: inherit;
+  /* 1 */
+  font-size: 100%;
+  /* 1 */
+  font-weight: inherit;
+  /* 1 */
+  line-height: inherit;
+  /* 1 */
+  letter-spacing: inherit;
+  /* 1 */
+  color: inherit;
+  /* 1 */
+  margin: 0;
+  /* 2 */
+  padding: 0;
+  /* 3 */
+}
+
+/*
+Remove the inheritance of text transform in Edge and Firefox.
+*/
+
+button,
+select {
+  text-transform: none;
+}
+
+/*
+1. Correct the inability to style clickable types in iOS and Safari.
+2. Remove default button styles.
+*/
+
+button,
+input:where([type="button"]),
+input:where([type="reset"]),
+input:where([type="submit"]) {
+  -webkit-appearance: button;
+  /* 1 */
+  background-color: transparent;
+  /* 2 */
+  background-image: none;
+  /* 2 */
+}
+
+/*
+Use the modern Firefox focus style for all focusable elements.
+*/
+
+:-moz-focusring {
+  outline: auto;
+}
+
+/*
+Remove the additional `:invalid` styles in Firefox. (https://github.com/mozilla/gecko-dev/blob/2f9eacd9d3d995c937b4251a5557d95d494c9be1/layout/style/res/forms.css#L728-L737)
+*/
+
+:-moz-ui-invalid {
+  box-shadow: none;
+}
+
+/*
+Add the correct vertical alignment in Chrome and Firefox.
+*/
+
+progress {
+  vertical-align: baseline;
+}
+
+/*
+Correct the cursor style of increment and decrement buttons in Safari.
+*/
+
+::-webkit-inner-spin-button,
+::-webkit-outer-spin-button {
+  height: auto;
+}
+
+/*
+1. Correct the odd appearance in Chrome and Safari.
+2. Correct the outline style in Safari.
+*/
+
+[type="search"] {
+  -webkit-appearance: textfield;
+  /* 1 */
+  outline-offset: -2px;
+  /* 2 */
+}
+
+/*
+Remove the inner padding in Chrome and Safari on macOS.
+*/
+
+::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+
+/*
+1. Correct the inability to style clickable types in iOS and Safari.
+2. Change font properties to `inherit` in Safari.
+*/
+
+::-webkit-file-upload-button {
+  -webkit-appearance: button;
+  /* 1 */
+  font: inherit;
+  /* 2 */
+}
+
+/*
+Add the correct display in Chrome and Safari.
+*/
+
+summary {
+  display: list-item;
+}
+
+/*
+Removes the default spacing and border for appropriate elements.
+*/
+
+blockquote,
+dl,
+dd,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+hr,
+figure,
+p,
+pre {
+  margin: 0;
+}
+
+fieldset {
+  margin: 0;
+  padding: 0;
+}
+
+legend {
+  padding: 0;
+}
+
+ol,
+ul,
+menu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/*
+Reset default styling for dialogs.
+*/
+
+dialog {
+  padding: 0;
+}
+
+/*
+Prevent resizing textareas horizontally by default.
+*/
+
+textarea {
+  resize: vertical;
+}
+
+/*
+1. Reset the default placeholder opacity in Firefox. (https://github.com/tailwindlabs/tailwindcss/issues/3300)
+2. Set the default placeholder color to the user's configured gray 400 color.
+*/
+
+input::-moz-placeholder,
+textarea::-moz-placeholder {
+  opacity: 1;
+  /* 1 */
+  color: #9ca3af;
+  /* 2 */
+}
+
+input::placeholder,
+textarea::placeholder {
+  opacity: 1;
+  /* 1 */
+  color: #9ca3af;
+  /* 2 */
+}
+
+/*
+Set the default cursor for buttons.
+*/
+
+button,
+[role="button"] {
+  cursor: pointer;
+}
+
+/*
+Make sure disabled buttons don't get the pointer cursor.
+*/
+
+:disabled {
+  cursor: default;
+}
+
+/*
+1. Make replaced elements `display: block` by default. (https://github.com/mozdevs/cssremedy/issues/14)
+2. Add `vertical-align: middle` to align replaced elements more sensibly by default. (https://github.com/jensimmons/cssremedy/issues/14#issuecomment-634934210)
+   This can trigger a poorly considered lint error in some tools but is included by design.
+*/
+
+img,
+svg,
+video,
+canvas,
+audio,
+iframe,
+embed,
+object {
+  display: block;
+  /* 1 */
+  vertical-align: middle;
+  /* 2 */
+}
+
+/*
+Constrain images and videos to the parent width and preserve their intrinsic aspect ratio. (https://github.com/mozdevs/cssremedy/issues/14)
+*/
+
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Make elements with the HTML hidden attribute stay hidden by default */
+
+[hidden]:where(:not([hidden="until-found"])) {
+  display: none;
+}
 
 :root {
   color-scheme: light;
@@ -35,6 +505,117 @@
      visible on a laptop screen in daylight. */
   --focus-ring: #1246d8;
   --focus-ring-halo: rgba(43, 102, 246, 0.28);
+}
+
+/* ===========================================================================
+   DESIGN TOKENS — ledger 6.5
+   ===========================================================================
+   MEASURED, NOT INVENTED. Every value below is a colour, radius, spacing step
+   or type step that this product already uses, counted across the 1,587 inline
+   style objects under app/ and components/ by parsing them with the TypeScript
+   compiler API. The count in each comment is how many inline declarations held
+   that literal at b37c024. Nothing here rounds a value to a nicer number: a
+   token whose value differs from the literal it replaces is a repaint, and this
+   pass has no browser to check a repaint in.
+
+   Two palettes exist in this product and this block is deliberately the SECOND
+   one, not a merge of both. The `--ink/--muted/--accent/--line` set above is the
+   SHELL palette: it dresses the 368 hand-written classes in this file. The
+   `--sp-*` set below is the PRODUCT palette: it is what the screens themselves
+   were actually painted with inline. They have drifted apart — the shell accent
+   is #2b66f6 and the product accent is #2563eb, the shell muted is #66728a and
+   the product muted is #5c6675 — and unifying them means repainting several
+   hundred elements by a few points of hue with nothing to look at. So the drift
+   is recorded here as a finding and left as follow-up work; what this pass buys
+   is that each side is now ONE declaration instead of hundreds of copies.
+
+   Single-valued on purpose: there is no dark-mode override on any `--sp-*`
+   token. Inline styles could never respond to the theme, so every one of these
+   1,587 elements is hardcoded light today and stays exactly that. Making them
+   theme-aware is a real improvement and is now a one-file change — but it is a
+   change to what a person sees, and it needs an eye on it first. */
+:root {
+  /* Ink. */
+  --sp-text: #0b1524; /* 13 */
+  --sp-text-strong: #334155; /* 44 — field labels */
+  --sp-text-muted: #5c6675; /* 169 — the dominant secondary colour */
+  --sp-text-subtle: #94a3b8; /* 25 */
+  --sp-text-on-accent: #ffffff; /* 77 uses as `color` */
+
+  /* Surfaces. */
+  --sp-surface: #ffffff; /* 75 uses as `background` */
+  --sp-surface-sunken: #eef2f8; /* 45 */
+  --sp-surface-muted: #eef1f6; /* 23 */
+  --sp-surface-alt: #f1f4f9; /* 15 */
+  --sp-surface-tint: #f8fbff; /* 12 */
+
+  /* Lines. */
+  --sp-border: #e2e8f0; /* 134 */
+
+  /* Accent. */
+  --sp-accent: #2563eb; /* 127 */
+  --sp-accent-strong: #1d4ed8; /* 12 */
+  --sp-accent-surface: #e2e9f4; /* 20 — the pill background */
+  --sp-accent-soft: #e0ebff; /* 17 */
+
+  /* Status. */
+  --sp-danger: #dc2626; /* 41 */
+  --sp-danger-strong: #b91c1c; /* 12 */
+  --sp-danger-soft: #fdeaea; /* 53 — the error box */
+  --sp-success: #15803d; /* 36 */
+  --sp-success-soft: #e6f6ec; /* 16 */
+  --sp-warning: #9a3412; /* 21 */
+  --sp-warning-strong: #b45309; /* 14 */
+  --sp-warning-soft: #fff7ed; /* 15 */
+  --sp-warning-border: #fed7aa; /* 10 */
+
+  /* Radius. The ladder the product actually uses; 9px and 16px exist too but
+     with 26 and 5 uses they are one-offs, not a step. */
+  --sp-radius-sm: 8px; /* 40 */
+  --sp-radius-md: 10px; /* 153 — the default */
+  --sp-radius-lg: 12px; /* 99 */
+  --sp-radius-xl: 14px; /* 35 */
+  --sp-radius-pill: 999px;
+
+  /* Spacing. NOT an 8-point grid — the product is not on one, and forcing it
+     onto one would move every edge in the app by 1-2px. These are the clusters
+     that are actually there. */
+  --sp-space-1: 4px;
+  --sp-space-2: 6px; /* 19 gaps */
+  --sp-space-3: 8px; /* 83 gaps */
+  --sp-space-4: 10px; /* 85 gaps — the default */
+  --sp-space-5: 12px; /* 24 gaps */
+  --sp-space-6: 14px;
+  --sp-space-7: 16px;
+  --sp-space-8: 18px;
+  --sp-space-9: 20px;
+  --sp-space-10: 24px;
+  --sp-space-12: 32px;
+  --sp-space-14: 40px;
+
+  /* Elevation. */
+  --sp-shadow-sm: 0 1px 2px rgba(15, 42, 94, 0.06);
+  --sp-shadow-md: 0 6px 18px rgba(15, 42, 94, 0.06); /* 11 */
+
+  /* TYPE SCALE. rem only, and that is load-bearing — see the A1/A2 block
+     further down this file. A `px` here would silently opt every primitive out
+     of the "Larger text" toggle at once, which is worse than the defect A2
+     fixed because it would be centralised. tests/typography.test.mjs resolves
+     `var(--sp-font-*)` through this block, so these are checked like any other
+     font size in the product, not skipped as opaque. */
+  --sp-font-xs: 0.75rem; /* 12px — 67 */
+  --sp-font-sm: 0.8125rem; /* 13px — 337, the dominant size */
+  --sp-font-base: 0.875rem; /* 14px — 118 */
+  --sp-font-md: 0.9375rem; /* 15px — 47 */
+  --sp-font-lg: 1rem; /* 16px — 47 */
+  --sp-font-xl: 1.0625rem; /* 17px */
+  --sp-font-2xl: 1.125rem; /* 18px */
+  --sp-font-3xl: 1.25rem; /* 20px */
+  --sp-font-4xl: 1.5rem; /* 24px — 37 */
+
+  --sp-weight-medium: 600;
+  --sp-weight-bold: 700; /* 232 */
+  --sp-weight-black: 800; /* 162 */
 }
 
 html[data-theme="dark"] {
@@ -7664,4 +8245,322 @@ html[data-theme="dark"] [style*="background: rgb(255, 255, 255)"] {
   .ops-heading h1 {
     font-size: 1.625rem;
   }
+}
+
+/* ===========================================================================
+   PRIMITIVES — ledger 6.5, the stylesheet half of components/ui/
+   ===========================================================================
+   Every rule in this block is the canonical form of a style object that was
+   copy-pasted across the app. `components/ui/*.tsx` are thin wrappers that emit
+   these class names and nothing else; the styling lives here so that it can be
+   overridden by a media query, respond to :hover and :focus-visible, and be
+   changed in one place. tests/design-system.test.mjs pins each rule's
+   declarations against the verbatim inline object it replaces, so a token that
+   drifts from the value it was derived from fails.
+
+   WHY EVERY SELECTOR REPEATS ITS CLASS THREE TIMES.
+   These rules replace INLINE styles, which sit above the whole cascade. This
+   stylesheet already contains 199 selectors that target a bare `button`,
+   `input`, `select`, `textarea`, `table`, `th`, `td` or `a` — `.ops-form
+   button`, `.booking-fields input`, `.tech-job-card > footer button` and so on
+   — and the most specific of them scores 0,2,3. An element that used to carry
+   its own inline style ignored all 199; the same element wearing a plain
+   `.sp-btn` (0,1,0) would suddenly lose to 183 of them, which is a repaint in
+   files no test renders. Tripling the class scores 0,3,0, which beats every one
+   of the 199 on class count alone and so reproduces the precedence the inline
+   style had. It is checked rather than asserted: "primitive rules out-specify
+   every element-targeting selector in this sheet" is a test, and it recomputes
+   both sides from the real file, so a future 0,3,1 selector fails it.
+
+   Physical directions are not allowed here. Hebrew is driven by logical
+   properties throughout this product and a primitive is the worst possible
+   place to break that, because it breaks everywhere at once. */
+
+/* --- Button --------------------------------------------------------------
+   Replaces the ~33 copies of `const btn: React.CSSProperties`, byte-identical
+   in most files:
+     background:#2563eb; color:#fff; border:none; padding:10px 16px;
+     border-radius:10px; font-weight:700; cursor:pointer
+   No `font-size`: the original object did not set one, so the button inherited,
+   and adding one here would resize every migrated button. */
+.sp-btn.sp-btn.sp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-space-2);
+  border: none;
+  border-radius: var(--sp-radius-md);
+  padding-block: var(--sp-space-4);
+  padding-inline: var(--sp-space-7);
+  background: var(--sp-accent);
+  color: var(--sp-text-on-accent);
+  font-weight: var(--sp-weight-bold);
+  cursor: pointer;
+  text-decoration: none;
+}
+/* `padding:9px 15px`, the second-most-common button in the product (10 uses). */
+.sp-btn.sp-btn.sp-btn.sp-btn--md {
+  padding-block: 9px;
+  padding-inline: 15px;
+}
+/* `mini`: background:#eef2f8; border:none; border-radius:8; padding:5px 8px;
+   cursor:pointer; font-size:0.8125rem */
+.sp-btn.sp-btn.sp-btn.sp-btn--sm {
+  border-radius: var(--sp-radius-sm);
+  padding-block: 5px;
+  padding-inline: var(--sp-space-3);
+  font-size: var(--sp-font-sm);
+}
+.sp-btn.sp-btn.sp-btn.sp-btn--secondary {
+  background: var(--sp-surface-sunken);
+  color: var(--sp-text-strong);
+}
+.sp-btn.sp-btn.sp-btn.sp-btn--ghost {
+  background: transparent;
+  border: 1px solid var(--sp-border);
+  color: var(--sp-text-strong);
+}
+.sp-btn.sp-btn.sp-btn.sp-btn--danger {
+  background: var(--sp-danger);
+  color: var(--sp-text-on-accent);
+}
+.sp-btn.sp-btn.sp-btn.sp-btn--quiet {
+  background: transparent;
+  color: var(--sp-accent);
+  padding-inline: 0;
+  padding-block: 0;
+}
+.sp-btn.sp-btn.sp-btn[disabled] {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+/* --- Icon button ---------------------------------------------------------
+   Replaces `xBtn` — the small square "remove this row" control. */
+.sp-icon-btn.sp-icon-btn.sp-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--sp-border);
+  border-radius: var(--sp-radius-sm);
+  padding: var(--sp-space-2);
+  background: var(--sp-surface);
+  color: var(--sp-text-muted);
+  cursor: pointer;
+  line-height: 1;
+}
+
+/* --- Text controls -------------------------------------------------------
+   Replaces the ~36 copies of `const inp`:
+     width:100%; border:1px solid #e2e8f0; border-radius:10px;
+     padding:10px 12px; font-size:0.875rem; outline:none
+   `outline: none` is deliberately NOT carried across. It is the reason the
+   focus ring in this file has to be `!important` at all (6.6), and a primitive
+   that reintroduced it would be re-creating the defect in one central place.
+   Dropping it changes nothing visible: the `:focus-visible` rule above still
+   wins, and it was only ever suppressing the ring it then had to fight. */
+.sp-input.sp-input.sp-input,
+.sp-select.sp-select.sp-select,
+.sp-textarea.sp-textarea.sp-textarea {
+  width: 100%;
+  border: 1px solid var(--sp-border);
+  border-radius: var(--sp-radius-md);
+  padding-block: var(--sp-space-4);
+  padding-inline: var(--sp-space-5);
+  font-size: var(--sp-font-base);
+  background: var(--sp-surface);
+  color: var(--sp-text);
+}
+.sp-textarea.sp-textarea.sp-textarea {
+  min-height: 5rem;
+  resize: vertical;
+}
+/* The other size in the product: `font-size:1rem` on the same box (12 uses). */
+.sp-input.sp-input.sp-input.sp-control--lg,
+.sp-select.sp-select.sp-select.sp-control--lg,
+.sp-textarea.sp-textarea.sp-textarea.sp-control--lg {
+  font-size: var(--sp-font-lg);
+}
+
+/* --- Field label ---------------------------------------------------------
+   Replaces the ~24 copies of `const lbl`:
+     font-size:0.8125rem; font-weight:700; color:#334155; display:block;
+     margin:10px 0 6px */
+.sp-label.sp-label.sp-label {
+  display: block;
+  margin-block: var(--sp-space-4) var(--sp-space-2);
+  color: var(--sp-text-strong);
+  font-size: var(--sp-font-sm);
+  font-weight: var(--sp-weight-bold);
+}
+.sp-field.sp-field.sp-field {
+  display: block;
+}
+
+/* --- Notice --------------------------------------------------------------
+   Replaces `err` / `errBox` (~22 declared copies, 53 inline uses of the
+   #fdeaea background alone):
+     background:#fdeaea; color:#dc2626; padding:9px 12px; border-radius:10px;
+     font-size:0.8125rem; margin-top:10px */
+.sp-notice.sp-notice.sp-notice {
+  margin-block-start: var(--sp-space-4);
+  border-radius: var(--sp-radius-md);
+  padding-block: 9px;
+  padding-inline: var(--sp-space-5);
+  background: var(--sp-danger-soft);
+  color: var(--sp-danger);
+  font-size: var(--sp-font-sm);
+}
+.sp-notice.sp-notice.sp-notice.sp-notice--success {
+  background: var(--sp-success-soft);
+  color: var(--sp-success);
+}
+.sp-notice.sp-notice.sp-notice.sp-notice--warning {
+  background: var(--sp-warning-soft);
+  color: var(--sp-warning);
+}
+.sp-notice.sp-notice.sp-notice.sp-notice--info {
+  background: var(--sp-accent-soft);
+  color: var(--sp-accent-strong);
+}
+
+/* --- Card ---------------------------------------------------------------- */
+.sp-card.sp-card.sp-card {
+  border: 1px solid var(--sp-border);
+  border-radius: var(--sp-radius-xl);
+  padding: var(--sp-space-6);
+  background: var(--sp-surface);
+}
+.sp-card.sp-card.sp-card.sp-card--flush {
+  padding: 0;
+}
+
+/* --- Pill / badge --------------------------------------------------------
+   Replaces the `{...base, background:#e2e9f4, color:#2563eb}` family — 16 uses
+   of the accent tone, 5 of the success tone. */
+.sp-pill.sp-pill.sp-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-space-1);
+  border-radius: var(--sp-radius-pill);
+  padding-block: var(--sp-space-1);
+  padding-inline: var(--sp-space-3);
+  background: var(--sp-accent-surface);
+  color: var(--sp-accent);
+  font-size: var(--sp-font-xs);
+  font-weight: var(--sp-weight-bold);
+  white-space: nowrap;
+}
+.sp-pill.sp-pill.sp-pill.sp-pill--neutral {
+  background: var(--sp-surface-sunken);
+  color: var(--sp-text-muted);
+}
+.sp-pill.sp-pill.sp-pill.sp-pill--success {
+  background: var(--sp-success-soft);
+  color: var(--sp-success);
+}
+.sp-pill.sp-pill.sp-pill.sp-pill--danger {
+  background: var(--sp-danger-soft);
+  color: var(--sp-danger);
+}
+.sp-pill.sp-pill.sp-pill.sp-pill--warning {
+  background: var(--sp-warning-soft);
+  color: var(--sp-warning);
+}
+
+/* --- Table ---------------------------------------------------------------
+   `text-align: start`, not `left`: these tables carry Hebrew. */
+.sp-table.sp-table.sp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--sp-font-sm);
+}
+.sp-table.sp-table.sp-table th {
+  border-block-end: 1px solid var(--sp-border);
+  padding-block: var(--sp-space-3);
+  padding-inline: var(--sp-space-4);
+  color: var(--sp-text-muted);
+  font-weight: var(--sp-weight-bold);
+  text-align: start;
+  white-space: nowrap;
+}
+.sp-table.sp-table.sp-table td {
+  border-block-end: 1px solid var(--sp-border);
+  padding-block: var(--sp-space-3);
+  padding-inline: var(--sp-space-4);
+  text-align: start;
+}
+.sp-table-scroll.sp-table-scroll.sp-table-scroll {
+  overflow-x: auto;
+}
+
+/* --- Empty state ---------------------------------------------------------
+   Replaces `padding:40; text-align:center; color:#5c6675`. */
+.sp-empty.sp-empty.sp-empty {
+  padding: var(--sp-space-14);
+  color: var(--sp-text-muted);
+  font-size: var(--sp-font-sm);
+  text-align: center;
+}
+
+/* --- Secondary text ------------------------------------------------------
+   Replaces `font-size:0.8125rem; color:#5c6675` — 27 exact copies, and the
+   single most repeated pair of declarations in the product. */
+.sp-text-muted.sp-text-muted.sp-text-muted {
+  color: var(--sp-text-muted);
+  font-size: var(--sp-font-sm);
+}
+.sp-text-subtle.sp-text-subtle.sp-text-subtle {
+  color: var(--sp-text-subtle);
+  font-size: var(--sp-font-xs);
+}
+
+/* --- Section heading -----------------------------------------------------
+   Replaces `font-size:0.9375rem; font-weight:800`. */
+.sp-heading.sp-heading.sp-heading {
+  font-size: var(--sp-font-md);
+  font-weight: var(--sp-weight-black);
+}
+.sp-heading.sp-heading.sp-heading.sp-heading--lg {
+  font-size: var(--sp-font-4xl);
+}
+
+/* --- Inline link ---------------------------------------------------------
+   Replaces `color:#2563eb; font-weight:700; font-size:0.875rem;
+   text-decoration:none` — 19 exact copies, mostly "back to ..." links. */
+.sp-link.sp-link.sp-link {
+  color: var(--sp-accent);
+  font-size: var(--sp-font-base);
+  font-weight: var(--sp-weight-bold);
+  text-decoration: none;
+}
+
+/* --- Layout --------------------------------------------------------------
+   Stack / Row / Grid replace `display:flex` + `gap` + `margin-top`, which is
+   215 flex objects and 79 grid objects between them. The gap is set from the
+   token scale through a custom property so one class covers every step
+   instead of one class per step. */
+.sp-stack.sp-stack.sp-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-gap, var(--sp-space-4));
+}
+.sp-row.sp-row.sp-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-gap, var(--sp-space-4));
+}
+.sp-row.sp-row.sp-row.sp-row--wrap {
+  flex-wrap: wrap;
+}
+.sp-row.sp-row.sp-row.sp-row--between {
+  justify-content: space-between;
+}
+.sp-row.sp-row.sp-row.sp-row--top {
+  align-items: flex-start;
+}
+.sp-grid.sp-grid.sp-grid {
+  display: grid;
+  gap: var(--sp-gap, var(--sp-space-4));
+  grid-template-columns: repeat(var(--sp-cols, 1), minmax(0, 1fr));
 }

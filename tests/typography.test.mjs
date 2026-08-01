@@ -66,18 +66,58 @@ const lengths = (value) =>
   }));
 
 /**
- * Resolve a font-size value against a root font-size. Returns `null` when the
- * value contains no length at all (`inherit`). Only `rem` follows the root —
- * that is the whole point.
+ * The design tokens (ledger 6.5). A primitive writes `font-size:
+ * var(--sp-font-sm)` rather than repeating `0.8125rem` in fifteen files, so
+ * this parser has to see through `var()` or the type scale would become the one
+ * part of the product these checks cannot read — the exact hole that makes a
+ * probe pass while covering less. Every `--*: value` in the file, one pass of
+ * substitution deep, which is all the token layer is.
  */
-function resolvePx(value, rootPx) {
-  const found = lengths(value);
+function customProperties(rawCss) {
+  const map = new Map();
+  for (const decl of stripCssComments(rawCss).matchAll(/(--[\w-]+)\s*:\s*([^;{}]+)/g)) {
+    if (!map.has(decl[1])) map.set(decl[1], decl[2].trim());
+  }
+  return map;
+}
+
+/** Substitute `var(--x)` / `var(--x, fallback)` from the token table. */
+function expandVars(value, tokens) {
+  return value.replace(/var\(\s*(--[\w-]+)\s*(?:,([^()]*))?\)/g, (whole, name, fallback) =>
+    tokens.has(name) ? tokens.get(name) : (fallback ?? whole),
+  );
+}
+
+/**
+ * Units that are a multiple of the PARENT's font size. They follow the root
+ * exactly as `rem` does — a chain of `em`/`%` bottoms out at the root — so they
+ * satisfy A2. They cannot be resolved to an absolute px in isolation, because
+ * the answer depends on the ancestor, so A1's floor check reports them as
+ * relative rather than pretending `1em` is 1px. That mis-resolution is real:
+ * before this was added, the inlined reset's `code { font-size: 1em }` was
+ * reported as a 1px font.
+ */
+const RELATIVE_UNITS = new Set(["em", "%"]);
+
+/**
+ * Resolve a font-size value against a root font-size. Returns `null` when the
+ * value contains no length at all (`inherit`). Only `rem` follows the root
+ * directly; `em`/`%` follow it through their parent and are flagged `relative`.
+ */
+function resolvePx(value, rootPx, tokens = TOKENS) {
+  const found = lengths(expandVars(value, tokens ?? new Map()));
   if (found.length === 0) return null;
+  const relative = found.some((l) => RELATIVE_UNITS.has(l.unit));
   const sizes = found.map((l) => (l.unit === "rem" ? l.number * rootPx : l.number));
   // `clamp(a, b, c)` / `min()` / `max()` can hold several; the largest is the
   // one that decides whether the text is legible at the top of its range, and
   // the smallest decides the floor. Both are returned so callers can pick.
-  return { min: Math.min(...sizes), max: Math.max(...sizes), units: found.map((l) => l.unit) };
+  return {
+    min: Math.min(...sizes),
+    max: Math.max(...sizes),
+    units: found.map((l) => l.unit),
+    relative,
+  };
 }
 
 // --- inline `fontSize` props ------------------------------------------------
@@ -138,6 +178,8 @@ function inlineSizesPx(expression, rootPx) {
 }
 
 const CSS = readFileSync(CSS_PATH, "utf8");
+/** The `--*` table `resolvePx` reads `var()` through. Ledger 6.5's type scale. */
+const TOKENS = customProperties(CSS);
 const CSS_SIZES = cssFontSizes(CSS);
 const INLINE_SIZES = inlineFontSizes();
 
@@ -216,7 +258,7 @@ test(`A1: no stylesheet font-size resolves below ${MIN_TEXT_PX}px`, () => {
   const tooSmall = CSS_SIZES.map((d) => ({
     ...d,
     resolved: resolvePx(d.value, DEFAULT_ROOT_PX),
-  })).filter((d) => d.resolved && d.resolved.min < MIN_TEXT_PX);
+  })).filter((d) => d.resolved && !d.resolved.relative && d.resolved.min < MIN_TEXT_PX);
   assert.deepEqual(
     tooSmall.map((d) => `${d.selector} -> ${d.value}`),
     [],
@@ -326,6 +368,10 @@ test("A2: turning the toggle on moves EVERY stylesheet font-size", () => {
     const before = resolvePx(decl.value, DEFAULT_ROOT_PX);
     const after = resolvePx(decl.value, largeRoot);
     if (!before) continue; // `inherit` scales through its parent
+    // `em`/`%` are a multiple of the parent, and the chain bottoms out at the
+    // root, so they move with it by construction — there is no absolute px for
+    // this loop to compare. They are pinned by name in the allowlist below.
+    if (before.relative) continue;
     if (after.min > before.min && after.max > before.max) changed += 1;
     else unchanged.push(`${decl.selector} -> ${decl.value}`);
   }
@@ -377,13 +423,40 @@ test("A2: the same computation shows the PRE-CHANGE product did not move at all"
   }
 });
 
+/**
+ * The ONLY font sizes in this product that are not `rem`, pinned by selector.
+ *
+ * All four arrived with ledger 6.5, which deleted Tailwind and inlined its
+ * Preflight reset verbatim into app/globals.css. They were always shipping —
+ * Tailwind emitted them into the compiled stylesheet — but they lived outside
+ * this file, so this suite had never seen them. Making the reset visible made
+ * them visible, which is the point of inlining it.
+ *
+ * They are allowed because `em` and `%` are multiples of the PARENT font size,
+ * so they follow the root just as `rem` does and cannot opt out of the toggle.
+ * They are PINNED rather than waved through by unit, because "relative units
+ * are fine" as a blanket rule would let a hand-written `font-size: 0.6em` into
+ * the product, and 0.6em of 13px is 7.8px — the A1 defect, wearing a unit this
+ * check accepts.
+ */
+const RELATIVE_SIZE_ALLOWLIST = new Set([
+  "code, kbd, samp, pre -> 1em",
+  "small -> 80%",
+  "sub, sup -> 75%",
+  "button, input, optgroup, select, textarea -> 100%",
+]);
+
 test("A2: every font size in the product is expressed in rem", () => {
   // The mechanism guarantee, stated once. `rem` is the only unit that follows
-  // the root, so unit purity IS the proof that nothing can opt out of the
-  // toggle — including inline styles, which no stylesheet can reach.
+  // the root DIRECTLY, so unit purity IS the proof that nothing can opt out of
+  // the toggle — including inline styles, which no stylesheet can reach.
   const wrong = [];
   for (const decl of CSS_SIZES) {
-    for (const unit of resolvePx(decl.value, DEFAULT_ROOT_PX)?.units ?? []) {
+    const resolved = resolvePx(decl.value, DEFAULT_ROOT_PX);
+    if (resolved?.relative && RELATIVE_SIZE_ALLOWLIST.has(`${decl.selector} -> ${decl.value}`)) {
+      continue;
+    }
+    for (const unit of resolved?.units ?? []) {
       if (unit !== "rem") wrong.push(`${decl.selector} -> ${decl.value} (${unit})`);
     }
   }
@@ -395,6 +468,45 @@ test("A2: every font size in the product is expressed in rem", () => {
     }
   }
   assert.deepEqual(wrong, []);
+});
+
+test("A2: the relative-unit allowlist is exactly the inlined reset, and no bigger", () => {
+  // Both directions. Every entry must still be present (so a stale allowlist is
+  // caught), and nothing outside it may be relative (so the allowlist cannot
+  // quietly become the mechanism by which a 0.6em creeps in).
+  const relative = CSS_SIZES.filter((d) => resolvePx(d.value, DEFAULT_ROOT_PX)?.relative).map(
+    (d) => `${d.selector} -> ${d.value}`,
+  );
+  assert.deepEqual(
+    [...new Set(relative)].sort(),
+    [...RELATIVE_SIZE_ALLOWLIST].sort(),
+    "the set of non-rem font sizes in app/globals.css has changed",
+  );
+
+  // And the guard bites: a hand-written 0.6em is not on the list, so the check
+  // above would report it.
+  const planted = cssFontSizes(".x { font-size: 0.6em; }");
+  assert.ok(resolvePx(planted[0].value, DEFAULT_ROOT_PX).relative);
+  assert.ok(!RELATIVE_SIZE_ALLOWLIST.has(`${planted[0].selector} -> ${planted[0].value}`));
+});
+
+test("A2: the type-scale tokens are readable, and every one of them is rem", () => {
+  // The design system (6.5) declares the scale once and primitives reference it
+  // as `var(--sp-font-*)`. If this parser could not see through `var()` the
+  // whole scale would be invisible to every check in this file, so both halves
+  // are asserted: the tokens exist and resolve, and each resolves to rem.
+  const scale = [...TOKENS.keys()].filter((k) => /^--sp-font-/.test(k));
+  assert.ok(scale.length >= 9, `expected the 6.5 type scale, found ${scale.length} tokens`);
+  for (const name of scale) {
+    const resolved = resolvePx(`var(${name})`, DEFAULT_ROOT_PX);
+    assert.ok(resolved, `${name} does not resolve to a length`);
+    assert.deepEqual(resolved.units, ["rem"], `${name} is ${TOKENS.get(name)}, which is not rem`);
+    assert.ok(resolved.min >= MIN_TEXT_PX, `${name} is below the ${MIN_TEXT_PX}px floor`);
+  }
+  // Cry-wolf: the expansion is real, not a regex that always finds "rem".
+  assert.equal(resolvePx("var(--sp-font-sm)", 16).min, 13);
+  assert.equal(resolvePx("var(--sp-font-sm)", 18).min, 14.625);
+  assert.equal(resolvePx("var(--nope-not-a-token)", 16), null);
 });
 
 test("A2: the toggle is still wired from the cookie to the html element", () => {
