@@ -199,6 +199,17 @@ test("the scanner can tell the three cases apart", () => {
   const limited = `const x = await supabase.from("customers").select("id").limit(10);`;
   assert.equal(classify(chains(limited)[0], limited), "read-bounded");
 
+  // A limit AT OR ABOVE the server cap is not a bound. PostgREST honours
+  // min(limit, 1000), so `.limit(2000)` returns 1000 rows and no error — which
+  // is what /reports did to the aging report, and the deliberate-looking 2000
+  // is precisely why it went unquestioned.
+  const tooBig = `const x = await supabase.from("invoices").select("total_minor").limit(2000);`;
+  assert.equal(classify(chains(tooBig)[0], tooBig), "read-unbounded");
+  const atCap = `const x = await supabase.from("invoices").select("id").limit(1000);`;
+  assert.equal(classify(chains(atCap)[0], atCap), "read-unbounded");
+  const belowCap = `const x = await supabase.from("invoices").select("id").limit(999);`;
+  assert.equal(classify(chains(belowCap)[0], belowCap), "read-bounded");
+
   const single = `const x = await supabase.from("customers").select("id").eq("id", i).maybeSingle();`;
   assert.equal(classify(chains(single)[0], single), "read-one");
 

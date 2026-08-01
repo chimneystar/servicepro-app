@@ -153,6 +153,14 @@ export function classify(chain, source) {
   if (!/\.select\s*\(/.test(t)) return "not-a-read";
   if (/count:\s*"exact"/.test(t) && /head:\s*true/.test(t)) return "read-count";
   if (/\.(single|maybeSingle)\s*\(/.test(t)) return "read-one";
+  // An explicit `.limit(N)` at or above the server's cap is NOT a bound — it is
+  // the same silent truncation wearing a number. `/reports` capped the aging
+  // report's unpaid invoices at `.limit(2000)`, which PostgREST honours as
+  // min(2000, 1000): the business was told what it was owed on its first
+  // thousand unpaid invoices, and the deliberate-looking 2000 is exactly why
+  // nobody questioned it.
+  const literalLimit = /\.limit\(\s*(\d+)\s*\)/.exec(t);
+  if (literalLimit && Number(literalLimit[1]) >= 1000) return "read-unbounded";
   if (/\.(limit|range)\s*\(/.test(t)) return "read-bounded";
   if (source !== undefined && insideGatewayCall(source, chain.index)) return "read-paged";
   return "read-unbounded";
