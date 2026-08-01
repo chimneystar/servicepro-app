@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import * as backendData from "@/lib/data/backend";
 
 export const dynamic = "force-dynamic";
 
@@ -38,53 +39,37 @@ export async function GET(
   )
     return NextResponse.json({ error: "identity_verification_required" }, { status: 409 });
   const customerId = privacyRequest.customer_id;
-  const [
-    { data: customer },
-    { data: jobs },
-    { data: estimates },
-    { data: invoices },
-    { data: messages },
-    { data: sms },
-    { data: consents },
-    { data: calls },
-  ] = await Promise.all([
-    supabase.from("customers").select("*").eq("id", customerId).single(),
-    supabase.from("jobs").select("*").eq("customer_id", customerId),
-    supabase
-      .from("estimates")
-      .select("*,estimate_items!estimate_items_estimate_id_fkey(*)")
-      .eq("customer_id", customerId),
-    supabase
-      .from("invoices")
-      .select("*,invoice_items!invoice_items_invoice_id_fkey(*)")
-      .eq("customer_id", customerId),
-    supabase.from("messages").select("*").eq("customer_id", customerId),
-    supabase
-      .from("sms_messages")
-      .select("id,to_phone,body,status,created_at,sent_at")
-      .eq("customer_id", customerId),
-    supabase
-      .from("consent_events")
-      .select("channel,purpose,granted,source,policy_version,proof,recorded_at")
-      .eq("customer_id", customerId)
-      .order("recorded_at"),
-    supabase
-      .from("call_events")
-      .select(
-        "direction,status,from_number,to_number,reason,outcome,notes,recording_consent,started_at,answered_at,ended_at,duration_seconds",
-      )
-      .eq("customer_id", customerId)
-      .order("started_at"),
-  ]);
-  const invoiceIds = (invoices ?? []).map((row) => row.id);
-  const { data: payments } = invoiceIds.length
-    ? await supabase
-        .from("payments")
-        .select(
-          "id,invoice_id,amount_minor,currency,status,provider,normalized_status,refunded_minor,paid_at,settled_at,created_at",
-        )
-        .in("invoice_id", invoiceIds)
-    : { data: [] };
+  // A subject-access export is a legal document: a query error silently
+  // treated as "no rows" here would produce an incomplete export with nothing
+  // to say so — the exact defect the data layer exists to remove. Every read
+  // below now THROWS on a query error instead, so this whole section is
+  // wrapped and reported as a real failure rather than a quietly short export.
+  let customer, jobs, estimates, invoices, messages, sms, consents, calls, payments;
+  try {
+    const { data: customerRow } = await supabase
+      .from("customers")
+      .select("*")
+      .eq("id", customerId)
+      .single();
+    customer = customerRow;
+    [jobs, estimates, invoices, messages, sms, consents, calls] = await Promise.all([
+      backendData.listAllJobsForCustomerExport(supabase, customerId),
+      backendData.listAllEstimatesForCustomerExport(supabase, customerId),
+      backendData.listAllInvoicesForCustomerExport(supabase, customerId),
+      backendData.listAllMessagesForCustomerExport(supabase, customerId),
+      backendData.listSmsForCustomerExport(supabase, customerId),
+      backendData.listConsentEventsForCustomerExport(supabase, customerId),
+      backendData.listCallEventsForCustomerExport(supabase, customerId),
+    ]);
+    const invoiceIds = invoices.map((row) => row.id);
+    payments = await backendData.listPaymentsForInvoicesExport(supabase, invoiceIds);
+  } catch (e: unknown) {
+    console.error(
+      `[privacy/export] could not assemble the export for request ${requestId}:`,
+      e instanceof Error ? e.message : String(e),
+    );
+    return NextResponse.json({ error: "export_failed" }, { status: 500 });
+  }
   const payload = {
     exportedAt: new Date().toISOString(),
     request: {
@@ -93,14 +78,14 @@ export async function GET(
       receivedAt: privacyRequest.received_at,
     },
     customer,
-    jobs: jobs ?? [],
-    estimates: estimates ?? [],
-    invoices: invoices ?? [],
-    payments: payments ?? [],
-    messages: messages ?? [],
-    smsMessages: sms ?? [],
-    calls: calls ?? [],
-    consentHistory: consents ?? [],
+    jobs,
+    estimates,
+    invoices,
+    payments,
+    messages,
+    smsMessages: sms,
+    calls,
+    consentHistory: consents,
   };
   await supabase
     .from("privacy_requests")

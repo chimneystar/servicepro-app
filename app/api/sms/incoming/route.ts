@@ -5,6 +5,7 @@ import { formRecord, validateTwilioSignature, webhookUrl } from "@/lib/voice-pro
 import { normalizeUsPhone } from "@/lib/core/calls.mjs";
 // @ts-ignore - proven both ways in tests/security.test.mjs
 import { isSmsOptOut, isSmsOptIn } from "@/lib/core/security.mjs";
+import * as backendData from "@/lib/data/backend";
 
 export const dynamic = "force-dynamic";
 
@@ -76,14 +77,20 @@ export async function POST(request: NextRequest) {
   const organizationId = tracked.organization_id as string;
   const normalizedFrom = normalizeUsPhone(from);
 
-  // Customer lookup is scoped to the resolved organisation.
-  const { data: customers } = await admin
-    .from("customers")
-    .select("id, phone")
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
-    .not("phone", "is", null);
-  const customer = (customers ?? []).find(
+  // Customer lookup is scoped to the resolved organisation. A failure here
+  // must not drop the inbound message — it only means it is recorded without
+  // a matched customer, the same outcome an unrecognised sender already
+  // produces.
+  let customers: Awaited<ReturnType<typeof backendData.listCustomerPhonesWithPhoneForOrg>> = [];
+  try {
+    customers = await backendData.listCustomerPhonesWithPhoneForOrg(admin, organizationId);
+  } catch (e: unknown) {
+    console.error(
+      "[sms/incoming] could not read the customer list to match the sender:",
+      e instanceof Error ? e.message : String(e),
+    );
+  }
+  const customer = customers.find(
     (row: { id: string; phone: string | null }) =>
       normalizeUsPhone(row.phone ?? "") === normalizedFrom,
   );

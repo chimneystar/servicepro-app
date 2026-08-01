@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/lib/supabase/database.types";
+import { readAll } from "@/lib/data/db";
 // @ts-ignore -- pure rules, proven both ways in tests/support-access.test.mjs
 import { selectGrantingSession, supportAccessMessage } from "@/lib/core/support-access.mjs";
 
@@ -95,16 +96,20 @@ export async function getSupportAccess(input: {
   const requiredLevel = input.requiredLevel ?? "read_only";
   try {
     const admin = createAdminClient();
-    const { data, error } = await admin
-      .from("support_sessions")
-      .select(
-        "id, case_id, organization_id, admin_user_id, access_level, starts_at, expires_at, revoked_at",
-      )
-      .eq("admin_user_id", input.adminUserId)
-      .eq("organization_id", input.organizationId);
-    if (error) return verdictFrom({ granted: false, reason: "no_session" }, locale);
+    // Kept INLINE (readAll rather than lib/data/backend.ts) on purpose:
+    // tests/support-access.test.mjs reads this file's own source for the
+    // literal `from("support_sessions")` text.
+    const data = await readAll("platform-admin.getSupportAccess", () =>
+      admin
+        .from("support_sessions")
+        .select(
+          "id, case_id, organization_id, admin_user_id, access_level, starts_at, expires_at, revoked_at",
+        )
+        .eq("admin_user_id", input.adminUserId)
+        .eq("organization_id", input.organizationId),
+    );
     return verdictFrom(
-      selectGrantingSession(data ?? [], {
+      selectGrantingSession(data, {
         now: input.now ?? Date.now(),
         adminUserId: input.adminUserId,
         organizationId: input.organizationId,

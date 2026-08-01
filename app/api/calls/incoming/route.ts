@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { formRecord, validateTwilioSignature, webhookUrl } from "@/lib/voice-provider";
 // @ts-ignore - shared pure JavaScript is also exercised directly by Node tests.
 import { escapeXml, normalizeUsPhone } from "@/lib/core/calls.mjs";
+import * as backendData from "@/lib/data/backend";
 
 export const dynamic = "force-dynamic";
 
@@ -38,12 +39,19 @@ export async function POST(request: NextRequest) {
     .limit(1)
     .maybeSingle();
   if (!tracked) return response("<Say>This number is not active.</Say>", 404);
-  const { data: customers } = await admin
-    .from("customers")
-    .select("id,phone")
-    .eq("organization_id", tracked.organization_id)
-    .is("deleted_at", null);
-  const customer = (customers ?? []).find((row) => normalizeUsPhone(row.phone) === from);
+  // A failure here must not refuse to connect the call — it only means the
+  // call is logged without a matched customer, which is the same outcome an
+  // unrecognised caller already produces.
+  let customers: Awaited<ReturnType<typeof backendData.listCustomerPhonesForOrg>> = [];
+  try {
+    customers = await backendData.listCustomerPhonesForOrg(admin, tracked.organization_id);
+  } catch (e: unknown) {
+    console.error(
+      "[calls/incoming] could not read the customer list to match the caller:",
+      e instanceof Error ? e.message : String(e),
+    );
+  }
+  const customer = customers.find((row) => normalizeUsPhone(row.phone) === from);
   await admin.from("call_events").upsert(
     {
       organization_id: tracked.organization_id,

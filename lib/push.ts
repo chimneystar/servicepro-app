@@ -1,5 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import * as backendData from "@/lib/data/backend";
 // @ts-ignore -- pure ESM crypto/logic, proven both ways in tests/push.test.mjs
 import {
   vapidStatus,
@@ -141,19 +142,22 @@ export async function sendPushToProfile(input: {
     return { ok: false, delivered: 0, removed: 0, failed: 0, reason: status.reason, message };
   }
 
-  const { data, error } = await admin
-    .from("device_subscriptions")
-    .select("id, endpoint, p256dh, auth_secret, locale")
-    .eq("organization_id", input.organizationId)
-    .eq("profile_id", input.profileId)
-    .eq("enabled", true);
-  if (error) {
-    const message = `Push delivery could not read the device list: ${error.message}`;
+  // sendPushToProfile NEVER throws (see the doc comment above): a repository
+  // read that now throws on a query error is caught here and turned back into
+  // the same `lookup_failed` result the caller has always seen.
+  let subscriptions: SubscriptionRow[];
+  try {
+    subscriptions = (await backendData.listEnabledDeviceSubscriptions(
+      admin,
+      input.organizationId,
+      input.profileId,
+    )) as SubscriptionRow[];
+  } catch (cause: unknown) {
+    const message = `Push delivery could not read the device list: ${cause instanceof Error ? cause.message : String(cause)}`;
     console.error(`${LOG} ${message}`);
     return { ok: false, delivered: 0, removed: 0, failed: 0, reason: "lookup_failed", message };
   }
 
-  const subscriptions = (data ?? []) as SubscriptionRow[];
   if (subscriptions.length === 0) {
     const message = pushUnavailableMessage("no_devices", "en") as string;
     await recordEvent(admin, {

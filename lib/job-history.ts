@@ -2,6 +2,8 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import type { Locale } from "@/lib/i18n";
 import type { Json } from "@/lib/supabase/database.types";
+import * as backendData from "@/lib/data/backend";
+import * as profilesData from "@/lib/data/profiles";
 // @ts-ignore - shared pure JavaScript is also exercised directly by Node tests.
 import { formatUsPhone } from "@/lib/core/calls.mjs";
 
@@ -75,48 +77,19 @@ export async function loadJobHistory(
 ): Promise<JobTimelineEntry[]> {
   const he = locale === "he";
   const supabase = await createClient();
-  const [auditResult, actionsResult, callsResult, warrantyResult, callbacksResult] =
-    await Promise.all([
-      supabase
-        .from("audit_log")
-        .select("id,action,actor,old_data,new_data,at")
-        .eq("table_name", "jobs")
-        .eq("row_id", jobId)
-        .order("at", { ascending: false })
-        .limit(60),
-      supabase
-        .from("job_actions")
-        .select(
-          "id,action_type,title,body,status,due_at,assigned_to,created_by,completed_by,completed_at,created_at",
-        )
-        .eq("job_id", jobId)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("call_events")
-        .select(
-          "id,direction,status,from_number,to_number,reason,outcome,notes,needs_follow_up,handled_by,duration_seconds,started_at",
-        )
-        .eq("job_id", jobId)
-        .order("started_at", { ascending: false }),
-      supabase
-        .from("job_warranties")
-        .select("id,coverage_type,starts_on,expires_on,status,created_by,created_at")
-        .eq("job_id", jobId)
-        .maybeSingle(),
-      supabase
-        .from("warranty_callbacks")
-        .select(
-          "id,issue,priority,responsibility,status,scheduled_for,resolution,created_by,resolved_by,resolved_at,reported_at,callback_job_id",
-        )
-        .eq("original_job_id", jobId)
-        .order("reported_at", { ascending: false }),
-    ]);
+  const [audit, actions, calls, warrantyResult, callbacks] = await Promise.all([
+    backendData.listAuditLogForJob(supabase, jobId, 60),
+    backendData.listJobActions(supabase, jobId),
+    backendData.listJobCallEvents(supabase, jobId),
+    supabase
+      .from("job_warranties")
+      .select("id,coverage_type,starts_on,expires_on,status,created_by,created_at")
+      .eq("job_id", jobId)
+      .maybeSingle(),
+    backendData.listJobWarrantyCallbacks(supabase, jobId),
+  ]);
 
-  const audit = auditResult.data ?? [];
-  const actions = actionsResult.data ?? [];
-  const calls = callsResult.data ?? [];
   const warranty = warrantyResult.data;
-  const callbacks = callbacksResult.data ?? [];
   const actorIds = [
     ...new Set(
       [
@@ -128,10 +101,8 @@ export async function loadJobHistory(
       ].filter(Boolean),
     ),
   ] as string[];
-  const { data: people } = actorIds.length
-    ? await supabase.from("profiles").select("id,full_name").in("id", actorIds)
-    : { data: [] };
-  const names = new Map((people ?? []).map((person) => [person.id, person.full_name]));
+  const people = await profilesData.listNamesByIds(supabase, actorIds);
+  const names = new Map(people.map((person) => [person.id, person.full_name]));
   const who = (id: string | null) => (id ? (names.get(id) ?? null) : null);
 
   const entries: JobTimelineEntry[] = audit.map((row) => {

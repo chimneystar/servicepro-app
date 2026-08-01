@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { Enums, TablesUpdate } from "@/lib/supabase/database.types";
+import * as backendData from "@/lib/data/backend";
 
 type Event = { clientEventId?: unknown; jobId?: unknown; action?: unknown; createdAt?: unknown };
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -58,16 +59,23 @@ export async function POST(request: NextRequest) {
   const processed: string[] = [];
   const rejected: string[] = [];
 
-  // Stage names are per-organisation; fall back to defaults only if uncustomised.
-  const { data: statuses } = await supabase
-    .from("job_statuses")
-    .select("name,is_done,sort")
-    .eq("organization_id", profile.organization_id)
-    .order("sort");
-  const doneStage = statuses?.find((s) => s.is_done)?.name ?? "Completed";
+  // Stage names are per-organisation; fall back to defaults only if
+  // uncustomised — including when the read itself fails. A technician's queued
+  // actions must still be given a best-effort stage name and drained rather
+  // than blocked entirely because this lookup could not complete.
+  let statuses: Awaited<ReturnType<typeof backendData.listJobStatusNamesForOrg>> = [];
+  try {
+    statuses = await backendData.listJobStatusNamesForOrg(supabase, profile.organization_id);
+  } catch (e: unknown) {
+    console.error(
+      `[sync] could not read job statuses for org ${profile.organization_id}:`,
+      e instanceof Error ? e.message : String(e),
+    );
+  }
+  const doneStage = statuses.find((s) => s.is_done)?.name ?? "Completed";
   const progressStage =
-    statuses?.find((s) => !s.is_done && /progress/i.test(s.name))?.name ??
-    statuses?.find((s) => !s.is_done)?.name ??
+    statuses.find((s) => !s.is_done && /progress/i.test(s.name))?.name ??
+    statuses.find((s) => !s.is_done)?.name ??
     "In Progress";
 
   for (const event of events) {
