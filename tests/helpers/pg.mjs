@@ -157,7 +157,12 @@ do $$ begin create role service_role;   exception when duplicate_object then nul
  * migration, and the assertion runner executes it separately so that a failure
  * there reports as a failed isolation test rather than as a broken migration.
  */
-export async function freshDatabase({ upTo = null, shim = SUPABASE_SHIM, skip = [], beforeEach = null } = {}) {
+export async function freshDatabase({
+  upTo = null,
+  shim = SUPABASE_SHIM,
+  skip = [],
+  beforeEach = null,
+} = {}) {
   const db = new PGlite({ extensions: { pgcrypto, btree_gist } });
   await db.exec("create extension if not exists pgcrypto;");
   await db.exec("create extension if not exists btree_gist;");

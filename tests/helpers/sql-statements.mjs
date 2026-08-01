@@ -37,7 +37,7 @@ export function splitStatements(sql) {
   let line = 1;
   let startLine = 1;
 
-  for (let i = 0; i < sql.length; ) {
+  for (let i = 0; i < sql.length;) {
     const two = sql.slice(i, i + 2);
 
     // -- line comment
@@ -54,8 +54,17 @@ export function splitStatements(sql) {
       let depth = 0;
       const start = i;
       while (i < sql.length) {
-        if (sql.slice(i, i + 2) === "/*") { depth++; i += 2; continue; }
-        if (sql.slice(i, i + 2) === "*/") { depth--; i += 2; if (depth === 0) break; continue; }
+        if (sql.slice(i, i + 2) === "/*") {
+          depth++;
+          i += 2;
+          continue;
+        }
+        if (sql.slice(i, i + 2) === "*/") {
+          depth--;
+          i += 2;
+          if (depth === 0) break;
+          continue;
+        }
         if (sql[i] === "\n") line++;
         i++;
       }
@@ -69,7 +78,10 @@ export function splitStatements(sql) {
       i++;
       while (i < sql.length) {
         if (sql[i] === "'") {
-          if (sql[i + 1] === "'") { i += 2; continue; }
+          if (sql[i + 1] === "'") {
+            i += 2;
+            continue;
+          }
           i++;
           break;
         }
@@ -86,7 +98,10 @@ export function splitStatements(sql) {
       i++;
       while (i < sql.length) {
         if (sql[i] === '"') {
-          if (sql[i + 1] === '"') { i += 2; continue; }
+          if (sql[i + 1] === '"') {
+            i += 2;
+            continue;
+          }
           i++;
           break;
         }
@@ -126,7 +141,11 @@ export function splitStatements(sql) {
     }
 
     if (sql[i] === "\n") line++;
-    if (buf === "" && /\s/.test(sql[i])) { i++; startLine = line; continue; }
+    if (buf === "" && /\s/.test(sql[i])) {
+      i++;
+      startLine = line;
+      continue;
+    }
     buf += sql[i];
     i++;
   }

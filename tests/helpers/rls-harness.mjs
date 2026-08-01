@@ -108,11 +108,12 @@ export async function runAssertionScript(db, absPath) {
       } catch (error) {
         throw new Error(
           `${file}:${statement.line} — harness statement failed, so the assertions after it never ran:\n` +
-          `  ${firstLine(error)}\n  statement: ${statement.text.slice(0, 200)}`,
+            `  ${firstLine(error)}\n  statement: ${statement.text.slice(0, 200)}`,
         );
       }
       if (/^(begin|start\s+transaction)\b/.test(kw)) inTransaction = true;
-      else if (/^(commit|end|rollback)\b/.test(kw) && !/^rollback\s+to\b/.test(kw)) inTransaction = false;
+      else if (/^(commit|end|rollback)\b/.test(kw) && !/^rollback\s+to\b/.test(kw))
+        inTransaction = false;
       continue;
     }
 
@@ -123,7 +124,11 @@ export async function runAssertionScript(db, absPath) {
       if (inTransaction) await db.exec("release savepoint __ci_assert;");
     } catch (error) {
       results.push({
-        file, line: statement.line, label, ok: false, afterFailure: failed,
+        file,
+        line: statement.line,
+        label,
+        ok: false,
+        afterFailure: failed,
         error: firstLine(error).replace(/^ASSERTION FAILED: /, ""),
       });
       failed = true;
@@ -152,7 +157,11 @@ export async function runAllAssertions(db) {
 /** Format failures for an assertion message. */
 export function describe(results) {
   return results
-    .map((r) => `  ${r.ok ? "ok  " : "FAIL"} ${r.file}:${r.line} ${r.label}` + (r.ok ? "" : `\n         ${r.error}`))
+    .map(
+      (r) =>
+        `  ${r.ok ? "ok  " : "FAIL"} ${r.file}:${r.line} ${r.label}` +
+        (r.ok ? "" : `\n         ${r.error}`),
+    )
     .join("\n");
 }
 
@@ -181,23 +190,32 @@ export async function runIsolationTest(db) {
 // ---------------------------------------------------------------------------
 
 const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/--[^\n]*/g, " ");
-const bare = (t) => t.replace(/^public\./i, "").replace(/"/g, "").toLowerCase();
+const bare = (t) =>
+  t
+    .replace(/^public\./i, "")
+    .replace(/"/g, "")
+    .toLowerCase();
 
 /** `{ table, name }` for every policy this SQL drops, and every one it creates. */
 export function policyStatements(sql) {
   const text = strip(sql);
-  const drops = [...text.matchAll(/drop\s+policy\s+(?:if\s+exists\s+)?"?([\w-]+)"?\s+on\s+([\w."]+)/gi)]
-    .map((m) => ({ name: m[1].toLowerCase(), table: bare(m[2]) }));
-  const creates = [...text.matchAll(/create\s+policy\s+"?([\w-]+)"?\s+on\s+([\w."]+)/gi)]
-    .map((m) => ({ name: m[1].toLowerCase(), table: bare(m[2]) }));
+  const drops = [
+    ...text.matchAll(/drop\s+policy\s+(?:if\s+exists\s+)?"?([\w-]+)"?\s+on\s+([\w."]+)/gi),
+  ].map((m) => ({ name: m[1].toLowerCase(), table: bare(m[2]) }));
+  const creates = [...text.matchAll(/create\s+policy\s+"?([\w-]+)"?\s+on\s+([\w."]+)/gi)].map(
+    (m) => ({ name: m[1].toLowerCase(), table: bare(m[2]) }),
+  );
   return { drops, creates, text };
 }
 
 /** Every policy currently installed, as `table.policyname`, plus its command. */
 export async function installedPolicies(db) {
   const { rows } = await db.query(
-    `select tablename, policyname, cmd from pg_policies where schemaname = 'public'`);
-  return new Map(rows.map((r) => [`${r.tablename.toLowerCase()}.${r.policyname.toLowerCase()}`, r.cmd]));
+    `select tablename, policyname, cmd from pg_policies where schemaname = 'public'`,
+  );
+  return new Map(
+    rows.map((r) => [`${r.tablename.toLowerCase()}.${r.policyname.toLowerCase()}`, r.cmd]),
+  );
 }
 
 /**
@@ -223,13 +241,15 @@ export function policyDropsThatRemovedNothing(file, sql, installed) {
     if (installed.has(key)) continue;
     if (created.has(key)) continue;
     out.push({
-      file, ...d,
+      file,
+      ...d,
       tableCreatedInSameFile: new RegExp(`create\\s+table[^;]*\\b${d.table}\\b`, "i").test(text),
       // The migration demonstrably replaced this table's policy set — at least
       // one of its other drops on the same table hit a real policy — so the
       // unmatched name is belt-and-braces rather than a missed rename.
       siblingDropRemovedSomething: drops.some(
-        (o) => o.table === d.table && o.name !== d.name && installed.has(`${o.table}.${o.name}`)),
+        (o) => o.table === d.table && o.name !== d.name && installed.has(`${o.table}.${o.name}`),
+      ),
     });
   }
   return out;

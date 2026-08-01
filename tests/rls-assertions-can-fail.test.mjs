@@ -2,8 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
 import {
-  ciDatabase, runAssertionScript, CI_DIR,
-  policyDropsThatRemovedNothing, installedPolicies,
+  ciDatabase,
+  runAssertionScript,
+  CI_DIR,
+  policyDropsThatRemovedNothing,
+  installedPolicies,
 } from "./helpers/rls-harness.mjs";
 
 // ---------------------------------------------------------------------------
@@ -40,20 +43,29 @@ async function provePlantedDefectIsCaught({ defect, file, mustFail, mustStillPas
 
   const before = await runAssertionScript(db, path.join(CI_DIR, file));
   const beforeHit = before.find((r) => r.label === mustFail);
-  assert.ok(beforeHit, `no assertion in ${file} is labelled "${mustFail}" — this proof is aimed at nothing`);
+  assert.ok(
+    beforeHit,
+    `no assertion in ${file} is labelled "${mustFail}" — this proof is aimed at nothing`,
+  );
   assert.ok(beforeHit.ok, `"${mustFail}" was already failing before the defect was planted`);
 
   await db.exec(defect);
 
   const after = await runAssertionScript(db, path.join(CI_DIR, file));
   const afterHit = after.find((r) => r.label === mustFail);
-  assert.equal(afterHit?.ok, false,
-    `the defect was planted and "${mustFail}" still passed — the assertion cannot fail, so it proves nothing`);
+  assert.equal(
+    afterHit?.ok,
+    false,
+    `the defect was planted and "${mustFail}" still passed — the assertion cannot fail, so it proves nothing`,
+  );
 
   for (const label of mustStillPass) {
     const control = after.find((r) => r.label === label);
-    assert.equal(control?.ok, true,
-      `control assertion "${label}" also went red, so the defect broke the file rather than the property under test`);
+    assert.equal(
+      control?.ok,
+      true,
+      `control assertion "${label}" also went red, so the defect broke the file rather than the property under test`,
+    );
   }
 }
 
@@ -67,7 +79,10 @@ test("PROOF: restoring the pre-023 timesheet policy is caught (ledger 1.18, verb
                using (organization_id = public.current_org_id());`,
     file: "30_tenant_assertions.sql",
     mustFail: "tech CANNOT read another technician job_time_entries row",
-    mustStillPass: ["tech CAN read their own job_time_entries row", "tenant A CANNOT read tenant B customers"],
+    mustStillPass: [
+      "tech CAN read their own job_time_entries row",
+      "tenant A CANNOT read tenant B customers",
+    ],
   });
 });
 
@@ -87,12 +102,18 @@ test("PROOF: a technician promoting themselves is caught, and is guarded twice",
   const label = "tech CANNOT change their own profiles.role to owner";
 
   // Each layer, alone, must still refuse.
-  for (const [name, defect] of [["the RLS policy", dropTrigger], ["the guard trigger", loosenPolicy]]) {
+  for (const [name, defect] of [
+    ["the RLS policy", dropTrigger],
+    ["the guard trigger", loosenPolicy],
+  ]) {
     const { db } = await ciDatabase();
     await db.exec(defect);
     const results = await runAssertionScript(db, path.join(CI_DIR, file));
-    assert.equal(results.find((r) => r.label === label)?.ok, true,
-      `with only ${name} left, a technician could promote themselves — that layer does not hold on its own`);
+    assert.equal(
+      results.find((r) => r.label === label)?.ok,
+      true,
+      `with only ${name} left, a technician could promote themselves — that layer does not hold on its own`,
+    );
   }
 
   // With both gone, the assertion must fire. If it does not, it is decorative.
@@ -100,7 +121,10 @@ test("PROOF: a technician promoting themselves is caught, and is guarded twice",
     defect: `${dropTrigger}\n${loosenPolicy}`,
     file,
     mustFail: label,
-    mustStillPass: ["tech CAN still edit their own full_name", "owner CAN still issue an invitation"],
+    mustStillPass: [
+      "tech CAN still edit their own full_name",
+      "owner CAN still issue an invitation",
+    ],
   });
 });
 
@@ -112,7 +136,10 @@ test("PROOF: one broad policy beside the correct ones re-opens the tenant bounda
                for select to authenticated using (true);`,
     file: "30_tenant_assertions.sql",
     mustFail: "tenant A CANNOT read tenant B customers",
-    mustStillPass: ["tenant A CAN read its own customers", "tenant A CANNOT update tenant B customers"],
+    mustStillPass: [
+      "tenant A CAN read its own customers",
+      "tenant A CANNOT update tenant B customers",
+    ],
   });
 });
 
@@ -126,34 +153,48 @@ async function proveSigningGuardIsLoadBearing(guard, label, control) {
   const { db } = await ciDatabase();
   const file = "40_document_assertions.sql";
 
-  const before = (await runAssertionScript(db, path.join(CI_DIR, file))).find((r) => r.label === label);
+  const before = (await runAssertionScript(db, path.join(CI_DIR, file))).find(
+    (r) => r.label === label,
+  );
   assert.ok(before, `no assertion in ${file} is labelled "${label}"`);
   assert.equal(before.ok, true, `"${label}" was already failing before the guard was removed`);
 
   const { rows } = await db.query(
-    `select prosrc from pg_proc where proname = 'approve_document_with_evidence'`);
+    `select prosrc from pg_proc where proname = 'approve_document_with_evidence'`,
+  );
   const body = rows[0].prosrc.replaceAll(guard, "and true");
-  assert.notEqual(body, rows[0].prosrc,
-    `"${guard}" is not in the live approve_document_with_evidence, so this proof would remove nothing`);
+  assert.notEqual(
+    body,
+    rows[0].prosrc,
+    `"${guard}" is not in the live approve_document_with_evidence, so this proof would remove nothing`,
+  );
   await db.exec(
     `create or replace function public.approve_document_with_evidence(
        p_token uuid, p_name text, p_sig text,
        p_ip text default null, p_ip_source text default null, p_ip_trusted boolean default false,
        p_user_agent text default null, p_device text default null, p_sig_sha256 text default null)
-     returns jsonb language plpgsql security definer set search_path = public as $planted$${body}$planted$;`);
+     returns jsonb language plpgsql security definer set search_path = public as $planted$${body}$planted$;`,
+  );
 
   const after = await runAssertionScript(db, path.join(CI_DIR, file));
-  assert.equal(after.find((r) => r.label === label)?.ok, false,
-    `"${guard}" was removed and "${label}" still passed — the assertion proves nothing`);
-  assert.equal(after.find((r) => r.label === control)?.ok, true,
-    `control assertion "${control}" also went red, so the defect broke signing altogether`);
+  assert.equal(
+    after.find((r) => r.label === label)?.ok,
+    false,
+    `"${guard}" was removed and "${label}" still passed — the assertion proves nothing`,
+  );
+  assert.equal(
+    after.find((r) => r.label === control)?.ok,
+    true,
+    `control assertion "${control}" also went red, so the defect broke signing altogether`,
+  );
 }
 
 test("PROOF: losing the sign-once guard is caught", async () => {
   await proveSigningGuardIsLoadBearing(
     "and signed_at is null",
     "approve_document REFUSES to re-sign an already-signed estimate (returns false)",
-    "approve_document SIGNS an unsigned estimate (returns true)");
+    "approve_document SIGNS an unsigned estimate (returns true)",
+  );
 });
 
 test("PROOF: losing the void guard is caught — the exact regression 042 repairs", async () => {
@@ -164,7 +205,8 @@ test("PROOF: losing the void guard is caught — the exact regression 042 repair
   await proveSigningGuardIsLoadBearing(
     "and voided_at is null",
     "approve_document REFUSES to sign a VOIDED estimate",
-    "a live estimate beside the voided one still signs");
+    "a live estimate beside the voided one still signs",
+  );
 });
 
 test("PROOF: restoring the pre-034 mailbox-only join is caught", async () => {
@@ -202,7 +244,10 @@ test("PROOF: a colleague's location history leaking is caught", async () => {
                for select to authenticated using (organization_id = public.current_org_id());`,
     file: "30_tenant_assertions.sql",
     mustFail: "tech CANNOT read a colleague location history",
-    mustStillPass: ["tech CAN read their own location history", "tech CANNOT read another tenant location history"],
+    mustStillPass: [
+      "tech CAN read their own location history",
+      "tech CANNOT read another tenant location history",
+    ],
   });
 });
 
@@ -215,9 +260,13 @@ test("PROOF: the harness itself would notice if impersonation stopped working", 
   await db.exec("alter role authenticated bypassrls;");
   const results = await runAssertionScript(db, path.join(CI_DIR, "10_fixtures.sql"));
   assert.equal(
-    results.find((r) => r.label === "harness: RLS is ENFORCED for the impersonated role (tenant B is invisible)")?.ok,
+    results.find(
+      (r) =>
+        r.label === "harness: RLS is ENFORCED for the impersonated role (tenant B is invisible)",
+    )?.ok,
     false,
-    "RLS was switched off for the impersonated role and the fixtures still reported a trustworthy state");
+    "RLS was switched off for the impersonated role and the fixtures still reported a trustworthy state",
+  );
 });
 
 test("PROOF: the no-op policy drop detector fires on a planted rename mismatch", async () => {
@@ -233,8 +282,11 @@ test("PROOF: the no-op policy drop detector fires on a planted rename mismatch",
     create policy customers_narrow on public.customers for select to authenticated
       using (organization_id = public.current_org_id());`;
   const found = policyDropsThatRemovedNothing("planted.sql", planted, installed);
-  assert.deepEqual(found.map((f) => `${f.table}.${f.name}`), ["customers.customers_rw"],
-    "the detector did not notice a drop that removed nothing");
+  assert.deepEqual(
+    found.map((f) => `${f.table}.${f.name}`),
+    ["customers.customers_rw"],
+    "the detector did not notice a drop that removed nothing",
+  );
   assert.equal(found[0].tableCreatedInSameFile, false);
   assert.equal(found[0].siblingDropRemovedSomething, false);
 
@@ -245,6 +297,9 @@ test("PROOF: the no-op policy drop detector fires on a planted rename mismatch",
     drop policy if exists customers_narrow on public.customers;
     create policy customers_narrow on public.customers for select to authenticated
       using (organization_id = public.current_org_id());`;
-  assert.deepEqual(policyDropsThatRemovedNothing("planted.sql", idiomatic, installed), [],
-    "the detector fired on the standard drop-then-recreate idiom");
+  assert.deepEqual(
+    policyDropsThatRemovedNothing("planted.sql", idiomatic, installed),
+    [],
+    "the detector fired on the standard drop-then-recreate idiom",
+  );
 });
