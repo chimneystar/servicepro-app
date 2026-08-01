@@ -60,7 +60,7 @@ export async function exportCsv(
         supabase
           .from("invoices")
           .select(
-            "number, issue_date, status, total_minor, tax_rate_bps, discount_minor, customers(name)",
+            "number, issue_date, status, total_minor, tax_rate_bps, discount_minor, customers!invoices_customer_id_fkey(name)",
           )
           .is("deleted_at", null)
           .gte("issue_date", from)
@@ -209,7 +209,7 @@ export async function exportForAccounting(
         supabase
           .from("invoices")
           .select(
-            "id, number, issue_date, total_minor, discount_minor, tax_rate_bps, customers(name)",
+            "id, number, issue_date, total_minor, discount_minor, tax_rate_bps, customers!invoices_customer_id_fkey(name)",
           )
           .is("deleted_at", null)
           .gte("issue_date", from)

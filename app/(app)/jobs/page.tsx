@@ -38,7 +38,7 @@ export default async function JobsPage({
     supabase
       .from("jobs")
       .select(
-        "id, service, stage, tags, price_minor, scheduled_date, start_time, stage_changed_at, customers(name, address, city), profiles!jobs_assigned_to_fkey(full_name)",
+        "id, service, stage, tags, price_minor, scheduled_date, start_time, stage_changed_at, customers!jobs_customer_id_fkey(name, address, city), profiles!jobs_assigned_to_fkey(full_name)",
       )
       .is("deleted_at", null)
       .order("scheduled_date", { ascending: false })

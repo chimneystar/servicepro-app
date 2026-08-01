@@ -15,7 +15,7 @@ export default async function TechnicianPage() {
   const { data: jobs } = await supabase
     .from("jobs")
     .select(
-      "id, service, status, scheduled_date, start_time, end_time, job_address, job_city, customers(name, phone, address, city)",
+      "id, service, status, scheduled_date, start_time, end_time, job_address, job_city, customers!jobs_customer_id_fkey(name, phone, address, city)",
     )
     .eq("assigned_to", profile.id)
     .gte("scheduled_date", today)

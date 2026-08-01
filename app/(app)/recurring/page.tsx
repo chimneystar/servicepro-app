@@ -15,7 +15,7 @@ export default async function RecurringPage() {
     supabase
       .from("recurring_plans")
       .select(
-        "id, customer_id, service, interval_months, price_minor, next_due, assigned_to, customers(name)",
+        "id, customer_id, service, interval_months, price_minor, next_due, assigned_to, customers!recurring_plans_customer_id_fkey(name)",
       )
       .order("next_due"),
     supabase

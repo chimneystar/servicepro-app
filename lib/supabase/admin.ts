@@ -1,6 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./database.types";
 
+/** The typed service-role client, for helpers that take one as a parameter. */
+export type AdminClient = ReturnType<typeof createAdminClient>;
+
 /**
  * Service-role client for trusted server-only contexts (e.g. Stripe webhooks)
  * where there is no logged-in user. NEVER import this into client code.

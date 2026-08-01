@@ -54,11 +54,7 @@ test("the generated file carries the properties the type system depends on", asy
   // Nullability. A column that is nullable in the database and non-null in the
   // type is worse than no type at all: it makes `row.email.trim()` compile and
   // throw. `customers.email` is nullable in db/001_schema.sql.
-  assert.match(
-    committed,
-    /email: string \| null;/,
-    "a nullable column must carry `| null` in Row",
-  );
+  assert.match(committed, /email: string \| null;/, "a nullable column must carry `| null` in Row");
 
   // Generated columns must be unwritable. `jobs.slot` is a STORED generated
   // tsrange (it is what the double-booking exclusion constraint indexes); an
@@ -99,7 +95,10 @@ test("no table typed here is missing from the derived schema snapshot", async ()
   );
   const inSnapshot = new Set([...snapshot.matchAll(/^table (\w+) {2}\[rls=/gm)].map((m) => m[1]));
 
-  assert.ok(inSnapshot.size > 100, `expected the snapshot to list the tables, got ${inSnapshot.size}`);
+  assert.ok(
+    inSnapshot.size > 100,
+    `expected the snapshot to list the tables, got ${inSnapshot.size}`,
+  );
   const missing = [...inSnapshot].filter((t) => !typed.has(t));
   assert.deepEqual(missing, [], "every table in the schema snapshot must have a generated type");
 });

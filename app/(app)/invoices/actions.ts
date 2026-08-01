@@ -235,7 +235,7 @@ async function notifyOwnerOfPayment(
     const [{ data: invoice }, { data: org }] = await Promise.all([
       supabase
         .from("invoices")
-        .select("id, number, total_minor, customers(name)")
+        .select("id, number, total_minor, customers!invoices_customer_id_fkey(name)")
         .eq("id", invoiceId)
         .maybeSingle(),
       supabase.from("organizations").select("currency").single(),
@@ -346,7 +346,7 @@ export async function bulkSendInvoices(rawIds: string[]): Promise<BulkActionResu
     supabase
       .from("invoices")
       .select(
-        "id, number, total_minor, public_token, customer_id, customers(id, name, phone, email, sms_opt_in, email_opt_in, deleted_at)",
+        "id, number, total_minor, public_token, customer_id, customers!invoices_customer_id_fkey(id, name, phone, email, sms_opt_in, email_opt_in, deleted_at)",
       )
       .in("id", selection.ids!)
       .is("deleted_at", null),

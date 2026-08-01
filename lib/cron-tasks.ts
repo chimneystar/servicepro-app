@@ -99,7 +99,7 @@ export async function runReminders(): Promise<{ appointments: number; overdue: n
   const { data: jobs } = await admin
     .from("jobs")
     .select(
-      "id, service, scheduled_date, start_time, organization_id, customers(name, phone, sms_opt_in)",
+      "id, service, scheduled_date, start_time, organization_id, customers!jobs_customer_id_fkey(name, phone, sms_opt_in)",
     )
     .eq("scheduled_date", tomorrow)
     .eq("status", "scheduled")
@@ -168,7 +168,9 @@ export async function runReminders(): Promise<{ appointments: number; overdue: n
   // --- Overdue invoice nudges (unpaid > 14 days, at most weekly) ---
   const { data: invs } = await admin
     .from("invoices")
-    .select("id, number, issue_date, organization_id, customers(name, phone, sms_opt_in)")
+    .select(
+      "id, number, issue_date, organization_id, customers!invoices_customer_id_fkey(name, phone, sms_opt_in)",
+    )
     .eq("status", "unpaid")
     .is("deleted_at", null)
     .lte("issue_date", dayISO(-14));
@@ -395,7 +397,7 @@ async function automationSources(
     const { data } = await admin
       .from("jobs")
       .select(
-        `id, service, scheduled_date, start_time, customer_id, customers(${CUSTOMER_CONTACT})`,
+        `id, service, scheduled_date, start_time, customer_id, customers!jobs_customer_id_fkey(${CUSTOMER_CONTACT})`,
       )
       .eq("organization_id", rule.organization_id)
       .eq("status", "done")
@@ -421,7 +423,9 @@ async function automationSources(
   if (rule.trigger_type === "estimate_sent") {
     const { data } = await admin
       .from("estimates")
-      .select(`id, number, public_token, customer_id, customers(${CUSTOMER_CONTACT})`)
+      .select(
+        `id, number, public_token, customer_id, customers!estimates_customer_id_fkey(${CUSTOMER_CONTACT})`,
+      )
       .eq("organization_id", rule.organization_id)
       .eq("status", "sent")
       .is("deleted_at", null)
@@ -444,7 +448,7 @@ async function automationSources(
   const { data } = await admin
     .from("invoices")
     .select(
-      `id, number, issue_date, public_token, job_id, customer_id, customers(${CUSTOMER_CONTACT})`,
+      `id, number, issue_date, public_token, job_id, customer_id, customers!invoices_customer_id_fkey(${CUSTOMER_CONTACT})`,
     )
     .eq("organization_id", rule.organization_id)
     .eq("status", "unpaid")
@@ -1061,7 +1065,9 @@ export async function runGrowthOutreach(): Promise<OutreachSummary> {
     try {
       const { data: estimate } = await admin
         .from("estimates")
-        .select(`id, number, public_token, customer_id, customers(${CUSTOMER_CONTACT})`)
+        .select(
+          `id, number, public_token, customer_id, customers!estimates_customer_id_fkey(${CUSTOMER_CONTACT})`,
+        )
         .eq("id", followup.estimate_id)
         .is("deleted_at", null)
         .maybeSingle();
@@ -1166,7 +1172,7 @@ export async function runDunning(): Promise<DunningSummary> {
   const { data: invoices } = await admin
     .from("invoices")
     .select(
-      `id, number, organization_id, issue_date, total_minor, public_token, customer_id, customers(${CUSTOMER_CONTACT})`,
+      `id, number, organization_id, issue_date, total_minor, public_token, customer_id, customers!invoices_customer_id_fkey(${CUSTOMER_CONTACT})`,
     )
     .eq("status", "unpaid")
     .is("deleted_at", null)

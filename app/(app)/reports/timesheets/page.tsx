@@ -23,7 +23,7 @@ export default async function TimesheetsPage({
 
   const { data: entries } = await supabase
     .from("job_time_entries")
-    .select("started_at, ended_at, profiles(full_name), jobs(service)")
+    .select("started_at, ended_at, profiles(full_name), jobs!job_time_entries_job_id_fkey(service)")
     .gte("started_at", `${from}T00:00:00`)
     .lte("started_at", `${to}T23:59:59`)
     .order("started_at");

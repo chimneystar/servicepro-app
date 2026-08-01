@@ -40,7 +40,7 @@ export default async function SchedulePage({
       supabase
         .from("jobs")
         .select(
-          "id, service, status, scheduled_date, start_time, end_time, customers(name), profiles!jobs_assigned_to_fkey(full_name)",
+          "id, service, status, scheduled_date, start_time, end_time, customers!jobs_customer_id_fkey(name), profiles!jobs_assigned_to_fkey(full_name)",
         )
         .is("deleted_at", null)
         .gte("scheduled_date", window.from)

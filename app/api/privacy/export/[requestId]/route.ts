@@ -46,8 +46,14 @@ export async function GET(
   ] = await Promise.all([
     supabase.from("customers").select("*").eq("id", customerId).single(),
     supabase.from("jobs").select("*").eq("customer_id", customerId),
-    supabase.from("estimates").select("*,estimate_items(*)").eq("customer_id", customerId),
-    supabase.from("invoices").select("*,invoice_items(*)").eq("customer_id", customerId),
+    supabase
+      .from("estimates")
+      .select("*,estimate_items!estimate_items_estimate_id_fkey(*)")
+      .eq("customer_id", customerId),
+    supabase
+      .from("invoices")
+      .select("*,invoice_items!invoice_items_invoice_id_fkey(*)")
+      .eq("customer_id", customerId),
     supabase.from("messages").select("*").eq("customer_id", customerId),
     supabase
       .from("sms_messages")

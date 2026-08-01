@@ -62,7 +62,7 @@ export default async function OperationsPage() {
       .order("company_name"),
     supabase
       .from("jobs")
-      .select("id,service,customers(name)")
+      .select("id,service,customers!jobs_customer_id_fkey(name)")
       .is("deleted_at", null)
       .order("scheduled_date", { ascending: false })
       .limit(50),

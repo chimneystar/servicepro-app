@@ -289,7 +289,7 @@ export async function heldDeposits(organizationId: string, limit = 20): Promise<
 
   const { data: estimates } = await admin
     .from("estimates")
-    .select("id, number, customers(name)")
+    .select("id, number, customers!estimates_customer_id_fkey(name)")
     .in("id", estimateIds)
     .eq("organization_id", organizationId);
   const byId = new Map((estimates ?? []).map((estimate) => [estimate.id as string, estimate]));

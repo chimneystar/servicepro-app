@@ -63,7 +63,7 @@ export default async function GrowthPage() {
       .limit(20),
     supabase
       .from("estimates")
-      .select("id,number,status,customers(name)")
+      .select("id,number,status,customers!estimates_customer_id_fkey(name)")
       .in("status", ["draft", "sent"])
       .is("deleted_at", null)
       .order("issue_date", { ascending: false })

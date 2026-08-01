@@ -37,7 +37,7 @@ export default async function DispatchPage({
     supabase
       .from("jobs")
       .select(
-        "id,service,status,scheduled_date,end_date,start_time,end_time,assigned_to,job_address,job_city,required_skills,customers(name)",
+        "id,service,status,scheduled_date,end_date,start_time,end_time,assigned_to,job_address,job_city,required_skills,customers!jobs_customer_id_fkey(name)",
       )
       .lte("scheduled_date", date)
       .or(`end_date.gte.${date},end_date.is.null`)
