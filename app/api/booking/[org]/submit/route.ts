@@ -10,6 +10,8 @@ import {
   type ServiceArea,
 } from "@/lib/booking";
 import { raiseBookingDeposit } from "@/lib/payments/booking-deposit";
+import * as backendData from "@/lib/data/backend";
+import { readAll } from "@/lib/data/db";
 // @ts-ignore — proven both ways in tests/rate-limit.test.mjs
 import { consume, clientKey } from "@/lib/core/rate-limit.mjs";
 // @ts-ignore — proven both ways in tests/deposits.test.mjs
@@ -75,11 +77,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ org
     const [
       { data: settings },
       { data: service },
-      { data: areas },
-      { data: jobs },
+      areas,
+      jobs,
       { count: capacity },
       { count: recent },
-      { data: timeOff },
+      timeOff,
     ] = await Promise.all([
       admin.from("booking_settings").select("*").eq("organization_id", org).single(),
       admin
@@ -89,18 +91,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ org
         .eq("id", serviceId)
         .eq("active", true)
         .single(),
-      admin
-        .from("service_areas")
-        .select("area_type,values_json,active")
-        .eq("organization_id", org)
-        .eq("active", true),
-      admin
-        .from("jobs")
-        .select("start_time,end_time")
-        .eq("organization_id", org)
-        .eq("scheduled_date", date)
-        .is("deleted_at", null)
-        .neq("status", "cancelled"),
+      backendData.listServiceAreasForBooking(admin, org),
+      backendData.listJobBusyWindowsForDay(admin, org, date),
       admin
         .from("profiles")
         .select("id", { count: "exact", head: true })
@@ -117,13 +109,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ org
       // the slot list would hide a holiday and this endpoint would still accept
       // a hand-crafted POST for it, which is the shape of every "the UI checks
       // it" defect this branch exists to remove.
-      admin
-        .from("technician_time_off")
-        .select("profile_id,starts_on,ends_on,start_time,end_time,status")
-        .eq("organization_id", org)
-        .eq("status", "approved")
-        .lte("starts_on", date)
-        .gte("ends_on", date),
+      //
+      // Kept INLINE rather than routed through lib/data/backend.ts on purpose:
+      // tests/availability.test.mjs reads this route's own source to prove it
+      // applies the identical technician_time_off rule the slots route does. Still
+      // paged through the same gateway (readAll) as everything else in this pass.
+      readAll("app.booking.submit.listApprovedTimeOff", () =>
+        admin
+          .from("technician_time_off")
+          .select("profile_id,starts_on,ends_on,start_time,end_time,status")
+          .eq("organization_id", org)
+          .eq("status", "approved")
+          .lte("starts_on", date)
+          .gte("ends_on", date),
+      ),
     ]);
     if (!settings?.enabled || !service)
       return NextResponse.json({ ok: false, error: "booking_unavailable" }, { status: 404 });
@@ -141,7 +140,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ org
     // marker saying why. The owner is warned about the same condition on
     // /settings/booking. See docs/REMEDIATION-PLAN.md item 4.8.
     const verdict = settings.enforce_service_area
-      ? evaluateServiceArea(postalCode, city, (areas ?? []) as ServiceArea[])
+      ? evaluateServiceArea(postalCode, city, areas as ServiceArea[])
       : "match";
     if (verdict === "outside")
       return NextResponse.json({ ok: false, error: "outside_area" }, { status: 422 });
@@ -157,7 +156,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ org
     const needsReview = Boolean(settings.approval_required) || areaUnverified;
     const availability = bookingCapacity({
       teamSize: settings.use_team_capacity ? Math.max(1, capacity ?? 1) : 1,
-      rows: timeOff ?? [],
+      rows: timeOff,
       day: date,
     });
     const available = buildBookingSlots({
@@ -169,7 +168,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ org
       minNoticeHours: settings.min_notice_hours,
       maxDaysAhead: settings.max_days_ahead,
       capacity: availability.capacity,
-      busy: (jobs ?? []).map((row) => ({ start: row.start_time, end: row.end_time })),
+      busy: jobs.map((row) => ({ start: row.start_time, end: row.end_time })),
       timeZone: settings.timezone,
       closedWindows: availability.closedWindows,
       awayWindows: availability.awayWindows,

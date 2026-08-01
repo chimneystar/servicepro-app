@@ -1,6 +1,8 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import * as invoicesRepo from "@/lib/data/invoices";
+import * as paymentsRepo from "@/lib/data/payments";
 import type { TablesInsert } from "@/lib/supabase/database.types";
 import { providers, sendSms, sendEmail } from "@/lib/providers";
 // @ts-ignore -- shared JS module, proven both ways in tests/statements.test.mjs
@@ -87,12 +89,6 @@ export type StatementBundle = {
 
 const CUSTOMER_FIELDS =
   "id, name, phone, email, sms_opt_in, email_opt_in, deleted_at, address, city, billing_address, billing_city";
-const INVOICE_FIELDS = "id, number, issue_date, total_minor, status, deleted_at, public_token";
-const PAYMENT_FIELDS =
-  "invoice_id, paid_at, base_amount_minor, amount_minor, refunded_minor, normalized_status, method, reference";
-
-/** Cap on rows read for one statement. A customer with more than this needs a window. */
-const STATEMENT_ROW_LIMIT = 1000;
 
 /**
  * Load one customer's statement.
@@ -119,23 +115,11 @@ export async function loadStatement(
     .maybeSingle();
   if (!customer) return null;
 
-  const { data: invoices } = await supabase
-    .from("invoices")
-    .select(INVOICE_FIELDS)
-    .eq("customer_id", customerId)
-    .is("deleted_at", null)
-    .lte("issue_date", asOf)
-    .order("issue_date", { ascending: true })
-    .limit(STATEMENT_ROW_LIMIT);
-
-  const ids = (invoices ?? []).map((row: { id: string }) => row.id);
-  const { data: payments } = ids.length
-    ? await supabase
-        .from("payments")
-        .select(PAYMENT_FIELDS)
-        .in("invoice_id", ids)
-        .limit(STATEMENT_ROW_LIMIT)
-    : { data: [] as Record<string, unknown>[] };
+  const invoices = await invoicesRepo.listForStatement(supabase, customerId, asOf, {
+    ordered: true,
+  });
+  const ids = invoices.map((row: { id: string }) => row.id);
+  const payments = await paymentsRepo.listForStatement(supabase, ids);
 
   const { data: org } = await supabase
     .from("organizations")
@@ -146,7 +130,7 @@ export async function loadStatement(
   // default, which TypeScript narrows to `null | undefined`.
   const statement = (buildStatement as unknown as (input: Record<string, unknown>) => Statement)({
     invoices: invoices ?? [],
-    payments: payments ?? [],
+    payments,
     asOf,
     since,
   });
@@ -352,21 +336,10 @@ export async function loadStatementForCron(
   customerId: string,
   asOf: string,
 ): Promise<Statement | null> {
-  const { data: invoices } = await admin
-    .from("invoices")
-    .select(INVOICE_FIELDS)
-    .eq("customer_id", customerId)
-    .is("deleted_at", null)
-    .lte("issue_date", asOf)
-    .limit(STATEMENT_ROW_LIMIT);
-  if (!invoices) return null;
+  const invoices = await invoicesRepo.listForStatement(admin, customerId, asOf, {
+    ordered: false,
+  });
   const ids = invoices.map((row: { id: string }) => row.id);
-  const { data: payments } = ids.length
-    ? await admin
-        .from("payments")
-        .select(PAYMENT_FIELDS)
-        .in("invoice_id", ids)
-        .limit(STATEMENT_ROW_LIMIT)
-    : { data: [] as Record<string, unknown>[] };
-  return buildStatement({ invoices, payments: payments ?? [], asOf }) as Statement;
+  const payments = await paymentsRepo.listForStatement(admin, ids);
+  return buildStatement({ invoices, payments, asOf }) as Statement;
 }

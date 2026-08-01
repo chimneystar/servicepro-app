@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { PaymentError } from "@/lib/payments/server";
+import * as backendData from "@/lib/data/backend";
 // @ts-ignore — pure logic, proven both ways in tests/refunds.test.mjs
 import { refundableMinor, validateRefundAmount } from "@/lib/core/refunds.mjs";
 
@@ -213,16 +214,27 @@ async function reopenInvoiceIfUnderpaid(
     .maybeSingle();
   if (!invoice) return;
 
-  let query = admin
-    .from("payments")
-    .select("base_amount_minor, amount_minor, refunded_minor, normalized_status")
-    .in("normalized_status", ["settled", "partially_refunded"]);
-  query = invoice.estimate_id
-    ? query.or(`invoice_id.eq.${invoiceId},estimate_id.eq.${invoice.estimate_id}`)
-    : query.eq("invoice_id", invoiceId);
-
-  const { data: payments } = await query;
-  const stillCovered = refundableMinor(payments ?? []) >= Number(invoice.total_minor ?? 0);
+  // The refund itself is already recorded by the time this runs — only the
+  // invoice's paid/unpaid status is still to be reconciled. A read failure
+  // here must not report the whole refund as failed (it already succeeded),
+  // so it is caught and logged rather than left to propagate: the invoice
+  // status is left exactly as it was, which is the conservative choice when
+  // "is it still covered?" cannot be answered.
+  let payments: Awaited<ReturnType<typeof backendData.listSettledPaymentsForRefundCheck>>;
+  try {
+    payments = await backendData.listSettledPaymentsForRefundCheck(
+      admin,
+      invoiceId,
+      invoice.estimate_id,
+    );
+  } catch (cause: unknown) {
+    console.error(
+      `[refund] could not re-check invoice ${invoiceId}'s paid status after a refund:`,
+      cause instanceof Error ? cause.message : String(cause),
+    );
+    return;
+  }
+  const stillCovered = refundableMinor(payments) >= Number(invoice.total_minor ?? 0);
 
   if (!stillCovered && invoice.status === "paid") {
     await admin

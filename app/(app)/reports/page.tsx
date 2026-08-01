@@ -5,6 +5,9 @@ import { t } from "@/lib/i18n";
 import { money } from "@/lib/format";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import * as invoicesRepo from "@/lib/data/invoices";
+import * as paymentsRepo from "@/lib/data/payments";
+import * as operationsRepo from "@/lib/data/operations";
 // @ts-ignore — shared, unit-tested reporting arithmetic (tests/reporting.test.mjs)
 import {
   periodTotals,
@@ -43,49 +46,19 @@ export default async function ReportsPage({
   const { data: org } = await supabase.from("organizations").select("currency").single();
   const cur = org?.currency ?? "USD";
 
-  const { data: invoices } = await supabase
-    .from("invoices")
-    .select(
-      "id, total_minor, discount_minor, tax_rate_bps, issue_date, jobs(assigned_to, profiles!jobs_assigned_to_fkey(full_name))",
-    )
-    .eq("status", "paid")
-    .is("deleted_at", null)
-    .gte("issue_date", start)
-    .lte("issue_date", end);
-  const invs = invoices ?? [];
+  const invs = await invoicesRepo.listPaidInWindow(supabase, start, end);
   const ids = invs.map((i) => i.id);
 
-  let items: any[] = [];
-  if (ids.length) {
-    const { data } = await supabase
-      .from("invoice_items")
-      .select("invoice_id, qty_milli, unit_price_minor, cost_minor, taxable")
-      .in("invoice_id", ids);
-    items = data ?? [];
-  }
+  const items = await invoicesRepo.listItemsForInvoices(supabase, ids);
 
   // Cash actually received in the period. Revenue used to be the sum of
   // invoices.total_minor for invoices marked paid — what was BILLED, not what
   // arrived. That ignored partial payments, refunds and surcharges, and counted
   // an invoice someone hand-marked paid at full face value.
-  const { data: periodPayments } = await supabase
-    .from("payments")
-    .select("invoice_id, base_amount_minor, amount_minor, refunded_minor, normalized_status")
-    .in("normalized_status", COLLECTED_STATUSES)
-    .gte("paid_at", `${start}T00:00:00`)
-    .lte("paid_at", `${end}T23:59:59`);
+  const periodPayments = await paymentsRepo.listCollectedInWindow(supabase, start, end);
 
-  const { data: expenses } = await supabase
-    .from("expenses")
-    .select("amount_minor")
-    .gte("expense_date", start)
-    .lte("expense_date", end);
-  const { data: unpaid } = await supabase
-    .from("invoices")
-    .select("total_minor, issue_date")
-    .eq("status", "unpaid")
-    .is("deleted_at", null)
-    .limit(2000);
+  const expenses = await operationsRepo.listExpenseAmountsInWindow(supabase, start, end);
+  const unpaid = await invoicesRepo.listUnpaid(supabase);
 
   // Server request time is intentionally captured once for the aging report.
   // eslint-disable-next-line react-hooks/purity
@@ -97,7 +70,7 @@ export default async function ReportsPage({
     { label: "90+ days", min: 91, max: 999999 },
   ];
   const aging = buckets.map((b) => {
-    const rows = (unpaid ?? []).filter((i) => {
+    const rows = unpaid.filter((i) => {
       const age = Math.floor((nowMs - new Date(i.issue_date + "T00:00:00").getTime()) / 864e5);
       return age >= b.min && age <= b.max;
     });
@@ -107,20 +80,20 @@ export default async function ReportsPage({
       total: rows.reduce((s, i) => s + i.total_minor, 0),
     };
   });
-  const agingTotal = (unpaid ?? []).reduce((s, i) => s + i.total_minor, 0);
+  const agingTotal = unpaid.reduce((s, i) => s + i.total_minor, 0);
 
   const itemsByInvoice: Record<string, any[]> = {};
   items.forEach((it) => {
     (itemsByInvoice[it.invoice_id] ||= []).push(it);
   });
 
-  const totalExp = (expenses ?? []).reduce((s, e) => s + e.amount_minor, 0);
+  const totalExp = expenses.reduce((s, e) => s + e.amount_minor, 0);
 
   // All revenue and margin arithmetic lives in lib/core/reporting.mjs so the
   // dashboard, the custom report and the commission report cannot disagree —
   // and so it is unit-tested rather than reasoned about.
   const totals = periodTotals({
-    payments: periodPayments ?? [],
+    payments: periodPayments,
     invoices: invs as any[],
     itemsByInvoice,
     expensesMinor: totalExp,
@@ -136,7 +109,7 @@ export default async function ReportsPage({
   });
 
   const byTech: Record<string, { collected: number; profit: number; count: number }> = {};
-  (periodPayments ?? []).forEach((p: any) => {
+  periodPayments.forEach((p: any) => {
     const name = techByInvoice[p.invoice_id] ?? "Unassigned";
     const b = byTech[name] || { collected: 0, profit: 0, count: 0 };
     b.collected += collectedMinor([p]);

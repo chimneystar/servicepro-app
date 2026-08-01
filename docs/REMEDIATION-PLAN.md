@@ -1388,7 +1388,7 @@ written.
 | # | Task | Status |
 |---|---|---|
 | 6.1 | Generate Supabase types; remove `any` at the DB boundary | **PARTIAL** — the type system is installed and guarded: a `Database` type GENERATED from the migrations, all three clients typed against it, drift caught by a test. `any` as a type is **248 -> 152**. The remaining 152 are catalogued below; none of them is a `from()`/`select()` that is now unchecked. See note |
-| 6.2 | `lib/data/*` repository modules; mandatory pagination | TODO |
+| 6.2 | `lib/data/*` repository modules; mandatory pagination | **DONE** — 15 repository modules / 228 functions behind one gateway a caller cannot forget to bound, proven against a real Postgres with 1001 rows. Unpaged list reads **130 -> 0**, and the ratchet's ceiling is now **0**, so the next one fails the build. Four new both-ways probes (21 -> 25). Six real truncation defects found and fixed along the way; two residual risks and one unrelated defect recorded. See note |
 | 6.3 | One action contract; error/loading boundaries per route group; toast primitive | **PARTIAL** — the BOUNDARIES are DONE (8 probes, each proven both ways). `app/error.tsx` was the only boundary in the product: a boundary replaces everything below the layout it sits in, so any error on a signed-in screen removed the app shell including the mobile tab bar, which IS the navigation — a dead end with no way back. Added `app/(app)/error.tsx` (renders inside the shell, so navigation survives), `app/global-error.tsx` (the root layout’s own failure, which `app/error.tsx` cannot catch because it renders inside it — previously fell through to Next’s blank English-only page), customer-facing boundaries for `/book`, `/p`, `/portal` sharing one component with wording that sends a customer to the BUSINESS rather than to us, and `app/(app)/loading.tsx` (every `(app)` screen is force-dynamic and reads Supabase before rendering, so navigation previously showed nothing at all until data arrived). Every boundary is bilingual, surfaces `error.digest` — the only thread between what the user saw and what the server logged — and offers `reset()`. **Still TODO:** the single action contract across every `actions.ts`, and the toast primitive. Both are deliberately deferred: they edit the same files ledger 6.2 is rewriting, and an unwired toast would be exactly the exists-but-doesn’t-work failure this branch exists to remove. |
 | 6.4 | De-minify the long-line files; Prettier + max-len lint | **DONE** — 383 files reformatted, proven semantics-preserving file by file. See note |
 | 6.5 | Design system: tokens + ~15 primitives; retire 871 inline style objects | **PARTIAL** — tokens, 18 primitives and Tailwind's removal are DONE and proven; the migration is 238 of 1,587 style objects (15%). See note |
@@ -1457,6 +1457,178 @@ item and each needs its own probe:
   `Record<string, string>` and fed `invoices.job_id` and `jobs.assigned_to`, both nullable.
 * `app/(app)/finance/page.tsx:31-35` — a fallback for "migration 035 not applied" that can no longer
   fire, since `organizations.tax_mode` is in the derived schema.
+
+**Note on 6.2 — the data layer, and how an unpaged read was made impossible rather than discouraged.**
+
+*The numbers, measured with `node scripts/unpaged-inventory.mjs` at every step.*
+
+| | before | after |
+|---|---|---|
+| unbounded list reads (silently truncate at 1000) | **130** | **0** |
+| reads going through the paging gateway | 0 | **224** |
+| repository modules / functions | 0 | **15 / 228** |
+| the ratchet's ceiling in `tests/data-layer.test.mjs` | — | **0** |
+| tests | 1,202 | **1,222** |
+| both-ways probes | 21 | **25** |
+
+Every read in the product is now one of: a single row, a head count, an explicitly bounded read below
+the server's cap, or a query the gateway ranges. `tests/unpaged-reads.json` is an **empty file**.
+
+*The problem, stated exactly.* PostgREST caps a response at 1000 rows and says nothing about it:
+HTTP 200, `error: null`, a thousand perfectly valid rows, and a missing remainder. Nothing above the
+wire can tell that answer from a complete one. `app/(app)/reports/export/actions.ts` was fixed for
+this once, with a `fetchAllPages` helper and a rule — "remember to page" — and
+`tests/export-and-currency.test.mjs` guards that one file. **130 other list reads across 70 files had
+the same defect and no test could see them.** A rule that must be remembered is not a mechanism; the
+130 are the evidence.
+
+*The mechanism, in three layers of decreasing strength.*
+
+1. **The caller never writes a bound, so it cannot omit one.** `lib/data/db.ts` is a gateway: a
+   repository passes a query SHAPE and the gateway applies the range. `readAll` runs the page loop;
+   `readPage`/`readPageWithTotal` apply one page; `readAtMost` applies the limit it was given.
+   Nothing else in `lib/data/` awaits a query at all. `fetchAllPages((a, b) => q.range(a, b))` still
+   let a caller hand over a builder it had never ranged; this does not.
+2. **There is no unbounded entry point to call.** `readAtMost(source, build, limit)` takes its limit
+   as a required positional parameter — omitting it is a compile error, not a default — and there is
+   deliberately no `read(build)`. `lib/data/type-contract.ts` asserts this with `@ts-expect-error`,
+   so if an unbounded call ever became legal `npm run typecheck` fails naming the broken contract.
+   (TypeScript reports an UNUSED `@ts-expect-error` as TS2578, which is what makes the file a real
+   check and not a comment.)
+3. **Anything that bypasses the gateway fails the build, anywhere in the tree.**
+   `tests/data-layer.test.mjs` scans every `.from(...).select(...)` in the source — **including
+   files not yet committed**, because a new screen arrives with its query and its file in the same
+   change — and requires each list read to be bounded. What is left is pinned in
+   `tests/unpaged-reads.json`, and `CEILING` in the test is a literal that
+   `scripts/unpaged-inventory.mjs --write` cannot touch, so regenerating the inventory can never
+   quietly raise what the build accepts.
+
+*Proven against a real database, because nothing else can prove it.* `tests/data-paging-db.test.mjs`
+applies all 41 migrations to PGlite, inserts 1001 customers, and reads them back through
+`tests/helpers/postgrest-fake.mjs` — an adapter whose only job is to truncate at 1000 the way
+Supabase truncates. It establishes, on real rows:
+
+* the unpaged read returns **exactly 1000 with `error === null`** — the defect, demonstrated, not asserted;
+* `readAll`'s loop returns **all 1001**, in order, no row twice, in **three ranged requests**;
+* a total that is an exact multiple of the page size still terminates and is still complete;
+* **row-level security still applies** across every page (tenant B pages through its own 3 rows while
+  tenant A's 600 sit beside them) — paging issues N requests where there was one, and none of them
+  may escape RLS. The fixture asserts RLS is genuinely in force before trusting that result, because
+  "B sees only 3 rows" is equally consistent with a bypassed policy and an empty fixture;
+* visible pagination walks a 300-row table exactly once and reports `hasMore: false` on the full
+  final page;
+* a limit above the cap is **paged, not clamped**.
+
+The loop under test lives in `lib/core/paging.mjs` precisely so the test runs the shipped code rather
+than a transcription of it.
+
+*A hole found in this work's own first draft, and closed.* `readAtMost` originally clamped the
+caller's limit to 999 and issued one request, so asking for 1500 returned 999 rows with no error —
+the very defect the module exists to remove, reintroduced inside it behind an explicit-looking
+number. Clamping is defensible for a REQUEST and not for an ANSWER. It now pages (`pageUpTo`).
+
+*How errors surface, and why.* Every read in the gateway **throws**; none returns `[]`. Measured with
+the same classifier the guard uses, **13 of 526 direct reads in this codebase looked at the `error`
+field at all** — so a failed query rendered as an empty screen and the operator concluded the data was
+gone. A repository that caught an error and returned `[]` would institutionalise exactly that, and
+`tests/data-layer.test.mjs` fails if one does. `app/error.tsx` is the app-wide boundary, so a throw in
+a server component becomes a visible failure with a digest, which is a true statement where an empty
+list is a false one. Background paths differ deliberately: a cron loop catches per organisation and
+continues, because one tenant's failure must not stop the other tenants' work.
+
+*Row-level security is not conflated with absence.* RLS filters rows; it does not error. A read that
+returns nothing means *either* "no such row" *or* "you may not see it", and PostgREST cannot say
+which. `readOne` returns `null` and lets the caller decide; the throwing variant raises
+`NotFoundOrForbiddenError`, named for both possibilities on purpose so nothing downstream can turn
+"denied" into "deleted".
+
+*The guard was pointed at this work too, and won an argument.* One migrated repository reached around
+the gateway to apply its own `.range()`, with a careful comment explaining that the exception was
+narrow and disciplined — the trash screen genuinely needs a row page AND a true total from one
+request, which `readPage` did not offer. The reason was real and the exception was still wrong: the
+moment one repository may bound itself for a good reason, the rule is advice, and advice is what
+produced the 130. The gateway grew `readPageWithTotal` instead.
+
+*Four false positives in the scanner, all fixed, because a false red is as damaging as a false green
+— it teaches everybody the guard is noise.*
+
+* `readAll<{ customer_id: string | null }>(…)` contains a brace inside its TYPE ARGUMENT, so a "look
+  back to the nearest brace" search began after the generic and reported two correctly-paged
+  repositories as unbounded. The scanner now walks to the first unmatched paren and reads the callee.
+* A repository *documenting* why it does not call `.range()` failed the check that it does not call
+  `.range()`. Comments are stripped first.
+* `GATEWAY` was `/read(All|AtMost|Page|Pages)\(/` and a regex alternation is first-match, so
+  `readPageWithTotal(` matched `readPage` and then failed on the following `(` — the newest primitive
+  was invisible and every query using it read as unbounded.
+* A query assembled across statements and bounded at the end (`let query = …; query = cond ? … : …;
+  await query.limit(1).maybeSingle()`) stopped at the first `;`. The scanner now follows the variable
+  and checks for a bound later **in the same function**; a bound in a different function does not
+  vouch for it, and the tests plant all three cases.
+
+*Where the guard is still only as good as a text scan.* It cannot resolve a numeric ceiling **imported
+from another module** — only ones declared in the same file, and only names declared once. That is why
+`CALENDAR_MAX_EVENTS` had to be found by reading rather than by the scan. Stated here rather than left
+for somebody to discover.
+
+*An explicit limit is not automatically a bound, and that cost real money.* The migration turned up
+`.limit(2000)` on `/reports`' aging report. PostgREST honours `min(limit, db-max-rows)`, so that read
+returned **1000 rows and no error** — the business was shown what it was owed on its first thousand
+unpaid invoices, and the deliberate-looking `2000` is precisely why nobody questioned it. The guard
+had classified it as "bounded" and walked past. It now treats a literal `.limit(N >= 1000)` as
+unbounded, which immediately found **six more**, all in `lib/cron-tasks.ts` and all inside the
+**scheduled financial report emailed to the owner**: invoices `.limit(2000)`, payments `.limit(5000)`,
+expenses `.limit(2000)`, unpaid invoices `.limit(2000)`, `invoice_items` `.limit(10000)`, plus
+`.limit(5000)` at line 791. Every one silently returns 1000. This is the same class as the accountant's
+truncated export, in the report the owner reads monthly.
+
+*Two residual risks of the same family, recorded rather than changed.*
+
+* `EXPORT_PAGE_SIZE = 1000` (`lib/core/export-manifest.mjs:298`) is exactly the assumed cap. It is
+  **correct today** — requesting rows 0-999 returns 1000, a full page, and the loop continues until a
+  short one arrives — but it is correct by coincidence of the two numbers matching. If a deployment
+  ever set `db-max-rows` BELOW 1000, every page would come back short, `isLastPage` would fire on the
+  first one, and the accountant's export would truncate again with no error. `lib/core/paging.mjs`
+  uses 500 deliberately for this reason and says so. The fix is a one-line change to that constant;
+  it is not made here because it touches the export path's page arithmetic and belongs with its own
+  probe.
+* `CALENDAR_MAX_EVENTS = 2000` (`lib/core/calendar.mjs:40`) was a ceiling above the cap, so the
+  subscribed calendar feed stopped at 1000 events. **This one is now fixed for free**: the feed reads
+  through `readAtMost`, which pages rather than clamps, so a limit of 2000 genuinely returns up to
+  2000. It is the clearest argument for the gateway — a call site that never changed became correct
+  because the primitive underneath it stopped lying.
+
+*The six real defects the migration found, all fixed.* None was hypothetical; each was a wrong number
+shown to somebody.
+
+1. **`/reports` aging report** — `.limit(2000)` returned 1000. The business was told what it was owed
+   on its first thousand unpaid invoices.
+2. **The dashboard** — `ROW_CEILING = 2000` with a "showing partial data" banner driven by
+   `isTruncated(rows, ROW_CEILING)`. The server returns 1000 and `isTruncated(1000, 2000)` is false,
+   so it was truncated *and* the warning built to say so could never fire.
+3. **Customer statements** (`lib/statements.ts`) — `STATEMENT_ROW_LIMIT = 1000`, exactly the cap, so
+   it bounded nothing. The worse half is `loadStatementForCron`, which feeds the nightly **dunning**
+   run: a truncated payment list makes paid invoices look unpaid, so the customer is chased for money
+   they have already sent.
+4. **The scheduled report emailed to the owner** (`lib/cron-tasks.ts`) — six reads at
+   `.limit(2000)`/`.limit(5000)`/`.limit(10000)`, every one of them silently answered with 1000.
+5. **The estimate detail screen** read `estimate_option_items` **with no filter at all** — every
+   option line in the organisation — and narrowed to the current estimate in JavaScript. Past 1000
+   rows it would start dropping the tiers of the estimate being displayed.
+6. **`refreshInvoicePaidState` / `reopenInvoiceIfUnderpaid`** computed credited totals from a
+   silently `undefined` result on a query error, so a transient failure could leave a fully-paid
+   invoice stuck unpaid or flip a paid one back.
+
+*A defect found while verifying the gates, deliberately NOT fixed here.* `tests/push.test.mjs` fails
+roughly one run in fifty, and it is **not flaky noise — it is intermittently catching a real bug.**
+Node's `ecdh.getPrivateKey()` returns the P-256 scalar with leading zero bytes stripped, so about
+1 pair in 256 is 31 bytes rather than 32 (measured: **78 of 20,000**, against the 1/256 the theory
+predicts). `checkVapidKeys` (`lib/core/push.mjs:63`) requires exactly 32 and therefore reports
+`private_key_length` for a **valid** key pair. The production consequence is real: an operator who
+generates VAPID keys with any tool that strips leading zeros — which is what Node's own API does — has
+push reported permanently unavailable for a working key. Padding the test helper would have made the
+suite green and hidden it, which is the "relax it until it passes" move this branch has refused three
+times already. It needs its own ledger row, a decision about whether `checkVapidKeys` should accept
+and left-pad a short scalar, and a probe.
 
 **Note on 6.4 — the real numbers, and how a 383-file diff was proven to change nothing.**
 

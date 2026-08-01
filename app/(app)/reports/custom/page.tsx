@@ -4,6 +4,9 @@ import { money } from "@/lib/format";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import PrintButton from "@/components/PrintButton";
+import * as invoicesRepo from "@/lib/data/invoices";
+import * as operationsRepo from "@/lib/data/operations";
+import * as reporting from "@/lib/data/reporting";
 
 export const dynamic = "force-dynamic";
 
@@ -41,38 +44,16 @@ export default async function CustomReportPage({
   const { data: org } = await supabase.from("organizations").select("currency, name").single();
   const cur = org?.currency ?? "USD";
 
-  const { data: paid } = await supabase
-    .from("invoices")
-    .select("id, total_minor, jobs(profiles!jobs_assigned_to_fkey(full_name))")
-    .eq("status", "paid")
-    .is("deleted_at", null)
-    .gte("issue_date", from)
-    .lte("issue_date", to);
-  const invs = paid ?? [];
+  const invs = await reporting.listPaidInWindowForCustomReport(supabase, from, to);
   const ids = invs.map((i) => i.id);
-  let items: any[] = [];
-  if (ids.length) {
-    const { data } = await supabase
-      .from("invoice_items")
-      .select("invoice_id, qty_milli, unit_price_minor, cost_minor")
-      .in("invoice_id", ids);
-    items = data ?? [];
-  }
-  const { data: exp } = await supabase
-    .from("expenses")
-    .select("amount_minor, category, expense_date")
-    .gte("expense_date", from)
-    .lte("expense_date", to);
-  const { data: unpaid } = await supabase
-    .from("invoices")
-    .select("total_minor, issue_date")
-    .eq("status", "unpaid")
-    .is("deleted_at", null);
+  const items = await invoicesRepo.listItemCostsForInvoices(supabase, ids);
+  const exp = await operationsRepo.listExpensesInWindow(supabase, from, to);
+  const unpaid = await invoicesRepo.listUnpaid(supabase);
 
   const revenue = invs.reduce((s, i) => s + i.total_minor, 0);
   const totalItemRev = items.reduce((s, it) => s + itemRev(it), 0);
   const totalItemCost = items.reduce((s, it) => s + itemCost(it), 0);
-  const totalExp = (exp ?? []).reduce((s, e) => s + e.amount_minor, 0);
+  const totalExp = exp.reduce((s, e) => s + e.amount_minor, 0);
   const gross = totalItemRev - totalItemCost;
 
   const revByInv: Record<string, number> = {},
@@ -101,14 +82,14 @@ export default async function CustomReportPage({
     ["90+ days", 91, 9e9],
   ] as const;
   const aging = buckets.map(([label, min, max]) => {
-    const rows = (unpaid ?? []).filter((i) => {
+    const rows = unpaid.filter((i) => {
       const age = Math.floor((nowMs - new Date(i.issue_date + "T00:00:00").getTime()) / 864e5);
       return age >= min && age <= max;
     });
     return { label, total: rows.reduce((s, i) => s + i.total_minor, 0), count: rows.length };
   });
   const byCat: Record<string, number> = {};
-  (exp ?? []).forEach((e) => (byCat[e.category] = (byCat[e.category] || 0) + e.amount_minor));
+  exp.forEach((e) => (byCat[e.category] = (byCat[e.category] || 0) + e.amount_minor));
 
   const chk = (k: string) => selected.has(k);
 

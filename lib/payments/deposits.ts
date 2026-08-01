@@ -11,6 +11,7 @@ import {
 } from "@/lib/core/schedules.mjs";
 // @ts-ignore — pure logic, proven both ways in tests/ach-hold.test.mjs
 import { settledMinor, pendingAchMinor, depositReleaseDecision } from "@/lib/core/ach-hold.mjs";
+import * as backendData from "@/lib/data/backend";
 
 /**
  * Payment schedules, milestones, and the ACH hold that governs when
@@ -45,17 +46,8 @@ export type MilestoneRow = {
   sort: number;
 };
 
-/** Payment columns every hold and milestone decision reads. Keep in one place. */
-const PAYMENT_FIELDS =
-  "id, base_amount_minor, amount_minor, refunded_minor, normalized_status, method, submitted_at";
-
-async function paymentsForEstimate(admin: Admin, organizationId: string, estimateId: string) {
-  const { data } = await admin
-    .from("payments")
-    .select(PAYMENT_FIELDS)
-    .eq("organization_id", organizationId)
-    .eq("estimate_id", estimateId);
-  return data ?? [];
+function paymentsForEstimate(admin: Admin, organizationId: string, estimateId: string) {
+  return backendData.listPaymentsForEstimate(admin, organizationId, estimateId);
 }
 
 /** Whether this organisation holds work until an ACH transfer clears. */
@@ -182,13 +174,8 @@ export async function syncEstimateMilestones(
     .maybeSingle();
   if (!schedule) return;
 
-  const { data: milestones } = await admin
-    .from("payment_milestones")
-    .select("id, label, status, amount_minor, calculation_type, sort")
-    .eq("organization_id", organizationId)
-    .eq("schedule_id", schedule.id)
-    .order("sort");
-  if (!milestones?.length) return;
+  const milestones = await backendData.listPaymentMilestones(admin, organizationId, schedule.id);
+  if (!milestones.length) return;
 
   const payments = await paymentsForEstimate(admin, organizationId, estimateId);
   const settled = settledMinor(payments);
@@ -247,14 +234,13 @@ export async function estimateDepositRelease(
 
   let overridden = false;
   if (schedule) {
-    const { data: releases } = await admin
-      .from("payment_milestones")
-      .select("id")
-      .eq("organization_id", organizationId)
-      .eq("schedule_id", schedule.id)
-      .not("released_at", "is", null)
-      .limit(1);
-    overridden = !!releases?.length;
+    const releases = await backendData.listReleasedMilestones(
+      admin,
+      organizationId,
+      schedule.id,
+      1,
+    );
+    overridden = releases.length > 0;
   }
   return depositReleaseDecision({ holdEnabled, requiredMinor: depositMinor, payments, overridden });
 }
@@ -271,27 +257,18 @@ export type HeldDeposit = {
 /** Deposits whose money has been sent but not cleared — the office review list. */
 export async function heldDeposits(organizationId: string, limit = 20): Promise<HeldDeposit[]> {
   const admin = createAdminClient();
-  const { data } = await admin
-    .from("payment_milestones")
-    .select("id, label, amount_minor, schedule_id")
-    .eq("organization_id", organizationId)
-    .eq("status", "processing")
-    .is("released_at", null)
-    .order("created_at", { ascending: true })
-    .limit(limit);
-  if (!data?.length) return [];
+  const data = await backendData.listProcessingMilestonesForOrg(admin, organizationId, limit);
+  if (!data.length) return [];
 
   // Two plain queries rather than a PostgREST embed: payment_milestones points
   // at payment_schedules through a COMPOSITE (schedule_id, organization_id)
   // foreign key, and an embed across a composite key is not something to assume
   // resolves the way a single-column one does.
-  const { data: schedules } = await admin
-    .from("payment_schedules")
-    .select("id, estimate_id")
-    .eq("organization_id", organizationId)
-    .in("id", [...new Set(data.map((row) => row.schedule_id as string))]);
+  const schedules = await backendData.listPaymentSchedulesByIds(admin, organizationId, [
+    ...new Set(data.map((row) => row.schedule_id as string)),
+  ]);
   const estimateByScheduleId = new Map(
-    (schedules ?? []).map((row) => [row.id as string, row.estimate_id as string | null]),
+    schedules.map((row) => [row.id as string, row.estimate_id as string | null]),
   );
 
   const estimateIds = [
@@ -299,12 +276,12 @@ export async function heldDeposits(organizationId: string, limit = 20): Promise<
   ];
   if (!estimateIds.length) return [];
 
-  const { data: estimates } = await admin
-    .from("estimates")
-    .select("id, number, customers!estimates_customer_id_fkey(name)")
-    .in("id", estimateIds)
-    .eq("organization_id", organizationId);
-  const byId = new Map((estimates ?? []).map((estimate) => [estimate.id as string, estimate]));
+  const estimates = await backendData.listEstimatesForHeldDeposits(
+    admin,
+    organizationId,
+    estimateIds,
+  );
+  const byId = new Map(estimates.map((estimate) => [estimate.id as string, estimate]));
 
   return data.flatMap((row) => {
     const estimateId = estimateByScheduleId.get(row.schedule_id as string);

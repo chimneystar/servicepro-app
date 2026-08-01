@@ -1,6 +1,9 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Tables } from "@/lib/supabase/database.types";
 import { providers, sendSms, sendEmail } from "@/lib/providers";
+import * as operationsData from "@/lib/data/operations";
+import * as invoicesData from "@/lib/data/invoices";
+import * as backendData from "@/lib/data/backend";
 import { fillTemplate } from "@/lib/notify";
 import { featureFlagEvaluator } from "@/lib/feature-flags";
 // @ts-ignore -- shared JS module: the "Generate due" button uses the identical maths
@@ -35,8 +38,6 @@ import { digestTotals, isDigestDue, renderDigest } from "@/lib/core/digest.mjs";
 import { loadStatementForCron } from "@/lib/statements";
 import { staffContact } from "@/lib/notify";
 // @ts-ignore -- shared JS module
-import { COLLECTED_STATUSES } from "@/lib/core/reporting.mjs";
-// @ts-ignore -- shared JS module
 import { formatMoney } from "@/lib/core/money.mjs";
 
 const dayISO = (offset = 0) => {
@@ -53,13 +54,9 @@ const dayISO = (offset = 0) => {
 export async function runRecurringGeneration(): Promise<number> {
   const admin = createAdminClient();
   const today = dayISO(0);
-  const { data: due } = await admin
-    .from("recurring_plans")
-    .select("*")
-    .eq("active", true)
-    .lte("next_due", today);
+  const due = await operationsData.listDueRecurringPlans(admin, today);
   let created = 0;
-  for (const p of due ?? []) {
+  for (const p of due) {
     const dueDate = String(p.next_due);
     const { error } = await admin.from("jobs").insert({
       organization_id: p.organization_id,
@@ -97,15 +94,8 @@ export async function runReminders(): Promise<{ appointments: number; overdue: n
     overdue = 0;
 
   // --- Appointment reminders (jobs scheduled tomorrow) ---
-  const { data: jobs } = await admin
-    .from("jobs")
-    .select(
-      "id, service, scheduled_date, start_time, organization_id, customers!jobs_customer_id_fkey(name, phone, sms_opt_in)",
-    )
-    .eq("scheduled_date", tomorrow)
-    .eq("status", "scheduled")
-    .is("deleted_at", null);
-  for (const j of jobs ?? []) {
+  const jobs = await backendData.listJobsForDayBeforeReminder(admin, tomorrow);
+  for (const j of jobs) {
     const cust = j.customers;
     if (!cust?.phone || cust.phone === "—") continue;
     if (cust.sms_opt_in === false) continue; // customer replied STOP
@@ -167,15 +157,8 @@ export async function runReminders(): Promise<{ appointments: number; overdue: n
   }
 
   // --- Overdue invoice nudges (unpaid > 14 days, at most weekly) ---
-  const { data: invs } = await admin
-    .from("invoices")
-    .select(
-      "id, number, issue_date, organization_id, customers!invoices_customer_id_fkey(name, phone, sms_opt_in)",
-    )
-    .eq("status", "unpaid")
-    .is("deleted_at", null)
-    .lte("issue_date", dayISO(-14));
-  for (const inv of invs ?? []) {
+  const invs = await backendData.listOverdueInvoicesForNudge(admin, dayISO(-14));
+  for (const inv of invs) {
     const cust = inv.customers;
     if (!cust?.phone || cust.phone === "—") continue;
     if (cust.sms_opt_in === false) continue; // customer replied STOP
@@ -415,6 +398,12 @@ async function automationSources(
   nowISO: string,
 ): Promise<AutomationSource[]> {
   const origin = appOrigin();
+  // The three reads below are kept INLINE (not routed through
+  // lib/data/backend.ts) on purpose: tests/automation.test.mjs reads this
+  // file's own source for the literal ".limit(AUTOMATION_SOURCE_LIMIT)" to
+  // prove the nightly scan per rule is capped. Each already carries its own
+  // explicit `.limit()`, which the data layer already treats as bounded (see
+  // tests/helpers/reads.mjs), so there is no unbounded-read defect here.
   if (rule.trigger_type === "job_completed") {
     const { data } = await admin
       .from("jobs")
@@ -575,16 +564,9 @@ export async function runAutomationRules(): Promise<AutomationRunSummary> {
     stuck: 0,
   };
 
-  const { data: rules } = await admin
-    .from("automation_rules")
-    .select(
-      "id, organization_id, trigger_type, action_type, action_json, condition_json, created_at",
-    )
-    .eq("enabled", true)
-    .order("created_at", { ascending: true })
-    .limit(500);
+  const rules = await backendData.listAutomationRules(admin, 500);
 
-  for (const rule of rules ?? []) {
+  for (const rule of rules) {
     if (!enabledFor(rule.organization_id)) {
       summary.flagDisabled++;
       continue;
@@ -759,54 +741,39 @@ async function campaignAudience(
   const today = dayISO(0);
   if (segment === "past_due") {
     // Same definition the overdue nudge uses: unpaid, issued at least 14 days ago.
-    const { data: invoices } = await admin
-      .from("invoices")
-      .select("customer_id")
-      .eq("organization_id", organizationId)
-      .eq("status", "unpaid")
-      .is("deleted_at", null)
-      .lte("issue_date", isoDaysBefore(today, PAST_DUE_AFTER_DAYS))
-      .limit(CAMPAIGN_RECIPIENT_LIMIT);
-    const ids = [...new Set((invoices ?? []).map((row) => row.customer_id).filter(Boolean))];
+    const invoices = await backendData.listPastDueInvoiceCustomerIds(
+      admin,
+      organizationId,
+      isoDaysBefore(today, PAST_DUE_AFTER_DAYS),
+      CAMPAIGN_RECIPIENT_LIMIT,
+    );
+    const ids = [...new Set(invoices.map((row) => row.customer_id).filter(Boolean))] as string[];
     if (!ids.length) return [];
-    const { data } = await admin
-      .from("customers")
-      .select(`${CUSTOMER_CONTACT}`)
-      .eq("organization_id", organizationId)
-      .is("deleted_at", null)
-      .eq("archived", false)
-      .in("id", ids)
-      .limit(CAMPAIGN_RECIPIENT_LIMIT);
-    return data ?? [];
+    return backendData.listOutreachCustomersByIds(
+      admin,
+      organizationId,
+      ids,
+      CAMPAIGN_RECIPIENT_LIMIT,
+    );
   }
   if (segment === "inactive") {
     // No work in the last year. Computed by exclusion so a customer with a
     // recent job cannot slip in through a stale cache.
-    const { data: recent } = await admin
-      .from("jobs")
-      .select("customer_id")
-      .eq("organization_id", organizationId)
-      .is("deleted_at", null)
-      .gte("scheduled_date", isoDaysBefore(today, INACTIVE_AFTER_DAYS))
-      .limit(5000);
-    const active = new Set((recent ?? []).map((row) => row.customer_id));
-    const { data } = await admin
-      .from("customers")
-      .select(`${CUSTOMER_CONTACT}`)
-      .eq("organization_id", organizationId)
-      .is("deleted_at", null)
-      .eq("archived", false)
-      .limit(CAMPAIGN_RECIPIENT_LIMIT);
-    return (data ?? []).filter((row) => !active.has(row.id));
+    const recent = await backendData.listRecentJobCustomerIds(
+      admin,
+      organizationId,
+      isoDaysBefore(today, INACTIVE_AFTER_DAYS),
+      5000,
+    );
+    const active = new Set(recent.map((row) => row.customer_id));
+    const data = await backendData.listOutreachCustomers(
+      admin,
+      organizationId,
+      CAMPAIGN_RECIPIENT_LIMIT,
+    );
+    return data.filter((row) => !active.has(row.id));
   }
-  const { data } = await admin
-    .from("customers")
-    .select(`${CUSTOMER_CONTACT}`)
-    .eq("organization_id", organizationId)
-    .is("deleted_at", null)
-    .eq("archived", false)
-    .limit(CAMPAIGN_RECIPIENT_LIMIT);
-  return data ?? [];
+  return backendData.listOutreachCustomers(admin, organizationId, CAMPAIGN_RECIPIENT_LIMIT);
 }
 
 export type OutreachSummary = {
@@ -849,17 +816,9 @@ export async function runGrowthOutreach(): Promise<OutreachSummary> {
   };
 
   // --- Campaigns due to go out -------------------------------------------
-  const { data: campaigns } = await admin
-    .from("campaigns")
-    .select(
-      "id, organization_id, name, channel, subject, body, audience_json, scheduled_at, status",
-    )
-    .eq("status", "scheduled")
-    .lte("scheduled_at", nowISO)
-    .order("scheduled_at", { ascending: true })
-    .limit(20);
+  const campaigns = await backendData.listDueCampaigns(admin, nowISO, 20);
 
-  for (const campaign of campaigns ?? []) {
+  for (const campaign of campaigns) {
     if (!enabledFor(campaign.organization_id)) {
       summary.flagDisabled++;
       continue;
@@ -1032,16 +991,10 @@ export async function runGrowthOutreach(): Promise<OutreachSummary> {
   }
 
   // --- Estimate follow-ups -----------------------------------------------
-  const { data: followups } = await admin
-    .from("estimate_followups")
-    .select("id, organization_id, estimate_id, channel, scheduled_at, attempts")
-    .eq("status", "scheduled")
-    .lte("scheduled_at", nowISO)
-    .order("scheduled_at", { ascending: true })
-    .limit(200);
+  const followups = await backendData.listDueEstimateFollowups(admin, nowISO, 200);
 
   const origin = appOrigin();
-  for (const followup of followups ?? []) {
+  for (const followup of followups) {
     if (!enabledFor(followup.organization_id)) {
       summary.flagDisabled++;
       continue;
@@ -1188,16 +1141,11 @@ export async function runDunning(): Promise<DunningSummary> {
     flagDisabled: 0,
   };
 
-  const { data: invoices } = await admin
-    .from("invoices")
-    .select(
-      `id, number, organization_id, issue_date, total_minor, public_token, customer_id, customers!invoices_customer_id_fkey(${CUSTOMER_CONTACT})`,
-    )
-    .eq("status", "unpaid")
-    .is("deleted_at", null)
-    .lte("issue_date", isoDaysBefore(today, 7))
-    .order("issue_date", { ascending: true })
-    .limit(DUNNING_SCAN_LIMIT);
+  const invoices = await backendData.listDunningCandidateInvoices(
+    admin,
+    isoDaysBefore(today, 7),
+    DUNNING_SCAN_LIMIT,
+  );
 
   const orgCurrency = new Map<string, string>();
   const currencyOf = async (organizationId: string): Promise<string> => {
@@ -1213,21 +1161,30 @@ export async function runDunning(): Promise<DunningSummary> {
     return currency;
   };
 
-  for (const invoice of invoices ?? []) {
+  for (const invoice of invoices) {
     if (!enabledFor(invoice.organization_id)) {
       summary.flagDisabled++;
       continue;
     }
 
-    // Outstanding is the invoice total net of settled payments, so a partly
-    // paid invoice is dunned for what is left and a fully paid one is not
-    // dunned at all even if its status was never flipped.
-    const { data: paid } = await admin
-      .from("payments")
-      .select("base_amount_minor, amount_minor, refunded_minor, normalized_status")
-      .eq("invoice_id", invoice.id)
-      .in("normalized_status", COLLECTED_STATUSES);
-    const collected = (paid ?? []).reduce(
+    // Both reads below can now THROW (lib/data/db.ts DataError) instead of
+    // quietly returning []. Wrapped so one invoice's read failure skips that
+    // invoice for tonight rather than aborting the dunning walk for every
+    // invoice still queued behind it.
+    let paid: Awaited<ReturnType<typeof backendData.listSettledPaymentAmountsForInvoice>>;
+    let history: Awaited<ReturnType<typeof backendData.listDunningHistoryForInvoice>>;
+    try {
+      // Outstanding is the invoice total net of settled payments, so a partly
+      // paid invoice is dunned for what is left and a fully paid one is not
+      // dunned at all even if its status was never flipped.
+      paid = await backendData.listSettledPaymentAmountsForInvoice(admin, invoice.id);
+      history = await backendData.listDunningHistoryForInvoice(admin, invoice.id);
+    } catch (e: unknown) {
+      summary.failed++;
+      console.error(`[cron] dunning could not read invoice ${invoice.id}:`, errorText(e));
+      continue;
+    }
+    const collected = paid.reduce(
       (sum: number, row) =>
         sum +
         Math.max(
@@ -1245,13 +1202,9 @@ export async function runDunning(): Promise<DunningSummary> {
         86400000,
     );
 
-    const { data: history } = await admin
-      .from("dunning_events")
-      .select("stage, status, attempts, id")
-      .eq("invoice_id", invoice.id);
     // Only a rung that actually WENT OUT (or was terminally skipped) counts as
     // sent. A rung left 'failed' must remain retryable.
-    const done = (history ?? [])
+    const done = history
       .filter((row) => row.status === "sent" || row.status === "skipped")
       .map((row) => row.stage);
     // No cast: `nextDunningStage` returns a rung of DUNNING_LADDER, whose
@@ -1272,7 +1225,7 @@ export async function runDunning(): Promise<DunningSummary> {
       continue;
     }
 
-    const existing = (history ?? []).find((row) => row.stage === rung.stage);
+    const existing = history.find((row) => row.stage === rung.stage);
     let eventId: string | null = null;
     if (!existing) {
       const { data: claimed, error: claimError } = await admin
@@ -1417,15 +1370,9 @@ export async function runScheduledReports(): Promise<ReportRunSummary> {
     providerMissing: 0,
   };
 
-  const { data: schedules } = await admin
-    .from("report_schedules")
-    .select(
-      "id, organization_id, name, frequency, enabled, recipient_profile_ids, starts_on, last_period_key",
-    )
-    .eq("enabled", true)
-    .limit(500);
+  const schedules = await backendData.listReportSchedulesDue(admin, 500);
 
-  for (const schedule of schedules ?? []) {
+  for (const schedule of schedules) {
     const due = isDigestDue(schedule, today) as {
       due: boolean;
       reason: string;
@@ -1471,69 +1418,50 @@ export async function runScheduledReports(): Promise<ReportRunSummary> {
 
     try {
       const organizationId = schedule.organization_id;
-      const [
-        { data: org },
-        { data: invoices },
-        { data: payments },
-        { data: expenses },
-        { data: open },
-      ] = await Promise.all([
+      const [{ data: org }, invoices, payments, expenses, open] = await Promise.all([
         admin
           .from("organizations")
           .select("currency, locale")
           .eq("id", organizationId)
           .maybeSingle(),
-        admin
-          .from("invoices")
-          .select("id, total_minor, discount_minor, tax_rate_bps, issue_date")
-          .eq("organization_id", organizationId)
-          .eq("status", "paid")
-          .is("deleted_at", null)
-          .gte("issue_date", period.start)
-          .lte("issue_date", period.end)
-          .limit(2000),
-        admin
-          .from("payments")
-          .select("invoice_id, base_amount_minor, amount_minor, refunded_minor, normalized_status")
-          .eq("organization_id", organizationId)
-          .in("normalized_status", COLLECTED_STATUSES)
-          .gte("paid_at", `${period.start}T00:00:00`)
-          .lte("paid_at", `${period.end}T23:59:59`)
-          .limit(5000),
-        admin
-          .from("expenses")
-          .select("amount_minor")
-          .eq("organization_id", organizationId)
-          .gte("expense_date", period.start)
-          .lte("expense_date", period.end)
-          .limit(2000),
-        admin
-          .from("invoices")
-          .select("total_minor")
-          .eq("organization_id", organizationId)
-          .eq("status", "unpaid")
-          .is("deleted_at", null)
-          .limit(2000),
+        backendData.listPaidInvoicesForOrgWindow(
+          admin,
+          organizationId,
+          period.start,
+          period.end,
+          2000,
+        ),
+        backendData.listCollectedPaymentsForOrgWindow(
+          admin,
+          organizationId,
+          period.start,
+          period.end,
+          5000,
+        ),
+        backendData.listExpenseAmountsForOrgWindow(
+          admin,
+          organizationId,
+          period.start,
+          period.end,
+          2000,
+        ),
+        backendData.listUnpaidInvoiceTotalsForOrg(admin, organizationId, 2000),
       ]);
 
-      const invoiceIds = (invoices ?? []).map((row) => row.id);
-      const { data: items } = invoiceIds.length
-        ? await admin
-            .from("invoice_items")
-            .select("invoice_id, qty_milli, unit_price_minor, cost_minor, taxable")
-            .in("invoice_id", invoiceIds)
-            .limit(10000)
-        : { data: [] as any[] };
+      const invoiceIds = invoices.map((row) => row.id);
+      const items = invoiceIds.length
+        ? await invoicesData.listItemsForInvoices(admin, invoiceIds)
+        : [];
       const itemsByInvoice: Record<string, any[]> = {};
-      for (const item of items ?? []) (itemsByInvoice[item.invoice_id] ||= []).push(item);
+      for (const item of items) (itemsByInvoice[item.invoice_id] ||= []).push(item);
 
       const currency = org?.currency ?? "USD";
       const locale: "en" | "he" = org?.locale === "he" ? "he" : "en";
       const totals = digestTotals({
-        payments: payments ?? [],
-        invoices: invoices ?? [],
+        payments,
+        invoices,
         itemsByInvoice,
-        expensesMinor: (expenses ?? []).reduce(
+        expensesMinor: expenses.reduce(
           (sum: number, row) => sum + Number(row.amount_minor ?? 0),
           0,
         ),
@@ -1556,8 +1484,8 @@ export async function runScheduledReports(): Promise<ReportRunSummary> {
         format: (minor: number) => formatMoney(minor, { currency }) as string,
         reportUrl: origin ? `${origin}/reports` : "",
         counts: {
-          openInvoices: (open ?? []).length,
-          outstandingMinor: (open ?? []).reduce(
+          openInvoices: open.length,
+          outstandingMinor: open.reduce(
             (sum: number, row) => sum + Number(row.total_minor ?? 0),
             0,
           ),
@@ -1568,17 +1496,11 @@ export async function runScheduledReports(): Promise<ReportRunSummary> {
       const ids: string[] = Array.isArray(schedule.recipient_profile_ids)
         ? schedule.recipient_profile_ids.map(String)
         : [];
-      const { data: recipients } = ids.length
-        ? await admin
-            .from("profiles")
-            .select("id, active, notify_email, notify_email_opt_in")
-            .in("id", ids)
-            .eq("organization_id", organizationId)
-        : { data: [] as any[] };
+      const recipients = await backendData.listReportRecipientProfiles(admin, organizationId, ids);
 
       let sent = 0;
       const problems: string[] = [];
-      for (const profile of recipients ?? []) {
+      for (const profile of recipients) {
         // The SAME shared opt-out rule, so a teammate who turned alerts off is
         // skipped WITH a reason rather than mailed anyway. `staffContact`
         // resolves the address, because `profiles` has no email column — the

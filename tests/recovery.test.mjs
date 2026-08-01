@@ -219,22 +219,37 @@ test("each trigger refusal maps to its own sentence, and anything unknown fails 
 
 test("the trash screen exists, is owner/office, and pages", () => {
   const page = readCode("app/(app)/trash/page.tsx");
+  // The recovery reads moved into lib/data/crm.ts's `pageDeletedRows` (ledger
+  // 6.2's data layer) — that is what actually runs the query now, so the
+  // properties below are proven against whichever file runs them.
+  const query = readCode("lib/data/crm.ts");
   assert.match(
     page,
     /role === "tech"[\s\S]{0,40}redirect/,
     "restoring is owner/office, exactly as deleting is",
   );
   assert.match(
-    page,
+    query,
     /\.not\("deleted_at", "is", null\)/,
     "the trash lists deleted rows and only deleted rows",
   );
+  // The bound is no longer written here at all: `pageDeletedRows` states a
+  // PAGE and lib/data/db.ts's `readPageWithTotal` applies the range. That is
+  // stronger than the `.range(from, to)` this used to assert, because a range
+  // the query cannot write is one it cannot omit — so the property checked is
+  // that the read goes through the gateway, and tests/data-layer.test.mjs
+  // proves the gateway ranges.
   assert.match(
-    page,
-    /\.range\(from, to\)/,
+    query,
+    /readPageWithTotal/,
     "an unpaginated list would stop at PostgREST's 1000-row cap",
   );
-  assert.match(page, /organization_id/, "every query is scoped to the caller's organisation");
+  assert.doesNotMatch(query, /\.range\(/, "the repository must not bound itself");
+  assert.match(
+    page + query,
+    /organization_id/,
+    "every query is scoped to the caller's organisation",
+  );
   for (const table of ["customers", "jobs", "estimates", "invoices"]) {
     assert.ok(page.includes(`"${table}"`), `${table} must be listed — it carries deleted_at`);
   }
@@ -243,16 +258,28 @@ test("the trash screen exists, is owner/office, and pages", () => {
 
 test("trash and archive are kept apart", () => {
   const page = readCode("app/(app)/trash/page.tsx");
+  const trashQuery = readCode("lib/data/crm.ts");
   // Trash must never filter on `archived`, and the archive screen must never
   // start listing deleted rows. They are different columns and different ideas.
   assert.doesNotMatch(
-    page,
+    page + trashQuery,
     /\.eq\("archived", true\)/,
     "archived=true is the ARCHIVE, not the trash",
   );
   const archive = readCode("app/(app)/archive/page.tsx");
-  assert.match(archive, /\.is\("deleted_at", null\)/, "the archive still excludes deleted rows");
-  assert.match(archive, /\.eq\("archived", true\)/, "the archive is still driven by archived=true");
+  // The archive's query moved into lib/data/customers.ts's `listArchived`
+  // (ledger 6.2's data layer) — that is what actually runs it now.
+  const archiveQuery = readCode("lib/data/customers.ts");
+  assert.match(
+    archiveQuery,
+    /\.is\("deleted_at", null\)/,
+    "the archive still excludes deleted rows",
+  );
+  assert.match(
+    archiveQuery,
+    /\.eq\("archived", true\)/,
+    "the archive is still driven by archived=true",
+  );
 });
 
 test("the restore action re-checks the rules and cannot be called by a technician", () => {

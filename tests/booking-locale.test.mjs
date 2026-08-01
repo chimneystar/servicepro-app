@@ -250,10 +250,21 @@ test("A5: the booking settings screen stops writing English into the Hebrew fiel
     /placeholder=\{row\.name_en\}/,
     "it should show the English name as a hint instead",
   );
+  // The query itself moved behind the data layer (lib/data/jobs.ts,
+  // ledger 6.2's `listTypesForBooking`) so the page no longer writes its own
+  // `.select()`. The property this guards — that the booking settings screen
+  // reads the job type's own bilingual columns, not just `name` — now spans
+  // both files: the page must call the repository function, and that function
+  // must still select `name_en`/`name_he`.
   assert.match(
     readCode("app/(app)/settings/booking/page.tsx"),
-    /job_types"\)\.select\("id,name,name_en,name_he/,
-    "the screen must read the job type's own translations",
+    /jobsRepo\.listTypesForBooking\(/,
+    "the screen must read job types through the repository, not a raw select",
+  );
+  assert.match(
+    readCode("lib/data/jobs.ts"),
+    /job_types"\)\s*\.select\("id,name,name_en,name_he/,
+    "the job type repository must read the job type's own translations",
   );
 });
 

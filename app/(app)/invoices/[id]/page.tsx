@@ -14,6 +14,8 @@ import DocCorrections from "@/components/DocCorrections";
 import { loadCreditNotes, assertDocumentEditable } from "@/lib/documents";
 // @ts-ignore -- document integrity rules (JS module, unit-tested)
 import { documentLock } from "@/lib/core/documents.mjs";
+import { listItems as listInvoiceItems } from "@/lib/data/invoices";
+import { listSettledPaymentsForInvoiceOrEstimate } from "@/lib/data/documents-extra";
 
 export const dynamic = "force-dynamic";
 
@@ -45,12 +47,8 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
     );
   const activity = await loadActivity("invoices", id);
 
-  const { data: rows } = await supabase
-    .from("invoice_items")
-    .select("title, description, qty_milli, unit_price_minor, taxable, image_path")
-    .eq("invoice_id", id)
-    .order("sort");
-  const items: ViewItem[] = (rows ?? []).map((r) => ({
+  const rows = await listInvoiceItems(supabase, id);
+  const items: ViewItem[] = rows.map((r) => ({
     title: r.title,
     description: r.description,
     qty_milli: r.qty_milli,
@@ -81,20 +79,9 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   //   2. Refunds were never subtracted.
   // It also now credits a deposit paid against the originating estimate, matching
   // openBalance() in lib/payments/server.ts. See db/024_deposit_credit.sql.
-  const SETTLED = ["settled", "partially_refunded"] as const;
-  let paymentQuery = supabase
-    .from("payments")
-    .select(
-      "amount_minor, base_amount_minor, refunded_minor, normalized_status, method, reference, paid_at",
-    )
-    .in("normalized_status", SETTLED)
-    .order("paid_at");
-  paymentQuery = inv.estimate_id
-    ? paymentQuery.or(`invoice_id.eq.${id},estimate_id.eq.${inv.estimate_id}`)
-    : paymentQuery.eq("invoice_id", id);
-  const { data: pays } = await paymentQuery;
+  const pays = await listSettledPaymentsForInvoiceOrEstimate(supabase, id, inv.estimate_id ?? null);
 
-  const paid = (pays ?? []).reduce(
+  const paid = pays.reduce(
     (s: number, p) =>
       s +
       Math.max(
@@ -176,7 +163,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         />
       </div>
 
-      {((pays ?? []).length > 0 || credited > 0) && (
+      {(pays.length > 0 || credited > 0) && (
         <div
           className="no-print"
           style={{

@@ -18,6 +18,9 @@ import { labourInvoiceLine } from "@/lib/core/job-costing.mjs";
 // @ts-ignore — pure logic, proven both ways in tests/appointments.test.mjs
 import { tokenExpiryFor, normalizeEtaMinutes, confirmationSms } from "@/lib/core/appointments.mjs";
 import { appUrl, providers, sendSms } from "@/lib/providers";
+import * as jobsData from "@/lib/data/jobs";
+import * as operationsData from "@/lib/data/operations";
+import * as fieldData from "@/lib/data/field";
 
 /**
  * The job's labour cost, through the security-definer RPC.
@@ -130,15 +133,15 @@ export async function generateJobSummary(jobId: string): Promise<PhotoResult> {
   const locale = await getLocale();
   const he = locale === "he";
   const supabase = await createClient();
-  const [{ data: job }, { data: tasks }, { data: checks }, { data: photos }] = await Promise.all([
+  const [{ data: job }, tasks, checks, photos] = await Promise.all([
     supabase
       .from("jobs")
       .select("id,service,status,notes,assigned_to,customers!jobs_customer_id_fkey(name)")
       .eq("id", jobId)
       .maybeSingle(),
-    supabase.from("job_tasks").select("title,done").eq("job_id", jobId),
-    supabase.from("job_checklist_items").select("label,checked").eq("job_id", jobId),
-    supabase.from("job_photos").select("id,label").eq("job_id", jobId),
+    jobsData.listTasks(supabase, jobId),
+    jobsData.listChecklist(supabase, jobId),
+    jobsData.listPhotoLabels(supabase, jobId),
   ]);
   if (!job || (profile.role === "tech" && job.assigned_to !== profile.id))
     return { ok: false, error: "forbidden" };
@@ -148,10 +151,10 @@ export async function generateJobSummary(jobId: string): Promise<PhotoResult> {
     customer,
     status: job.status,
     notes: job.notes ?? "",
-    completedTasks: (tasks ?? []).filter((row) => row.done).map((row) => row.title),
-    openTasks: (tasks ?? []).filter((row) => !row.done).map((row) => row.title),
-    checklist: (checks ?? []).filter((row) => row.checked).map((row) => row.label),
-    photoLabels: (photos ?? []).map((row) => row.label).filter(Boolean),
+    completedTasks: tasks.filter((row) => row.done).map((row) => row.title),
+    openTasks: tasks.filter((row) => !row.done).map((row) => row.title),
+    checklist: checks.filter((row) => row.checked).map((row) => row.label),
+    photoLabels: photos.map((row) => row.label).filter(Boolean),
   };
   let summary = he
     ? `${job.service}${customer ? ` עבור ${customer}` : ""}. ${job.notes ? `לפי הערות הטכנאי: ${job.notes}` : "לא נוספו הערות טכנאי."} הושלמו ${sources.completedTasks.length} משימות ו-${sources.checklist.length} סעיפים ברשימת הבדיקה. ${sources.openTasks.length ? `נשארו לטיפול: ${sources.openTasks.join(", ")}.` : "לא נשארו משימות פתוחות."}`
@@ -182,9 +185,9 @@ export async function generateJobSummary(jobId: string): Promise<PhotoResult> {
     job_id: jobId,
     summary,
     source_refs: {
-      taskCount: tasks?.length ?? 0,
-      checklistCount: checks?.length ?? 0,
-      photoIds: (photos ?? []).map((row) => row.id),
+      taskCount: tasks.length,
+      checklistCount: checks.length,
+      photoIds: photos.map((row) => row.id),
     },
     provider,
     model,
@@ -234,11 +237,7 @@ export async function createInvoiceFromJob(jobId: string): Promise<PhotoResult> 
     new Date().toISOString().slice(0, 10),
   );
 
-  const { data: jobItems } = await supabase
-    .from("job_items")
-    .select("description, qty_milli, unit_price_minor, cost_minor, sort")
-    .eq("job_id", jobId)
-    .order("sort");
+  const jobItems = await jobsData.listItems(supabase, jobId);
 
   const lines: {
     description: string;
@@ -246,22 +245,21 @@ export async function createInvoiceFromJob(jobId: string): Promise<PhotoResult> 
     unit_price_minor: number;
     cost_minor: number;
     taxable?: boolean;
-  }[] =
-    jobItems && jobItems.length
-      ? jobItems.map((it: any) => ({
-          description: it.description,
-          qty_milli: it.qty_milli,
-          unit_price_minor: it.unit_price_minor,
-          cost_minor: it.cost_minor ?? 0,
-        }))
-      : [
-          {
-            description: job.service,
-            qty_milli: 1000,
-            unit_price_minor: job.price_minor,
-            cost_minor: 0,
-          },
-        ];
+  }[] = jobItems.length
+    ? jobItems.map((it: any) => ({
+        description: it.description,
+        qty_milli: it.qty_milli,
+        unit_price_minor: it.unit_price_minor,
+        cost_minor: it.cost_minor ?? 0,
+      }))
+    : [
+        {
+          description: job.service,
+          qty_milli: 1000,
+          unit_price_minor: job.price_minor,
+          cost_minor: 0,
+        },
+      ];
 
   // 6c.2 — THE LABOUR COST FINALLY REACHES A PROFIT FIGURE.
   //
@@ -490,15 +488,12 @@ export async function deleteJobItem(id: string, jobId: string): Promise<PhotoRes
   const profile = await requireProfile();
   const supabase = await createClient();
 
-  const { data: consumed } = await supabase
-    .from("inventory_movements")
-    .select("item_id, qty_milli, unit_cost_minor")
-    .eq("job_item_id", id);
+  const consumed = await operationsData.listMovementsForJobItem(supabase, id);
 
   const { error } = await supabase.from("job_items").delete().eq("id", id);
   if (error) return { ok: false, error: error.message };
 
-  for (const m of consumed ?? []) {
+  for (const m of consumed) {
     if (m.qty_milli >= 0) continue;
     await recordInventoryMovement(profile.organization_id!, profile.id, {
       itemId: m.item_id,
@@ -511,7 +506,7 @@ export async function deleteJobItem(id: string, jobId: string): Promise<PhotoRes
   }
 
   revalidatePath(`/jobs/${jobId}`);
-  if (consumed?.length) revalidatePath("/inventory");
+  if (consumed.length) revalidatePath("/inventory");
   return { ok: true };
 }
 
@@ -667,11 +662,8 @@ export async function recordJobPayment(
   if (pErr) return { ok: false, error: pErr.message };
 
   // Recompute paid total; mark invoice paid if fully covered.
-  const { data: pays } = await supabase
-    .from("payments")
-    .select("amount_minor")
-    .eq("invoice_id", invoiceId);
-  const paid = (pays ?? []).reduce((s: number, p: any) => s + p.amount_minor, 0);
+  const pays = await fieldData.listPaymentAmountsForInvoice(supabase, invoiceId);
+  const paid = pays.reduce((s: number, p: any) => s + p.amount_minor, 0);
   if (paid >= inv.total_minor) {
     await supabase
       .from("invoices")
@@ -1078,15 +1070,8 @@ export async function clockIn(jobId: string): Promise<PhotoResult> {
 export async function clockOut(jobId: string): Promise<PhotoResult> {
   const profile = await requireProfile();
   const supabase = await createClient();
-  const { data: open } = await supabase
-    .from("job_time_entries")
-    .select("id")
-    .eq("job_id", jobId)
-    .eq("user_id", profile.id)
-    .is("ended_at", null)
-    .order("started_at", { ascending: false })
-    .limit(1);
-  if (!open || !open.length) return { ok: true };
+  const open = await fieldData.listOpenTimeEntryId(supabase, jobId, profile.id);
+  if (!open.length) return { ok: true };
   const { error } = await supabase
     .from("job_time_entries")
     .update({ ended_at: new Date().toISOString() })

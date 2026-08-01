@@ -70,7 +70,11 @@ const CASES = [
   {
     id: "booking-locale/settings-reads-both-translations",
     probe: "tests/booking-locale.test.mjs",
-    source: "app/(app)/settings/booking/page.tsx",
+    // The select moved into the data layer with ledger 6.2, so the violation is
+    // planted where the query now lives. The property is unchanged, and the
+    // probe reported BAD (anchor not found) rather than passing quietly when
+    // the text moved — which is the harness doing its job.
+    source: "lib/data/jobs.ts",
     find: `"id,name,name_en,name_he`,
     replace: `"id,name,name_en`,
     guards: "the booking settings screen reads the job type's own Hebrew name",
@@ -214,6 +218,58 @@ const CASES = [
     guards:
       "a control primitive forwards its accessible name visibly, where a static scan " +
       "can confirm it, rather than through a spread",
+  },
+  // --- ledger 6.2, the data layer -----------------------------------------
+  // The four ways a pagination guarantee rots: a new unpaged read slips into
+  // the tree, a repository stops using the gateway, the gateway stops ranging,
+  // or the page loop stops one page early. Each planted in real source.
+  {
+    id: "data-layer/a-new-unpaged-read-fails-the-build",
+    probe: "tests/data-layer.test.mjs",
+    source: "lib/auth.ts",
+    // Turn a single-row read into an unbounded list read — the exact shape of
+    // the 130 reads this ledger item is about, in a file that has none.
+    find: `.eq("profile_id", profile.id)\n    .maybeSingle();`,
+    replace: `.eq("profile_id", profile.id)\n    .order("profile_id");`,
+    guards:
+      "a list read written anywhere in the tree, in any file, is caught unless it is " +
+      "bounded — this is the half that covers code NOT written through lib/data",
+  },
+  {
+    id: "data-layer/a-repository-cannot-read-around-the-gateway",
+    probe: "tests/data-layer.test.mjs",
+    source: "lib/data/price-book.ts",
+    find: `return readAll("priceBook.listForPicker", () =>\n    supabase.from("price_book").select(PICKER_COLUMNS).order("name"),\n  );`,
+    replace: `const { data } = await supabase.from("price_book").select(PICKER_COLUMNS).order("name");\n  return data ?? [];`,
+    guards:
+      "a repository that queries directly instead of through readAll/readAtMost/readPage — " +
+      "which would put the bound back in the caller's hands, where it was forgotten 130 times",
+  },
+  {
+    id: "data-layer/the-gateway-must-actually-range",
+    probe: "tests/data-layer.test.mjs",
+    source: "lib/data/db.ts",
+    // readAll, readPages, readPage and readAtMost's paging path all range;
+    // sabotaging one would leave the others to satisfy the assertion, so all of
+    // them must go. The count is pinned, and has already earned its keep twice:
+    // this case reported BAD at 2 and again at 3 as the gateway grew. That is
+    // the harness refusing to let a planted edit silently become a partial one.
+    find: `build().range(from, to)`,
+    replace: `build().limit(1000)`,
+    expectHits: 4,
+    guards:
+      "the one place a range is applied still applies one — without this the whole " +
+      "design is a naming convention",
+  },
+  {
+    id: "data-paging/the-loop-cannot-stop-one-page-early",
+    probe: "tests/data-paging-db.test.mjs",
+    source: "lib/core/paging.mjs",
+    find: `return batchLength < size;`,
+    replace: `return batchLength <= size;`,
+    guards:
+      "a full page is never assumed to be the last — proven against 1001 real rows in a " +
+      "real Postgres, because this one-character error returns 500 rows and no error",
   },
   {
     id: "typography/the-type-scale-cannot-leave-rem",

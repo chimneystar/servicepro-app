@@ -7,6 +7,7 @@ import PaymentSettingsForm from "./PaymentSettingsForm";
 import { beginHelcimOnboarding, releaseAchHold, reviewManualPayment } from "./actions";
 import { heldDeposits, mayOverrideAchHold } from "@/lib/payments/deposits";
 import type { PaymentSettings } from "@/lib/payments/types";
+import * as reporting from "@/lib/data/reporting";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +53,7 @@ export default async function PaymentSettingsPage() {
         .eq("profile_id", profile.id)
         .maybeSingle();
   const canReview = isOwner || !!ownPermission?.can_confirm_manual_payments;
-  const [{ data: settings }, { data: connection }, { data: organization }, { data: submissions }] =
+  const [{ data: settings }, { data: connection }, { data: organization }, submissions] =
     await Promise.all([
       supabase
         .from("payment_settings")
@@ -67,14 +68,7 @@ export default async function PaymentSettingsPage() {
         .eq("organization_id", profile.organization_id!)
         .maybeSingle(),
       supabase.from("organizations").select("currency").eq("id", profile.organization_id!).single(),
-      supabase
-        .from("manual_payment_submissions")
-        .select(
-          "id, payment_request_id, method, amount_minor, reference, mailed_on, submitted_at, status",
-        )
-        .eq("status", "verification_pending")
-        .order("submitted_at", { ascending: false })
-        .limit(20),
+      reporting.listPendingManualPaymentSubmissions(supabase, 20),
     ]);
 
   // Deposits whose money has been SENT but not CLEARED. The
@@ -219,7 +213,7 @@ export default async function PaymentSettingsPage() {
                 <span className="payment-eyebrow">{he ? "דורש בדיקה" : "Needs review"}</span>
                 <h3>{he ? "Zelle וצ׳קים" : "Zelle & checks"}</h3>
               </div>
-              <b>{submissions?.length ?? 0}</b>
+              <b>{submissions.length}</b>
             </div>
             {!canReview ? (
               <div className="payment-empty">
@@ -231,7 +225,7 @@ export default async function PaymentSettingsPage() {
                     : "The owner can grant payment-review access from the team screen."}
                 </small>
               </div>
-            ) : !submissions?.length ? (
+            ) : !submissions.length ? (
               <div className="payment-empty">
                 <span>✓</span>
                 <strong>{he ? "הכול מסודר" : "All caught up"}</strong>

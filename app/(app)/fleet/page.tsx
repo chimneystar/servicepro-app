@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { requireProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getLocale } from "@/lib/locale-server";
+import * as techniciansData from "@/lib/data/technicians";
+import * as fieldData from "@/lib/data/field";
 
 export const dynamic = "force-dynamic";
 export default async function FleetPage() {
@@ -10,22 +12,17 @@ export default async function FleetPage() {
   const locale = await getLocale();
   const he = locale === "he";
   const supabase = await createClient();
-  const [{ data: team }, { data: locations }, { data: consents }] = await Promise.all([
-    supabase.from("profiles").select("id,full_name,role").eq("role", "tech").order("full_name"),
-    supabase
-      .from("technician_locations")
-      .select("profile_id,latitude,longitude,accuracy_m,recorded_at")
-      .order("recorded_at", { ascending: false })
-      .limit(500),
-    supabase.from("technician_location_consents").select("profile_id,consented"),
+  const [team, locations, consents] = await Promise.all([
+    fieldData.listTechProfiles(supabase),
+    fieldData.listLatestTechLocations(supabase, 500),
+    techniciansData.listLocationConsents(supabase),
   ]);
   const latest = new Map<string, any>();
-  for (const row of locations ?? [])
-    if (!latest.has(row.profile_id)) latest.set(row.profile_id, row);
-  const active = (team ?? []).map((tech) => ({
+  for (const row of locations) if (!latest.has(row.profile_id)) latest.set(row.profile_id, row);
+  const active = team.map((tech) => ({
     ...tech,
     location: latest.get(tech.id) ?? null,
-    consented: (consents ?? []).some((row) => row.profile_id === tech.id && row.consented),
+    consented: consents.some((row) => row.profile_id === tech.id && row.consented),
   }));
   const mapped = active.filter((row) => row.location);
   const lats = mapped.map((row) => row.location.latitude);

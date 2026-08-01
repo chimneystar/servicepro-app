@@ -7,6 +7,7 @@ import SettingsForm from "./SettingsForm";
 import JobTypesEditor from "@/components/JobTypesEditor";
 import JobStatusesEditor, { type JobStatus } from "@/components/JobStatusesEditor";
 import AppIcon from "@/components/AppIcon";
+import * as jobsRepo from "@/lib/data/jobs";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export default async function SettingsPage() {
   const locale = await getLocale();
   const he = locale === "he";
   const supabase = await createClient();
-  const [{ data: org }, { data: jobTypes }, { data: jobStatuses }] = await Promise.all([
+  const [{ data: org }, jobTypes, jobStatuses] = await Promise.all([
     supabase
       .from("organizations")
       .select(
@@ -24,15 +25,8 @@ export default async function SettingsPage() {
       )
       .eq("id", profile.organization_id!)
       .single(),
-    supabase
-      .from("job_types")
-      .select("id, name, color, duration_min, default_price_minor")
-      .order("sort")
-      .order("name"),
-    supabase
-      .from("job_statuses")
-      .select("id, name, color, sort, is_done, is_cancelled")
-      .order("sort"),
+    jobsRepo.listTypesForSettings(supabase),
+    jobsRepo.listStatusesForSettings(supabase),
   ]);
 
   return (
@@ -52,12 +46,8 @@ export default async function SettingsPage() {
           <SettingsForm locale={locale} org={org ?? {}} />
         </div>
         <aside className="settings-side">
-          <JobTypesEditor
-            locale={locale}
-            types={jobTypes ?? []}
-            currency={org?.currency ?? "USD"}
-          />
-          <JobStatusesEditor locale={locale} statuses={(jobStatuses ?? []) as JobStatus[]} />
+          <JobTypesEditor locale={locale} types={jobTypes} currency={org?.currency ?? "USD"} />
+          <JobStatusesEditor locale={locale} statuses={jobStatuses as JobStatus[]} />
           <SettingsLink
             href="/settings/booking"
             icon="calendar"

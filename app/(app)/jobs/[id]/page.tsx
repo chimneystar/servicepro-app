@@ -33,6 +33,9 @@ import { loadJobHistory } from "@/lib/job-history";
 import CustomFieldValues from "@/app/(app)/settings/custom-fields/CustomFieldValues";
 import { loadCustomFields } from "@/app/(app)/settings/custom-fields/load";
 import { TextLink } from "@/components/ui";
+import * as jobsData from "@/lib/data/jobs";
+import * as paymentsData from "@/lib/data/payments";
+import * as fieldData from "@/lib/data/field";
 
 export const dynamic = "force-dynamic";
 
@@ -52,12 +55,12 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
     .eq("id", id)
     .is("deleted_at", null)
     .maybeSingle();
-  const [{ data: org }, { data: stageRows }] = await Promise.all([
+  const [{ data: org }, stageRows] = await Promise.all([
     supabase.from("organizations").select("currency,phone").single(),
-    supabase.from("job_statuses").select("name, color").order("sort"),
+    jobsData.listStatuses(supabase),
   ]);
   const cur = org?.currency ?? "USD";
-  const stages = (stageRows ?? []) as { name: string; color: string }[];
+  const stages = stageRows as { name: string; color: string }[];
   const stageColor = stages.find((s) => s.name === job?.stage)?.color ?? "#2563eb";
 
   if (!job)
@@ -73,100 +76,48 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const customFields = await loadCustomFields("job", id); // ledger 5.10
 
   const [
-    { data: photoRows },
-    { data: invoices },
-    { data: estimates },
-    { data: items },
-    { data: tasks },
-    { data: checklist },
-    { data: equipment },
-    { data: catalog },
-    { data: summaries },
-    { data: teamRows },
+    photoRows,
+    invoices,
+    estimates,
+    items,
+    tasks,
+    checklist,
+    equipment,
+    catalog,
+    summaries,
+    teamRows,
     { data: warranty },
-    { data: callbacks },
-    { data: stock },
+    callbacks,
+    stock,
   ] = await Promise.all([
-    supabase
-      .from("job_photos")
-      .select("id, storage_path, label, media_type, parent_photo_id, customer_visible")
-      .eq("job_id", id)
-      .order("created_at"),
-    supabase
-      .from("invoices")
-      .select("id, number, total_minor, status, public_token")
-      .eq("job_id", id)
-      .is("deleted_at", null)
-      .order("number", { ascending: false }),
-    supabase
-      .from("estimates")
-      .select("id, number, total_minor, status, public_token")
-      .eq("customer_id", job.customer_id)
-      .is("deleted_at", null)
-      .order("number", { ascending: false }),
-    supabase
-      .from("job_items")
-      .select("id, description, qty_milli, unit_price_minor, cost_minor")
-      .eq("job_id", id)
-      .order("sort"),
-    supabase.from("job_tasks").select("id, title, done").eq("job_id", id).order("created_at"),
-    supabase
-      .from("job_checklist_items")
-      .select("id, label, checked")
-      .eq("job_id", id)
-      .order("created_at"),
-    supabase
-      .from("job_equipment")
-      .select("id, name, serial, notes")
-      .eq("job_id", id)
-      .order("created_at"),
-    supabase
-      .from("price_book")
-      .select("id, name, description, price_minor, cost_minor, taxable, image_path")
-      .order("name"),
-    supabase
-      .from("job_summary_drafts")
-      .select("id,summary,provider,model,status,created_at")
-      .eq("job_id", id)
-      .order("created_at", { ascending: false })
-      .limit(10),
-    supabase
-      .from("profiles")
-      .select("id,full_name")
-      .in("role", ["owner", "office", "tech"])
-      .order("full_name"),
+    fieldData.listPhotosForJob(supabase, id),
+    fieldData.listInvoicesForJobSummary(supabase, id),
+    fieldData.listEstimatesForCustomerSummary(supabase, job.customer_id),
+    fieldData.listItemsWithIdForJob(supabase, id),
+    fieldData.listTasksWithIdForJob(supabase, id),
+    fieldData.listChecklistWithIdForJob(supabase, id),
+    fieldData.listEquipmentForJob(supabase, id),
+    fieldData.listPriceBook(supabase),
+    fieldData.listRecentSummaryDrafts(supabase, id, 10),
+    fieldData.listTeamNamesForJob(supabase),
     supabase
       .from("job_warranties")
       .select("id,coverage_type,starts_on,expires_on,terms,status")
       .eq("job_id", id)
       .maybeSingle(),
-    supabase
-      .from("warranty_callbacks")
-      .select(
-        "id,issue,priority,responsibility,status,scheduled_for,resolution,internal_cost_minor,callback_job_id,reported_at",
-      )
-      .eq("original_job_id", id)
-      .order("reported_at", { ascending: false }),
-    supabase
-      .from("inventory_items")
-      .select("id,name,unit,quantity_milli,cost_minor")
-      .order("name")
-      .limit(500),
+    fieldData.listWarrantyCallbacksForOriginalJob(supabase, id),
+    fieldData.listInventoryPickerForJob(supabase, 500),
   ]);
 
-  const invList = invoices ?? [];
+  const invList = invoices;
   const invIds = invList.map((i) => i.id);
   let paidByInvoice: Record<string, number> = {};
   /** The payment columns this page renders, per invoice. */
   type PaymentLine = Pick<Tables<"payments">, "amount_minor" | "method" | "reference" | "paid_at">;
   let paysByInvoice: Record<string, PaymentLine[]> = {};
   if (invIds.length) {
-    const { data: pays } = await supabase
-      .from("payments")
-      .select("invoice_id, amount_minor, method, reference, paid_at")
-      .in("invoice_id", invIds)
-      .order("paid_at");
-    (pays ?? []).forEach((p) => {
+    const pays = await paymentsData.listForInvoices(supabase, invIds);
+    pays.forEach((p) => {
       if (!p.invoice_id) return;
       paidByInvoice[p.invoice_id] = (paidByInvoice[p.invoice_id] ?? 0) + p.amount_minor;
       (paysByInvoice[p.invoice_id] ??= []).push({
@@ -179,7 +130,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   }
 
   const photos: Photo[] = await Promise.all(
-    (photoRows ?? []).map(async (r) => {
+    photoRows.map(async (r) => {
       const { data } = await supabase.storage
         .from("job-photos")
         .createSignedUrl(r.storage_path, 3600);
@@ -196,21 +147,18 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   );
 
   // Time tracking summary
-  const { data: timeEntries } = await supabase
-    .from("job_time_entries")
-    .select("user_id, started_at, ended_at")
-    .eq("job_id", id);
+  const timeEntries = await jobsData.listTimeEntries(supabase, id);
   // Server-rendered request timestamp; it is intentionally fixed for this response.
   // eslint-disable-next-line react-hooks/purity
   const nowMs = Date.now();
   const totalMinutes = Math.round(
-    (timeEntries ?? []).reduce((s: number, e) => {
+    timeEntries.reduce((s: number, e) => {
       const st = new Date(e.started_at).getTime();
       const en = e.ended_at ? new Date(e.ended_at).getTime() : nowMs;
       return s + Math.max(0, en - st);
     }, 0) / 60000,
   );
-  const clockedIn = (timeEntries ?? []).some((e) => e.user_id === profile.id && !e.ended_at);
+  const clockedIn = timeEntries.some((e) => e.user_id === profile.id && !e.ended_at);
 
   // 6c.2 — job costing including labour, and 6c.8 — the customer's appointment
   // link. Both are management information, so they are loaded only for
@@ -260,7 +208,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   }
   // Revenue and materials for the job's own P&L. The job's items are the sale
   // when it has them; otherwise the quoted price is.
-  const jobItemRows = (items ?? []) as any[];
+  const jobItemRows = items as any[];
   const lineTotal = (qtyMilli: number, minor: number) =>
     Math.floor((Math.max(0, qtyMilli) * Math.max(0, minor) + 500) / 1000);
   const jobRevenueMinor = jobItemRows.length
@@ -441,8 +389,8 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   // they are the ones who actually fit the parts.
   const ItemsTab = (
     <div>
-      <JobItems jobId={job.id} items={(items ?? []) as Item[]} currency={cur} canEdit={canEdit} />
-      <JobParts jobId={job.id} stock={(stock ?? []) as StockItem[]} />
+      <JobItems jobId={job.id} items={items as Item[]} currency={cur} canEdit={canEdit} />
+      <JobParts jobId={job.id} stock={stock as StockItem[]} />
     </div>
   );
 
@@ -455,16 +403,16 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             customers={custOpt}
             action={createEstimate}
             newKey="est.new"
-            catalog={catalog ?? []}
+            catalog={catalog}
             orgId={profile.organization_id!}
           />
         </div>
       )}
       <div className="rlist">
-        {(estimates ?? []).map((d) => (
+        {estimates.map((d) => (
           <DocRow key={d.id} kind={he ? "הצעת מחיר" : "Estimate"} d={d} cur={cur} he={he} />
         ))}
-        {(estimates ?? []).length === 0 && (
+        {estimates.length === 0 && (
           <div className="rempty">
             {he ? "עוד אין הצעות מחיר ללקוח הזה." : "No estimates for this customer yet."}
           </div>
@@ -482,7 +430,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             customers={custOpt}
             action={createInvoice}
             newKey="inv.new"
-            catalog={catalog ?? []}
+            catalog={catalog}
             orgId={profile.organization_id!}
           />
         </div>
@@ -508,10 +456,10 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const AttachmentsTab = (
     <JobPhotos jobId={job.id} orgId={profile.organization_id!} photos={photos} />
   );
-  const TasksTab = <JobTasks jobId={job.id} tasks={(tasks ?? []) as Task[]} />;
-  const EquipmentTab = <JobEquipment jobId={job.id} equipment={(equipment ?? []) as Equip[]} />;
-  const ChecklistsTab = <JobChecklist jobId={job.id} items={(checklist ?? []) as Check[]} />;
-  const team = (teamRows ?? []).map((person) => ({
+  const TasksTab = <JobTasks jobId={job.id} tasks={tasks as Task[]} />;
+  const EquipmentTab = <JobEquipment jobId={job.id} equipment={equipment as Equip[]} />;
+  const ChecklistsTab = <JobChecklist jobId={job.id} items={checklist as Check[]} />;
+  const team = teamRows.map((person) => ({
     id: person.id,
     name: person.full_name || (he ? "ללא שם" : "Unnamed"),
   }));
@@ -531,7 +479,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
       jobId={job.id}
       locale={locale}
       warranty={(warranty as JobWarranty | null) ?? null}
-      callbacks={(callbacks ?? []) as WarrantyCallback[]}
+      callbacks={callbacks as WarrantyCallback[]}
       team={team}
       completedOn={job.completed_at}
       scheduledOn={job.scheduled_date}
@@ -540,7 +488,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
     />
   );
 
-  const openTasks = (tasks ?? []).filter((t) => !t.done).length;
+  const openTasks = tasks.filter((t) => !t.done).length;
 
   return (
     <div style={{ maxWidth: 860 }}>
@@ -576,13 +524,13 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           { label: he ? "פרטים" : "Details", content: Details },
           {
             label: he ? "פריטים" : "Items",
-            badge: (items ?? []).length ? String((items ?? []).length) : undefined,
+            badge: items.length ? String(items.length) : undefined,
             content: ItemsTab,
           },
           { label: he ? "תשלומים" : "Payments", content: PaymentsTab },
           {
             label: he ? "הצעות מחיר" : "Estimates",
-            badge: (estimates ?? []).length ? String((estimates ?? []).length) : undefined,
+            badge: estimates.length ? String(estimates.length) : undefined,
             content: EstimatesTab,
           },
           {
@@ -602,11 +550,9 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           },
           {
             label: he ? "אחריות וחזרות" : "Warranty",
-            badge: (callbacks ?? []).filter((row) => !["resolved", "denied"].includes(row.status))
-              .length
+            badge: callbacks.filter((row) => !["resolved", "denied"].includes(row.status)).length
               ? String(
-                  (callbacks ?? []).filter((row) => !["resolved", "denied"].includes(row.status))
-                    .length,
+                  callbacks.filter((row) => !["resolved", "denied"].includes(row.status)).length,
                 )
               : undefined,
             content: WarrantyTab,
@@ -618,21 +564,17 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           },
           {
             label: he ? "ציוד אצל הלקוח" : "Equipment",
-            badge: (equipment ?? []).length ? String((equipment ?? []).length) : undefined,
+            badge: equipment.length ? String(equipment.length) : undefined,
             content: EquipmentTab,
           },
           {
             label: he ? "רשימות בדיקה" : "Checklists",
-            badge: (checklist ?? []).length ? String((checklist ?? []).length) : undefined,
+            badge: checklist.length ? String(checklist.length) : undefined,
             content: ChecklistsTab,
           },
         ]}
       />
-      <JobSummaryPanel
-        jobId={job.id}
-        locale={locale}
-        drafts={(summaries ?? []) as SummaryDraft[]}
-      />
+      <JobSummaryPanel jobId={job.id} locale={locale} drafts={summaries as SummaryDraft[]} />
     </div>
   );
 }

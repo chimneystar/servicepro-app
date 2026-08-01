@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getLocale } from "@/lib/locale-server";
 import { money } from "@/lib/format";
 import PurchaseOrderPanel, { type PoRow } from "./PurchaseOrderPanel";
+import * as operationsData from "@/lib/data/operations";
+import * as fieldData from "@/lib/data/field";
 
 export const dynamic = "force-dynamic";
 
@@ -21,29 +23,18 @@ export default async function ReceivingPage() {
   if (profile.role === "tech") redirect("/");
   const supabase = await createClient();
 
-  const [{ data: orders }, { data: inventory }, { data: org }] = await Promise.all([
-    supabase
-      .from("purchase_orders")
-      .select("id, po_number, status, total_minor, expected_date, vendors(name)")
-      .in("status", ["draft", "ordered", "partially_received"])
-      .order("created_at", { ascending: false })
-      .limit(50),
-    supabase.from("inventory_items").select("id, name, unit").order("name"),
+  const [orders, inventory, { data: org }] = await Promise.all([
+    fieldData.listOpenPurchaseOrders(supabase, 50),
+    fieldData.listInventoryNamesUnitOnly(supabase),
     supabase.from("organizations").select("currency").single(),
   ]);
 
-  const ids = (orders ?? []).map((o) => o.id);
-  const { data: lines } = ids.length
-    ? await supabase
-        .from("purchase_order_items")
-        .select(
-          "id, purchase_order_id, description, qty_milli, received_qty_milli, unit_cost_minor, inventory_item_id",
-        )
-        .in("purchase_order_id", ids)
-        .order("sort")
-    : { data: [] as PoRow["lines"] };
+  const ids = orders.map((o) => o.id);
+  const lines = ids.length
+    ? await operationsData.listPurchaseOrderItems(supabase, ids)
+    : ([] as PoRow["lines"]);
 
-  const rows: PoRow[] = (orders ?? []).map((o) => ({
+  const rows: PoRow[] = orders.map((o) => ({
     id: o.id,
     po_number: o.po_number,
     status: o.status,
@@ -53,7 +44,7 @@ export default async function ReceivingPage() {
       (Array.isArray(o.vendors)
         ? o.vendors[0]?.name
         : (o.vendors as { name: string } | null)?.name) ?? null,
-    lines: (lines ?? []).filter((l) => l.purchase_order_id === o.id),
+    lines: lines.filter((l) => l.purchase_order_id === o.id),
   }));
 
   return (
@@ -75,7 +66,7 @@ export default async function ReceivingPage() {
 
       <PurchaseOrderPanel
         orders={rows}
-        inventory={(inventory ?? []) as { id: string; name: string; unit: string }[]}
+        inventory={inventory as { id: string; name: string; unit: string }[]}
         currency={org?.currency ?? "USD"}
       />
 

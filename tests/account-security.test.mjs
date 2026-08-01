@@ -337,21 +337,44 @@ test("a malformed IP cannot abort a sign-in or a signature", () => {
 // 6. The audit log finally has a reader (6b.4).
 // ---------------------------------------------------------------------------
 test("the audit log has a real reader with filters and pagination", () => {
+  // The query shapes moved behind the data layer (lib/data/reporting.ts,
+  // ledger 6.2) — every list read routes through a repository function that
+  // pages instead of a raw `.select()` a business could silently outgrow. The
+  // property this guards (a real, paginated, filterable, four-table reader)
+  // now spans two files: the page wires the filters and the owner gate, and
+  // reporting.ts holds the actual bounded queries.
   const page = strip(read("app/(app)/settings/security/page.tsx"));
+  const dataLayer = strip(read("lib/data/reporting.ts"));
   assert.ok(
-    page.includes('from("audit_log")'),
+    dataLayer.includes('from("audit_log")'),
     "this is the first reader beyond a single record's 30-row timeline",
   );
+  // The range is no longer written here at all: `listAuditLogPage` states a
+  // PAGE and lib/data/db.ts's `readPageWithTotal` applies the range and asks
+  // for the exact count in the same request. That is stronger than asserting
+  // `.range(` in this file, because a bound the query cannot write is one it
+  // cannot omit — tests/data-layer.test.mjs proves the gateway ranges, and
+  // proves no repository ranges for itself.
   assert.ok(
-    page.includes('count: "exact"') && page.includes(".range("),
+    dataLayer.includes('count: "exact"') && dataLayer.includes("readPageWithTotal("),
     "a log you cannot page through is a log you cannot read",
+  );
+  assert.ok(
+    page.includes("reporting.listAuditLogPage("),
+    "the page must actually call the paginated reader, not just define one",
   );
   for (const filter of ["from", "to", "table", "action", "actor"]) {
     assert.ok(page.includes(`one("${filter}")`), `the ${filter} filter must be wired`);
   }
-  assert.ok(page.includes('from("permission_change_log")'));
-  assert.ok(page.includes('from("auth_login_attempts")'));
-  assert.ok(page.includes('from("document_signature_events")'));
+  assert.ok(dataLayer.includes('from("permission_change_log")'));
+  assert.ok(dataLayer.includes('from("auth_login_attempts")'));
+  assert.ok(dataLayer.includes('from("document_signature_events")'));
+  assert.ok(
+    page.includes("reporting.listRecentPermissionChanges(") &&
+      page.includes("reporting.listRecentLoginAttempts(") &&
+      page.includes("reporting.listRecentSignatureEvents("),
+    "the page must actually call all three side-table readers",
+  );
   // The business half is owner-only, matching the RLS in 038 §8.
   assert.ok(page.includes('profile.role === "owner"'));
 });

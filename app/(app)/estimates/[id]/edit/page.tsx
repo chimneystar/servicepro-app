@@ -6,6 +6,9 @@ import DocEditor, { type EditInitial } from "@/components/DocEditor";
 import { updateEstimate } from "@/app/(app)/estimates/actions";
 import DocLockedNotice from "@/components/DocLockedNotice";
 import { assertDocumentEditable } from "@/lib/documents";
+import { listItemsWithCost } from "@/lib/data/estimates";
+import * as customersData from "@/lib/data/customers";
+import * as priceBookData from "@/lib/data/price-book";
 
 export const dynamic = "force-dynamic";
 
@@ -33,22 +36,13 @@ export default async function EditEstimatePage({ params }: { params: Promise<{ i
     );
   }
 
-  const [{ data: items }, { data: customers }, { data: catalog }] = await Promise.all([
-    supabase
-      .from("estimate_items")
-      .select("title, description, qty_milli, unit_price_minor, cost_minor, taxable, image_path")
-      .eq("estimate_id", id)
-      .order("sort"),
-    supabase
-      .from("customers")
-      .select("id, name")
-      .is("deleted_at", null)
-      .eq("archived", false)
-      .order("name"),
-    supabase
-      .from("price_book")
-      .select("id, name, description, price_minor, cost_minor, taxable, image_path")
-      .order("name"),
+  const [items, customers, catalog] = await Promise.all([
+    listItemsWithCost(supabase, id),
+    customersData.listPickable(supabase),
+    // `PriceBookRow.cost_minor` is typed nullable in lib/data/price-book.ts even
+    // though the column is NOT NULL; coerced here to match `CatalogItem` without
+    // touching a file this migration doesn't own.
+    priceBookData.listForPicker(supabase),
   ]);
 
   const initial: EditInitial = {
@@ -58,7 +52,7 @@ export default async function EditEstimatePage({ params }: { params: Promise<{ i
     issue_date: est.issue_date ?? "",
     deposit: ((est.deposit_minor ?? 0) / 100).toFixed(2),
     version: est.version,
-    items: (items ?? []).map((r: any) => ({
+    items: items.map((r: any) => ({
       title: r.title ?? "",
       desc: r.description ?? "",
       qty: (r.qty_milli / 1000).toString(),
@@ -81,8 +75,8 @@ export default async function EditEstimatePage({ params }: { params: Promise<{ i
         kind="estimate"
         docId={est.id}
         action={updateEstimate.bind(null, est.id)}
-        customers={(customers ?? []).map((c) => ({ id: c.id, label: c.name }))}
-        catalog={catalog ?? []}
+        customers={customers.map((c) => ({ id: c.id, label: c.name }))}
+        catalog={catalog}
         orgId={profile.organization_id!}
         initial={initial}
         returnHref={`/estimates/${est.id}`}

@@ -12,6 +12,7 @@ import {
   CALENDAR_WINDOW_PAST_DAYS,
   ORG_SCOPE_ROLES,
 } from "@/lib/core/calendar.mjs";
+import * as operationsRepo from "@/lib/data/operations";
 
 /**
  * Calendar subscriptions (ledger 6c.7).
@@ -31,11 +32,7 @@ export default async function CalendarFeedPage() {
   const profile = await requireProfile();
   const supabase = await createClient();
 
-  const { data: feeds } = await supabase
-    .from("calendar_feed_tokens")
-    .select("id, token, label, scope, expires_at, last_accessed_at, created_at")
-    .is("revoked_at", null)
-    .order("created_at", { ascending: false });
+  const feeds = await operationsRepo.listCalendarFeedTokens(supabase);
 
   const origin = appUrl().replace(/\/$/, "");
   const canOrgScope = ORG_SCOPE_ROLES.includes(profile.role);
@@ -45,8 +42,8 @@ export default async function CalendarFeedPage() {
   const nowMs = Date.now();
   const daysLeft = (feed: Feed) =>
     Math.ceil((new Date(feed.expires_at).getTime() - nowMs) / 86400000);
-  const live = (feeds ?? []).filter((f: Feed) => new Date(f.expires_at).getTime() > nowMs);
-  const expired = (feeds ?? []).filter((f: Feed) => new Date(f.expires_at).getTime() <= nowMs);
+  const live = feeds.filter((f: Feed) => new Date(f.expires_at).getTime() > nowMs);
+  const expired = feeds.filter((f: Feed) => new Date(f.expires_at).getTime() <= nowMs);
 
   return (
     <div style={{ maxWidth: 760 }}>

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getLocale } from "@/lib/locale-server";
 import CustomFieldsEditor from "./CustomFieldsEditor";
 import type { CustomFieldDefinition } from "./load";
+import * as operationsRepo from "@/lib/data/operations";
 
 export const dynamic = "force-dynamic";
 
@@ -23,12 +24,9 @@ export default async function CustomFieldsPage() {
   const locale = await getLocale();
   const he = locale === "he";
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("custom_field_definitions")
-    .select("id, label, entity_type, field_type, options_json, required, active, sort")
-    .order("sort")
-    .order("label");
-  const definitions = (data ?? []) as CustomFieldDefinition[];
+  const definitions = (await operationsRepo.listAllCustomFieldDefinitions(
+    supabase,
+  )) as CustomFieldDefinition[];
 
   return (
     <div className="settings-shell">

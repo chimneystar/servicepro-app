@@ -5,6 +5,8 @@ import { asJsonRecord } from "@/lib/validation";
 import { getLocale } from "@/lib/locale-server";
 import BookingSettingsForm from "./BookingSettingsForm";
 import { serviceAreaEnforcementGaps, type ServiceArea } from "@/lib/booking";
+import * as jobsRepo from "@/lib/data/jobs";
+import * as operationsRepo from "@/lib/data/operations";
 
 export const dynamic = "force-dynamic";
 export default async function BookingSettingsPage() {
@@ -12,36 +14,21 @@ export default async function BookingSettingsPage() {
   if (profile.role !== "owner") redirect("/");
   const locale = await getLocale();
   const supabase = await createClient();
-  const [
-    { data: settings },
-    { data: services },
-    { data: jobTypes },
-    { data: questions },
-    { data: areas },
-  ] = await Promise.all([
+  const [{ data: settings }, services, jobTypes, questions, areas] = await Promise.all([
     supabase
       .from("booking_settings")
       .select("*")
       .eq("organization_id", profile.organization_id!)
       .maybeSingle(),
-    supabase.from("booking_services").select("*").order("sort").order("name_en"),
-    supabase
-      .from("job_types")
-      .select("id,name,name_en,name_he,duration_min,default_price_minor,sort")
-      .order("sort")
-      .order("name"),
-    supabase
-      .from("booking_questions")
-      .select("*")
-      .eq("active", true)
-      .order("sort")
-      .order("created_at"),
-    supabase.from("service_areas").select("id,area_type,active").eq("active", true),
+    operationsRepo.listBookingServices(supabase),
+    jobsRepo.listTypesForBooking(supabase),
+    operationsRepo.listBookingQuestions(supabase),
+    operationsRepo.listServiceAreas(supabase),
   ]);
   // Polygon areas cannot be evaluated at booking time (no geocoding anywhere in
   // this product), so the form has to say so rather than let the enforcement
   // toggle imply a check that never runs. See docs/REMEDIATION-PLAN.md item 4.8.
-  const areaEnforcement = serviceAreaEnforcementGaps((areas ?? []) as unknown as ServiceArea[]);
+  const areaEnforcement = serviceAreaEnforcementGaps(areas as unknown as ServiceArea[]);
   return (
     <BookingSettingsForm
       locale={locale}
@@ -57,13 +44,13 @@ export default async function BookingSettingsPage() {
             }
           : {}
       }
-      services={services ?? []}
-      jobTypes={jobTypes ?? []}
-      questions={(questions ?? []).map((q) => ({
+      services={services}
+      jobTypes={jobTypes}
+      questions={questions.map((q) => ({
         ...q,
         options_json: Array.isArray(q.options_json) ? q.options_json.map(String) : undefined,
       }))}
-      hasServiceAreas={(areas ?? []).length > 0}
+      hasServiceAreas={areas.length > 0}
       areaEnforcement={areaEnforcement}
     />
   );

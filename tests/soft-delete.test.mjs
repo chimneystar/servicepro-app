@@ -40,9 +40,16 @@ test("the detector fires on the original code", () => {
 });
 
 test("customer lists still hide deleted rows, so nothing visibly changes", () => {
-  const src = readCode("app/(app)/customers/page.tsx");
+  const page = readCode("app/(app)/customers/page.tsx");
+  // The customer list's query moved into lib/data/customers.ts's `listActive`
+  // (ledger 6.2's data layer) — that is what actually runs it now.
+  const query = readCode("lib/data/customers.ts");
   assert.ok(
-    /is\("deleted_at", null\)/.test(src),
+    /listActive/.test(page),
+    "the customer list must still go through the repository's active-customers read",
+  );
+  assert.ok(
+    /is\("deleted_at", null\)/.test(query),
     "a soft delete only works if every list filters it out — otherwise deleting appears to do nothing",
   );
 });

@@ -36,8 +36,22 @@ export default async function DashboardPage() {
   // asked for. Anything still open — an unpaid invoice, a live estimate — is
   // fetched regardless of age, because those must never fall off the edge.
   const windowStart: string = monthsBack(today, 12);
-  const ROW_CEILING = 2000,
-    JOB_CEILING = 1000;
+  // BOTH CEILINGS MUST STAY BELOW POSTGREST'S 1000-ROW CAP, and that is not a
+  // style preference — it is what makes the "showing partial data" banner below
+  // able to fire at all.
+  //
+  // ROW_CEILING was 2000. PostgREST honours min(limit, db-max-rows), so those
+  // reads returned at most 1000 rows, and `isTruncated(1000, 2000)` is FALSE.
+  // The dashboard was silently truncated at a thousand invoices, estimates and
+  // payments while the warning it had been given specifically to prevent that
+  // could never appear. JOB_CEILING = 1000 happened to work only because 1000
+  // >= 1000; one row of slack removes the coincidence.
+  //
+  // A ceiling at or above the cap is the same defect as no ceiling, with the
+  // added harm of a disabled warning — tests/data-layer.test.mjs now classifies
+  // one as an unbounded read for exactly this reason.
+  const ROW_CEILING = 999,
+    JOB_CEILING = 999;
 
   const [
     { data: org },

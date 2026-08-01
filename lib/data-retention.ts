@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import * as backendData from "@/lib/data/backend";
 
 const before = (days: number) => new Date(Date.now() - days * 86400000).toISOString();
 
@@ -40,14 +41,13 @@ export async function runDataRetentionForOrganization(
     .single();
   if (runError || !run) throw new Error("retention_run_unavailable");
   try {
-    const { data: holds } = await admin
-      .from("retention_holds")
-      .select("category,customer_id")
-      .eq("organization_id", organizationId)
-      .is("released_at", null)
-      .or(`expires_at.is.null,expires_at.gt.${now.toISOString()}`);
+    const holds = await backendData.listActiveRetentionHolds(
+      admin,
+      organizationId,
+      now.toISOString(),
+    );
     const held = (category: string) =>
-      (holds ?? []).some((row: any) => row.category === "all" || row.category === category);
+      holds.some((row: any) => row.category === "all" || row.category === category);
     // Five tables, one age column each — written out rather than taken as
     // `table: string`, which the typed client cannot check at all (`from()`
     // needs a literal). `merchant_accounts`, a table that never existed, sat in
@@ -152,13 +152,10 @@ export async function runDataRetentionForOrganization(
 
 export async function runAutomaticDataRetention() {
   const admin = createAdminClient();
-  const { data: settings } = await admin
-    .from("organization_privacy_settings")
-    .select("organization_id")
-    .eq("auto_enforce", true);
+  const settings = await backendData.listOrgsWithAutoRetention(admin);
   let completed = 0,
     failed = 0;
-  for (const row of settings ?? []) {
+  for (const row of settings) {
     try {
       await runDataRetentionForOrganization(row.organization_id, true);
       completed++;

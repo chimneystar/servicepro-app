@@ -8,6 +8,9 @@ import { createInvoice } from "./actions";
 import DocList from "@/components/DocList";
 import InvoiceBulkBar from "./InvoiceBulkBar";
 import Link from "next/link";
+import { listInvoicesForListPage } from "@/lib/data/documents-extra";
+import * as customersData from "@/lib/data/customers";
+import * as priceBookData from "@/lib/data/price-book";
 
 export const dynamic = "force-dynamic";
 
@@ -22,31 +25,18 @@ export default async function InvoicesPage({
   const supabase = await createClient();
   const filter = search.filter ?? "all";
 
-  const [{ data: invoices }, { data: customers }, { data: org }, { data: catalog }] =
-    await Promise.all([
-      supabase
-        .from("invoices")
-        .select(
-          "id, number, status, total_minor, issue_date, public_token, voided_at, credited_minor, customers!invoices_customer_id_fkey(name, email, phone)",
-        )
-        .is("deleted_at", null)
-        .eq("archived", false)
-        .order("number", { ascending: false }),
-      supabase
-        .from("customers")
-        .select("id, name")
-        .is("deleted_at", null)
-        .eq("archived", false)
-        .order("name"),
-      supabase.from("organizations").select("currency, name").single(),
-      supabase
-        .from("price_book")
-        .select("id, name, description, price_minor, cost_minor, taxable, image_path")
-        .order("name"),
-    ]);
-  const custOpts = (customers ?? []).map((c) => ({ id: c.id, label: c.name }));
+  const [invoices, customers, { data: org }, catalog] = await Promise.all([
+    listInvoicesForListPage(supabase),
+    customersData.listPickable(supabase),
+    supabase.from("organizations").select("currency, name").single(),
+    // `PriceBookRow.cost_minor` is typed nullable in lib/data/price-book.ts even
+    // though the column is NOT NULL; coerced here to match `CatalogItem` without
+    // touching a file this migration doesn't own.
+    priceBookData.listForPicker(supabase),
+  ]);
+  const custOpts = customers.map((c) => ({ id: c.id, label: c.name }));
   const cur = org?.currency ?? "USD";
-  const all = invoices ?? [];
+  const all = invoices;
 
   // Due vs paid totals.
   //
@@ -91,7 +81,7 @@ export default async function InvoicesPage({
           customers={custOpts}
           action={createInvoice}
           newKey="inv.new"
-          catalog={catalog ?? []}
+          catalog={catalog}
           orgId={profile.organization_id!}
           initialOpen={search.new === "1"}
         />

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import ArchiveList, { type ArchRow } from "./ArchiveList";
+import * as customersRepo from "@/lib/data/customers";
 
 export const dynamic = "force-dynamic";
 
@@ -10,12 +11,7 @@ export default async function ArchivePage() {
   const profile = await requireProfile();
   if (profile.role === "tech") redirect("/");
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("customers")
-    .select("id, name, phone, email, address, city, legacy_note")
-    .is("deleted_at", null)
-    .eq("archived", true)
-    .order("name");
+  const data = await customersRepo.listArchived(supabase);
 
   return (
     <div style={{ maxWidth: 760 }}>
@@ -32,7 +28,7 @@ export default async function ArchivePage() {
         <div>
           <h1 className="sp-heading sp-heading--lg">Archive (legacy records)</h1>
           <p className="sp-text-muted">
-            {(data ?? []).length} archived · kept separate from your active data
+            {data.length} archived · kept separate from your active data
           </p>
         </div>
         <Link
@@ -64,7 +60,7 @@ export default async function ArchivePage() {
         🗄️ This is your records-only area. Archived clients don’t show in active customers,
         scheduling, or reports. Use <b>Restore</b> to bring one back into active use.
       </div>
-      <ArchiveList records={(data ?? []) as ArchRow[]} />
+      <ArchiveList records={data as ArchRow[]} />
     </div>
   );
 }

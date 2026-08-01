@@ -9,6 +9,7 @@ import { t } from "@/lib/i18n";
 import { sendStatement } from "@/lib/statements";
 // @ts-ignore -- shared JS module, proven both ways in tests/bulk-operations.test.mjs
 import { bulkReport, parseSelection, selectionError } from "@/lib/core/bulk.mjs";
+import * as customersRepo from "@/lib/data/customers";
 
 export type ActionResult = { ok: boolean; error?: string };
 
@@ -181,14 +182,13 @@ export async function bulkSendStatements(
   if (!selection.ok) return refuseBulk(selectionError(selection) as string);
 
   const supabase = await createClient();
-  const { data: customers } = await supabase
-    .from("customers")
-    .select("id, name")
-    .in("id", selection.ids!)
-    .is("deleted_at", null);
-  const nameOf = new Map(
-    (customers ?? []).map((row: { id: string; name: string }) => [row.id, row.name]),
-  );
+  let customers: { id: string; name: string }[];
+  try {
+    customers = await customersRepo.listByIds(supabase, selection.ids!);
+  } catch (cause: unknown) {
+    return refuseBulk(cause instanceof Error ? cause.message : String(cause));
+  }
+  const nameOf = new Map(customers.map((row) => [row.id, row.name]));
 
   const locale = (await getLocale()) as "en" | "he";
   const results: { id: string; label: string; ok: boolean; skipped?: boolean; reason?: string }[] =
@@ -248,14 +248,13 @@ export async function bulkOptOut(
   if (!selection.ok) return refuseBulk(selectionError(selection) as string);
 
   const supabase = await createClient();
-  const { data: customers } = await supabase
-    .from("customers")
-    .select("id, name")
-    .in("id", selection.ids!)
-    .is("deleted_at", null);
-  const nameOf = new Map(
-    (customers ?? []).map((row: { id: string; name: string }) => [row.id, row.name]),
-  );
+  let customers: { id: string; name: string }[];
+  try {
+    customers = await customersRepo.listByIds(supabase, selection.ids!);
+  } catch (cause: unknown) {
+    return refuseBulk(cause instanceof Error ? cause.message : String(cause));
+  }
+  const nameOf = new Map(customers.map((row) => [row.id, row.name]));
 
   const results: { id: string; label: string; ok: boolean; skipped?: boolean; reason?: string }[] =
     [];

@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import crypto from "crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { TablesUpdate } from "@/lib/supabase/database.types";
+import * as backendData from "@/lib/data/backend";
 
 export const dynamic = "force-dynamic";
 
@@ -74,12 +75,17 @@ export async function POST(request: NextRequest) {
         );
         return NextResponse.json({ ok: false, reason: "missing payment_intent" }, { status: 400 });
       }
-      const { data: dup } = await admin
-        .from("payments")
-        .select("id")
-        .eq("stripe_payment_intent_id", intentId)
-        .limit(1);
-      if (!dup || dup.length === 0) {
+      let dup: Awaited<ReturnType<typeof backendData.listPaymentsByStripeIntent>>;
+      try {
+        dup = await backendData.listPaymentsByStripeIntent(admin, intentId, 1);
+      } catch (e: unknown) {
+        console.error(
+          "[stripe] could not check for a duplicate deposit payment:",
+          e instanceof Error ? e.message : String(e),
+        );
+        return NextResponse.json({ ok: false, reason: "record failed" }, { status: 500 });
+      }
+      if (dup.length === 0) {
         const { error } = await admin.from("payments").insert({
           organization_id: est.organization_id,
           invoice_id: null,
