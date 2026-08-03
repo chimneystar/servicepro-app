@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Locale } from "@/lib/i18n";
 import type { PublicPaymentOptions } from "@/lib/payments/types";
 import { money } from "@/lib/format";
@@ -19,11 +19,11 @@ export default function CustomerPaymentOptions({ token, locale, options, accent 
   const he = locale === "he";
   const [signed, setSigned] = useState(!!options.signed);
   const paymentMethods = options.methods ?? { helcim: false, card: false, ach: false, zelle: false, check: false };
-  const methods = useMemo(() => ([
+  const methods = ([
     paymentMethods.helcim ? "helcim" as const : null,
     paymentMethods.zelle ? "zelle" as const : null,
     paymentMethods.check ? "check" as const : null,
-  ].filter(Boolean) as Method[]), [options.methods]);
+  ].filter(Boolean) as Method[]);
   const [method, setMethod] = useState<Method>(methods[0] ?? "helcim");
   const [state, setState] = useState<FlowState>("idle");
   const [error, setError] = useState<string | null>(null);

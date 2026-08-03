@@ -1,9 +1,9 @@
 # ServicePro Field Ops — UX/UI design specification
 
-**Date:** July 30, 2026  
-**Status:** Approved design direction; implementation pending specification review  
-**Product:** ServicePro United States field-service CRM  
-**Languages:** English and Hebrew, with complete RTL support  
+**Date:** July 30, 2026
+**Status:** Approved design direction; implementation pending specification review
+**Product:** ServicePro United States field-service CRM
+**Languages:** English and Hebrew, with complete RTL support
 
 ## 1. Objective
 
