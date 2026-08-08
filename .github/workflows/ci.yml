@@ -99,7 +99,17 @@ jobs:
           for f in db/[0-9]*.sql; do
             # Dollar-quote tags must balance, or the file aborts halfway through
             # and leaves the database in a partially-migrated state.
-            count=$(grep -o '\$\$' "$f" | wc -l)
+            #
+            # `|| true` is load-bearing: grep exits 1 when it finds nothing, and
+            # under `set -e` + `pipefail` that killed this entire job on the
+            # first migration with no $$ in it — before a single check had run.
+            # The job then reported failure having emitted NO findings at all,
+            # which is a false RED: it looked like a broken migration and was a
+            # broken checker. It went unnoticed because this workflow had never
+            # actually executed until the branch was first pushed. A guard that
+            # cannot complete proves nothing; see docs/REMEDIATION-PLAN.md on
+            # proving guards both ways.
+            count=$(grep -o '\$\$' "$f" | wc -l || true)
             if [ $((count % 2)) -ne 0 ]; then
               echo "::error file=$f::unbalanced \$\$ quoting ($count occurrences)"
               fail=1
