@@ -409,7 +409,7 @@ export default async function DashboardPage() {
             color: "#9a3412",
             borderRadius: 12,
             padding: "10px 14px",
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
             marginBottom: 12,
           }}
         >
@@ -446,7 +446,7 @@ export default async function DashboardPage() {
               borderRadius: 10,
               padding: "9px 13px",
               fontWeight: 700,
-              fontSize: "0.8125rem",
+              fontSize: "0.875rem",
               color: "#0b1524",
               textDecoration: "none",
               whiteSpace: "nowrap",
@@ -457,199 +457,237 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      <div className="dash" style={grid}>
-        <Card span={8} title={he ? "הכנסות · ששת החודשים האחרונים" : "Revenue · last 6 months"}>
-          <Bars data={series} />
-        </Card>
-        <Card span={4} title={he ? `גבייה · ${windowLabel}` : `Collections · ${windowLabel}`}>
-          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-            <Donut
-              segments={[
-                { value: collected12, color: "#15803d" },
-                { value: dueSum, color: "#f59e0b" },
-              ]}
-              centerTop={`${collectRate}%`}
-              centerSub={he ? "נגבה" : "collected"}
-            />
-            <Legend
-              items={[
-                { label: he ? "שולם" : "Paid", color: "#15803d", value: money(collected12, cur) },
-                { label: he ? "לתשלום" : "Due", color: "#f59e0b", value: money(dueSum, cur) },
-              ]}
-            />
-          </div>
-        </Card>
+      <section
+        className="dashboard-kpis"
+        aria-label={he ? "המספרים החשובים" : "Key business numbers"}
+      >
+        <Link href="/invoices">
+          <span>{he ? "מכירות החודש" : "Sales this month"}</span>
+          <strong>{money(monthSales, cur)}</strong>
+        </Link>
+        <Link href="/invoices?filter=unpaid">
+          <span>{he ? "ממתין לגבייה" : "Waiting to collect"}</span>
+          <strong>{money(dueSum, cur)}</strong>
+        </Link>
+        <Link href="/schedule">
+          <span>{he ? "עבודות היום" : "Jobs today"}</span>
+          <strong>{todayJobs.length}</strong>
+        </Link>
+        <Link href="/leads">
+          <span>{he ? "לידים פתוחים" : "Open leads"}</span>
+          <strong>{openLeads}</strong>
+        </Link>
+      </section>
 
-        <Card span={4} title={he ? "צבר מכירות" : "Pipeline"}>
-          <Row label={he ? "לידים פתוחים" : "Open leads"} value={String(openLeads)} />
-          <Row
-            label={he ? "אחוז הצעות שאושרו" : "Estimate win rate"}
-            value={`${winRate}%`}
-            strong
-          />
-          <Row label={he ? "אושרו / נדחו" : "Approved / Declined"} value={`${wonN} / ${lostN}`} />
-        </Card>
-        <Card span={4} title={he ? "מכירות · החודש" : "Sales · this month"}>
-          <Big>{money(monthSales, cur)}</Big>
-          <Sub>
-            {he
-              ? `${paid.length} חשבוניות שולמו · ${money(collected12, cur)} ${windowLabel}`
-              : `${paid.length} paid invoices · ${money(collected12, cur)} in the ${windowLabel}`}
-          </Sub>
-        </Card>
-        <Card span={4} title={he ? "חשבוניות" : "Invoices"}>
-          <div
-            style={{
-              borderInlineStart: "4px solid #b45309",
-              paddingInlineStart: 12,
-              marginBottom: 12,
-            }}
-          >
-            <Sub>
-              {he ? "לתשלום" : "Due"} · {unpaid.length}
-            </Sub>
-            <Big small>{money(dueSum, cur)}</Big>
-          </div>
-          <div style={{ borderInlineStart: "4px solid #dc2626", paddingInlineStart: 12 }}>
-            <Sub>
-              {he ? "באיחור" : "Past due"} · {pastDue.length}
-            </Sub>
-            <Big small>{money(pastDueSum, cur)}</Big>
-          </div>
-        </Card>
-        <Card span={4} title={he ? "החודש" : "This month"}>
-          <Row label={he ? "הוצאות" : "Expenses"} value={money(monthExp, cur)} />
-          <Row
-            label={he ? "נטו אחרי הוצאות" : "Net after expenses"}
-            value={money(monthSales - monthExp, cur)}
-            strong
-          />
-          <Row label={he ? "עבודות היום" : "Jobs today"} value={String(todayJobs.length)} />
-        </Card>
+      <details className="dashboard-insights">
+        <summary>
+          <span>
+            <strong>{he ? "המספרים והדוחות של העסק" : "Business performance and reports"}</strong>
+            <small>
+              {he
+                ? "הכנסות, גבייה, הצעות, עבודות ומקורות לידים"
+                : "Revenue, collections, estimates, jobs, and lead sources"}
+            </small>
+          </span>
+          <b>{he ? "פתיחה" : "View details"}</b>
+        </summary>
+        <div className="dash" style={grid}>
+          <Card span={8} title={he ? "הכנסות · ששת החודשים האחרונים" : "Revenue · last 6 months"}>
+            <Bars data={series} />
+          </Card>
+          <Card span={4} title={he ? `גבייה · ${windowLabel}` : `Collections · ${windowLabel}`}>
+            <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+              <Donut
+                segments={[
+                  { value: collected12, color: "#15803d" },
+                  { value: dueSum, color: "#f59e0b" },
+                ]}
+                centerTop={`${collectRate}%`}
+                centerSub={he ? "נגבה" : "collected"}
+              />
+              <Legend
+                items={[
+                  { label: he ? "שולם" : "Paid", color: "#15803d", value: money(collected12, cur) },
+                  { label: he ? "לתשלום" : "Due", color: "#f59e0b", value: money(dueSum, cur) },
+                ]}
+              />
+            </div>
+          </Card>
 
-        <Card span={3} title={he ? "הצעות מחיר" : "Estimates"}>
-          {[
-            ["draft", he ? "טיוטה" : "Draft"],
-            ["sent", he ? "נשלחו" : "Sent"],
-            ["approved", he ? "אושרו" : "Approved"],
-            ["rejected", he ? "נדחו" : "Declined"],
-          ].map(([k, l]) => (
+          <Card span={4} title={he ? "צבר מכירות" : "Pipeline"}>
+            <Row label={he ? "לידים פתוחים" : "Open leads"} value={String(openLeads)} />
             <Row
-              key={k}
-              label={l}
-              value={`${estBy(k).length} · ${money(
-                estBy(k).reduce((s, e) => s + e.total_minor, 0),
-                cur,
-              )}`}
+              label={he ? "אחוז הצעות שאושרו" : "Estimate win rate"}
+              value={`${winRate}%`}
+              strong
             />
-          ))}
-        </Card>
-        <Card span={5} title={he ? "היום" : "Today"}>
-          {todayJobs.length === 0 ? (
-            <Sub>{he ? "אין עבודות היום" : "No jobs today"}</Sub>
-          ) : (
-            todayJobs.map((j, i) => (
-              <div key={i} style={rowLine}>
-                <b style={{ minWidth: 48 }}>{(j.start_time ?? "").slice(0, 5) || "—"}</b>
-                <span style={{ flex: 1 }}>
-                  {j.customers?.name ?? "—"} · {j.service}
-                </span>
-                <b>{money(j.price_minor, cur)}</b>
-              </div>
-            ))
-          )}
-        </Card>
-        <Card span={4} title={he ? "בהמשך" : "Coming up"}>
-          {upcoming.length === 0 ? (
-            <Sub>{he ? "אין עבודות מתוכננות" : "Nothing scheduled"}</Sub>
-          ) : (
-            upcoming.map((j, i) => (
-              <div key={i} style={rowLine}>
-                <span style={{ flex: 1 }}>{j.customers?.name ?? "—"}</span>
-                <Sub>{fmtDate(j.scheduled_date)}</Sub>
-              </div>
-            ))
-          )}
-        </Card>
-
-        <Card span={8} title={he ? "עבודות אחרונות" : "Recent jobs"}>
-          {recent.length === 0 && (
-            <div style={{ color: "#5c6675", fontSize: "0.8125rem", padding: 8 }}>—</div>
-          )}
-          {recent.map((j, i) => (
+            <Row label={he ? "אושרו / נדחו" : "Approved / Declined"} value={`${wonN} / ${lostN}`} />
+          </Card>
+          <Card span={4} title={he ? "מכירות · החודש" : "Sales · this month"}>
+            <Big>{money(monthSales, cur)}</Big>
+            <Sub>
+              {he
+                ? `${paid.length} חשבוניות שולמו · ${money(collected12, cur)} ${windowLabel}`
+                : `${paid.length} paid invoices · ${money(collected12, cur)} in the ${windowLabel}`}
+            </Sub>
+          </Card>
+          <Card span={4} title={he ? "חשבוניות" : "Invoices"}>
             <div
-              key={i}
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "11px 0",
-                borderTop: i ? "1px solid #f1f4f9" : "none",
+                borderInlineStart: "4px solid #b45309",
+                paddingInlineStart: 12,
+                marginBottom: 12,
               }}
             >
-              <div className="sp-flex-fill">
+              <Sub>
+                {he ? "לתשלום" : "Due"} · {unpaid.length}
+              </Sub>
+              <Big small>{money(dueSum, cur)}</Big>
+            </div>
+            <div style={{ borderInlineStart: "4px solid #dc2626", paddingInlineStart: 12 }}>
+              <Sub>
+                {he ? "באיחור" : "Past due"} · {pastDue.length}
+              </Sub>
+              <Big small>{money(pastDueSum, cur)}</Big>
+            </div>
+          </Card>
+          <Card span={4} title={he ? "החודש" : "This month"}>
+            <Row label={he ? "הוצאות" : "Expenses"} value={money(monthExp, cur)} />
+            <Row
+              label={he ? "נטו אחרי הוצאות" : "Net after expenses"}
+              value={money(monthSales - monthExp, cur)}
+              strong
+            />
+            <Row label={he ? "עבודות היום" : "Jobs today"} value={String(todayJobs.length)} />
+          </Card>
+
+          <Card span={3} title={he ? "הצעות מחיר" : "Estimates"}>
+            {[
+              ["draft", he ? "טיוטה" : "Draft"],
+              ["sent", he ? "נשלחו" : "Sent"],
+              ["approved", he ? "אושרו" : "Approved"],
+              ["rejected", he ? "נדחו" : "Declined"],
+            ].map(([k, l]) => (
+              <Row
+                key={k}
+                label={l}
+                value={`${estBy(k).length} · ${money(
+                  estBy(k).reduce((s, e) => s + e.total_minor, 0),
+                  cur,
+                )}`}
+              />
+            ))}
+          </Card>
+          <Card span={5} title={he ? "היום" : "Today"}>
+            {todayJobs.length === 0 ? (
+              <Sub>{he ? "אין עבודות היום" : "No jobs today"}</Sub>
+            ) : (
+              todayJobs.map((j, i) => (
+                <div key={i} style={rowLine}>
+                  <b style={{ minWidth: 48 }}>{(j.start_time ?? "").slice(0, 5) || "—"}</b>
+                  <span style={{ flex: 1 }}>
+                    {j.customers?.name ?? "—"} · {j.service}
+                  </span>
+                  <b>{money(j.price_minor, cur)}</b>
+                </div>
+              ))
+            )}
+          </Card>
+          <Card span={4} title={he ? "בהמשך" : "Coming up"}>
+            {upcoming.length === 0 ? (
+              <Sub>{he ? "אין עבודות מתוכננות" : "Nothing scheduled"}</Sub>
+            ) : (
+              upcoming.map((j, i) => (
+                <div key={i} style={rowLine}>
+                  <span style={{ flex: 1 }}>{j.customers?.name ?? "—"}</span>
+                  <Sub>{fmtDate(j.scheduled_date)}</Sub>
+                </div>
+              ))
+            )}
+          </Card>
+
+          <Card span={8} title={he ? "עבודות אחרונות" : "Recent jobs"}>
+            {recent.length === 0 && (
+              <div style={{ color: "#5c6675", fontSize: "0.875rem", padding: 8 }}>—</div>
+            )}
+            {recent.map((j, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "11px 0",
+                  borderTop: i ? "1px solid #f1f4f9" : "none",
+                }}
+              >
+                <div className="sp-flex-fill">
+                  <div
+                    style={{
+                      fontWeight: 700,
+                      fontSize: "0.875rem",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    {j.customers?.name ?? "—"}
+                  </div>
+                  {/* Keeps the shared muted colour token; the inline size is the
+                    14px readable-text floor, which sits one rung above
+                    --sp-font-sm (13px). */}
+                  <div className="sp-text-muted" style={{ fontSize: "0.875rem" }}>
+                    {j.service} · {fmtDate(j.scheduled_date)}
+                  </div>
+                </div>
+                <div style={{ textAlign: "end", whiteSpace: "nowrap" }}>
+                  <b>{money(j.price_minor, cur)}</b>
+                  <div style={{ marginTop: 3 }}>
+                    <span style={statusChip(j.status)}>{t(locale, `st.${j.status}`)}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </Card>
+          <Card
+            span={4}
+            title={
+              he
+                ? `סוגי עבודות ומקורות מובילים · ${windowLabel}`
+                : `Top job types & sources · ${windowLabel}`
+            }
+          >
+            <Sub>{he ? "סוגי עבודות" : "Job types"}</Sub>
+            {topType.map(([k, v]) => (
+              <Row key={k} label={k} value={String(v)} />
+            ))}
+            <div style={{ height: 8 }} />
+            <Sub>{he ? "מקורות לידים" : "Lead sources"}</Sub>
+            {topSrc.map(([k, v]) => (
+              <div key={k} style={{ marginBottom: 8 }}>
                 <div
-                  style={{
-                    fontWeight: 700,
-                    fontSize: "0.875rem",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
+                  style={{ display: "flex", justifyContent: "space-between", fontSize: "0.875rem" }}
                 >
-                  {j.customers?.name ?? "—"}
+                  <b>{k}</b>
+                  <b>{v}</b>
                 </div>
-                <div className="sp-text-muted">
-                  {j.service} · {fmtDate(j.scheduled_date)}
+                <div
+                  style={{ height: 6, background: "#eef1f6", borderRadius: 5, overflow: "hidden" }}
+                >
+                  <i
+                    style={{
+                      display: "block",
+                      height: "100%",
+                      width: `${(v / srcMax) * 100}%`,
+                      background: "linear-gradient(90deg,#2563eb,#38bdf8)",
+                    }}
+                  />
                 </div>
               </div>
-              <div style={{ textAlign: "end", whiteSpace: "nowrap" }}>
-                <b>{money(j.price_minor, cur)}</b>
-                <div style={{ marginTop: 3 }}>
-                  <span style={statusChip(j.status)}>{t(locale, `st.${j.status}`)}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </Card>
-        <Card
-          span={4}
-          title={
-            he
-              ? `סוגי עבודות ומקורות מובילים · ${windowLabel}`
-              : `Top job types & sources · ${windowLabel}`
-          }
-        >
-          <Sub>{he ? "סוגי עבודות" : "Job types"}</Sub>
-          {topType.map(([k, v]) => (
-            <Row key={k} label={k} value={String(v)} />
-          ))}
-          <div style={{ height: 8 }} />
-          <Sub>{he ? "מקורות לידים" : "Lead sources"}</Sub>
-          {topSrc.map(([k, v]) => (
-            <div key={k} style={{ marginBottom: 8 }}>
-              <div
-                style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8125rem" }}
-              >
-                <b>{k}</b>
-                <b>{v}</b>
-              </div>
-              <div
-                style={{ height: 6, background: "#eef1f6", borderRadius: 5, overflow: "hidden" }}
-              >
-                <i
-                  style={{
-                    display: "block",
-                    height: "100%",
-                    width: `${(v / srcMax) * 100}%`,
-                    background: "linear-gradient(90deg,#2563eb,#38bdf8)",
-                  }}
-                />
-              </div>
-            </div>
-          ))}
-        </Card>
-      </div>
+            ))}
+          </Card>
+        </div>
+      </details>
     </div>
   );
 }
@@ -782,7 +820,7 @@ function Big({ children, small }: { children: React.ReactNode; small?: boolean }
   );
 }
 function Sub({ children }: { children: React.ReactNode }) {
-  return <div style={{ fontSize: "0.8125rem", color: "#5c6675", fontWeight: 600 }}>{children}</div>;
+  return <div style={{ fontSize: "0.875rem", color: "#5c6675", fontWeight: 600 }}>{children}</div>;
 }
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
@@ -824,7 +862,7 @@ function statusChip(s: string): React.CSSProperties {
     color: fg,
     padding: "3px 9px",
     borderRadius: 20,
-    fontSize: "0.8125rem",
+    fontSize: "0.875rem",
     fontWeight: 700,
   };
 }

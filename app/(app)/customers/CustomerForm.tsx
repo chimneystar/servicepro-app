@@ -52,7 +52,7 @@ export default function CustomerForm({
             <AddressAutocomplete value={addr} city={city} onChange={setAddr} onCity={setCity} />
             <div
               style={{
-                fontSize: "0.75rem",
+                fontSize: "0.875rem",
                 fontWeight: 700,
                 color: "#5c6675",
                 margin: "12px 0 -2px",
@@ -123,7 +123,7 @@ const btn: React.CSSProperties = {
   cursor: "pointer",
 };
 const lbl: React.CSSProperties = {
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   fontWeight: 700,
   color: "#334155",
   display: "block",

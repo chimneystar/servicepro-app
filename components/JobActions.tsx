@@ -53,7 +53,7 @@ export default function JobActions({
       <label className="sp-field">
         <span
           style={{
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
             fontWeight: 700,
             color: "#334155",
             display: "block",
@@ -117,7 +117,7 @@ export default function JobActions({
       {ok && (
         <div
           role="status"
-          style={{ marginTop: 10, color: "#15803d", fontSize: "0.8125rem", fontWeight: 600 }}
+          style={{ marginTop: 10, color: "#15803d", fontSize: "0.875rem", fontWeight: 600 }}
         >
           ✓ {ok}
         </div>

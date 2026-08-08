@@ -120,7 +120,7 @@ export default function JobTypesEditor({
         </div>
       ))}
       {types.length === 0 && (
-        <div style={{ color: "#5c6675", fontSize: "0.8125rem", padding: 8 }}>
+        <div style={{ color: "#5c6675", fontSize: "0.875rem", padding: 8 }}>
           {he ? "עוד לא הוגדרו סוגי עבודה." : "No job types yet."}
         </div>
       )}
@@ -237,5 +237,5 @@ const mini: React.CSSProperties = {
   borderRadius: 8,
   padding: "5px 8px",
   cursor: "pointer",
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
 };

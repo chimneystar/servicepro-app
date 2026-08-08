@@ -38,7 +38,7 @@ export default function JobExpensesField({ jobId, value }: { jobId: string; valu
     >
       <div
         id={descId}
-        style={{ fontSize: "0.8125rem", fontWeight: 700, color: "#334155", marginBottom: 6 }}
+        style={{ fontSize: "0.875rem", fontWeight: 700, color: "#334155", marginBottom: 6 }}
       >
         {he
           ? "עלויות העבודה, כמו חומרים ועמלות. הסכום משמש לחישוב עמלה."

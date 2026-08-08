@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile, access } from "node:fs/promises";
+import { readFile, access, readdir } from "node:fs/promises";
 import { readdirSync, statSync } from "node:fs";
 import { resolve, relative, sep } from "node:path";
 import {
@@ -82,6 +82,24 @@ function pagesOnDisk() {
   return out;
 }
 
+// From the field-ops redesign: used by the typography / theme-isolation guard
+// below, which sweeps every source file rather than a hand-listed few.
+async function sourceFiles(directory) {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const nested = await Promise.all(
+    entries.map((entry) => {
+      const path = resolve(directory, entry.name);
+      if (entry.isDirectory()) return sourceFiles(path);
+      return /\.(?:css|tsx?)$/.test(entry.name) ? [path] : [];
+    }),
+  );
+  return nested.flat();
+}
+
+// Named on our side "…on disk" because it is now paired with the reverse check
+// ("every page on disk is accounted for in the manifest") directly below; on
+// origin/main the same body was titled "every protected and public workflow
+// still has a page". Same assertion, one title.
 test("every route in the manifest still has a page on disk", async () => {
   for (const route of [...manifest.protectedRoutes, ...manifest.publicWorkflows]) {
     await assert.doesNotReject(
@@ -343,4 +361,52 @@ test("English and Hebrew dictionaries contain the same keys", async () => {
   );
 
   assert.deepEqual(keys(hebrew), keys(english));
+});
+
+// origin/main's floor is 12px. Our branch moved typography to rem and holds a
+// stricter floor of 0.875rem (14px) — the two do not conflict (14 >= 12), so
+// their assertion is kept exactly as written. Note its reach: the inline
+// pattern matches only UNQUOTED numeric values (`fontSize: 13`), so quoted rem
+// values are outside it by construction. It still catches any relapse to raw
+// numeric/px sizes, which is what it was written to catch.
+test("readable typography and public-page theme isolation cannot regress", async () => {
+  const files = [
+    ...(await sourceFiles(resolve(root, "app"))),
+    ...(await sourceFiles(resolve(root, "components"))),
+  ];
+  for (const file of files) {
+    const source = await readFile(file, "utf8");
+    const inlineSizes = [...source.matchAll(/fontSize:\s*([0-9]+(?:\.[0-9]+)?)/g)].map((match) =>
+      Number(match[1]),
+    );
+    const stylesheetSizes = [...source.matchAll(/font-size:\s*([0-9]+(?:\.[0-9]+)?)px/g)].map(
+      (match) => Number(match[1]),
+    );
+    assert.ok(
+      [...inlineSizes, ...stylesheetSizes].every((size) => size >= 12),
+      `text below the 12px support floor in ${file}`,
+    );
+  }
+  const css = await readFile(resolve(root, "app/globals.css"), "utf8");
+  assert.match(css, /\.auth-page[^}]*color-scheme:\s*light/);
+  assert.match(css, /\.booking-page[^}]*color-scheme:\s*light/);
+  assert.match(css, /\.public-document-page[^}]*color-scheme:\s*light/);
+  assert.match(css, /\.portal-wrap[^}]*color-scheme:\s*light/);
+  // NOTE on the `\s*` in these four: this assertion arrived from the field-ops
+  // redesign, where globals.css was minified (`color-scheme:light`). This
+  // branch runs prettier over the sheet, so the same declaration is written
+  // `color-scheme: light`. The PROPERTY being asserted is unchanged and still
+  // holds — only the regex was formatting-brittle, and a guard that fails on
+  // whitespace is a false RED, which is how guards get switched off.
+  assert.match(css, /\.auth-form input[^}]*background:\s*#fff[^}]*color:\s*#101a2e/);
+});
+
+test("mobile and desktop navigation keep every allowed destination reachable", async () => {
+  const more = await readFile(resolve(root, "app/(app)/more/page.tsx"), "utf8");
+  const nav = await readFile(resolve(root, "components/Nav.tsx"), "utf8");
+  const css = await readFile(resolve(root, "app/globals.css"), "utf8");
+  assert.doesNotMatch(more, /!i\.bottom/);
+  assert.match(more, /NAV_ITEMS\.filter/);
+  assert.match(nav, /className="side-utilities"/);
+  assert.match(css, /\.side-utilities\s*\{[^}]*flex:\s*0 0 auto/);
 });

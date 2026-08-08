@@ -62,6 +62,11 @@ export default function SignApprove({ token, locale }: { token: string; locale: 
   // estimate had no evidence behind it: the server never saw the request, so
   // there was no IP and no user agent to record. It now posts to a server
   // action that captures both. See app/p/[token]/actions.ts.
+  //
+  // That action is also the only place the signing guards can be enforced — a
+  // voided or already-signed document is refused there, and the refusal comes
+  // back as `{ ok:false, error }`. Calling the RPC straight from the browser
+  // again would put the customer back on an unguarded, unwitnessed path.
   async function approve() {
     if (!name.trim()) {
       setError(t(locale, "doc.your_name"));
@@ -76,11 +81,14 @@ export default function SignApprove({ token, locale }: { token: string; locale: 
       payload.set("name", name.trim());
       payload.set("signature", sig);
       const result = await approveDocument({ ok: false }, payload);
-      if (!result.ok) throw new Error(result.error ?? "Could not approve");
+      // The action's reason is already written in the reader's language, and it
+      // is the only thing that distinguishes "voided" from "already signed"
+      // from "too many attempts". Show it; fall back to the generic line.
+      if (!result.ok) throw new Error(result.error || t(locale, "doc.approve_error"));
       setDone(true);
       window.dispatchEvent(new Event("servicepro:document-approved"));
     } catch (err: any) {
-      setError(err?.message ?? "Error");
+      setError(err?.message || t(locale, "doc.approve_error"));
     } finally {
       setBusy(false);
     }
@@ -89,12 +97,14 @@ export default function SignApprove({ token, locale }: { token: string; locale: 
   if (done)
     return (
       <div
+        role="status"
         style={{
           background: "#e6f6ec",
-          color: "#15803d",
-          padding: "16px",
-          borderRadius: 12,
-          fontWeight: 700,
+          color: "#126b35",
+          padding: "17px",
+          borderRadius: 14,
+          fontWeight: 800,
+          fontSize: "0.9375rem",
           textAlign: "center",
         }}
       >
@@ -103,13 +113,58 @@ export default function SignApprove({ token, locale }: { token: string; locale: 
     );
 
   return (
-    <div style={{ border: "1px solid #e2e8f0", borderRadius: 14, padding: 16 }}>
-      <label className="sp-field">
+    <section
+      aria-labelledby="sign-approve-title"
+      style={{ border: "1px solid #d7e0ec", borderRadius: 14, padding: 16 }}
+    >
+      <header
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 12,
+          paddingBottom: 14,
+          marginBottom: 14,
+          borderBottom: "1px solid #e4eaf2",
+        }}
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            width: 36,
+            height: 36,
+            flex: "0 0 auto",
+            display: "grid",
+            placeItems: "center",
+            borderRadius: 11,
+            background: "#2563eb",
+            color: "#fff",
+            fontSize: "1.125rem",
+            fontWeight: 900,
+          }}
+        >
+          ✓
+        </span>
+        <div>
+          <h2
+            id="sign-approve-title"
+            style={{ margin: 0, color: "#101a2e", fontSize: "1.125rem", lineHeight: 1.3 }}
+          >
+            {t(locale, "doc.sign_heading")}
+          </h2>
+          <p
+            style={{ margin: "4px 0 0", color: "#55647a", fontSize: "0.875rem", lineHeight: 1.55 }}
+          >
+            {t(locale, "doc.sign_help")}
+          </p>
+        </div>
+      </header>
+
+      <label className="sp-field" htmlFor="signer-name">
         <span
           style={{
-            fontSize: "0.8125rem",
-            fontWeight: 700,
-            color: "#334155",
+            fontSize: "0.875rem",
+            fontWeight: 800,
+            color: "#273652",
             display: "block",
             marginBottom: 6,
           }}
@@ -117,18 +172,20 @@ export default function SignApprove({ token, locale }: { token: string; locale: 
           {t(locale, "doc.your_name")}
         </span>
         <input
+          id="signer-name"
+          autoComplete="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           style={{
             width: "100%",
-            border: "1px solid #e2e8f0",
+            border: "1px solid #d7e0ec",
             borderRadius: 10,
             padding: "11px 12px",
             fontSize: "1rem",
             outline: "none",
             marginBottom: 12,
           }}
-          placeholder="John Smith"
+          placeholder={t(locale, "doc.name_placeholder")}
         />
       </label>
 
@@ -137,21 +194,41 @@ export default function SignApprove({ token, locale }: { token: string; locale: 
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          gap: 12,
           marginBottom: 6,
         }}
       >
-        <label style={{ fontSize: "0.8125rem", fontWeight: 700, color: "#334155" }}>
-          {t(locale, "doc.sign_here")}
-        </label>
+        <div>
+          {/* A <canvas> is not a labelable element, so the pad carries its own
+              aria-label below and this stays plain text. */}
+          <span
+            style={{ display: "block", fontSize: "0.875rem", fontWeight: 800, color: "#273652" }}
+          >
+            {t(locale, "doc.sign_here")}
+          </span>
+          <small
+            style={{
+              display: "block",
+              marginTop: 2,
+              fontSize: "0.875rem",
+              color: "#55647a",
+              lineHeight: 1.45,
+            }}
+          >
+            {t(locale, "doc.signature_hint")}
+          </small>
+        </div>
         <button
           type="button"
           onClick={clear}
           style={{
-            background: "none",
+            background: "#edf3ff",
             border: "none",
-            color: "#2563eb",
-            fontWeight: 700,
-            fontSize: "0.8125rem",
+            borderRadius: 10,
+            padding: "10px 14px",
+            color: "#1f4fd1",
+            fontWeight: 800,
+            fontSize: "0.875rem",
             cursor: "pointer",
           }}
         >
@@ -164,18 +241,32 @@ export default function SignApprove({ token, locale }: { token: string; locale: 
         onPointerMove={move}
         onPointerUp={up}
         onPointerLeave={up}
+        aria-label={t(locale, "doc.sign_here")}
         style={{
           width: "100%",
-          height: 150,
-          border: "1px dashed #b9c8e6",
-          borderRadius: 10,
+          height: 160,
+          border: "2px dashed #aabbd5",
+          borderRadius: 12,
           touchAction: "none",
           background: "#fbfdff",
         }}
       />
 
       {error && (
-        <div style={{ color: "#dc2626", fontSize: "0.8125rem", marginTop: 8 }}>{error}</div>
+        <div
+          role="alert"
+          style={{
+            marginTop: 10,
+            padding: "10px 12px",
+            borderRadius: 10,
+            background: "#fff0f0",
+            color: "#b62e42",
+            fontSize: "0.875rem",
+            fontWeight: 700,
+          }}
+        >
+          {error}
+        </div>
       )}
       <button
         type="button"
@@ -202,6 +293,6 @@ export default function SignApprove({ token, locale }: { token: string; locale: 
           </>
         )}
       </button>
-    </div>
+    </section>
   );
 }

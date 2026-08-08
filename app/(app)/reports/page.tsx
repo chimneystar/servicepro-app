@@ -150,7 +150,7 @@ export default async function ReportsPage({
           {pill("all", "All time")}
         </div>
       </div>
-      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 12 }}>{label}</p>
+      <p style={{ color: "#5c6675", fontSize: "0.875rem", marginBottom: 12 }}>{label}</p>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
         <Link
           href="/reports/custom"
@@ -286,7 +286,7 @@ export default async function ReportsPage({
               <b style={{ fontSize: "0.9375rem" }}>{money(b.collected, cur)}</b>
               <span
                 style={{
-                  fontSize: "0.8125rem",
+                  fontSize: "0.875rem",
                   fontWeight: 700,
                   color: b.profit >= 0 ? "#15803d" : "#dc2626",
                 }}
@@ -332,7 +332,7 @@ export default async function ReportsPage({
           color: "#1d4ed8",
           padding: "11px 14px",
           borderRadius: 12,
-          fontSize: "0.8125rem",
+          fontSize: "0.875rem",
           marginTop: 4,
         }}
       >
@@ -366,7 +366,7 @@ function Kpi({
     >
       <div style={{ fontSize: "1.375rem" }}>{icon}</div>
       <div style={{ fontSize: "1.5rem", fontWeight: 800, color: tone, marginTop: 6 }}>{value}</div>
-      <div style={{ fontSize: "0.8125rem", color: "#5c6675", fontWeight: 600 }}>{label}</div>
+      <div style={{ fontSize: "0.875rem", color: "#5c6675", fontWeight: 600 }}>{label}</div>
     </div>
   );
 }
@@ -417,7 +417,7 @@ const seg: React.CSSProperties = {
   padding: "6px 14px",
   borderRadius: 8,
   fontWeight: 700,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   color: "#5c6675",
   textDecoration: "none",
 };

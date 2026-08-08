@@ -3,17 +3,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import { providers, sendEmail, sendSms } from "@/lib/providers";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 
 export type SendResult = { ok: boolean; configured: boolean; error?: string };
 
-/**
- * Send a document to the client automatically IF a provider is connected.
- * When not configured, returns { configured:false } so the UI falls back to
- * opening the user's own email / Messages app (which always works).
- */
 /** Minimal HTML entity escape for values interpolated into the email body. */
-function esc(value: string): string {
-  return value
+function esc(value: unknown): string {
+  return String(value ?? "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -30,6 +26,10 @@ function appOrigin(): string {
 }
 
 /**
+ * Send a document to the client automatically IF a provider is connected.
+ * When not configured, returns { configured:false } so the UI can explain
+ * that automatic delivery must be connected. ServicePro never opens another app.
+ *
  * SECURITY: `origin` used to be supplied by the browser and interpolated straight
  * into the link inside an email sent from the business's own Resend/Twilio
  * identity — so any signed-in user could send branded phishing to any address.
@@ -37,12 +37,16 @@ function appOrigin(): string {
  * caller's organisation, and interpolated values are escaped.
  *
  * The `origin` parameter is kept for call-site compatibility and ignored.
+ *
+ * `locale` chooses the language the customer is written to in; it never affects
+ * what is recorded (`related_type` stays the canonical English kind).
  */
 export async function autoSendDocument(
   token: string,
   channel: "email" | "text",
   to: string,
   _origin?: string,
+  locale: Locale = DEFAULT_LOCALE,
 ): Promise<SendResult> {
   const profile = await requireProfile();
   if (channel === "email" && !providers.email()) return { ok: false, configured: false };
@@ -76,15 +80,23 @@ export async function autoSendDocument(
   const doc: any = data;
   if (!doc) return { ok: false, configured: true, error: "Document not found" };
 
+  const he = locale === "he";
+  // `label` is the value that gets RECORDED, so it stays canonical English.
+  // `shown` is the word the customer reads, and is translated.
   const label = doc.kind === "invoice" ? "invoice" : "estimate";
+  const shown = he ? (doc.kind === "invoice" ? "חשבונית" : "הצעת מחיר") : label;
   const link = `${appOrigin()}/p/${token}`;
   const orgName = doc.org?.name ?? "";
   const who = (doc.customer?.name ?? "there").split(" ")[0];
 
   try {
     if (channel === "email") {
-      const subject = `${orgName} — ${label} #${doc.number}`;
-      const html = `<p>Hi ${esc(who)},</p><p>Please review your ${label} #${esc(String(doc.number))} from ${esc(orgName)}:</p><p><a href="${esc(link)}">${esc(link)}</a></p><p>You can approve and sign it online. Thank you!</p>`;
+      const subject = he
+        ? `${orgName} — ${shown} מס׳ ${doc.number}`
+        : `${orgName} — ${shown} #${doc.number}`;
+      const html = he
+        ? `<div dir="rtl"><p>שלום ${esc(who)},</p><p>${esc(orgName)} שלחו לך ${esc(shown)} מס׳ ${esc(doc.number)} לעיון ולאישור:</p><p><a href="${esc(link)}">פתיחת המסמך המאובטח</a></p><p>אפשר לאשר ולחתום ישירות בקישור. תודה!</p></div>`
+        : `<p>Hi ${esc(who)},</p><p>Please review your ${esc(shown)} #${esc(doc.number)} from ${esc(orgName)}:</p><p><a href="${esc(link)}">Open the secure document</a></p><p>You can approve and sign it online. Thank you!</p>`;
       const id = await sendEmail(to, subject, html);
       await supabase.from("email_messages").insert({
         organization_id: profile.organization_id,
@@ -98,7 +110,9 @@ export async function autoSendDocument(
         sent_at: new Date().toISOString(),
       });
     } else {
-      const body = `${orgName}: your ${label} #${doc.number} — ${link}`;
+      const body = he
+        ? `${orgName}: ${shown} מס׳ ${doc.number} לעיון ולאישור — ${link}`
+        : `${orgName}: your ${shown} #${doc.number} — ${link}`;
       const sid = await sendSms(to, body);
       await supabase.from("sms_messages").insert({
         organization_id: profile.organization_id,

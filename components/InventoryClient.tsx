@@ -107,7 +107,7 @@ export default function InventoryClient({ items, currency }: { items: Item[]; cu
             color: "#b91c1c",
             borderRadius: 12,
             padding: "10px 14px",
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
             marginBottom: 12,
           }}
         >
@@ -124,7 +124,7 @@ export default function InventoryClient({ items, currency }: { items: Item[]; cu
             color: "#9a3412",
             borderRadius: 12,
             padding: "10px 14px",
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
             marginBottom: 12,
           }}
         >
@@ -158,7 +158,7 @@ export default function InventoryClient({ items, currency }: { items: Item[]; cu
               <div className="sp-flex-fill">
                 <div style={{ fontWeight: 700 }}>
                   {it.name}{" "}
-                  {isLow && <span style={{ color: "#b91c1c", fontSize: "0.75rem" }}>· low</span>}
+                  {isLow && <span style={{ color: "#b91c1c", fontSize: "0.875rem" }}>· low</span>}
                 </div>
                 <div className="sp-text-muted">
                   {[
@@ -358,7 +358,7 @@ const mini: React.CSSProperties = {
   borderRadius: 8,
   padding: "5px 8px",
   cursor: "pointer",
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   flexShrink: 0,
 };
 const err: React.CSSProperties = {
@@ -366,6 +366,6 @@ const err: React.CSSProperties = {
   color: "#dc2626",
   padding: "9px 12px",
   borderRadius: 10,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   marginTop: 10,
 };

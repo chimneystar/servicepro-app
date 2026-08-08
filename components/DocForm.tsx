@@ -251,7 +251,7 @@ export default function DocForm({
                       display: "flex",
                       alignItems: "center",
                       gap: 6,
-                      fontSize: "0.8125rem",
+                      fontSize: "0.875rem",
                       fontWeight: 600,
                       cursor: "pointer",
                     }}
@@ -293,7 +293,7 @@ export default function DocForm({
                 background: "#e2e9f4",
                 color: "#2563eb",
                 padding: "8px 12px",
-                fontSize: "0.8125rem",
+                fontSize: "0.875rem",
                 marginTop: 4,
               }}
             >
@@ -319,7 +319,7 @@ export default function DocForm({
                 style={{
                   alignSelf: "end",
                   textAlign: "end",
-                  fontSize: "0.8125rem",
+                  fontSize: "0.875rem",
                   color: "#5c6675",
                   paddingBottom: 10,
                 }}
@@ -332,7 +332,7 @@ export default function DocForm({
               <span style={lbl}>{t(locale, "form.notes")}</span>
               <textarea name="notes" rows={2} className="sp-textarea sp-control--lg" />
             </label>
-            <div style={{ fontSize: "0.75rem", color: "#5c6675", marginTop: 8 }}>
+            <div style={{ fontSize: "0.875rem", color: "#5c6675", marginTop: 8 }}>
               ℹ️ Tax & total are calculated on save (only taxable items are taxed). New items are
               saved to your library for reuse.
             </div>
@@ -382,14 +382,14 @@ const itemCard: React.CSSProperties = {
   marginBottom: 10,
 };
 const lbl: React.CSSProperties = {
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   fontWeight: 700,
   color: "#334155",
   display: "block",
   margin: "6px 0 6px",
 };
 const miniLbl: React.CSSProperties = {
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   color: "#5c6675",
   fontWeight: 700,
   display: "block",
@@ -417,7 +417,7 @@ const photoBtn: React.CSSProperties = {
   borderRadius: 8,
   padding: "7px 12px",
   fontWeight: 700,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   cursor: "pointer",
 };
 const xBtn: React.CSSProperties = {

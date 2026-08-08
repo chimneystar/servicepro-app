@@ -80,7 +80,7 @@ export default function JobFieldTools({
         style={{
           display: "flex",
           justifyContent: "space-between",
-          fontSize: "0.8125rem",
+          fontSize: "0.875rem",
           opacity: 0.9,
           marginBottom: 10,
         }}
@@ -106,7 +106,7 @@ export default function JobFieldTools({
             background: "rgba(255,255,255,.12)",
             borderRadius: 10,
             padding: "10px 12px",
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
           }}
         >
           ✓ Completed {fmtTime(completedAt)}
@@ -196,7 +196,7 @@ function SignModal({ jobId, onClose }: { jobId: string; onClose: () => void }) {
       >
         Complete job
       </h3>
-      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 12 }}>
+      <p style={{ color: "#5c6675", fontSize: "0.875rem", marginBottom: 12 }}>
         Have the customer sign to confirm the work is done (optional).
       </p>
       <label className="sp-field">
@@ -272,7 +272,7 @@ const b: React.CSSProperties = {
   cursor: "pointer",
 };
 const lbl: React.CSSProperties = {
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   fontWeight: 700,
   color: "#334155",
   display: "block",

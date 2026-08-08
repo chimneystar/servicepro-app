@@ -93,7 +93,7 @@ export default function ArchiveList({ records }: { records: ArchRow[] }) {
                   {r.name}{" "}
                   <span
                     style={{
-                      fontSize: "0.8125rem",
+                      fontSize: "0.875rem",
                       fontWeight: 700,
                       color: "#9a3412",
                       background: "#fff7ed",
@@ -111,7 +111,7 @@ export default function ArchiveList({ records }: { records: ArchRow[] }) {
                     .join(" · ")}
                 </div>
                 {r.legacy_note && (
-                  <div style={{ fontSize: "0.8125rem", color: "#475569", marginTop: 4 }}>
+                  <div style={{ fontSize: "0.875rem", color: "#475569", marginTop: 4 }}>
                     🗒️ {r.legacy_note}
                   </div>
                 )}
@@ -127,7 +127,7 @@ export default function ArchiveList({ records }: { records: ArchRow[] }) {
                   borderRadius: 9,
                   padding: "7px 11px",
                   fontWeight: 700,
-                  fontSize: "0.8125rem",
+                  fontSize: "0.875rem",
                   cursor: "pointer",
                   flexShrink: 0,
                 }}

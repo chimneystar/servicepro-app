@@ -64,7 +64,7 @@ export default async function MessagesPage({
       <h1 style={{ fontSize: "1.5rem", fontWeight: 800, marginBottom: 4 }}>
         {he ? "הודעות" : "Messages"}
       </h1>
-      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 8 }}>
+      <p style={{ color: "#5c6675", fontSize: "0.875rem", marginBottom: 8 }}>
         {he
           ? "כל ההתכתבויות עם הלקוחות במקום אחד."
           : "All customer text conversations in one place."}
@@ -77,7 +77,7 @@ export default async function MessagesPage({
             color: "#9a3412",
             borderRadius: 12,
             padding: "10px 14px",
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
             marginBottom: 14,
           }}
         >
@@ -122,7 +122,7 @@ export default async function MessagesPage({
               <div style={{ fontWeight: 700 }}>{th.name}</div>
               <div
                 style={{
-                  fontSize: "0.8125rem",
+                  fontSize: "0.875rem",
                   color: "#5c6675",
                   whiteSpace: "nowrap",
                   overflow: "hidden",
@@ -151,7 +151,7 @@ export default async function MessagesPage({
             color: "#9a3412",
             borderRadius: 12,
             padding: "10px 14px",
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
             marginTop: 12,
             display: "flex",
             justifyContent: "space-between",

@@ -99,7 +99,7 @@ export default function LeadsBoard({ leads, orgId }: { leads: Lead[]; orgId: str
         <div style={{ fontWeight: 800, fontSize: "0.9375rem", marginBottom: 4 }}>
           🔗 Your online booking link
         </div>
-        <div style={{ fontSize: "0.8125rem", opacity: 0.85, marginBottom: 10 }}>
+        <div style={{ fontSize: "0.875rem", opacity: 0.85, marginBottom: 10 }}>
           Share this so clients can request appointments. Each request shows up here as a lead.
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -112,7 +112,7 @@ export default function LeadsBoard({ leads, orgId }: { leads: Lead[]; orgId: str
               border: "none",
               borderRadius: 9,
               padding: "9px 11px",
-              fontSize: "0.8125rem",
+              fontSize: "0.875rem",
               color: "#0b1524",
             }}
           />
@@ -185,7 +185,7 @@ export default function LeadsBoard({ leads, orgId }: { leads: Lead[]; orgId: str
                     </div>
                   )}
                   {l.notes && (
-                    <div style={{ fontSize: "0.8125rem", color: "#475569", marginTop: 4 }}>
+                    <div style={{ fontSize: "0.875rem", color: "#475569", marginTop: 4 }}>
                       {l.notes}
                     </div>
                   )}
@@ -279,7 +279,7 @@ function Tab({
         borderRadius: 9,
         padding: "7px 12px",
         fontWeight: 700,
-        fontSize: "0.8125rem",
+        fontSize: "0.875rem",
         whiteSpace: "nowrap",
         cursor: "pointer",
         background: on ? "#2563eb" : "#eef2f8",
@@ -294,21 +294,21 @@ const clink: React.CSSProperties = {
   color: "#2563eb",
   textDecoration: "none",
   fontWeight: 700,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
 };
 const btn: React.CSSProperties = {
   border: "none",
   borderRadius: 9,
   padding: "8px 12px",
   fontWeight: 700,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   cursor: "pointer",
 };
 const sel: React.CSSProperties = {
   border: "1px solid #e2e8f0",
   borderRadius: 9,
   padding: "8px 10px",
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   fontWeight: 600,
   background: "#fff",
 };

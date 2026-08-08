@@ -369,7 +369,17 @@ function specificity(sel) {
   const s = sel.replace(/::?[a-z-]+(\([^)]*\))?/g, " ");
   const ids = (s.match(/#[\w-]+/g) || []).length;
   const classes = (s.match(/\.[\w-]+/g) || []).length + (s.match(/\[[^\]]+\]/g) || []).length;
-  const els = (s.replace(/[.#][\w-]+/g, "").match(/\b[a-z][a-z0-9]*\b/g) || []).length;
+  // Element count must NOT see inside an attribute selector. `[aria-pressed="true"]`
+  // is ONE class-level unit; counting `aria`, `pressed` and `true` as three
+  // element selectors on top of that inflated it by 4 and made the first
+  // attribute selector in the sheet look like the highest-specificity rule in
+  // the product. Attribute contents are stripped before elements are counted.
+  const els = (
+    s
+      .replace(/\[[^\]]*\]/g, " ")
+      .replace(/[.#][\w-]+/g, "")
+      .match(/\b[a-z][a-z0-9]*\b/g) || []
+  ).length;
   return ids * 10000 + classes * 100 + els;
 }
 

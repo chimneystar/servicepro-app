@@ -23,7 +23,7 @@ export default async function InventoryPage() {
       <h1 style={{ fontSize: "1.5rem", fontWeight: 800, marginBottom: 4 }}>
         {he ? "מלאי" : "Inventory"}
       </h1>
-      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 14 }}>
+      <p style={{ color: "#5c6675", fontSize: "0.875rem", marginBottom: 14 }}>
         {he
           ? "מעקב אחרי חלקים וחומרים, כולל התראה לפני שנגמר. כל שינוי במלאי נרשם ביומן."
           : "Track parts and materials, including low-stock alerts. Every change is recorded in the stock ledger."}

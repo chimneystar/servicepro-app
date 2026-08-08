@@ -60,7 +60,7 @@ export default async function RoutePage({
           <Link href={`/route?date=${prev}`} style={navBtn}>
             ‹
           </Link>
-          <span style={{ fontSize: "0.8125rem", fontWeight: 700, color: "#5c6675" }}>
+          <span style={{ fontSize: "0.875rem", fontWeight: 700, color: "#5c6675" }}>
             {fmtDate(date)}
           </span>
           <Link href={`/route?date=${next}`} style={navBtn}>
@@ -68,7 +68,7 @@ export default async function RoutePage({
           </Link>
         </div>
       </div>
-      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 14 }}>
+      <p style={{ color: "#5c6675", fontSize: "0.875rem", marginBottom: 14 }}>
         {stops.length} stop{stops.length === 1 ? "" : "s"}
       </p>
 
@@ -179,5 +179,5 @@ const clink: React.CSSProperties = {
   color: "#2563eb",
   textDecoration: "none",
   fontWeight: 700,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
 };

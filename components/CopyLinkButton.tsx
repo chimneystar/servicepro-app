@@ -21,7 +21,7 @@ export default function CopyLinkButton({ path, label }: { path: string; label: s
         borderRadius: 9,
         padding: "9px 13px",
         fontWeight: 700,
-        fontSize: "0.8125rem",
+        fontSize: "0.875rem",
         cursor: "pointer",
       }}
     >

@@ -49,7 +49,7 @@ export default function JobTagsEditor({ jobId, tags }: { jobId: string; tags: st
         marginTop: 12,
       }}
     >
-      <div style={{ fontSize: "0.8125rem", fontWeight: 700, color: "#334155", marginBottom: 8 }}>
+      <div style={{ fontSize: "0.875rem", fontWeight: 700, color: "#334155", marginBottom: 8 }}>
         {he ? "תגיות" : "Tags"}
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
@@ -78,7 +78,7 @@ export default function JobTagsEditor({ jobId, tags }: { jobId: string; tags: st
           </span>
         ))}
         {list.length === 0 && (
-          <span style={{ fontSize: "0.8125rem", color: "#94a3b8" }}>
+          <span style={{ fontSize: "0.875rem", color: "#94a3b8" }}>
             {he ? "עוד אין תגיות." : "No tags yet."}
           </span>
         )}
@@ -131,7 +131,7 @@ export default function JobTagsEditor({ jobId, tags }: { jobId: string; tags: st
                 border: "none",
                 borderRadius: 20,
                 padding: "4px 10px",
-                fontSize: "0.75rem",
+                fontSize: "0.875rem",
                 fontWeight: 600,
                 cursor: "pointer",
               }}

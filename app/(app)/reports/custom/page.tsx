@@ -286,7 +286,7 @@ function KV({ label, value, strong }: { label: string; value: string; strong?: b
 }
 function Empty() {
   return (
-    <div style={{ color: "#5c6675", fontSize: "0.8125rem", padding: "6px 0" }}>
+    <div style={{ color: "#5c6675", fontSize: "0.875rem", padding: "6px 0" }}>
       No data in this period.
     </div>
   );
@@ -296,7 +296,7 @@ function fmt(iso: string) {
   return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
 }
 const lbl: React.CSSProperties = {
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   fontWeight: 700,
   color: "#334155",
   display: "block",

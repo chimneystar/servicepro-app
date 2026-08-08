@@ -120,7 +120,7 @@ export default function RecurringClient({
             padding: "9px 12px",
             borderRadius: 10,
             fontWeight: 700,
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
             marginBottom: 12,
           }}
         >
@@ -320,6 +320,6 @@ const mini: React.CSSProperties = {
   borderRadius: 8,
   padding: "5px 8px",
   cursor: "pointer",
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   flexShrink: 0,
 };

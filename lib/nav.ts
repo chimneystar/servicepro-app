@@ -63,6 +63,7 @@ export const NAV_ITEMS: NavItem[] = [
     capability: "invoices.manage",
     bottom: true,
   },
+  { href: "/expenses", key: "nav.expenses", icon: "💸", roles: ["owner", "office"] },
   {
     href: "/finance",
     key: "nav.finance",

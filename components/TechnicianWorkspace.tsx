@@ -200,6 +200,14 @@ export default function TechnicianWorkspace({
     );
   }
 
+  const statusLabel = (status: string) =>
+    ({
+      scheduled: he ? "מתוכננת" : "Scheduled",
+      in_progress: he ? "בעבודה" : "In progress",
+      done: he ? "הושלמה" : "Complete",
+      cancelled: he ? "בוטלה" : "Cancelled",
+    })[status] ?? status.replaceAll("_", " ");
+
   const list = (rows: TechJob[]) => (
     <div className="tech-job-list">
       {rows.map((job, index) => {
@@ -215,6 +223,7 @@ export default function TechnicianWorkspace({
                 <small>
                   {(job.start_time ?? "").slice(0, 5)}
                   {job.end_time ? `–${job.end_time.slice(0, 5)}` : ""}
+                  <b>{statusLabel(job.status)}</b>
                 </small>
                 <strong>{job.service}</strong>
                 <p>
@@ -225,12 +234,26 @@ export default function TechnicianWorkspace({
               <span className="tech-open">›</span>
             </Link>
             <footer>
-              <button type="button" onClick={() => changeStatus(job.id, "start")}>
-                {he ? "התחלת עבודה" : "Start job"}
-              </button>
-              <button type="button" onClick={() => changeStatus(job.id, "complete")}>
-                {he ? "סיום עבודה" : "Complete"}
-              </button>
+              {customer?.phone && <a href={`tel:${customer.phone}`}>{he ? "שיחה" : "Call"}</a>}
+              {address && (
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {he ? "ניווט" : "Directions"}
+                </a>
+              )}
+              {job.status === "scheduled" && (
+                <button type="button" onClick={() => changeStatus(job.id, "start")}>
+                  {he ? "התחלת עבודה" : "Start job"}
+                </button>
+              )}
+              {job.status === "in_progress" && (
+                <button type="button" onClick={() => changeStatus(job.id, "complete")}>
+                  {he ? "סיום עבודה" : "Complete"}
+                </button>
+              )}
             </footer>
           </article>
         );

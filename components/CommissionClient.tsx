@@ -112,7 +112,7 @@ export default function CommissionClient({
           marginBottom: 14,
         }}
       >
-        <label style={{ fontSize: "0.8125rem", fontWeight: 700, color: "#334155" }}>
+        <label style={{ fontSize: "0.875rem", fontWeight: 700, color: "#334155" }}>
           Credit-card fee %
           <input
             value={ccFee}
@@ -183,7 +183,7 @@ export default function CommissionClient({
                   gridTemplateColumns: "repeat(auto-fit,minmax(90px,1fr))",
                   gap: 8,
                   margin: "10px 0",
-                  fontSize: "0.8125rem",
+                  fontSize: "0.875rem",
                 }}
               >
                 <KV label="Jobs done" v={String(r.jobs)} />
@@ -194,7 +194,7 @@ export default function CommissionClient({
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: "0.8125rem", color: "#5c6675", fontWeight: 600 }}>
+                  <span style={{ fontSize: "0.875rem", color: "#5c6675", fontWeight: 600 }}>
                     Commission
                   </span>
                   <input
@@ -226,7 +226,7 @@ export default function CommissionClient({
                       borderRadius: 8,
                       padding: "7px 12px",
                       fontWeight: 700,
-                      fontSize: "0.8125rem",
+                      fontSize: "0.875rem",
                       cursor: "pointer",
                     }}
                   >
@@ -250,7 +250,7 @@ export default function CommissionClient({
         )}
       </div>
       <ActionError error={error} />
-      <p style={{ color: "#5c6675", fontSize: "0.75rem", marginTop: 12 }}>
+      <p style={{ color: "#5c6675", fontSize: "0.875rem", marginTop: 12 }}>
         Net = job revenue − job costs (entered on each job) − credit-card fees. Commission = net ×
         the technician’s %. Only jobs in a “Done” status count.
       </p>
@@ -261,7 +261,7 @@ export default function CommissionClient({
 function KV({ label, v, strong }: { label: string; v: string; strong?: boolean }) {
   return (
     <div style={{ background: "#f8fafc", borderRadius: 8, padding: "7px 10px" }}>
-      <div style={{ color: "#94a3b8", fontWeight: 700, fontSize: "0.8125rem" }}>{label}</div>
+      <div style={{ color: "#94a3b8", fontWeight: 700, fontSize: "0.875rem" }}>{label}</div>
       <b style={{ color: strong ? "#15803d" : "#0b1524" }}>{v}</b>
     </div>
   );

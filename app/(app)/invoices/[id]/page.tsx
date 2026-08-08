@@ -142,6 +142,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           customerEmail={c?.email ?? null}
           customerPhone={c?.phone ?? null}
           orgName={org?.name ?? ""}
+          locale={locale}
         />
       </div>
 

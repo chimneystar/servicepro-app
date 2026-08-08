@@ -19,7 +19,7 @@ export default async function LeadsPage() {
       <h1 style={{ fontSize: "1.5rem", fontWeight: 800, marginBottom: 4 }}>
         {he ? "לידים" : "Leads"}
       </h1>
-      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 14 }}>
+      <p style={{ color: "#5c6675", fontSize: "0.875rem", marginBottom: 14 }}>
         {he
           ? "פניות חדשות והתקדמות המכירה, עד שהלקוח קובע עבודה."
           : "New requests and sales progress until a job is booked."}

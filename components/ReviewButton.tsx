@@ -63,7 +63,7 @@ export default function ReviewButton({ jobId }: { jobId: string }) {
           style={{
             marginTop: 8,
             textAlign: "center",
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
             fontWeight: 700,
             color: msg.startsWith("✓") ? "#15803d" : "#dc2626",
           }}

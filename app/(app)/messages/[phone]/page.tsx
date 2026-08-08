@@ -77,7 +77,7 @@ export default async function ThreadPage({
         ‹ Messages
       </Link>
       <h1 style={{ fontSize: "1.25rem", fontWeight: 800, margin: "8px 0 2px" }}>{name}</h1>
-      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 12 }}>{phone}</p>
+      <p style={{ color: "#5c6675", fontSize: "0.875rem", marginBottom: 12 }}>{phone}</p>
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8, paddingBottom: 12 }}>
         {truncated && (
@@ -88,7 +88,7 @@ export default async function ThreadPage({
               color: "#9a3412",
               borderRadius: 12,
               padding: "9px 13px",
-              fontSize: "0.8125rem",
+              fontSize: "0.875rem",
               textAlign: "center",
             }}
           >
@@ -125,7 +125,7 @@ export default async function ThreadPage({
             </div>
             <div
               style={{
-                fontSize: "0.8125rem",
+                fontSize: "0.875rem",
                 color: "#94a3b8",
                 marginTop: 2,
                 textAlign: m.direction === "inbound" ? "start" : "end",

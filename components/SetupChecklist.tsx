@@ -11,39 +11,26 @@ export type Step = { label: string; done: boolean; href: string };
 export default function SetupChecklist({ steps }: { steps: Step[] }) {
   const router = useRouter();
   const he = useAppLocale() === "he";
+  // Keeps the `{ ok, error }` contract that a bare `start(async () => …)`
+  // threw away: a refused dismissal now says so instead of looking saved.
   const { pending, error, run } = useActionStatus(he);
-  const done = steps.filter((s) => s.done).length;
-  const pct = Math.round((done / steps.length) * 100);
+  const done = steps.filter((step) => step.done).length;
+  const percent = Math.round((done / steps.length) * 100);
+  const next = steps.find((step) => !step.done);
 
   return (
-    <div
-      className="pop-in"
-      style={{
-        background: "linear-gradient(135deg,#0f2a5e,#2563eb)",
-        color: "#fff",
-        borderRadius: 16,
-        padding: 18,
-        marginBottom: 16,
-        boxShadow: "0 18px 50px rgba(15,42,94,.18)",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          gap: 10,
-        }}
-      >
+    <section className="setup-guide pop-in" aria-labelledby="setup-guide-title">
+      <header>
         <div>
-          <div style={{ fontSize: "1.0625rem", fontWeight: 800 }}>
-            {he ? "מסיימים את ההגדרה" : "Finish setting up"}
-          </div>
-          <div style={{ fontSize: "0.8125rem", opacity: 0.9 }}>
+          <span>{he ? "הגדרה ראשונית" : "Workspace setup"}</span>
+          <h2 id="setup-guide-title">
             {he
-              ? `${done} מתוך ${steps.length} הושלמו · ${pct}% מוכן`
-              : `${done} of ${steps.length} complete · ${pct}% ready`}
-          </div>
+              ? "מסיימים כמה דברים קטנים ומתחילים לעבוד"
+              : "A few quick steps, then you’re ready to work"}
+          </h2>
+          <p>
+            {he ? `${done} מתוך ${steps.length} הושלמו` : `${done} of ${steps.length} complete`}
+          </p>
         </div>
         <button
           type="button"
@@ -54,88 +41,55 @@ export default function SetupChecklist({ steps }: { steps: Step[] }) {
             )
           }
           disabled={pending}
-          style={{
-            background: "rgba(255,255,255,.18)",
-            color: "#fff",
-            border: "none",
-            borderRadius: 8,
-            padding: "6px 10px",
-            fontWeight: 700,
-            fontSize: "0.75rem",
-            cursor: "pointer",
-          }}
         >
-          {he ? "הסתרה" : "Dismiss"}
+          {he ? "לא עכשיו" : "Not now"}
         </button>
-      </div>
+      </header>
 
       <div
-        style={{
-          height: 7,
-          background: "rgba(255,255,255,.22)",
-          borderRadius: 99,
-          margin: "12px 0 14px",
-        }}
+        className="setup-progress"
+        aria-label={he ? `${percent}% הושלמו` : `${percent}% complete`}
       >
-        <div
-          style={{
-            width: `${pct}%`,
-            height: "100%",
-            background: "#fff",
-            borderRadius: 99,
-            transition: "width .4s ease",
-          }}
-        />
+        <i style={{ width: `${percent}%` }} />
       </div>
 
-      <div style={{ display: "grid", gap: 8 }}>
-        {steps.map((s, i) => (
-          <Link
-            key={i}
-            href={s.href}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              background: "rgba(255,255,255,.10)",
-              borderRadius: 10,
-              padding: "10px 12px",
-              textDecoration: "none",
-              color: "#fff",
-            }}
-          >
-            <span
-              style={{
-                width: 22,
-                height: 22,
-                borderRadius: "50%",
-                flexShrink: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "0.8125rem",
-                background: s.done ? "#22c55e" : "rgba(255,255,255,.25)",
-                fontWeight: 800,
-              }}
+      {next && (
+        <Link className="setup-next" href={next.href}>
+          <span aria-hidden="true">{done + 1}</span>
+          <div>
+            <small>{he ? "השלב הבא" : "Next step"}</small>
+            <strong>{next.label}</strong>
+          </div>
+          <b>
+            {he ? "להמשך" : "Continue"}
+            <i aria-hidden="true">→</i>
+          </b>
+        </Link>
+      )}
+
+      <details className="setup-all">
+        <summary>
+          {he ? "כל שלבי ההגדרה" : "View all setup steps"}
+          <span>{steps.length}</span>
+        </summary>
+        <div>
+          {steps.map((step, index) => (
+            <Link
+              key={`${step.href}-${index}`}
+              href={step.href}
+              className={step.done ? "done" : ""}
             >
-              {s.done ? "✓" : ""}
-            </span>
-            <span
-              style={{
-                flex: 1,
-                fontWeight: 600,
-                fontSize: "0.875rem",
-                textDecoration: s.done ? "line-through" : "none",
-                opacity: s.done ? 0.8 : 1,
-              }}
-            >
-              {s.label}
-            </span>
-            {!s.done && <span style={{ opacity: 0.8 }}>›</span>}
-          </Link>
-        ))}
-      </div>
-      <ActionError error={error} />
-    </div>
+              <span aria-hidden="true">{step.done ? "✓" : index + 1}</span>
+              <strong>{step.label}</strong>
+              <b aria-hidden="true">›</b>
+            </Link>
+          ))}
+        </div>
+      </details>
+
+      {/* A refused dismissal has to surface where the person clicked, not in a
+          console — same reason the action contract is kept above. */}
+      <ActionError error={error} style={{ marginInline: 16, marginBottom: 16 }} />
+    </section>
   );
 }

@@ -81,14 +81,14 @@ export default function ExportClient() {
               marginTop: 12,
               color: msg.startsWith("✓") ? "#15803d" : "#dc2626",
               fontWeight: 700,
-              fontSize: "0.8125rem",
+              fontSize: "0.875rem",
             }}
           >
             {msg}
           </div>
         )}
       </div>
-      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginTop: 12 }}>
+      <p style={{ color: "#5c6675", fontSize: "0.875rem", marginTop: 12 }}>
         These CSV files import cleanly into QuickBooks, Xero, Wave, or a spreadsheet for your
         bookkeeper.
       </p>
@@ -97,7 +97,7 @@ export default function ExportClient() {
 }
 
 const lbl: React.CSSProperties = {
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   fontWeight: 700,
   color: "#334155",
   display: "block",

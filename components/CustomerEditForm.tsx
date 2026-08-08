@@ -69,7 +69,7 @@ export default function CustomerEditForm({ customer }: { customer: EditCust }) {
             </label>
             <div
               style={{
-                fontSize: "0.75rem",
+                fontSize: "0.875rem",
                 fontWeight: 700,
                 color: "#5c6675",
                 margin: "12px 0 -2px",
@@ -139,7 +139,7 @@ const editBtn: React.CSSProperties = {
   borderRadius: 9,
   padding: "7px 12px",
   fontWeight: 700,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   cursor: "pointer",
 };
 const save: React.CSSProperties = {
@@ -152,7 +152,7 @@ const save: React.CSSProperties = {
   cursor: "pointer",
 };
 const lbl: React.CSSProperties = {
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   fontWeight: 700,
   color: "#334155",
   display: "block",

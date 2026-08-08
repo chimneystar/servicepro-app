@@ -87,7 +87,7 @@ export default function JobsList({
             color: "#9a3412",
             borderRadius: 12,
             padding: "10px 14px",
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
             marginBottom: 12,
             display: "flex",
             justifyContent: "space-between",
@@ -194,7 +194,7 @@ export default function JobsList({
           </select>
         )}
       </div>
-      <div style={{ fontSize: "0.8125rem", color: "#5c6675", margin: "0 2px 8px" }}>
+      <div style={{ fontSize: "0.875rem", color: "#5c6675", margin: "0 2px 8px" }}>
         {shown.length} job{shown.length === 1 ? "" : "s"}
       </div>
 
@@ -226,7 +226,7 @@ export default function JobsList({
                       <span
                         key={t}
                         className="pill"
-                        style={{ background: "#eef2f8", color: "#5c6675", fontSize: "0.8125rem" }}
+                        style={{ background: "#eef2f8", color: "#5c6675", fontSize: "0.875rem" }}
                       >
                         {t}
                       </span>
@@ -250,7 +250,7 @@ export default function JobsList({
                 </b>
                 <span
                   style={{
-                    fontSize: "0.8125rem",
+                    fontSize: "0.875rem",
                     fontWeight: 700,
                     color: stale ? "#dc2626" : "#94a3b8",
                     background: stale ? "#fdeaea" : "transparent",
@@ -309,7 +309,7 @@ function TabBtn({
           color: on ? "#fff" : "#8892a2",
           borderRadius: 20,
           padding: "1px 7px",
-          fontSize: "0.8125rem",
+          fontSize: "0.875rem",
           marginInlineStart: 3,
         }}
       >

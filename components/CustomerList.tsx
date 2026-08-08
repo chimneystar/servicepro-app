@@ -95,7 +95,7 @@ export default function CustomerList({
         )}
       </div>
       {q && (
-        <div style={{ fontSize: "0.8125rem", color: "#5c6675", margin: "0 4px 8px" }}>
+        <div style={{ fontSize: "0.875rem", color: "#5c6675", margin: "0 4px 8px" }}>
           {filtered.length} match{filtered.length === 1 ? "" : "es"}
         </div>
       )}

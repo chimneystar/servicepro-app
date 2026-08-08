@@ -112,7 +112,7 @@ export default function ExpensesClient({
                   borderRadius: 8,
                   padding: "4px 8px",
                   cursor: "pointer",
-                  fontSize: "0.75rem",
+                  fontSize: "0.875rem",
                 }}
                 aria-label={t(locale, "common.delete")}
               >
@@ -198,7 +198,7 @@ function Kpi({ label, value, tone }: { label: string; value: string; tone: strin
       }}
     >
       <div style={{ fontSize: "1.375rem", fontWeight: 800, color: tone }}>{value}</div>
-      <div style={{ fontSize: "0.8125rem", color: "#5c6675", fontWeight: 600 }}>{label}</div>
+      <div style={{ fontSize: "0.875rem", color: "#5c6675", fontWeight: 600 }}>{label}</div>
     </div>
   );
 }

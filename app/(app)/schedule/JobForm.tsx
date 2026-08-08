@@ -258,7 +258,7 @@ export default function JobForm({
             </Row>
             <div
               style={{
-                fontSize: "0.75rem",
+                fontSize: "0.875rem",
                 fontWeight: 700,
                 color: "#5c6675",
                 margin: "12px 0 6px",

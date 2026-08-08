@@ -476,13 +476,13 @@ video {
   color-scheme: light;
   --ink: #101a2e;
   --ink-soft: #273652;
-  --muted: #66728a;
-  --subtle: #8d97a9;
+  --muted: #55647a;
+  --subtle: #718096;
   --bg: #f4f7fb;
   --surface: #ffffff;
   --surface-2: #edf2f8;
   --surface-3: #f8faff;
-  --line: #dde5f0;
+  --line: #d7e0ec;
   --accent: #2b66f6;
   --accent-dark: #1f4fd1;
   --accent-soft: #eaf0ff;
@@ -505,6 +505,25 @@ video {
      visible on a laptop screen in daylight. */
   --focus-ring: #1246d8;
   --focus-ring-halo: rgba(43, 102, 246, 0.28);
+
+  /* FIELD-OPERATIONS UX TOKENS — from the bilingual redesign on main.
+     The redesign shipped these as px (12/13/14/16); they are carried here in
+     `rem` for the same reason as the `--sp-font-*` ladder below: a px value
+     opts every consumer out of the "Larger text" toggle and out of the
+     reader's own browser text-size setting. The redesign's other decision —
+     a 14px readable floor for field use, applied by raising every rule under
+     it — is what collapses `supporting` and `compact` onto the body step.
+     They are kept as named steps because the redesign names them, and so the
+     day the floor is revisited there is one place to move each one. */
+  --text-supporting: 0.875rem; /* 14px — was 12px, raised to the floor */
+  --text-compact: 0.875rem; /* 14px — was 13px, raised to the floor */
+  --text-body: 0.875rem; /* 14px */
+  --text-card-title: 1rem; /* 16px */
+  /* Not type: these are hit-area sizes and stay in px on purpose. A control
+     that grew with the text scale would reflow the layout, and 44px is an
+     absolute finger target, not a relative one. */
+  --control-height: 48px;
+  --touch-target: 44px;
 }
 
 /* ===========================================================================
@@ -688,20 +707,36 @@ html[data-contrast="high"] {
    value silently overrides.
 
    The ladder, in px at the default 16px root:
-     0.75rem   12   smallest permitted anywhere: eyebrows, badges, pill labels
-     0.8125rem 13   metadata, secondary lines, dense table cells
-     0.875rem  14   body, list item titles, form help
+     0.875rem  14   the floor: eyebrows, badges, pill labels, metadata, body,
+                    list item titles, form help — everything small
      0.9375rem 15   emphasised body
      1rem      16   inputs (also the iOS no-zoom threshold), lead paragraphs
      1.0625rem 17 · 1.125rem 18 · 1.25rem 20   sub-headings
      1.375rem 22 · 1.5rem 24 · 1.625rem 26 · 1.75rem 28   headings
      2rem 32 · 2.25rem 36 · 2.625rem 42 · 2.75rem 44      display
 
-   12px is a hard floor. Rules below it used to run down to 7px, and the
-   smallest text on a screen was routinely the text that mattered most — the
-   customer's name, the alert copy, the service being chosen. Display type was
-   pulled down at the same time so the ratio between the two is a hierarchy
-   rather than an inversion.
+   14px is a hard floor, raised from 12px by the field-operations redesign on
+   main. That redesign is the reason the two smallest steps are gone from this
+   stylesheet: 0.75rem (12px) and 0.8125rem (13px) each carried well over a
+   hundred rules here, and every one of them has been lifted to 0.875rem. This
+   product is read one-handed, outdoors, at arm's length, by a technician
+   holding a phone — 12px was a desk-monitor floor applied to a field tool. The
+   original A1 pass had already pulled rules up off 7px for the same reason
+   (the smallest text on a screen was routinely the text that mattered most —
+   the customer's name, the alert copy, the service being chosen); this goes
+   the rest of the way. Display type stays where A1 put it, so the ratio
+   between the two is still a hierarchy rather than an inversion.
+
+   ONE LAYER IS DELIBERATELY EXEMPT, and it is a known gap rather than an
+   oversight: the `.sp-*` primitives at the foot of this file still read
+   `var(--sp-font-sm)` (13px) and `var(--sp-font-xs)` (12px). Those primitives
+   exist to be byte-equivalent to the inline style objects they replaced in
+   app/ and components/, and tests/design-system.test.mjs checks exactly that
+   equivalence. Raising them here — without raising the ~705 inline `fontSize`
+   props they mirror, which live in other files — would break the equivalence
+   and would still leave the un-migrated half of the product below the floor.
+   Lifting the primitives and their inline twins together is one follow-up
+   change, not a merge conflict resolution.
 --------------------------------------------------------------------------- */
 html[data-text-scale="large"] {
   font-size: 112.5%;
@@ -746,6 +781,8 @@ body {
     "Segoe UI",
     Arial,
     sans-serif;
+  font-size: var(--text-body);
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   -webkit-text-size-adjust: 100%;
@@ -976,7 +1013,7 @@ main:focus {
 .brand-copy small {
   margin-top: 2px;
   color: #91a2c3;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 /* The scroll port and its cue — see components/SideNavScroller.tsx. */
 .side-nav-wrap {
@@ -1106,7 +1143,7 @@ main:focus {
 }
 .tool-link {
   min-height: 39px;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .tool-link.active {
   color: #fff;
@@ -1123,7 +1160,7 @@ main:focus {
   padding-top: 6px;
 }
 .side-appearance {
-  min-height: 40px;
+  min-height: var(--touch-target);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1131,7 +1168,7 @@ main:focus {
   margin: 0 13px;
   border-radius: 11px;
   color: #c2cee4;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 750;
   text-decoration: none;
 }
@@ -1151,7 +1188,7 @@ main:focus {
 }
 .sign-out-btn {
   width: 100%;
-  min-height: 42px;
+  min-height: var(--touch-target);
   border: 0;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.07);
@@ -1266,12 +1303,27 @@ main:focus {
   }
 }
 
-/* Public account entry */
+/* Public account entry.
+   The local token overrides are deliberate, not a copy of `:root`. Sign-in,
+   the customer portal, the booking flow and the public document pages are
+   painted on a white card that does not follow the operator's theme, so they
+   pin the light palette and `color-scheme` for themselves rather than
+   inheriting a dark shell and rendering white-on-white. */
 .auth-page {
+  --ink: #101a2e;
+  --ink-soft: #273652;
+  --muted: #55647a;
+  --subtle: #718096;
+  --line: #d7e0ec;
+  --accent: #2563eb;
+  --accent-dark: #1d4fc4;
+  --accent-soft: #edf3ff;
+  color-scheme: light;
   min-height: 100dvh;
   display: grid;
   grid-template-columns: minmax(390px, 0.93fr) minmax(520px, 1.07fr);
   background: #fff;
+  color: #101a2e;
 }
 .auth-story {
   position: relative;
@@ -1327,7 +1379,7 @@ main:focus {
 .auth-brand small {
   margin-top: 2px;
   color: #a9bde7;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .auth-story-copy {
   max-width: 600px;
@@ -1341,7 +1393,7 @@ main:focus {
   border-radius: 999px;
   color: #ffe979;
   background: rgba(255, 255, 255, 0.07);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 850;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1377,7 +1429,7 @@ main:focus {
   align-items: center;
   gap: 8px;
   color: #e7eefc;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 750;
   white-space: nowrap;
 }
@@ -1389,7 +1441,7 @@ main:focus {
   border-radius: 50%;
   background: #2b66f6;
   color: #fff;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .auth-route span:last-child b {
   background: #f8c928;
@@ -1416,11 +1468,11 @@ main:focus {
 }
 .auth-proof strong {
   color: #fff;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .auth-proof span {
   color: #91a8d4;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.45;
 }
 .auth-panel {
@@ -1431,6 +1483,7 @@ main:focus {
   justify-items: center;
   padding: 72px clamp(24px, 7vw, 110px) 36px;
   background: radial-gradient(circle at 100% 0, rgba(43, 102, 246, 0.07), transparent 22rem), #fff;
+  color: #101a2e;
 }
 .auth-language {
   position: absolute;
@@ -1447,21 +1500,22 @@ main:focus {
   display: block;
   margin-bottom: 8px;
   color: var(--accent);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 900;
   letter-spacing: 0.11em;
   text-transform: uppercase;
 }
 .auth-card-heading h1 {
   margin: 0;
+  color: #101a2e;
   font-size: 2rem;
   line-height: 1.08;
 }
 .auth-card-heading p {
   margin: 10px 0 0;
-  color: var(--muted);
-  font-size: 0.875rem;
-  line-height: 1.55;
+  color: #4d5d73;
+  font-size: 0.9375rem;
+  line-height: 1.6;
 }
 .auth-form {
   display: grid;
@@ -1471,7 +1525,7 @@ main:focus {
   display: grid;
   gap: 7px;
   color: var(--ink-soft);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 .auth-form input,
@@ -1481,6 +1535,13 @@ main:focus {
   padding: 11px 13px;
   border: 1px solid var(--line);
   border-radius: 12px;
+  background: #fff;
+  color: #101a2e;
+  caret-color: #2563eb;
+}
+.auth-form input::placeholder {
+  color: #738096;
+  opacity: 1;
 }
 .auth-field-grid {
   display: grid;
@@ -1496,10 +1557,10 @@ main:focus {
 }
 .password-field button {
   position: absolute;
-  inset-inline-end: 5px;
-  top: 5px;
-  width: 39px;
-  height: 39px;
+  inset-inline-end: 3px;
+  top: 3px;
+  width: var(--touch-target);
+  height: var(--touch-target);
   border: 0;
   border-radius: 9px;
   background: #f2f5fa;
@@ -1513,11 +1574,11 @@ main:focus {
   align-items: center;
   margin-top: -5px;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .auth-form-meta a,
 .auth-switch a {
-  color: var(--accent);
+  color: #1d55cc;
   font-weight: 850;
   text-decoration: none;
 }
@@ -1550,15 +1611,31 @@ main:focus {
   --flow-arrow: -1;
 }
 .auth-switch {
-  margin: 1px 0 0;
-  color: var(--muted);
-  font-size: 0.75rem;
+  min-height: var(--touch-target);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 2px 0 0;
+  padding: 8px 12px;
+  border: 1px solid #d7e0ec;
+  border-radius: 12px;
+  background: #f7f9fc;
+  color: #425169;
+  font-size: 0.875rem;
   text-align: center;
+}
+.auth-switch a {
+  min-height: var(--touch-target);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
 }
 .auth-message {
   padding: 11px 12px;
   border-radius: 11px;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   line-height: 1.45;
 }
 .auth-message.error {
@@ -1577,7 +1654,7 @@ main:focus {
   border-radius: 7px;
   background: #eef2f7;
   color: #7d8798;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 750;
 }
 .password-checks span::before {
@@ -1629,7 +1706,7 @@ main:focus {
 .auth-success p {
   margin: 0;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.6;
 }
 .auth-success .auth-submit {
@@ -1638,9 +1715,51 @@ main:focus {
 .auth-legal {
   width: min(510px, 100%);
   margin: 28px 0 0;
-  color: #9aa3b2;
-  font-size: 0.75rem;
+  color: #5f6d81;
+  font-size: 0.8125rem;
+  line-height: 1.5;
   text-align: center;
+}
+
+/* Language switch. Bilingual operation is a first-class control, not a
+   footnote, so it carries a full 44px target on both sides of the toggle. */
+.language-toggle {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid #d7e0ec;
+  border-radius: 12px;
+  background: #edf2f8;
+}
+.language-toggle.dark {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.07);
+}
+.language-toggle button {
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  display: grid;
+  place-items: center;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #425169;
+  font-size: 0.875rem;
+  font-weight: 800;
+}
+.language-toggle [aria-pressed="true"] {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(43, 102, 246, 0.2);
+}
+.language-toggle.dark button {
+  color: #d7e2f5;
+}
+.language-toggle.dark [aria-pressed="true"] {
+  background: rgba(255, 255, 255, 0.19);
+  color: #fff;
+  box-shadow: none;
 }
 
 .onboarding-trade-grid {
@@ -1673,12 +1792,12 @@ main:focus {
   accent-color: var(--accent);
 }
 .onboarding-trade-choice span {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 .onboarding-trade-choice small {
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .onboarding-option {
   display: flex;
@@ -1703,11 +1822,11 @@ main:focus {
   gap: 2px;
 }
 .onboarding-option b {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .onboarding-option small {
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.45;
 }
 .activity-card {
@@ -1736,7 +1855,7 @@ main:focus {
 }
 .activity-heading small {
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .activity-heading > b {
   min-width: 28px;
@@ -1746,7 +1865,7 @@ main:focus {
   border-radius: 9px;
   background: var(--accent);
   color: #fff;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .activity-list {
   list-style: none;
@@ -1780,22 +1899,22 @@ main:focus {
   background: var(--accent);
 }
 .activity-list strong {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .activity-list p {
   margin: 2px 0;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.4;
 }
 .activity-list time {
   color: var(--subtle);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .activity-empty {
   padding: 18px 16px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 
 .topbar {
@@ -1837,8 +1956,8 @@ main:focus {
   gap: 7px;
 }
 .top-icon {
-  width: 42px;
-  height: 42px;
+  width: var(--touch-target);
+  height: var(--touch-target);
   display: grid;
   place-items: center;
   border: 1px solid var(--line);
@@ -1860,7 +1979,7 @@ main:focus {
   position: relative;
 }
 .quick-create-trigger {
-  min-height: 42px;
+  min-height: var(--touch-target);
   display: flex;
   align-items: center;
   gap: 7px;
@@ -1869,7 +1988,7 @@ main:focus {
   border-radius: 13px;
   background: var(--accent);
   color: #fff;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 850;
   box-shadow: 0 9px 20px rgba(43, 102, 246, 0.2);
 }
@@ -1908,12 +2027,12 @@ main:focus {
   display: block;
 }
 .quick-create-menu header strong {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .quick-create-menu header small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .quick-create-menu > a {
   min-height: 57px;
@@ -1946,11 +2065,11 @@ main:focus {
   gap: 2px;
 }
 .quick-create-menu > a strong {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .quick-create-menu > a small {
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .quick-create-menu > a i {
   color: var(--subtle);
@@ -2006,7 +2125,7 @@ main:focus {
   gap: 7px;
   margin-bottom: 10px;
   color: #c8d6ee;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 850;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -2047,7 +2166,7 @@ main:focus {
 }
 .dashboard-focus > span {
   color: var(--accent);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -2073,18 +2192,295 @@ main:focus {
   border-radius: 9px;
   background: var(--accent);
   color: #fff;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 850;
   text-decoration: none;
 }
 .dashboard-focus a b {
   font-size: 0.9375rem;
 }
+
+/* Setup guide — the redesign's onboarding rail on the dashboard. */
+.setup-guide {
+  overflow: hidden;
+  margin-bottom: 16px;
+  border: 1px solid #cfdbef;
+  border-radius: 20px;
+  background: linear-gradient(125deg, #fff, #fff9dc);
+  box-shadow: var(--shadow);
+}
+.setup-guide > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 20px 15px;
+}
+.setup-guide > header span {
+  color: var(--accent);
+  font-size: 0.875rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.setup-guide > header h2 {
+  margin: 4px 0 3px;
+  color: var(--ink);
+  font-size: 1.125rem;
+  line-height: 1.35;
+}
+.setup-guide > header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.setup-guide > header button {
+  min-height: var(--touch-target);
+  padding: 0 13px;
+  border: 1px solid #d4deec;
+  border-radius: 11px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.setup-progress {
+  height: 7px;
+  margin: 0 20px 16px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: #e3e9f2;
+}
+.setup-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--gold));
+  transition: width 0.35s var(--ease);
+}
+.setup-next {
+  min-height: 72px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin: 0 20px 16px;
+  padding: 11px 13px;
+  border: 1px solid #e2c64d;
+  border-radius: 15px;
+  background: #fff;
+  color: var(--ink);
+  text-decoration: none;
+  box-shadow: 0 8px 22px rgba(17, 32, 64, 0.06);
+}
+.setup-next > span {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--gold);
+  color: #5a4400;
+  font-size: 1rem;
+  font-weight: 900;
+}
+.setup-next div {
+  min-width: 0;
+}
+.setup-next small,
+.setup-next strong {
+  display: block;
+}
+.setup-next small {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+.setup-next strong {
+  margin-top: 2px;
+  font-size: 0.875rem;
+}
+.setup-next > b {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--accent);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+.setup-next > b i {
+  font-size: 1.0625rem;
+  font-style: normal;
+}
+[dir="rtl"] .setup-next > b i {
+  transform: scaleX(-1);
+}
+.setup-all {
+  border-top: 1px solid #dfe6f0;
+  background: #f8faff;
+}
+.setup-all > summary {
+  min-height: var(--control-height);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 20px;
+  color: var(--accent);
+  font-size: 0.875rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+.setup-all > summary span {
+  min-width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  margin-inline-start: auto;
+  border-radius: 8px;
+  background: #e6edfb;
+  color: var(--accent);
+  font-size: 0.75rem;
+}
+.setup-all > div {
+  display: grid;
+  padding: 0 20px 14px;
+}
+.setup-all a {
+  min-height: var(--control-height);
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid #e6ebf3;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+.setup-all a > span {
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #eaf0ff;
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+.setup-all a.done {
+  color: var(--muted);
+}
+.setup-all a.done > span {
+  background: #e6f6ec;
+  color: #15803d;
+}
+.setup-all a.done strong {
+  text-decoration: line-through;
+}
+.setup-all a > b {
+  color: var(--subtle);
+  font-size: 1.125rem;
+}
 .dashboard-now {
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(290px, 0.55fr);
   gap: 14px;
   margin-bottom: 16px;
+}
+
+/* KPI row and the collapsible insights panel. */
+.dashboard-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.dashboard-kpis a {
+  min-height: 92px;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--ink);
+  text-decoration: none;
+  box-shadow: var(--shadow);
+}
+.dashboard-kpis a:hover {
+  border-color: #bccce4;
+  transform: translateY(-1px);
+}
+.dashboard-kpis span {
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 750;
+}
+.dashboard-kpis strong {
+  color: var(--ink);
+  font-family: "Rubik", "Heebo", sans-serif;
+  font-size: 1.375rem;
+}
+.dashboard-kpis a:nth-child(2) {
+  border-color: #ecd15d;
+  background: linear-gradient(135deg, var(--surface), var(--mint-soft));
+}
+.dashboard-insights {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface-2);
+}
+.dashboard-insights > summary {
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 17px;
+  background: var(--surface);
+  cursor: pointer;
+  list-style: none;
+}
+.dashboard-insights > summary::-webkit-details-marker {
+  display: none;
+}
+.dashboard-insights > summary span {
+  min-width: 0;
+}
+.dashboard-insights > summary strong,
+.dashboard-insights > summary small {
+  display: block;
+}
+.dashboard-insights > summary strong {
+  color: var(--ink);
+  font-size: 0.9375rem;
+}
+.dashboard-insights > summary small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.dashboard-insights > summary > b {
+  min-height: var(--touch-target);
+  display: flex;
+  align-items: center;
+  padding: 0 13px;
+  border-radius: 11px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+.dashboard-insights[open] > summary > b {
+  background: var(--mint-soft);
+  color: var(--mint-dark);
+}
+.dashboard-insights > .dash {
+  padding: 14px;
+  border-top: 1px solid var(--line);
 }
 .job-pulse,
 .dashboard-attention {
@@ -2106,7 +2502,7 @@ main:focus {
 .job-pulse header span,
 .dashboard-attention header span {
   color: var(--accent);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -2114,11 +2510,11 @@ main:focus {
 .job-pulse header h2,
 .dashboard-attention header h2 {
   margin: 3px 0 0;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .job-pulse header a {
   color: var(--accent);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 850;
   text-decoration: none;
 }
@@ -2162,7 +2558,7 @@ main:focus {
   border-radius: 50%;
   background: #fff;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-style: normal;
   font-weight: 900;
 }
@@ -2180,13 +2576,19 @@ main:focus {
 .job-pulse-track b {
   padding-top: 5px;
   color: var(--accent);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .job-pulse-track strong {
   grid-column: 2;
   overflow: hidden;
   margin-top: 8px;
-  font-size: 0.875rem;
+  /* The customer's NAME — content, not decoration. Audit finding A1 was that
+     this rendered at 10px beside a 47px greeting. The 14px readable floor
+     adopted from the field-ops redesign lifted the `.dashboard-live` eyebrow
+     to 14px too, which would have levelled decoration with content; A1 says
+     the content must outrank the label above it, so the name goes to 16px.
+     tests/typography.test.mjs asserts that ordering. */
+  font-size: 1rem;
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2195,7 +2597,7 @@ main:focus {
   grid-column: 2;
   overflow: hidden;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2204,7 +2606,7 @@ main:focus {
   place-items: center;
   width: 100%;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   text-align: center;
 }
 .dashboard-attention header > b {
@@ -2215,7 +2617,7 @@ main:focus {
   border-radius: 8px;
   background: var(--gold);
   color: #5b4600;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .dashboard-attention > a {
   min-height: 57px;
@@ -2257,7 +2659,7 @@ main:focus {
 }
 .dashboard-attention > a small {
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.45;
 }
 .dashboard-attention > a > b {
@@ -2271,7 +2673,7 @@ main:focus {
   align-content: center;
   gap: 7px;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .dashboard-all-clear span {
   width: 32px;
@@ -2332,7 +2734,7 @@ button.ritem:hover {
   overflow: hidden;
   margin-top: 2px;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2357,7 +2759,7 @@ button.ritem:hover {
   align-items: center;
   padding: 4px 10px;
   border-radius: 999px;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 750;
 }
 .avatar-sm {
@@ -2459,7 +2861,7 @@ button.ritem:hover {
 .settings-section-note {
   margin: -8px 0 16px;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.55;
 }
 .settings-link-card {
@@ -2500,7 +2902,7 @@ button.ritem:hover {
   display: block;
   margin-top: 3px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   line-height: 1.45;
 }
 .settings-arrow {
@@ -2543,7 +2945,7 @@ button.ritem:hover {
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 850;
   text-decoration: none;
 }
@@ -2583,11 +2985,11 @@ button.ritem:hover {
   gap: 3px;
 }
 .booking-toggle-grid strong {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .booking-toggle-grid small {
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   line-height: 1.45;
 }
 .booking-admin-grid {
@@ -2601,7 +3003,7 @@ button.ritem:hover {
 }
 .booking-admin-field > span {
   color: var(--ink-soft);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 .booking-admin-field input,
@@ -2627,7 +3029,7 @@ button.ritem:hover {
   border: 1px solid #dfe6f0;
   border-radius: 11px;
   color: var(--ink-soft);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 .booking-saturday input[type="time"] {
@@ -2651,7 +3053,7 @@ button.ritem:hover {
   align-items: center;
   gap: 8px;
   margin-bottom: 10px;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   cursor: pointer;
 }
 .booking-service-admin .booking-admin-grid {
@@ -2667,11 +3069,11 @@ button.ritem:hover {
   border-radius: 9px;
   background: var(--gold-soft);
   color: #6b5713;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.5;
 }
 .booking-area-warning {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .booking-area-warning a {
   color: inherit;
@@ -2686,7 +3088,7 @@ button.ritem:hover {
   border-radius: 11px;
   background: #edf3ff;
   color: var(--accent-dark);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 800;
   box-shadow: 0 9px 24px rgba(17, 32, 64, 0.12);
 }
@@ -2709,7 +3111,7 @@ button.ritem:hover {
 .booking-question-heading p {
   margin: 5px 0 0;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .booking-question-heading > b {
   min-width: 28px;
@@ -2719,7 +3121,7 @@ button.ritem:hover {
   border-radius: 9px;
   background: var(--gold);
   color: #5e4800;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .booking-question-form {
   display: grid !important;
@@ -2736,7 +3138,7 @@ button.ritem:hover {
   border-radius: 9px;
   background: var(--accent);
   color: #fff;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 850;
 }
 .booking-question-required {
@@ -2744,7 +3146,7 @@ button.ritem:hover {
   align-items: center;
   gap: 8px;
   color: var(--ink-soft);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 .booking-question-required input {
@@ -2773,12 +3175,12 @@ button.ritem:hover {
   display: block;
 }
 .booking-question-list strong {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .booking-question-list small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   text-transform: capitalize;
 }
 .booking-question-list button {
@@ -2788,13 +3190,13 @@ button.ritem:hover {
   border-radius: 8px;
   background: #fff4f5;
   color: #a52e40;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 .booking-question-message {
   margin-top: 10px;
   color: var(--accent-dark);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 .booking-admin-empty {
@@ -2811,11 +3213,11 @@ button.ritem:hover {
 .booking-admin-empty p {
   margin: 5px 0 10px;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .booking-admin-empty a {
   color: var(--accent);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 850;
 }
 
@@ -2842,7 +3244,7 @@ button.ritem:hover {
 }
 .payment-back {
   color: var(--accent);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 800;
   text-decoration: none;
 }
@@ -2853,14 +3255,14 @@ button.ritem:hover {
   border-radius: 999px;
   background: var(--gold-soft);
   color: #725600;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 850;
 }
 .payment-eyebrow {
   display: block;
   margin-bottom: 5px;
   color: var(--accent);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 900;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -2935,7 +3337,7 @@ button.ritem:hover {
 .helcim-status-copy p {
   margin: 0;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.5;
 }
 .helcim-capabilities {
@@ -2949,7 +3351,7 @@ button.ritem:hover {
   border-radius: 999px;
   background: #e7ebf2;
   color: #7a8497;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 .helcim-capabilities span.ready {
@@ -2966,7 +3368,7 @@ button.ritem:hover {
   border-radius: 12px;
   background: var(--ink);
   color: #fff;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 .helcim-connect-button:hover {
@@ -3012,7 +3414,7 @@ button.ritem:hover {
   border-radius: 8px;
   background: var(--gold-soft);
   color: #745900;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 850;
 }
 .payment-method-grid,
@@ -3080,13 +3482,13 @@ button.ritem:hover {
 }
 .payment-method-copy strong {
   display: block;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .payment-method-copy small {
   display: block;
   margin-top: 3px;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.35;
 }
 .payment-switch {
@@ -3136,7 +3538,7 @@ button.ritem:hover {
   border: 1px solid var(--line);
   border-radius: 12px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 750;
   cursor: pointer;
 }
@@ -3181,13 +3583,13 @@ button.ritem:hover {
 }
 .payment-rule strong {
   display: block;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .payment-rule small {
   display: block;
   margin-top: 3px;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.4;
 }
 .payment-field {
@@ -3198,7 +3600,7 @@ button.ritem:hover {
   display: block;
   margin-bottom: 6px;
   color: #33415c;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 750;
 }
 .payment-field input,
@@ -3236,7 +3638,7 @@ button.ritem:hover {
   border-radius: 8px;
   background: #7046ff;
   color: #fff;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 900;
 }
 .method-detail-badge.gold {
@@ -3250,7 +3652,7 @@ button.ritem:hover {
 .payment-form-message {
   padding: 11px 13px;
   border-radius: 12px;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 750;
 }
 .payment-form-message.error {
@@ -3270,7 +3672,7 @@ button.ritem:hover {
   border-radius: 10px;
   background: var(--gold);
   color: #5c4500;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .payment-empty {
   min-height: 180px;
@@ -3293,13 +3695,13 @@ button.ritem:hover {
   font-weight: 900;
 }
 .payment-empty strong {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .payment-empty small {
   max-width: 220px;
   margin-top: 5px;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.45;
 }
 .manual-review-list {
@@ -3326,7 +3728,7 @@ button.ritem:hover {
   border-radius: 7px;
   background: #eee8ff;
   color: #6742d8;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 900;
 }
 .manual-method.check {
@@ -3335,14 +3737,14 @@ button.ritem:hover {
 }
 .manual-review-card small {
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .manual-review-card input {
   min-height: 36px;
   padding: 7px 9px;
   border: 1px solid var(--line);
   border-radius: 10px;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .manual-review-actions {
   display: grid;
@@ -3355,7 +3757,7 @@ button.ritem:hover {
   border-radius: 10px;
   background: var(--accent);
   color: #fff;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 .manual-review-actions button.reject {
@@ -3371,11 +3773,11 @@ button.ritem:hover {
   color: #5f4a08;
 }
 .payment-safety-note b {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .payment-safety-note p {
   margin: 5px 0 0;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.5;
 }
 
@@ -3391,7 +3793,7 @@ button.ritem:hover {
 }
 .team-payment-permissions > span {
   color: #2d3b55;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 850;
 }
 .team-payment-permissions > div {
@@ -3404,7 +3806,7 @@ button.ritem:hover {
   align-items: center;
   gap: 6px;
   color: #556176;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 650;
   cursor: pointer;
 }
@@ -3421,12 +3823,12 @@ button.ritem:hover {
   border-radius: 8px;
   background: var(--accent);
   color: #fff;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 .team-payment-permissions small {
   color: var(--accent-dark);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 750;
 }
 .team-capability-editor {
@@ -3443,7 +3845,7 @@ button.ritem:hover {
   border-radius: 9px;
   background: #f7f9fd;
   color: var(--ink-soft);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 .team-capability-panel {
@@ -3456,7 +3858,7 @@ button.ritem:hover {
 .team-capability-panel p {
   margin: 0 0 9px;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .team-capability-grid {
   display: grid;
@@ -3467,7 +3869,7 @@ button.ritem:hover {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 700;
   cursor: pointer;
 }
@@ -3484,14 +3886,14 @@ button.ritem:hover {
   border-radius: 8px;
   background: var(--accent);
   color: #fff;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 .team-capability-panel small {
   display: block;
   margin-top: 6px;
   color: var(--accent-dark);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 750;
 }
 
@@ -3517,7 +3919,7 @@ button.ritem:hover {
   display: block;
   margin-bottom: 2px;
   color: #aebddd;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 800;
   letter-spacing: 0.11em;
   text-transform: uppercase;
@@ -3532,7 +3934,7 @@ button.ritem:hover {
   border-radius: 9px;
   background: var(--gold);
   color: #4d3b00;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .payment-sign-lock {
   display: flex;
@@ -3557,12 +3959,12 @@ button.ritem:hover {
   display: block;
 }
 .payment-sign-lock strong {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .payment-sign-lock small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .customer-payment-tabs {
   display: flex;
@@ -3579,7 +3981,7 @@ button.ritem:hover {
   border-radius: 10px;
   background: transparent;
   color: #6c7689;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 .customer-payment-tabs button.active {
@@ -3621,12 +4023,12 @@ button.ritem:hover {
   display: block;
 }
 .customer-pay-explainer strong {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .customer-pay-explainer small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.4;
 }
 .customer-pay-button {
@@ -3658,12 +4060,12 @@ button.ritem:hover {
 }
 .customer-payment-line > span {
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .customer-payment-line > strong {
   min-width: 0;
   overflow-wrap: anywhere;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .customer-payment-line button {
   min-width: 42px;
@@ -3672,7 +4074,7 @@ button.ritem:hover {
   border-radius: 8px;
   background: var(--accent-soft);
   color: var(--accent);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 850;
 }
 .customer-payment-note {
@@ -3681,7 +4083,7 @@ button.ritem:hover {
   border-inline-start: 3px solid var(--gold);
   background: var(--gold-soft);
   color: #64501a;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.5;
 }
 .customer-reference-field {
@@ -3690,7 +4092,7 @@ button.ritem:hover {
 }
 .customer-reference-field span {
   color: #4b5870;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 750;
 }
 .customer-reference-field input {
@@ -3714,7 +4116,7 @@ button.ritem:hover {
 }
 .customer-tip-label {
   color: #4b5870;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 .customer-tip-choices {
@@ -3731,7 +4133,7 @@ button.ritem:hover {
   border-radius: 11px;
   background: #fff;
   color: #4b5870;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 .customer-tip-choices button.active {
@@ -3741,7 +4143,7 @@ button.ritem:hover {
 }
 .customer-tip-note {
   color: #6c7689;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.5;
 }
 .zelle-qr {
@@ -3759,7 +4161,7 @@ button.ritem:hover {
   border-radius: 11px;
   background: var(--coral-soft);
   color: #b93545;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.45;
 }
 .customer-payment-success {
@@ -3786,12 +4188,12 @@ button.ritem:hover {
   box-shadow: 0 0 0 4px var(--gold-soft);
 }
 .customer-payment-success strong {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .customer-payment-success p {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.5;
 }
 
@@ -3839,7 +4241,7 @@ button.ritem:hover {
 }
 .tech-hero span {
   color: #c8d7fb;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 850;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -3852,7 +4254,7 @@ button.ritem:hover {
 .tech-hero p {
   margin: 0;
   color: #d4def3;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .tech-hero i {
   width: 36px;
@@ -3886,7 +4288,7 @@ button.ritem:hover {
   border-radius: 14px;
   background: #fff;
   color: var(--accent-dark);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 850;
   text-decoration: none;
   box-shadow: 0 7px 18px rgba(17, 32, 64, 0.06);
@@ -3908,7 +4310,7 @@ button.ritem:hover {
   border-radius: 10px;
   background: var(--gold-soft);
   color: #66520f;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   line-height: 1.5;
 }
 .tech-workspace section + section {
@@ -3957,7 +4359,7 @@ button.ritem:hover {
   border-radius: 10px;
   background: var(--accent);
   color: #fff;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 900;
   box-shadow: 0 5px 12px rgba(43, 102, 246, 0.22);
 }
@@ -3969,8 +4371,17 @@ button.ritem:hover {
 .tech-job-card small {
   margin-bottom: 3px;
   color: var(--accent);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 850;
+}
+.tech-job-card small b {
+  display: inline-flex;
+  margin-inline-start: 7px;
+  padding: 2px 6px;
+  border-radius: 7px;
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  font-size: 0.75rem;
 }
 .tech-job-card strong {
   font-size: 0.875rem;
@@ -3978,7 +4389,7 @@ button.ritem:hover {
 .tech-job-card p {
   margin: 3px 0 0;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.35;
 }
 .tech-open {
@@ -3986,22 +4397,29 @@ button.ritem:hover {
   font-size: 1.625rem;
   font-weight: 300;
 }
+/* The footer wraps rather than forcing two columns: the redesign added a link
+   alongside the button, and a field technician's thumb needs the full target
+   on each. */
 .tech-job-card > footer {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
   gap: 1px;
   border-top: 1px solid #e7ecf3;
   background: #e7ecf3;
 }
-.tech-job-card > footer button {
-  min-height: 39px;
+.tech-job-card > footer button,
+.tech-job-card > footer a {
+  min-height: var(--touch-target);
+  display: grid;
+  place-items: center;
   border: 0;
   background: #f8faff;
   color: var(--accent-dark);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 850;
+  text-decoration: none;
 }
-.tech-job-card > footer button:last-child {
+.tech-job-card > footer button {
   background: var(--gold-soft);
   color: #665000;
 }
@@ -4017,7 +4435,7 @@ button.ritem:hover {
   border-radius: 17px;
   background: #f8faff;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   text-align: center;
 }
 .offline-page {
@@ -4075,7 +4493,7 @@ button.ritem:hover {
   border-radius: 9px;
   background: var(--gold-soft);
   color: #6a550d;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 .offline-page main > small,
@@ -4083,7 +4501,7 @@ button.ritem:hover {
   display: block;
   margin-bottom: 12px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .offline-jobs {
   display: grid;
@@ -4109,12 +4527,12 @@ button.ritem:hover {
   display: block;
 }
 .offline-jobs article strong {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .offline-jobs article small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .offline-jobs article > span {
   margin-inline-end: 10px;
@@ -4122,7 +4540,7 @@ button.ritem:hover {
   border-radius: 6px;
   background: #eaf0ff;
   color: var(--accent-dark);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   text-transform: capitalize;
 }
 .offline-jobs footer {
@@ -4138,7 +4556,7 @@ button.ritem:hover {
   border-radius: 0;
   background: #f7f9fc;
   color: var(--accent-dark);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .offline-jobs footer button:last-child {
   background: var(--gold-soft);
@@ -4211,7 +4629,7 @@ button.ritem:hover {
 .growth-hero span,
 .migration-hero span {
   color: var(--accent);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 900;
   letter-spacing: 0.13em;
   text-transform: uppercase;
@@ -4222,7 +4640,7 @@ button.ritem:hover {
 .dispatch-heading p {
   margin: 0;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .dispatch-heading form {
   display: flex;
@@ -4249,7 +4667,7 @@ button.ritem:hover {
   border-radius: 10px;
   background: var(--coral-soft);
   color: #a92f40;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .dispatch-board {
   display: flex;
@@ -4285,7 +4703,7 @@ button.ritem:hover {
   min-width: 0;
   flex: 1;
   overflow: hidden;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -4297,7 +4715,7 @@ button.ritem:hover {
   border-radius: 8px;
   background: var(--gold);
   color: #574200;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .dispatch-avatar {
   width: 32px;
@@ -4307,7 +4725,7 @@ button.ritem:hover {
   border-radius: 10px;
   background: var(--ink);
   color: #fff;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 900;
 }
 .dispatch-stack {
@@ -4336,7 +4754,7 @@ button.ritem:hover {
   gap: 8px;
   margin-bottom: 8px;
   color: var(--accent);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 900;
 }
 .dispatch-time small {
@@ -4344,7 +4762,7 @@ button.ritem:hover {
   border-radius: 6px;
   background: var(--gold-soft);
   color: #77600b;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   text-transform: capitalize;
 }
 .dispatch-card a {
@@ -4353,12 +4771,12 @@ button.ritem:hover {
 }
 .dispatch-card a strong {
   display: block;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .dispatch-card a p {
   margin: 4px 0 9px;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .dispatch-card select {
   width: 100%;
@@ -4368,7 +4786,7 @@ button.ritem:hover {
   border-radius: 8px;
   background: #f7f9fc;
   color: #536078;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 700;
 }
 .dispatch-assignees {
@@ -4383,7 +4801,7 @@ button.ritem:hover {
   border-radius: 6px;
   background: #eaf0ff;
   color: var(--accent-dark);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 750;
 }
 .dispatch-dropzone {
@@ -4393,7 +4811,7 @@ button.ritem:hover {
   border: 1px dashed #bbc8da;
   border-radius: 13px;
   color: #8894a6;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 
 /* Operations center */
@@ -4449,7 +4867,7 @@ button.ritem:hover {
   max-width: 720px;
   margin: 0;
   color: #d4def3;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.55;
 }
 .ops-grid {
@@ -4487,7 +4905,7 @@ button.ritem:hover {
   border-radius: 9px;
   background: var(--gold);
   color: #5e4800;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .ops-form,
 .ops-inline-form {
@@ -4515,7 +4933,7 @@ button.ritem:hover {
   border: 1px solid #d8e1ee;
   border-radius: 9px;
   background: #fff;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .ops-inline-form input[type="color"] {
   padding: 4px;
@@ -4532,7 +4950,7 @@ button.ritem:hover {
   border-radius: 9px;
   background: var(--accent);
   color: #fff;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 850;
 }
 .ops-list {
@@ -4560,15 +4978,15 @@ button.ritem:hover {
 .ops-list strong {
   min-width: 0;
   flex: 1;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .ops-list small {
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .ops-list b {
   color: var(--accent-dark);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 
 /* Growth center */
@@ -4586,7 +5004,7 @@ button.ritem:hover {
   border-radius: 11px;
   background: var(--gold);
   color: #503d00;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 900;
   text-decoration: none;
 }
@@ -4608,7 +5026,7 @@ button.ritem:hover {
 }
 .growth-stats small {
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .growth-stats strong {
   margin-top: 5px;
@@ -4635,11 +5053,11 @@ button.ritem:hover {
   border-bottom: 1px solid #edf1f6;
 }
 .growth-mini-list strong {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .growth-mini-list small {
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .source-bars {
   display: grid;
@@ -4651,7 +5069,7 @@ button.ritem:hover {
   grid-template-columns: 85px 1fr 25px;
   align-items: center;
   gap: 8px;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .source-bars > div > span {
   overflow: hidden;
@@ -4686,7 +5104,7 @@ button.ritem:hover {
   gap: 8px;
   margin-bottom: 18px;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 750;
 }
 .migration-steps b {
@@ -4715,7 +5133,7 @@ button.ritem:hover {
   border-radius: 12px;
   background: #fff;
   color: var(--ink-soft);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 850;
 }
 .migration-source-grid button.active {
@@ -4744,12 +5162,12 @@ button.ritem:hover {
   opacity: 0;
 }
 .migration-file strong {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .migration-file small {
   margin-top: 4px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .migration-preview {
   overflow: hidden;
@@ -4766,7 +5184,7 @@ button.ritem:hover {
 }
 .migration-preview header {
   background: #f3f6fb;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .migration-preview header b {
   color: var(--accent);
@@ -4774,7 +5192,7 @@ button.ritem:hover {
 }
 .migration-preview > div {
   border-top: 1px solid #edf1f6;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .migration-preview > div span {
   color: var(--muted);
@@ -4796,7 +5214,7 @@ button.ritem:hover {
   border-radius: 9px;
   background: var(--gold-soft);
   color: #67530f;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .migration-history article {
   display: grid;
@@ -4812,15 +5230,15 @@ button.ritem:hover {
   display: block;
 }
 .migration-history article > div strong {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .migration-history article > div small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .migration-history article > span {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 750;
 }
 .migration-status {
@@ -4828,7 +5246,7 @@ button.ritem:hover {
   border-radius: 7px;
   background: #e8edf5;
   color: #596477;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   text-transform: capitalize;
 }
 .migration-status.completed {
@@ -4846,7 +5264,7 @@ button.ritem:hover {
   border-radius: 8px;
   background: #fff4f5;
   color: #a93040;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 .job-summary-card {
@@ -4870,13 +5288,13 @@ button.ritem:hover {
   display: block;
 }
 .job-summary-card > header span {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 900;
 }
 .job-summary-card > header small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .job-summary-card button {
   min-height: 34px;
@@ -4885,7 +5303,7 @@ button.ritem:hover {
   border-radius: 9px;
   background: var(--accent);
   color: #fff;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 850;
 }
 .job-summary-copy {
@@ -4894,7 +5312,7 @@ button.ritem:hover {
 .job-summary-copy p {
   margin: 0;
   color: #37445b;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   line-height: 1.7;
 }
 .job-summary-copy footer {
@@ -4908,14 +5326,14 @@ button.ritem:hover {
 }
 .job-summary-copy footer span {
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .job-summary-copy footer b {
   padding: 5px 8px;
   border-radius: 7px;
   background: var(--gold);
   color: #604a00;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .photo-annotator {
   position: fixed;
@@ -4951,7 +5369,7 @@ button.ritem:hover {
 .photo-annotator header small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .photo-annotator canvas {
   width: auto;
@@ -4977,27 +5395,205 @@ button.ritem:hover {
   border-radius: 10px;
   background: var(--accent);
   color: #fff;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 850;
 }
 .photo-annotator footer button + button {
   background: #e9edf4;
   color: #526078;
 }
+/* Public document pages (signed estimates, invoices, approvals). Same reason
+   as `.auth-page`: the reader is a customer on their own device, and the page
+   must not inherit the operator's dark theme. */
+.public-document-page {
+  --ink: #101a2e;
+  --ink-soft: #273652;
+  --muted: #55647a;
+  --subtle: #718096;
+  --line: #d7e0ec;
+  color-scheme: light;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 20px 14px;
+  border-top: 5px solid;
+  background: #eef3fb;
+  color: #101a2e;
+}
+.sign-approve {
+  overflow: hidden;
+  border: 1px solid #d7e0ec;
+  border-radius: 17px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(17, 32, 64, 0.06);
+}
+.sign-approve-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 17px 18px;
+  border-bottom: 1px solid #e4eaf2;
+  background: linear-gradient(115deg, #f5f8ff, #fffbea);
+}
+.sign-approve-heading > span {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 11px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 1.125rem;
+  font-weight: 900;
+}
+.sign-approve-heading h2 {
+  margin: 0;
+  color: #101a2e;
+  font-size: 1.125rem;
+  line-height: 1.3;
+}
+.sign-approve-heading p {
+  margin: 4px 0 0;
+  color: #55647a;
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+.sign-approve-field {
+  display: grid;
+  gap: 7px;
+  padding: 17px 18px 0;
+  color: #273652;
+  font-size: 0.875rem;
+  font-weight: 800;
+}
+/* 1rem, not smaller: below 16px iOS zooms the whole page on focus. */
+.sign-approve-field input {
+  width: 100%;
+  min-height: var(--control-height);
+  padding: 10px 12px;
+  border: 1px solid #d7e0ec;
+  border-radius: 11px;
+  background: #fff;
+  color: #101a2e;
+  font-size: 1rem;
+}
+.sign-approve-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px 8px;
+}
+.sign-approve-label span,
+.sign-approve-label small {
+  display: block;
+}
+.sign-approve-label span {
+  color: #273652;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+.sign-approve-label small {
+  margin-top: 2px;
+  color: #55647a;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+.sign-approve-label button {
+  min-width: 60px;
+  min-height: var(--touch-target);
+  border: 0;
+  border-radius: 10px;
+  background: #edf3ff;
+  color: #1f4fd1;
+  font-size: 0.875rem;
+  font-weight: 800;
+}
+.sign-approve-canvas {
+  width: calc(100% - 36px);
+  height: 160px;
+  display: block;
+  margin: 0 18px;
+  border: 2px dashed #aabbd5;
+  border-radius: 12px;
+  background: #fbfdff;
+  touch-action: none;
+}
+.sign-approve-error {
+  margin: 10px 18px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff0f0;
+  color: #b62e42;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+.sign-approve-submit {
+  width: calc(100% - 36px);
+  min-height: 50px;
+  margin: 14px 18px 18px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 900;
+  box-shadow: 0 10px 22px rgba(43, 102, 246, 0.2);
+}
+.sign-approve-success {
+  padding: 17px;
+  border: 1px solid #b9dfc5;
+  border-radius: 14px;
+  background: #eaf8ef;
+  color: #126b35;
+  font-size: 0.9375rem;
+  font-weight: 800;
+  text-align: center;
+}
 .portal-wrap {
+  --ink: #101a2e;
+  --ink-soft: #273652;
+  --muted: #55647a;
+  --subtle: #718096;
+  --line: #d7e0ec;
+  color-scheme: light;
   min-height: 100dvh;
   display: flex;
   justify-content: center;
   padding: 26px 14px;
   border-top: 5px solid;
   background: radial-gradient(circle at 86% 8%, #fff1a5 0, transparent 22%), #eef3fb;
+  color: #101a2e;
+}
+.portal-wrap input,
+.portal-wrap select,
+.portal-wrap textarea {
+  background: #fff;
+  color: #101a2e;
 }
 .booking-page {
   --booking-accent: #2b66f6;
+  --ink: #101a2e;
+  --ink-soft: #273652;
+  --muted: #55647a;
+  --subtle: #718096;
+  --line: #d7e0ec;
+  color-scheme: light;
   min-height: 100dvh;
   display: grid;
   grid-template-columns: minmax(280px, 0.66fr) minmax(560px, 1.34fr);
   background: #f4f7fb;
+  color: #101a2e;
+}
+.booking-page input,
+.booking-page select,
+.booking-page textarea {
+  background: #fff;
+  color: #101a2e;
+  caret-color: var(--booking-accent);
 }
 .booking-brand {
   position: relative;
@@ -5068,7 +5664,7 @@ button.ritem:hover {
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.08);
   color: #dbe5f8;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   text-decoration: none;
 }
 .booking-brand > a b {
@@ -5097,7 +5693,7 @@ button.ritem:hover {
 }
 .booking-flow-head > span {
   color: var(--booking-accent);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -5116,14 +5712,14 @@ button.ritem:hover {
   background: #fff;
 }
 .booking-language button {
-  min-width: 34px;
-  height: 28px;
-  padding: 0 7px;
+  min-width: var(--touch-target);
+  height: var(--touch-target);
+  padding: 0 8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 8px;
   background: transparent;
-  color: #7b8597;
-  font-size: 0.75rem;
+  color: #647086;
+  font-size: 0.875rem;
   font-weight: 850;
 }
 .booking-language button.on {
@@ -5195,7 +5791,7 @@ button.ritem:hover {
 .booking-services small {
   max-width: 430px;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.45;
 }
 .booking-fields {
@@ -5212,7 +5808,7 @@ button.ritem:hover {
   display: grid;
   gap: 6px;
   color: var(--ink-soft);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 .booking-fields input,
@@ -5236,7 +5832,7 @@ button.ritem:hover {
   border-radius: 9px;
   background: #fff8d9;
   color: #6a5713;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .booking-time {
   display: grid;
@@ -5248,7 +5844,7 @@ button.ritem:hover {
 .booking-time > p {
   margin: 0;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 750;
 }
 .booking-time > div:not(.booking-loading):not(.booking-empty-slot) {
@@ -5257,12 +5853,12 @@ button.ritem:hover {
   gap: 8px;
 }
 .booking-time > div > button {
-  min-height: 43px;
+  min-height: var(--touch-target);
   border: 1px solid #d9e1ed;
   border-radius: 11px;
   background: #fff;
   color: var(--ink-soft);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 .booking-time > div > button.selected {
@@ -5278,7 +5874,7 @@ button.ritem:hover {
   border-radius: 13px;
   background: #f8faff;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   text-align: center;
 }
 .booking-review {
@@ -5295,7 +5891,7 @@ button.ritem:hover {
 }
 .booking-review article span {
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .booking-review article strong {
   font-size: 0.875rem;
@@ -5303,7 +5899,7 @@ button.ritem:hover {
 .booking-review article small {
   grid-column: 2;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .booking-consent {
   display: flex;
@@ -5312,7 +5908,7 @@ button.ritem:hover {
   padding: 14px;
   background: #fafbfd;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.45;
   cursor: pointer;
 }
@@ -5333,7 +5929,7 @@ button.ritem:hover {
   border-radius: 10px;
   background: #fff2f3;
   color: #a42f40;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .booking-error a {
   color: inherit;
@@ -5369,7 +5965,7 @@ button.ritem:hover {
 .booking-powered {
   margin: 12px 0 0;
   color: #9aa4b4;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   text-align: center;
 }
 .booking-success,
@@ -5395,7 +5991,7 @@ button.ritem:hover {
 }
 .booking-success > small {
   color: var(--booking-accent);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 900;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -5409,7 +6005,7 @@ button.ritem:hover {
   max-width: 500px;
   margin: 0;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   line-height: 1.65;
 }
 .booking-success > div {
@@ -5424,7 +6020,7 @@ button.ritem:hover {
 }
 .booking-success > div b {
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .booking-success > div strong {
   font-size: 1rem;
@@ -5433,7 +6029,7 @@ button.ritem:hover {
 .booking-success > a,
 .booking-empty > a {
   color: var(--booking-accent);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 850;
 }
 .booking-deposit-note {
@@ -5455,12 +6051,12 @@ button.ritem:hover {
 .booking-deposit-due p {
   margin: 0;
   color: #33415c !important;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.5;
 }
 .booking-deposit-due small {
   color: #6c7689 !important;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.45;
 }
 .booking-deposit-link {
@@ -5541,7 +6137,7 @@ button.ritem:hover {
 .portal-brand small {
   margin-top: 3px;
   color: #d5def1;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .customer-portal > main {
   padding: 20px;
@@ -5554,7 +6150,7 @@ button.ritem:hover {
 }
 .portal-section h2 {
   margin: 0 0 8px;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .portal-two {
   display: grid;
@@ -5577,7 +6173,7 @@ button.ritem:hover {
 }
 .portal-next > div > small {
   color: var(--portal-accent);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 850;
 }
 .portal-next > div > strong {
@@ -5587,7 +6183,7 @@ button.ritem:hover {
 .portal-next p {
   margin: 4px 0 0;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .portal-next details {
   grid-column: 1 / -1;
@@ -5596,7 +6192,7 @@ button.ritem:hover {
 }
 .portal-next summary {
   color: var(--portal-accent);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 800;
   cursor: pointer;
 }
@@ -5611,7 +6207,7 @@ button.ritem:hover {
   padding: 8px 10px;
   border: 1px solid #d7e0ed;
   border-radius: 9px;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .portal-next textarea {
   min-height: 58px;
@@ -5624,7 +6220,7 @@ button.ritem:hover {
   border-radius: 9px;
   background: var(--portal-accent);
   color: #fff;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 850;
 }
 .portal-doc,
@@ -5651,22 +6247,22 @@ button.ritem:hover {
 }
 .portal-doc strong,
 .portal-history strong {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .portal-doc small,
 .portal-history small {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .portal-doc > b {
   color: var(--portal-accent);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .portal-pill {
   padding: 4px 7px;
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 800;
   text-transform: capitalize;
   white-space: nowrap;
@@ -5695,12 +6291,12 @@ button.ritem:hover {
   display: block;
 }
 .portal-preferences strong {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .portal-preferences small {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .portal-preferences > button {
   padding: 0 13px;
@@ -5708,12 +6304,12 @@ button.ritem:hover {
 .portal-empty {
   padding: 10px 2px;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .portal-contact {
   margin: 4px 0 0;
   color: #929cad;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   text-align: center;
 }
 .fleet-page {
@@ -5754,7 +6350,7 @@ button.ritem:hover {
   display: grid;
   place-items: center;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .fleet-map > a {
   position: absolute;
@@ -5778,14 +6374,14 @@ button.ritem:hover {
   border-radius: 50%;
   background: var(--accent);
   color: #fff;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   box-shadow: 0 6px 16px rgba(17, 42, 91, 0.25);
 }
 .fleet-map > a span {
   padding: 5px 7px;
   border-radius: 7px;
   background: #fff;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 800;
   box-shadow: 0 4px 12px rgba(17, 32, 64, 0.12);
 }
@@ -5816,16 +6412,16 @@ button.ritem:hover {
   display: block;
 }
 .fleet-list strong {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .fleet-list small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .fleet-list a {
   color: var(--accent);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 800;
   text-decoration: none;
 }
@@ -5972,6 +6568,10 @@ button.ritem:hover {
     align-items: center;
     gap: 10px;
   }
+  .mobile-brand-copy {
+    min-width: 0;
+    display: grid;
+  }
   .mobile-brand .brand-mark {
     width: 34px;
     height: 34px;
@@ -5993,14 +6593,20 @@ button.ritem:hover {
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  .mobile-brand small {
+    margin-top: 1px;
+    color: #aebddd;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
   .mobile-sign-out {
-    min-height: 34px;
-    padding: 0 11px;
+    min-height: var(--touch-target);
+    padding: 0 13px;
     border: 0;
     border-radius: 10px;
     background: rgba(255, 255, 255, 0.1);
     color: #fff;
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     font-weight: 750;
   }
   .mobile-tabs {
@@ -6019,15 +6625,17 @@ button.ritem:hover {
   .mobile-tabs a {
     position: relative;
     min-width: 0;
+    min-height: 64px;
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 4px;
-    padding: 9px 2px 8px;
-    color: #8994a8;
-    font-size: 0.8125rem;
-    font-weight: 750;
+    padding: 7px 2px 6px;
+    color: #66758c;
+    font-size: 0.75rem;
+    font-weight: 800;
     text-decoration: none;
   }
   .mobile-tabs a span {
@@ -6149,6 +6757,53 @@ button.ritem:hover {
   .auth-field-grid {
     grid-template-columns: 1fr;
   }
+  .setup-guide > header {
+    gap: 10px;
+    padding: 16px 15px 13px;
+  }
+  .setup-guide > header h2 {
+    font-size: 1rem;
+  }
+  .setup-guide > header button {
+    padding: 0 10px;
+  }
+  .setup-progress {
+    margin: 0 15px 13px;
+  }
+  .setup-next {
+    grid-template-columns: 36px minmax(0, 1fr);
+    margin: 0 15px 14px;
+  }
+  .setup-next > b {
+    grid-column: 2;
+    justify-self: start;
+  }
+  .setup-all > summary,
+  .setup-all > div {
+    padding-inline: 15px;
+  }
+  .dashboard-kpis {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .dashboard-kpis a {
+    min-height: 82px;
+    padding: 12px;
+  }
+  .dashboard-kpis strong {
+    font-size: 1.125rem;
+  }
+  .dashboard-insights > summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .dashboard-insights > summary > b {
+    width: 100%;
+    justify-content: center;
+  }
+  .dashboard-insights > .dash {
+    padding: 9px;
+  }
   .booking-page {
     display: block;
     background: linear-gradient(180deg, #0b1f44 0 135px, #f4f7fb 135px);
@@ -6172,7 +6827,7 @@ button.ritem:hover {
     font-size: 1.125rem;
   }
   .booking-brand small {
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
   }
   .booking-card {
     margin-top: -24px;
@@ -6365,7 +7020,7 @@ button.ritem:hover {
 .call-log-card header span,
 .warranty-queue header span {
   color: var(--accent);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 900;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -6381,7 +7036,7 @@ button.ritem:hover {
 .history-composer > header small {
   max-width: 190px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   text-align: end;
 }
 .service-pulse > header b,
@@ -6395,7 +7050,7 @@ button.ritem:hover {
   border-radius: 10px;
   background: var(--accent);
   color: #fff;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .history-composer-tabs {
   display: flex;
@@ -6409,7 +7064,7 @@ button.ritem:hover {
   border-radius: 9px;
   background: #fff;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 850;
 }
 .history-composer-tabs button.on {
@@ -6430,7 +7085,7 @@ button.ritem:hover {
   display: grid;
   gap: 5px;
   color: var(--ink-soft);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 .history-action-form .wide {
@@ -6468,7 +7123,7 @@ button.ritem:hover {
   border-radius: 10px;
   background: var(--accent);
   color: #fff;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 900;
   box-shadow: 0 8px 18px rgba(43, 102, 246, 0.18);
 }
@@ -6496,7 +7151,7 @@ button.ritem:hover {
   border-top: 1px solid #e6ebf2;
   background: #edf3ff;
   color: #173e7a;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 .service-pulse {
@@ -6567,21 +7222,21 @@ button.ritem:hover {
   gap: 10px;
 }
 .pulse-title strong {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .pulse-title span {
   padding: 4px 7px;
   border-radius: 999px;
   background: #eef2f8;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 850;
   text-transform: capitalize;
 }
 .service-pulse article p {
   margin: 5px 0 0;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   line-height: 1.5;
   white-space: pre-wrap;
 }
@@ -6591,7 +7246,7 @@ button.ritem:hover {
   gap: 8px;
   margin-top: 8px;
   color: #929caf;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .service-pulse article footer time {
   margin-inline-end: auto;
@@ -6603,7 +7258,7 @@ button.ritem:hover {
   border-radius: 7px;
   background: #fff4bd;
   color: #695000;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 850;
 }
 .history-empty {
@@ -6627,12 +7282,12 @@ button.ritem:hover {
 }
 .history-empty strong {
   color: var(--ink);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .history-empty p {
   max-width: 360px;
   margin: 0;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   line-height: 1.5;
 }
 .warranty-status-card {
@@ -6667,7 +7322,7 @@ button.ritem:hover {
 .warranty-status-card span,
 .warranty-terms span {
   color: var(--accent);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 900;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -6680,7 +7335,7 @@ button.ritem:hover {
 .warranty-terms p {
   margin: 0;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   line-height: 1.5;
 }
 .warranty-status-card > b {
@@ -6688,7 +7343,7 @@ button.ritem:hover {
   border-radius: 8px;
   background: var(--gold);
   color: #5d4900;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .warranty-terms {
   padding: 15px 17px;
@@ -6709,7 +7364,7 @@ button.ritem:hover {
 .call-form-card > summary {
   padding: 14px 16px;
   color: var(--ink);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 900;
   cursor: pointer;
   background: linear-gradient(110deg, #f8faff, #fffdf3);
@@ -6761,7 +7416,7 @@ button.ritem:hover {
   border-radius: 7px;
   background: #eef3ff;
   color: #275499;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .callback-copy > div b {
   background: #fff3bd;
@@ -6769,13 +7424,13 @@ button.ritem:hover {
 }
 .callback-copy h4 {
   margin: 8px 0 4px;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .callback-copy p,
 .callback-copy blockquote {
   margin: 0;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   line-height: 1.5;
 }
 .callback-copy blockquote {
@@ -6798,7 +7453,7 @@ button.ritem:hover {
   border-radius: 8px;
   background: #fff;
   color: var(--accent);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 850;
   text-align: center;
   text-decoration: none;
@@ -6820,7 +7475,7 @@ button.ritem:hover {
   padding: 6px 8px;
   border: 1px solid #dce3ed;
   border-radius: 8px;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .callback-actions form > div {
   display: grid;
@@ -6830,7 +7485,7 @@ button.ritem:hover {
 .callback-list > article > small {
   grid-column: 1 / -1;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .calls-page,
 .warranties-page {
@@ -6859,7 +7514,7 @@ button.ritem:hover {
 .calls-hero span,
 .warranty-center-hero span {
   color: #f8d65f;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -6873,7 +7528,7 @@ button.ritem:hover {
 .warranty-center-hero p {
   margin: 0;
   color: #c9d7ee;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.55;
 }
 .provider-chip {
@@ -6885,7 +7540,7 @@ button.ritem:hover {
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.08);
   color: #eaf0fb;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -6905,7 +7560,7 @@ button.ritem:hover {
   border-radius: 9px;
   background: #f8c928;
   color: #3e3000;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 900;
   text-decoration: none;
   white-space: nowrap;
@@ -6949,7 +7604,7 @@ button.ritem:hover {
 .warranty-center-stats span {
   display: block;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 .calls-stats strong,
@@ -6960,7 +7615,7 @@ button.ritem:hover {
 }
 .calls-stats small {
   color: #9aa4b5;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .calls-workspace {
   display: grid;
@@ -6985,7 +7640,7 @@ button.ritem:hover {
   border-radius: 8px;
   background: #fff;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 850;
   white-space: nowrap;
 }
@@ -7032,7 +7687,7 @@ button.ritem:hover {
 }
 .call-main strong {
   overflow: hidden;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -7041,16 +7696,16 @@ button.ritem:hover {
   border-radius: 6px;
   background: #eef2f7;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .call-main p {
   margin: 4px 0;
   color: #536075;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .call-main small {
   color: #9aa4b5;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .call-main blockquote {
   margin: 7px 0 0;
@@ -7059,7 +7714,7 @@ button.ritem:hover {
   border-radius: 7px;
   background: #fffbea;
   color: #665728;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .call-row-actions {
   display: grid;
@@ -7076,7 +7731,7 @@ button.ritem:hover {
   border-radius: 7px;
   background: #edf3ff;
   color: var(--accent);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 850;
   text-decoration: none;
 }
@@ -7101,7 +7756,7 @@ button.ritem:hover {
 .call-check small {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   line-height: 1.4;
 }
 .tracking-number-list {
@@ -7115,7 +7770,7 @@ button.ritem:hover {
   justify-content: space-between;
   padding: 13px 15px;
   border-bottom: 1px solid #e5eaf1;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 900;
 }
 .tracking-number-list > header b,
@@ -7127,7 +7782,7 @@ button.ritem:hover {
   border-radius: 8px;
   background: #fff0a5;
   color: #654f00;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .tracking-number-list article {
   display: flex;
@@ -7145,23 +7800,23 @@ button.ritem:hover {
   display: block;
 }
 .tracking-number-list strong {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .tracking-number-list small {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .tracking-number-list article > span {
   color: #6a7487;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .tracking-number-list > p,
 .warranty-expiry > p {
   margin: 0;
   padding: 16px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   line-height: 1.5;
 }
 .calls-message {
@@ -7207,17 +7862,17 @@ button.ritem:hover {
 }
 .warranty-queue-status span {
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .warranty-queue h3 {
   margin: 0 0 3px;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .warranty-queue p,
 .warranty-queue small {
   margin: 0;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .warranty-queue small {
   display: block;
@@ -7229,7 +7884,7 @@ button.ritem:hover {
   border-radius: 8px;
   background: #edf3ff;
   color: var(--accent);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 850;
   text-decoration: none;
 }
@@ -7254,19 +7909,19 @@ button.ritem:hover {
   display: block;
 }
 .warranty-expiry strong {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .warranty-expiry small {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .warranty-expiry > a > span {
   padding: 5px 7px;
   border-radius: 7px;
   background: #fff1ae;
   color: #644e00;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 850;
 }
 .warranty-center-note {
@@ -7278,13 +7933,227 @@ button.ritem:hover {
 }
 .warranty-center-note b {
   color: #654f00;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .warranty-center-note p {
   margin: 3px 0 0;
   color: #73642e;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   line-height: 1.5;
+}
+
+/* Document sharing stays inside ServicePro and remains readable in every theme.
+   The dialog pins `color-scheme: light` for the same reason the public pages
+   do: it is a white sheet over the app, and the operator's dark theme would
+   otherwise repaint its own form controls. */
+.share-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  overflow-y: auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: clamp(16px, 4vw, 42px);
+  background: rgba(7, 17, 38, 0.62);
+  backdrop-filter: blur(5px);
+}
+.share-dialog {
+  color-scheme: light;
+  width: min(100%, 460px);
+  padding: 22px;
+  border: 1px solid #d7e0ec;
+  border-radius: 20px;
+  background: #fff;
+  color: #142238;
+  box-shadow: 0 28px 80px rgba(7, 17, 38, 0.28);
+}
+.share-dialog-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.share-dialog-heading h2 {
+  margin: 0;
+  color: #142238;
+  font-family: "Rubik", "Heebo", sans-serif;
+  font-size: 1.3125rem;
+  line-height: 1.25;
+}
+.share-dialog-heading p {
+  margin: 5px 0 0;
+  color: #55647a;
+  font-size: 0.875rem;
+}
+.share-dialog-dismiss {
+  width: var(--touch-target);
+  height: var(--touch-target);
+  flex: 0 0 var(--touch-target);
+  display: grid;
+  place-items: center;
+  margin: -8px -8px 0 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #55647a;
+  font-size: 1.6875rem;
+  line-height: 1;
+  cursor: pointer;
+}
+[dir="rtl"] .share-dialog-dismiss {
+  margin: -8px 0 0 -8px;
+}
+.share-dialog-dismiss:hover {
+  background: #f1f5fb;
+  color: #142238;
+}
+.share-channel-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  margin: 20px 0 16px;
+  padding: 4px;
+  border: 1px solid #d7e0ec;
+  border-radius: 14px;
+  background: #f2f6fb;
+}
+.share-channel-tabs button {
+  min-height: var(--touch-target);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #55647a;
+  font-size: 0.875rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.share-channel-tabs button[aria-selected="true"] {
+  background: #fff;
+  color: #1e5bd7;
+  box-shadow: 0 3px 10px rgba(17, 32, 64, 0.1);
+}
+.share-channel-tabs button span {
+  color: #f8c928;
+}
+.share-channel-panel {
+  display: grid;
+  gap: 8px;
+}
+.share-channel-panel label,
+.share-copy-area label {
+  color: #33445d;
+  font-size: 0.875rem;
+  font-weight: 800;
+}
+/* 1rem, not smaller: below 16px iOS zooms the whole page on focus. */
+.share-channel-panel input,
+.share-copy-area input {
+  width: 100%;
+  min-height: var(--control-height);
+  padding: 11px 13px;
+  border: 1px solid #cbd6e5;
+  border-radius: 12px;
+  background: #fff;
+  color: #142238;
+  font-size: 1rem;
+  outline: none;
+}
+.share-channel-panel input:focus,
+.share-copy-area input:focus {
+  border-color: #2b66f6;
+  box-shadow: 0 0 0 3px rgba(43, 102, 246, 0.14);
+}
+.share-primary {
+  min-height: var(--control-height);
+  margin-top: 4px;
+  border: 0;
+  border-radius: 12px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 0.9375rem;
+  font-weight: 850;
+  box-shadow: 0 9px 22px rgba(37, 99, 235, 0.22);
+  cursor: pointer;
+}
+.share-primary:hover {
+  background: #1f4fd1;
+  transform: translateY(-1px);
+}
+.share-primary:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
+  transform: none;
+}
+.share-notice {
+  margin: 12px 0 0;
+  padding: 11px 12px;
+  border-radius: 11px;
+  font-size: 0.875rem;
+  font-weight: 750;
+  line-height: 1.45;
+}
+.share-notice.success {
+  background: #e8f6ed;
+  color: #116a36;
+}
+.share-notice.error {
+  background: #fff6d5;
+  color: #705500;
+}
+.share-copy-area {
+  margin-top: 17px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f1;
+}
+.share-copy-area > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: 7px;
+}
+.share-copy-area input {
+  overflow: hidden;
+  color: #55647a;
+  font-size: 0.875rem;
+  text-overflow: ellipsis;
+}
+.share-copy-area button {
+  min-width: 106px;
+  min-height: var(--control-height);
+  padding: 0 14px;
+  border: 1px solid #cbd9f0;
+  border-radius: 12px;
+  background: #edf3ff;
+  color: #1e5bd7;
+  font-size: 0.875rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+.share-security-note {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 7px;
+  margin: 15px 0 0;
+  color: #64748b;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  text-align: center;
+}
+.share-security-note span {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  margin-top: 6px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #f8c928;
+  color: transparent;
 }
 
 @media (max-width: 980px) {
@@ -7363,6 +8232,20 @@ button.ritem:hover {
   .call-list > article {
     padding-inline: 11px;
   }
+  .share-dialog-backdrop {
+    padding: 10px;
+    align-items: flex-end;
+  }
+  .share-dialog {
+    padding: 19px 17px calc(18px + env(safe-area-inset-bottom));
+    border-radius: 20px 20px 14px 14px;
+  }
+  .share-copy-area > div {
+    grid-template-columns: 1fr;
+  }
+  .share-copy-area button {
+    width: 100%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -7415,7 +8298,7 @@ button.ritem:hover {
 }
 .ops-heading > div:first-child > span {
   color: #ffe66b;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 900;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -7430,7 +8313,7 @@ button.ritem:hover {
   max-width: 720px;
   margin: 0;
   color: #cbd9ef;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.55;
 }
 .ops-heading-mark {
@@ -7467,7 +8350,7 @@ button.ritem:hover {
 }
 .ops-stat small {
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 750;
 }
 .ops-stat strong {
@@ -7477,7 +8360,7 @@ button.ritem:hover {
 }
 .ops-stat span {
   color: var(--subtle);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .ops-stat.attention {
   border-color: #eed16b;
@@ -7504,7 +8387,7 @@ button.ritem:hover {
   border-radius: 11px;
   background: transparent;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 850;
   text-decoration: none;
   white-space: nowrap;
@@ -7546,7 +8429,7 @@ button.ritem:hover {
 .ops-card > header p {
   margin: 3px 0 0;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .ops-card-body {
   padding: 16px 18px;
@@ -7574,18 +8457,18 @@ button.ritem:hover {
 }
 .ops-list strong {
   color: var(--ink);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .ops-list small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   line-height: 1.4;
 }
 .ops-empty {
   padding: 28px 20px;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   text-align: center;
 }
 .ops-pill {
@@ -7596,7 +8479,7 @@ button.ritem:hover {
   border-radius: 999px;
   background: var(--accent-soft);
   color: var(--accent);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 900;
 }
 .ops-pill.warn {
@@ -7619,7 +8502,7 @@ button.ritem:hover {
   border-radius: 12px;
   background: var(--accent);
   color: #fff;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 850;
   text-decoration: none;
   box-shadow: 0 8px 19px rgba(43, 102, 246, 0.18);
@@ -7647,7 +8530,7 @@ button.ritem:hover {
   display: grid;
   gap: 5px;
   color: var(--ink-soft);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 .ops-form label.wide {
@@ -7681,7 +8564,7 @@ button.ritem:hover {
   align-items: center;
   padding: 0 17px;
   color: var(--accent);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 850;
   cursor: pointer;
 }
@@ -7701,7 +8584,7 @@ button.ritem:hover {
   border-radius: 9px;
   color: var(--ink);
   background: var(--surface);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .ops-message {
   margin: 10px 14px;
@@ -7709,7 +8592,7 @@ button.ritem:hover {
   border-radius: 10px;
   background: var(--accent-soft);
   color: var(--accent);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 750;
 }
 .ops-session-actions {
@@ -7725,14 +8608,14 @@ button.ritem:hover {
   border-radius: 12px;
 }
 .ops-snapshot h3 {
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 900;
 }
 .ops-snapshot small {
   display: block;
   margin-top: 3px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .admin-snapshot-counts {
   display: flex;
@@ -7748,7 +8631,7 @@ button.ritem:hover {
   border-radius: 10px;
   background: var(--accent-soft);
   color: var(--ink-soft);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 750;
 }
 .admin-snapshot-counts b {
@@ -7759,7 +8642,7 @@ button.ritem:hover {
 .ops-success,
 .verified {
   color: var(--accent);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 850;
 }
 .dispute-list,
@@ -7797,14 +8680,14 @@ button.ritem:hover {
 .privacy-request-head strong,
 .release-list strong {
   color: var(--ink);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .dispute-top small,
 .privacy-request-head small,
 .release-list small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .dispute-top b {
   color: var(--ink);
@@ -7820,7 +8703,7 @@ button.ritem:hover {
 }
 .dispute-controls span {
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .dispute-row > p {
   margin: 8px 0 0;
@@ -7828,7 +8711,7 @@ button.ritem:hover {
   border-radius: 9px;
   background: var(--surface-2);
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   line-height: 1.5;
 }
 .privacy-delete {
@@ -7845,7 +8728,7 @@ button.ritem:hover {
   grid-column: 1 / -1;
   margin: 0;
   color: var(--ink-soft);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .privacy-delete input {
   min-height: 40px;
@@ -7881,7 +8764,7 @@ button.ritem:hover {
 .retention-toggle small {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .retention-run {
   padding: 16px 17px;
@@ -7890,7 +8773,7 @@ button.ritem:hover {
 .retention-run > p {
   margin: 10px 0 0;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   line-height: 1.5;
 }
 .retention-result {
@@ -7909,7 +8792,7 @@ button.ritem:hover {
   border-radius: 10px;
   background: var(--surface-3);
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .retention-result b {
   color: var(--ink);
@@ -7941,7 +8824,7 @@ button.ritem:hover {
   border-radius: 7px;
   background: var(--surface-2);
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .release-checks span.done {
   background: var(--accent-soft);
@@ -7958,7 +8841,7 @@ button.ritem:hover {
 .admin-health-head {
   color: var(--muted);
   background: var(--surface-2);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 850;
 }
 .admin-health > article {
@@ -7969,12 +8852,12 @@ button.ritem:hover {
   display: block;
 }
 .admin-health strong {
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .admin-health small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .form-error {
   color: #d45363 !important;
@@ -8005,7 +8888,7 @@ button.ritem:hover {
 .appearance-section > p {
   margin: 0 0 15px;
   color: var(--muted);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .appearance-choice-grid {
   display: grid;
@@ -8047,11 +8930,11 @@ button.ritem:hover {
 }
 .appearance-choice strong {
   color: var(--ink);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .appearance-choice small {
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .appearance-switches {
   display: grid;
@@ -8078,12 +8961,12 @@ button.ritem:hover {
 }
 .appearance-switches strong {
   color: var(--ink);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
 }
 .appearance-switches small {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .appearance-switches input {
   width: 22px;
@@ -8097,7 +8980,7 @@ button.ritem:hover {
   gap: 12px;
   padding: 4px 2px;
   color: var(--accent);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 

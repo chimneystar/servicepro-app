@@ -135,7 +135,7 @@ export default function TeamClient({
                   alignItems: "center",
                   justifyContent: "center",
                   fontWeight: 800,
-                  fontSize: "0.8125rem",
+                  fontSize: "0.875rem",
                 }}
               >
                 {(m.full_name || "?").slice(0, 2)}
@@ -167,7 +167,7 @@ export default function TeamClient({
                 value={m.role}
                 disabled={m.id === myId || pending}
                 onChange={(e) => run(() => changeRole(m.id, e.target.value))}
-                style={{ ...inp, width: "auto", padding: "7px 10px", fontSize: "0.8125rem" }}
+                style={{ ...inp, width: "auto", padding: "7px 10px", fontSize: "0.875rem" }}
                 aria-label={he ? "תפקיד" : "Role"}
               >
                 <option value="tech">{roleLabel("tech")}</option>
@@ -207,7 +207,7 @@ export default function TeamClient({
                 </div>
                 <div
                   style={{
-                    fontSize: "0.75rem",
+                    fontSize: "0.875rem",
                     color: deliveryColour(describeInviteDelivery(iv, locale).tone),
                   }}
                 >
@@ -241,7 +241,7 @@ export default function TeamClient({
           color: "#1d4ed8",
           padding: "11px 14px",
           borderRadius: 12,
-          fontSize: "0.8125rem",
+          fontSize: "0.875rem",
         }}
       >
         {he
@@ -460,7 +460,7 @@ const row: React.CSSProperties = {
   flexWrap: "wrap",
 };
 const lbl: React.CSSProperties = {
-  fontSize: "0.75rem",
+  fontSize: "0.875rem",
   fontWeight: 700,
   color: "#334155",
   display: "block",
@@ -491,7 +491,7 @@ const rm: React.CSSProperties = {
   padding: "7px 12px",
   borderRadius: 9,
   fontWeight: 700,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   cursor: "pointer",
 };
 const ok: React.CSSProperties = {
@@ -499,7 +499,7 @@ const ok: React.CSSProperties = {
   color: "#15803d",
   padding: "9px 12px",
   borderRadius: 10,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   marginTop: 10,
 };
 const warn: React.CSSProperties = {
@@ -507,7 +507,7 @@ const warn: React.CSSProperties = {
   color: "#a15c07",
   padding: "9px 12px",
   borderRadius: 10,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   marginTop: 10,
 };
 const deliveryColour = (tone: string) =>

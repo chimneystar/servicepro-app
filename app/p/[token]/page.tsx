@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getLocale } from "@/lib/locale-server";
-import { t } from "@/lib/i18n";
+import { t, type Locale } from "@/lib/i18n";
 import { money } from "@/lib/format";
 import SignApprove from "@/components/SignApprove";
 import PrintButton from "@/components/PrintButton";
@@ -26,6 +26,22 @@ function shade(hex: string, pct: number) {
   return `rgb(${r},${g},${b})`;
 }
 
+/**
+ * The small label that sits above a value ("PREPARED FOR", "AMOUNT DUE").
+ * Upper-casing and letter-spacing are English typographic devices — Hebrew has
+ * no letter case and letter-spacing only damages it — so both are dropped for
+ * `he`. The size is the 0.875rem readable floor, never smaller.
+ */
+function eyebrow(locale: Locale): React.CSSProperties {
+  return {
+    fontSize: "0.875rem",
+    color: "#55647a",
+    fontWeight: 800,
+    letterSpacing: locale === "en" ? 0.6 : 0,
+    textTransform: locale === "en" ? "uppercase" : "none",
+  };
+}
+
 export default async function PublicDocPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const locale = await getLocale();
@@ -39,10 +55,12 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
     supabase.rpc("public_tip_options", { p_token: token }),
   ]);
   const doc: any = data;
+  // An expired, voided or unknown token resolves to nothing here — the RPC is
+  // the authority — and the customer is told so rather than shown a document.
   if (!doc)
     return (
       <Center accent="#0f2a5e">
-        <p style={{ color: "#5c6675" }}>This link is invalid or has expired.</p>
+        <p style={{ color: "#55647a", fontSize: "0.9375rem" }}>{t(locale, "public.invalid")}</p>
       </Center>
     );
 
@@ -59,7 +77,8 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
     discountMinor: doc.discount_minor,
     taxRateBps: doc.tax_rate_bps,
   });
-  const title = doc.kind === "invoice" ? "Invoice" : "Estimate";
+  const title = doc.kind === "invoice" ? t(locale, "public.invoice") : t(locale, "public.estimate");
+  const bcp47 = locale === "he" ? "he-IL" : "en-US";
   const signed = !!doc.signed_at;
   const paymentOptions = paymentData as PublicPaymentOptions | null;
   const tipOptions = tipData as PublicTipOptions | null;
@@ -75,7 +94,7 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
     supabase.storage.from("item-photos").getPublicUrl(path).data.publicUrl;
   const fmtD = (iso: string) =>
     iso
-      ? new Date(iso + "T00:00:00").toLocaleDateString("en-US", {
+      ? new Date(iso + "T00:00:00").toLocaleDateString(bcp47, {
           year: "numeric",
           month: "short",
           day: "numeric",
@@ -94,7 +113,7 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
           justifyContent: "flex-end",
         }}
       >
-        <PrintButton label="Save as PDF" />
+        <PrintButton label={t(locale, "public.save_pdf")} />
       </div>
       <div
         className="print-card"
@@ -151,20 +170,29 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: "1.25rem", fontWeight: 800 }}>{doc.org?.name}</div>
                 {doc.org?.tagline && (
-                  <div style={{ fontSize: "0.8125rem", opacity: 0.85 }}>{doc.org.tagline}</div>
+                  <div style={{ fontSize: "0.875rem", opacity: 0.85 }}>{doc.org.tagline}</div>
                 )}
-                <div style={{ fontSize: "0.75rem", opacity: 0.8, marginTop: 4 }}>
+                <div style={{ fontSize: "0.875rem", opacity: 0.8, marginTop: 4 }}>
                   {[doc.org?.phone, doc.org?.email].filter(Boolean).join(" · ")}
                 </div>
               </div>
             </div>
             <div style={{ textAlign: "end", flexShrink: 0 }}>
-              <div style={{ fontSize: "1.625rem", fontWeight: 800, letterSpacing: 0.5 }}>
-                {title.toUpperCase()}
+              {/* Upper-casing is an English typographic device; Hebrew has no
+                  case, and letter-spacing only damages it. */}
+              <div
+                style={{
+                  fontSize: "1.625rem",
+                  fontWeight: 800,
+                  letterSpacing: locale === "en" ? 0.5 : 0,
+                  textTransform: locale === "en" ? "uppercase" : "none",
+                }}
+              >
+                {title}
               </div>
-              <div style={{ fontSize: "0.8125rem", opacity: 0.9 }}>#{doc.number}</div>
+              <div style={{ fontSize: "0.875rem", opacity: 0.9 }}>#{doc.number}</div>
               {doc.issue_date && (
-                <div style={{ fontSize: "0.75rem", opacity: 0.8, marginTop: 2 }}>
+                <div style={{ fontSize: "0.875rem", opacity: 0.8, marginTop: 2 }}>
                   {fmtD(doc.issue_date)}
                 </div>
               )}
@@ -184,39 +212,33 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
             }}
           >
             <div style={{ minWidth: 160 }}>
-              <div
-                style={{
-                  fontSize: "0.8125rem",
-                  color: "#94a3b8",
-                  fontWeight: 800,
-                  letterSpacing: 0.6,
-                  textTransform: "uppercase",
-                }}
-              >
-                Prepared for
-              </div>
+              <div style={eyebrow(locale)}>{t(locale, "public.prepared_for")}</div>
               <div style={{ fontSize: "1.0625rem", fontWeight: 800, marginTop: 3 }}>
                 {doc.customer?.name}
               </div>
               {(doc.customer?.address || doc.customer?.city) && (
-                <div className="sp-text-muted">
+                <div style={{ fontSize: "0.875rem", color: "#5c6675" }}>
                   {[doc.customer.address, doc.customer.city].filter(Boolean).join(", ")}
                 </div>
               )}
-              {doc.customer?.phone && <div className="sp-text-muted">{doc.customer.phone}</div>}
-              {doc.customer?.email && <div className="sp-text-muted">{doc.customer.email}</div>}
+              {/* A phone number or an address is read left-to-right even inside
+                  a right-to-left page. */}
+              {doc.customer?.phone && (
+                <div style={{ fontSize: "0.875rem", color: "#55647a" }}>
+                  <bdi dir="ltr">{doc.customer.phone}</bdi>
+                </div>
+              )}
+              {doc.customer?.email && (
+                <div style={{ fontSize: "0.875rem", color: "#55647a" }}>
+                  <bdi dir="ltr">{doc.customer.email}</bdi>
+                </div>
+              )}
             </div>
             <div style={{ textAlign: "end" }}>
-              <div
-                style={{
-                  fontSize: "0.8125rem",
-                  color: "#94a3b8",
-                  fontWeight: 800,
-                  letterSpacing: 0.6,
-                  textTransform: "uppercase",
-                }}
-              >
-                Amount {doc.kind === "invoice" ? "due" : ""}
+              <div style={eyebrow(locale)}>
+                {doc.kind === "invoice"
+                  ? t(locale, "public.amount_due")
+                  : t(locale, "public.amount")}
               </div>
               <div style={{ fontSize: "1.75rem", fontWeight: 800, color: accent }}>
                 {money(totals.totalMinor, cur)}
@@ -255,13 +277,16 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
                     {it.title || it.description}
                   </div>
                   {it.description && it.description !== it.title && (
-                    <div style={{ fontSize: "0.8125rem", color: "#5c6675", marginTop: 2 }}>
+                    <div style={{ fontSize: "0.875rem", color: "#5c6675", marginTop: 2 }}>
                       {it.description}
                     </div>
                   )}
-                  <div style={{ fontSize: "0.75rem", color: "#9aa3b2", marginTop: 2 }}>
-                    {(it.qty_milli / 1000).toLocaleString()} × {money(it.unit_price_minor, cur)}
-                    {hasNonTaxable && it.taxable === false ? " · no tax" : ""}
+                  <div style={{ fontSize: "0.875rem", color: "#9aa3b2", marginTop: 2 }}>
+                    {(it.qty_milli / 1000).toLocaleString(bcp47)} ×{" "}
+                    {money(it.unit_price_minor, cur)}
+                    {hasNonTaxable && it.taxable === false
+                      ? ` · ${t(locale, "public.no_tax")}`
+                      : ""}
                   </div>
                 </div>
                 <b style={{ whiteSpace: "nowrap", fontSize: "0.9375rem" }}>
@@ -273,12 +298,16 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
 
           {/* Totals */}
           <div style={{ marginTop: 14, marginInlineStart: "auto", maxWidth: 280 }}>
-            <Line label="Subtotal" value={money(totals.subtotalMinor, cur)} />
+            <Line label={t(locale, "doc.subtotal")} value={money(totals.subtotalMinor, cur)} />
             {totals.discountMinor > 0 && (
-              <Line label="Discount" value={"-" + money(totals.discountMinor, cur)} red />
+              <Line
+                label={t(locale, "doc.discount")}
+                value={"-" + money(totals.discountMinor, cur)}
+                red
+              />
             )}
             <Line
-              label={`${doc.tax_label || "Tax"} (${doc.tax_rate_bps / 100}%)`}
+              label={`${doc.tax_label || t(locale, "doc.tax")} (${doc.tax_rate_bps / 100}%)`}
               value={money(totals.taxMinor, cur)}
             />
             <div
@@ -293,7 +322,7 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
                 color: accent,
               }}
             >
-              <span>Total</span>
+              <span>{t(locale, "doc.grand")}</span>
               <span>{money(totals.totalMinor, cur)}</span>
             </div>
           </div>
@@ -331,7 +360,9 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
                 alignItems: "center",
               }}
             >
-              <span style={{ fontWeight: 700, fontSize: "0.875rem" }}>Deposit to schedule</span>
+              <span style={{ fontWeight: 700, fontSize: "0.875rem" }}>
+                {t(locale, "public.deposit_schedule")}
+              </span>
               <b style={{ fontSize: "1rem", color: accent }}>{money(depositMinor, cur)}</b>
             </div>
           )}
@@ -351,7 +382,7 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
                 textDecoration: "none",
               }}
             >
-              💳 Pay {money(depositMinor, cur)} deposit
+              💳 {t(locale, "public.pay_deposit", { amount: money(depositMinor, cur) })}
             </a>
           )}
           {isPaid && doc.kind === "invoice" && (
@@ -359,14 +390,14 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
               style={{
                 marginTop: 18,
                 background: "#e6f6ec",
-                color: "#15803d",
+                color: "#126b35",
                 padding: "14px 16px",
                 borderRadius: 12,
                 fontWeight: 800,
                 textAlign: "center",
               }}
             >
-              ✓ Paid — thank you!
+              ✓ {t(locale, "public.paid_thanks")}
             </div>
           )}
           {canPayOnline && (
@@ -385,7 +416,7 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
                 textDecoration: "none",
               }}
             >
-              💳 Pay {money(totals.totalMinor, cur)} now
+              💳 {t(locale, "public.pay_now", { amount: money(totals.totalMinor, cur) })}
             </a>
           )}
 
@@ -396,32 +427,36 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
                 background: "#f8fafc",
                 borderRadius: 12,
                 padding: 14,
-                fontSize: "0.8125rem",
+                fontSize: "0.875rem",
                 color: "#475569",
               }}
             >
-              <b>Notes</b>
+              <b>{t(locale, "public.notes")}</b>
               <br />
               {doc.notes}
             </div>
           )}
           {doc.org?.terms && (
             <div
-              style={{ marginTop: 12, padding: 14, border: "1px solid #eef1f6", borderRadius: 12 }}
+              style={{ marginTop: 12, padding: 14, border: "1px solid #d7e0ec", borderRadius: 12 }}
             >
               <div
                 style={{
-                  fontSize: "0.8125rem",
-                  color: "#94a3b8",
-                  fontWeight: 800,
-                  letterSpacing: 0.5,
-                  textTransform: "uppercase",
+                  ...eyebrow(locale),
+                  letterSpacing: locale === "en" ? 0.5 : 0,
                   marginBottom: 4,
                 }}
               >
-                Terms &amp; conditions
+                {t(locale, "public.terms")}
               </div>
-              <div style={{ fontSize: "0.75rem", color: "#64748b", whiteSpace: "pre-wrap" }}>
+              <div
+                style={{
+                  fontSize: "0.875rem",
+                  color: "#55647a",
+                  lineHeight: 1.6,
+                  whiteSpace: "pre-wrap",
+                }}
+              >
                 {doc.org.terms}
               </div>
             </div>
@@ -430,6 +465,8 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
           {/* Sign / approve */}
           <div style={{ marginTop: 22 }}>
             {signed ? (
+              // Already signed: the approval record is shown and the pad is not
+              // rendered at all, so a document cannot be signed twice from here.
               <div
                 style={{
                   background: "#e6f6ec",
@@ -440,7 +477,7 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
                 }}
               >
                 ✓ {t(locale, "doc.approved")} — {doc.signer_name} ·{" "}
-                {new Date(doc.signed_at).toLocaleDateString()}
+                {new Date(doc.signed_at).toLocaleDateString(bcp47)}
               </div>
             ) : (
               <div className="no-print">
@@ -468,11 +505,11 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
             borderTop: "1px solid #eef1f6",
             padding: "14px 30px",
             textAlign: "center",
-            fontSize: "0.75rem",
+            fontSize: "0.875rem",
             color: "#94a3b8",
           }}
         >
-          {doc.org?.footer || `${doc.org?.name} · Thank you for your business!`}
+          {doc.org?.footer || `${doc.org?.name} · ${t(locale, "public.footer")}`}
         </div>
       </div>
     </Center>
@@ -480,11 +517,16 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
 }
 
 function Center({ children, accent }: { children: React.ReactNode; accent: string }) {
+  // Kept as inline style rather than a `.public-document-page` class: this page
+  // is served to an anonymous customer and must render correctly on its own,
+  // without depending on a stylesheet class landing alongside it.
   return (
     <div
       style={{
         minHeight: "100vh",
         background: "#eef3fb",
+        color: "#101a2e",
+        colorScheme: "light",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",

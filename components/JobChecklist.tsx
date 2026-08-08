@@ -43,7 +43,7 @@ export default function JobChecklist({ jobId, items }: { jobId: string; items: C
             style={{
               display: "flex",
               justifyContent: "space-between",
-              fontSize: "0.8125rem",
+              fontSize: "0.875rem",
               color: "#5c6675",
               marginBottom: 4,
             }}

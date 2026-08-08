@@ -53,7 +53,7 @@ export default async function ArchivePage() {
           color: "#9a3412",
           borderRadius: 12,
           padding: "11px 14px",
-          fontSize: "0.8125rem",
+          fontSize: "0.875rem",
           margin: "10px 0 16px",
         }}
       >

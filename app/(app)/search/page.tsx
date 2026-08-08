@@ -88,7 +88,7 @@ export default async function SearchPage({
   return (
     <div style={{ maxWidth: 760 }}>
       <h1 style={{ fontSize: "1.5rem", fontWeight: 800, marginBottom: 4 }}>Search</h1>
-      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 16 }}>
+      <p style={{ color: "#5c6675", fontSize: "0.875rem", marginBottom: 16 }}>
         {q
           ? `${total} result${total === 1 ? "" : "s"} for “${q}”`
           : "Type in the top search bar to find anything."}
@@ -155,7 +155,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <div
         style={{
           fontWeight: 800,
-          fontSize: "0.8125rem",
+          fontSize: "0.875rem",
           color: "#5c6675",
           textTransform: "uppercase",
           letterSpacing: 0.5,

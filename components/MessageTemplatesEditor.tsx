@@ -49,7 +49,7 @@ export default function MessageTemplatesEditor({
           color: "#1d4ed8",
           padding: "11px 14px",
           borderRadius: 12,
-          fontSize: "0.8125rem",
+          fontSize: "0.875rem",
           marginBottom: 16,
         }}
       >
@@ -109,7 +109,7 @@ function TemplateRow({ locale, trigger, tpl }: { locale: Locale; trigger: string
             display: "flex",
             alignItems: "center",
             gap: 6,
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
             fontWeight: 700,
             color: enabled ? "#15803d" : "#94a3b8",
             cursor: "pointer",
@@ -141,7 +141,7 @@ function TemplateRow({ locale, trigger, tpl }: { locale: Locale; trigger: string
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
         <Save locale={locale} />
         {saved && (
-          <span style={{ color: "#15803d", fontWeight: 700, fontSize: "0.8125rem" }}>
+          <span style={{ color: "#15803d", fontWeight: 700, fontSize: "0.875rem" }}>
             {he ? "נשמר" : "Saved"}
           </span>
         )}

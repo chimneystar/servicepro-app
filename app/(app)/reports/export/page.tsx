@@ -26,7 +26,7 @@ export default async function ExportPage() {
         ‹ Reports
       </Link>
       <h1 style={{ fontSize: "1.5rem", fontWeight: 800, margin: "8px 0 4px" }}>Export your data</h1>
-      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 16 }}>
+      <p style={{ color: "#5c6675", fontSize: "0.875rem", marginBottom: 16 }}>
         Download your books for QuickBooks or your accountant — or take a complete copy of the whole
         business.
       </p>
@@ -52,7 +52,7 @@ export default async function ExportPage() {
             borderRadius: 14,
             padding: 18,
             color: "#5c6675",
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
           }}
         >
           A complete copy of the business — every customer, message, payment and audit entry in one
@@ -69,9 +69,7 @@ export default async function ExportPage() {
             boxShadow: "0 6px 18px rgba(15,42,94,.06)",
           }}
         >
-          <p
-            style={{ fontSize: "0.8125rem", color: "#334155", marginBottom: 12, lineHeight: 1.55 }}
-          >
+          <p style={{ fontSize: "0.875rem", color: "#334155", marginBottom: 12, lineHeight: 1.55 }}>
             One JSON file containing{" "}
             <b>every one of the {contract.tableCount} database tables your business owns</b> —
             customers, jobs, estimates, invoices, line items, payments, refunds, expenses,
@@ -105,7 +103,7 @@ export default async function ExportPage() {
               color: "#7c2d12",
               borderRadius: 12,
               padding: "11px 14px",
-              fontSize: "0.8125rem",
+              fontSize: "0.875rem",
               marginTop: 14,
               lineHeight: 1.55,
             }}
@@ -120,12 +118,12 @@ export default async function ExportPage() {
             </ul>
           </div>
 
-          <div style={{ color: "#5c6675", fontSize: "0.8125rem", marginTop: 12, lineHeight: 1.55 }}>
+          <div style={{ color: "#5c6675", fontSize: "0.875rem", marginTop: 12, lineHeight: 1.55 }}>
             <b>Tables left out on purpose:</b>{" "}
             {contract.excluded.map((entry) => `${entry.table} — ${entry.reason}`).join(" ")}
           </div>
 
-          <div style={{ color: "#5c6675", fontSize: "0.8125rem", marginTop: 10, lineHeight: 1.55 }}>
+          <div style={{ color: "#5c6675", fontSize: "0.875rem", marginTop: 10, lineHeight: 1.55 }}>
             The export can be large and may take a few minutes. When it finishes, open the file and
             check that{" "}
             <code style={{ background: "#f1f5f9", borderRadius: 4, padding: "1px 5px" }}>

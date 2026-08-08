@@ -117,7 +117,7 @@ export default async function TimesheetsPage({
   );
 }
 const lbl: React.CSSProperties = {
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   fontWeight: 700,
   color: "#334155",
   display: "block",

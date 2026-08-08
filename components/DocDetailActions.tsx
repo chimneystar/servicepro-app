@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ShareDoc, { type ShareTarget } from "@/components/ShareDoc";
+import { t, type Locale } from "@/lib/i18n";
 import {
   duplicateEstimate,
   deleteEstimate,
@@ -31,6 +32,7 @@ export default function DocDetailActions({
   customerEmail,
   customerPhone,
   orgName,
+  locale,
 }: {
   kind: "estimate" | "invoice";
   id: string;
@@ -43,12 +45,15 @@ export default function DocDetailActions({
   customerEmail: string | null;
   customerPhone: string | null;
   orgName: string;
+  locale: Locale;
 }) {
   const router = useRouter();
   // Every one of these buttons used to fail silently: the transition ended and
   // the page simply did not change. Duplicate, delete, convert and mark-paid
   // are all irreversible-looking operations on money documents.
-  const { pending, error, run } = useActionStatus();
+  // The failure banner speaks the reader's language: the same locale that
+  // labels the buttons picks the Hebrew or English refusal message.
+  const { pending, error, run } = useActionStatus(locale === "he");
   const [share, setShare] = useState<ShareTarget | null>(null);
   const [copied, setCopied] = useState(false);
   const base = kind === "estimate" ? "/estimates" : "/invoices";
@@ -94,7 +99,7 @@ export default function DocDetailActions({
     );
   }
   function del() {
-    if (!confirm(`Delete this ${kind}? This cannot be undone.`)) return;
+    if (!confirm(t(locale, `doc.delete_${kind}_confirm`))) return;
     run(
       () => (kind === "estimate" ? deleteEstimate(id) : deleteInvoice(id)),
       () => router.push(base),
@@ -130,11 +135,13 @@ export default function DocDetailActions({
             href={`${base}/${id}/edit`}
             style={{ ...btn, background: "#2563eb", color: "#fff", textDecoration: "none" }}
           >
-            <span aria-hidden="true">✏️</span> Edit
+            <span aria-hidden="true">✏️</span> {t(locale, "doc.edit")}
           </Link>
         )}
         {locked && !voided && (
           <span style={{ ...btn, background: "#fdf1dc", color: "#7c4a03", cursor: "default" }}>
+            {/* No dictionary key exists for this state yet; it stays English in
+                both locales until one is added to lib/i18n.ts. */}
             <span aria-hidden="true">🔒</span> Amounts locked
           </span>
         )}
@@ -144,33 +151,33 @@ export default function DocDetailActions({
             onClick={openShare}
             style={{ ...btn, background: "#e0ebff", color: "#2563eb" }}
           >
-            <span aria-hidden="true">📤</span> Send
+            <span aria-hidden="true">📤</span> {t(locale, "doc.send")}
           </button>
         )}
         {!voided && (
           <button type="button" onClick={copyLink} style={btn}>
             {copied ? (
               <>
-                <span aria-hidden="true">✓</span> Copied
+                <span aria-hidden="true">✓</span> {t(locale, "share.copied")}
               </>
             ) : (
               <>
-                <span aria-hidden="true">🔗</span> Link
+                <span aria-hidden="true">🔗</span> {t(locale, "doc.link")}
               </>
             )}
           </button>
         )}
         <button type="button" onClick={dup} disabled={pending} style={btn}>
-          <span aria-hidden="true">⧉</span> Duplicate
+          <span aria-hidden="true">⧉</span> {t(locale, "doc.duplicate")}
         </button>
         {kind === "estimate" && status !== "approved" && !voided && (
           <button
             type="button"
             onClick={convert}
             disabled={pending}
-            style={{ ...btn, background: "#e6f6ec", color: "#15803d" }}
+            style={{ ...btn, background: "#fff6d5", color: "#705500" }}
           >
-            <span aria-hidden="true">🧾</span> Convert to invoice
+            <span aria-hidden="true">🧾</span> {t(locale, "doc.convert_invoice")}
           </button>
         )}
         {kind === "invoice" && status !== "paid" && !voided && (
@@ -180,12 +187,12 @@ export default function DocDetailActions({
             disabled={pending}
             style={{ ...btn, background: "#e6f6ec", color: "#15803d" }}
           >
-            <span aria-hidden="true">✓</span> Mark paid
+            <span aria-hidden="true">✓</span> {t(locale, "doc.mark_paid")}
           </button>
         )}
         {kind === "invoice" && status === "paid" && (
           <button type="button" onClick={() => togglePaid(false)} disabled={pending} style={btn}>
-            <span aria-hidden="true">↩</span> Mark due
+            <span aria-hidden="true">↩</span> {t(locale, "doc.mark_due")}
           </button>
         )}
         {!locked && (
@@ -195,49 +202,53 @@ export default function DocDetailActions({
             disabled={pending}
             style={{ ...btn, background: "#fdeaea", color: "#dc2626" }}
           >
-            <span aria-hidden="true">🗑️</span> Delete
+            <span aria-hidden="true">🗑️</span> {t(locale, "doc.delete")}
           </button>
         )}
       </div>
 
       {kind === "estimate" && !voided && (
         <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
-          <span style={{ fontSize: "0.8125rem", color: "#5c6675", fontWeight: 700 }}>Status:</span>
+          <span style={{ fontSize: "0.875rem", color: "#5c6675", fontWeight: 700 }}>
+            {t(locale, "doc.status")}:
+          </span>
           <select
             value={status}
             onChange={(e) => estStatus(e.target.value)}
             disabled={pending}
             style={{
+              minHeight: 44,
               border: "1px solid #e2e8f0",
               borderRadius: 9,
               padding: "7px 10px",
-              fontSize: "0.8125rem",
+              fontSize: "0.875rem",
               fontWeight: 600,
               background: "#fff",
             }}
           >
-            <option value="draft">Draft</option>
-            <option value="sent">Sent</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
+            <option value="draft">{t(locale, "dst.draft")}</option>
+            <option value="sent">{t(locale, "dst.sent")}</option>
+            <option value="approved">{t(locale, "dst.approved")}</option>
+            <option value="rejected">{t(locale, "dst.rejected")}</option>
           </select>
         </label>
       )}
 
       <ActionError error={error} />
 
-      {share && <ShareDoc target={share} onClose={() => setShare(null)} />}
+      {share && <ShareDoc target={share} locale={locale} onClose={() => setShare(null)} />}
     </div>
   );
 }
 
 const btn: React.CSSProperties = {
+  minHeight: 44,
   background: "#eef2f8",
   color: "#2563eb",
   border: "none",
   borderRadius: 9,
   padding: "9px 13px",
   fontWeight: 700,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   cursor: "pointer",
 };

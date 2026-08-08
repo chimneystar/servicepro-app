@@ -157,7 +157,7 @@ export default function SettingsForm({ locale, org }: { locale: Locale; org: Org
               padding: "11px 14px",
               background: accent,
               color: "#fff",
-              fontSize: "0.8125rem",
+              fontSize: "0.875rem",
               fontWeight: 800,
             }}
           >
@@ -379,7 +379,7 @@ const labelStyle: React.CSSProperties = {
   display: "block",
   marginBottom: 6,
   color: "#33415c",
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   fontWeight: 750,
 };
 const inputStyle: React.CSSProperties = {
@@ -395,13 +395,13 @@ const errorStyle: React.CSSProperties = {
   borderRadius: 12,
   background: "#fff0f0",
   color: "#b93545",
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
 };
 const successStyle: React.CSSProperties = {
   padding: "11px 13px",
   borderRadius: 12,
   background: "#e3faf4",
   color: "#087d65",
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   fontWeight: 750,
 };

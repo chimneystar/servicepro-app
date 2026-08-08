@@ -97,13 +97,13 @@ export default async function InvoicesPage({
             padding: "14px 16px",
           }}
         >
-          <div style={{ fontSize: "0.8125rem", color: "#b45309", fontWeight: 700 }}>
+          <div style={{ fontSize: "0.875rem", color: "#b45309", fontWeight: 700 }}>
             ● Due (unpaid)
           </div>
           <div style={{ fontSize: "1.375rem", fontWeight: 800, color: "#b45309" }}>
             {money(outstanding, cur)}
           </div>
-          <div style={{ fontSize: "0.75rem", color: "#b45309" }}>
+          <div style={{ fontSize: "0.875rem", color: "#b45309" }}>
             {dueCount} invoice{dueCount === 1 ? "" : "s"}
           </div>
         </div>
@@ -115,11 +115,11 @@ export default async function InvoicesPage({
             padding: "14px 16px",
           }}
         >
-          <div style={{ fontSize: "0.8125rem", color: "#15803d", fontWeight: 700 }}>✓ Paid</div>
+          <div style={{ fontSize: "0.875rem", color: "#15803d", fontWeight: 700 }}>✓ Paid</div>
           <div style={{ fontSize: "1.375rem", fontWeight: 800, color: "#15803d" }}>
             {money(collected, cur)}
           </div>
-          <div style={{ fontSize: "0.75rem", color: "#15803d" }}>
+          <div style={{ fontSize: "0.875rem", color: "#15803d" }}>
             {paidCount} invoice{paidCount === 1 ? "" : "s"}
           </div>
         </div>
@@ -178,7 +178,7 @@ const seg: React.CSSProperties = {
   padding: "6px 14px",
   borderRadius: 8,
   fontWeight: 700,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   color: "#5c6675",
   textDecoration: "none",
 };

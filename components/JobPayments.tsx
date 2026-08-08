@@ -77,13 +77,13 @@ export default function JobPayments({
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
         <div style={{ background: "#fdf1dc", borderRadius: 12, padding: "12px 14px" }}>
-          <div style={{ fontSize: "0.75rem", color: "#b45309", fontWeight: 700 }}>Balance due</div>
+          <div style={{ fontSize: "0.875rem", color: "#b45309", fontWeight: 700 }}>Balance due</div>
           <div style={{ fontSize: "1.25rem", fontWeight: 800, color: "#b45309" }}>
             {money(totalDue, currency)}
           </div>
         </div>
         <div style={{ background: "#e6f6ec", borderRadius: 12, padding: "12px 14px" }}>
-          <div style={{ fontSize: "0.75rem", color: "#15803d", fontWeight: 700 }}>Paid</div>
+          <div style={{ fontSize: "0.875rem", color: "#15803d", fontWeight: 700 }}>Paid</div>
           <div style={{ fontSize: "1.25rem", fontWeight: 800, color: "#15803d" }}>
             {money(totalPaid, currency)}
           </div>
@@ -129,7 +129,7 @@ export default function JobPayments({
                     <div
                       key={k}
                       style={{
-                        fontSize: "0.8125rem",
+                        fontSize: "0.875rem",
                         color: "#5c6675",
                         display: "flex",
                         justifyContent: "space-between",
@@ -240,7 +240,7 @@ const btn: React.CSSProperties = {
   cursor: "pointer",
 };
 const lbl: React.CSSProperties = {
-  fontSize: "0.75rem",
+  fontSize: "0.875rem",
   fontWeight: 700,
   color: "#334155",
   display: "block",

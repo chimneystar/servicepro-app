@@ -247,7 +247,7 @@ export default async function CustomerDetailPage({ params }: { params: Promise<{
         >
           <div style={{ color: "#eab308" }}>{stars(r.rating)}</div>
           {r.body && <div style={{ fontSize: "0.875rem", marginTop: 3 }}>{r.body}</div>}
-          <div style={{ fontSize: "0.75rem", color: "#5c6675", marginTop: 3 }}>
+          <div style={{ fontSize: "0.875rem", color: "#5c6675", marginTop: 3 }}>
             {fmtDate(r.review_date)}
           </div>
         </div>
@@ -268,7 +268,7 @@ function Action({ href, icon, label }: { href: string; icon: string; label: stri
         gap: 5,
         color: "#2563eb",
         textDecoration: "none",
-        fontSize: "0.75rem",
+        fontSize: "0.875rem",
         fontWeight: 600,
       }}
     >
@@ -302,7 +302,7 @@ function Kpi({ value, label, tone }: { value: string; label: string; tone?: stri
       }}
     >
       <div style={{ fontSize: "1.25rem", fontWeight: 800, color: tone ?? "#0b1524" }}>{value}</div>
-      <div style={{ fontSize: "0.75rem", color: "#5c6675", fontWeight: 600 }}>{label}</div>
+      <div style={{ fontSize: "0.875rem", color: "#5c6675", fontWeight: 600 }}>{label}</div>
     </div>
   );
 }

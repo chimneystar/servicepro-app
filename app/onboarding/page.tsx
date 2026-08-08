@@ -212,7 +212,7 @@ export default async function OnboardingPage() {
     boxShadow: "0 20px 50px rgba(15,42,94,.12)",
   };
   const label: React.CSSProperties = {
-    fontSize: "0.8125rem",
+    fontSize: "0.875rem",
     fontWeight: 700,
     color: "#334155",
     display: "block",
@@ -255,7 +255,7 @@ export default async function OnboardingPage() {
               color: "#b91c1c",
               padding: "11px 14px",
               borderRadius: 12,
-              fontSize: "0.8125rem",
+              fontSize: "0.875rem",
               marginBottom: 14,
             }}
           >
@@ -271,7 +271,7 @@ export default async function OnboardingPage() {
               color: "#a15c07",
               padding: "11px 14px",
               borderRadius: 12,
-              fontSize: "0.8125rem",
+              fontSize: "0.875rem",
               marginBottom: 14,
             }}
           >
@@ -342,7 +342,7 @@ export default async function OnboardingPage() {
           <h2 style={{ fontSize: "1.0625rem", fontWeight: 850, marginBottom: 5 }}>
             {locale === "he" ? "אילו שירותים אתם מציעים?" : "What services do you provide?"}
           </h2>
-          <p style={{ color: "#64748b", fontSize: "0.8125rem", marginBottom: 12 }}>
+          <p style={{ color: "#64748b", fontSize: "0.875rem", marginBottom: 12 }}>
             {locale === "he"
               ? "נוסיף לספר המחירים שירותים שימושיים עם מחיר ריק, ואותם שירותים יופיעו — באנגלית ובעברית — בעמוד ההזמנות לציבור. אם לא תבחרו תחום, נוסיף רשימת ביקורים כללית קצרה כדי שעמוד ההזמנות לא יישאר ריק. אפשר לערוך הכול אחר כך."
               : "We’ll add a ready-to-use catalog with blank prices, and the same services become your public booking menu in both English and Hebrew. Pick nothing and we add a short general visit list instead, so your booking page is never empty. You can edit everything later."}

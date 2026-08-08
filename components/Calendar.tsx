@@ -283,7 +283,7 @@ function TimeGrid({
                 borderInlineStart: "1px solid #eef1f6",
               }}
             >
-              <div style={{ fontSize: "0.8125rem", color: "#5c6675", fontWeight: 700 }}>
+              <div style={{ fontSize: "0.875rem", color: "#5c6675", fontWeight: 700 }}>
                 {he ? He[DAYS[d.getDay()]] : DAYS[d.getDay()]}
               </div>
               <div
@@ -322,7 +322,7 @@ function TimeGrid({
               key={h}
               style={{
                 height: HOUR,
-                fontSize: "0.8125rem",
+                fontSize: "0.875rem",
                 color: "#94a3b8",
                 textAlign: "end",
                 paddingInlineEnd: 6,
@@ -363,7 +363,7 @@ function TimeGrid({
                       color: "#fff",
                       borderRadius: 7,
                       padding: "4px 7px",
-                      fontSize: "0.8125rem",
+                      fontSize: "0.875rem",
                       overflow: "hidden",
                       boxShadow: "0 2px 6px rgba(0,0,0,.15)",
                       textDecoration: "none",
@@ -419,7 +419,7 @@ function MonthView({
             style={{
               textAlign: "center",
               padding: "8px 0",
-              fontSize: "0.8125rem",
+              fontSize: "0.875rem",
               fontWeight: 700,
               color: "#5c6675",
             }}
@@ -452,7 +452,7 @@ function MonthView({
                   width: 22,
                   height: 22,
                   borderRadius: "50%",
-                  fontSize: "0.75rem",
+                  fontSize: "0.875rem",
                   fontWeight: 700,
                   background: isToday ? "#2563eb" : "transparent",
                   color: isToday ? "#fff" : inMonth ? "#0b1524" : "#b6bfcc",
@@ -473,7 +473,7 @@ function MonthView({
                       color: "#fff",
                       borderRadius: 5,
                       padding: "2px 6px",
-                      fontSize: "0.8125rem",
+                      fontSize: "0.875rem",
                       fontWeight: 700,
                       whiteSpace: "nowrap",
                       overflow: "hidden",
@@ -486,7 +486,7 @@ function MonthView({
                 );
               })}
               {dayJobs.length > 3 && (
-                <div style={{ fontSize: "0.8125rem", color: "#5c6675", marginTop: 2 }}>
+                <div style={{ fontSize: "0.875rem", color: "#5c6675", marginTop: 2 }}>
                   +{dayJobs.length - 3} {he ? "נוספות" : "more"}
                 </div>
               )}
@@ -512,7 +512,7 @@ const notice: React.CSSProperties = {
   border: "1px solid #e2e8f0",
   color: "#334155",
   padding: "8px 14px",
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   fontWeight: 600,
 };
 const navBtn: React.CSSProperties = {
@@ -532,7 +532,7 @@ const btnGhost: React.CSSProperties = {
   background: "#fff",
   cursor: "pointer",
   fontWeight: 700,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
 };
 const seg: React.CSSProperties = {
   border: "none",
@@ -540,7 +540,7 @@ const seg: React.CSSProperties = {
   padding: "6px 14px",
   borderRadius: 8,
   fontWeight: 700,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   color: "#5c6675",
   cursor: "pointer",
 };

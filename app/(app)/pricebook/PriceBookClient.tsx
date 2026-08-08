@@ -203,5 +203,5 @@ const mini: React.CSSProperties = {
   borderRadius: 8,
   padding: "5px 8px",
   cursor: "pointer",
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
 };

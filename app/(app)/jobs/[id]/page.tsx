@@ -346,7 +346,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
             borderRadius: 12,
             padding: "10px 14px",
             marginTop: 12,
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
           }}
         >
           <b>{he ? "הסמכות נדרשות" : "Certifications required"}:</b>{" "}
@@ -640,7 +640,7 @@ function Item2({ label, value }: { label: string; value: string }) {
         padding: "11px 14px",
       }}
     >
-      <div style={{ fontSize: "0.8125rem", color: "#5c6675", fontWeight: 700 }}>{label}</div>
+      <div style={{ fontSize: "0.875rem", color: "#5c6675", fontWeight: 700 }}>{label}</div>
       <div style={{ fontSize: "0.9375rem", fontWeight: 700, marginTop: 2 }}>{value}</div>
     </div>
   );

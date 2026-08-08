@@ -243,7 +243,7 @@ export default function DocList({
                   }}
                   style={{ ...actBtn, background: "#2563eb", color: "#fff" }}
                 >
-                  <span aria-hidden="true">📤</span> Send
+                  <span aria-hidden="true">📤</span> {t(locale, "doc.send")}
                 </button>
               )}
               {!r.voided_at && (
@@ -274,7 +274,7 @@ export default function DocList({
                   disabled={pending}
                   style={{ ...actBtn, background: "#e6f6ec", color: "#15803d" }}
                 >
-                  <span aria-hidden="true">✓</span> Mark paid
+                  <span aria-hidden="true">✓</span> {t(locale, "doc.mark_paid")}
                 </button>
               )}
               {kind === "invoice" && r.status === "paid" && (
@@ -284,7 +284,7 @@ export default function DocList({
                   disabled={pending}
                   style={actBtn}
                 >
-                  <span aria-hidden="true">↩</span> Mark due
+                  <span aria-hidden="true">↩</span> {t(locale, "doc.mark_due")}
                 </button>
               )}
             </div>
@@ -295,18 +295,19 @@ export default function DocList({
       {rows.length > 0 && visible.length === 0 && (
         <div className="rempty">No matches for “{q}”.</div>
       )}
-      {share && <ShareDoc target={share} onClose={() => setShare(null)} />}
+      {share && <ShareDoc target={share} locale={locale} onClose={() => setShare(null)} />}
     </div>
   );
 }
 
 const actBtn: React.CSSProperties = {
+  minHeight: 44,
   background: "#eef2f8",
   color: "#2563eb",
   border: "none",
   borderRadius: 9,
   padding: "8px 12px",
   fontWeight: 700,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   cursor: "pointer",
 };

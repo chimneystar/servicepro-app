@@ -63,7 +63,7 @@ export function Donut({
         >
           {centerTop && <div style={{ fontSize: "1.0625rem", fontWeight: 800 }}>{centerTop}</div>}
           {centerSub && (
-            <div style={{ fontSize: "0.8125rem", color: "#5c6675", fontWeight: 600 }}>
+            <div style={{ fontSize: "0.875rem", color: "#5c6675", fontWeight: 600 }}>
               {centerSub}
             </div>
           )}
@@ -111,7 +111,7 @@ export function Bars({
           </div>
           <div
             style={{
-              fontSize: "0.8125rem",
+              fontSize: "0.875rem",
               color: "#5c6675",
               fontWeight: 700,
               whiteSpace: "nowrap",
@@ -130,7 +130,7 @@ export function Bars({
 
 export function Legend({ items }: { items: { label: string; color: string; value?: string }[] }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: "0.8125rem" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: "0.875rem" }}>
       {items.map((it, i) => (
         <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span

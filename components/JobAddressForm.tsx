@@ -49,7 +49,7 @@ export default function JobAddressForm({
         marginTop: 10,
       }}
     >
-      <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#5c6675", marginBottom: 8 }}>
+      <div style={{ fontSize: "0.875rem", fontWeight: 700, color: "#5c6675", marginBottom: 8 }}>
         {he
           ? "כתובת העבודה. אם משאירים ריק, תוצג כתובת הלקוח."
           : "Job address. Leave blank to use the customer address."}
@@ -94,7 +94,7 @@ const link: React.CSSProperties = {
   borderRadius: 9,
   padding: "8px 12px",
   fontWeight: 700,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   cursor: "pointer",
   marginTop: 6,
 };

@@ -101,17 +101,15 @@ export default function DocView({
           </div>
           <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: "1.0625rem", fontWeight: 800 }}>{org?.name}</div>
-            <div style={{ fontSize: "0.75rem", opacity: 0.85 }}>
+            <div style={{ fontSize: "0.875rem", opacity: 0.85 }}>
               {[org?.phone, org?.email].filter(Boolean).join(" · ")}
             </div>
           </div>
         </div>
         <div style={{ textAlign: "end" }}>
           <div style={{ fontSize: "1.25rem", fontWeight: 800 }}>{title.toUpperCase()}</div>
-          <div style={{ fontSize: "0.8125rem", opacity: 0.9 }}>#{number}</div>
-          {issueDate && (
-            <div style={{ fontSize: "0.8125rem", opacity: 0.8 }}>{fmtD(issueDate)}</div>
-          )}
+          <div style={{ fontSize: "0.875rem", opacity: 0.9 }}>#{number}</div>
+          {issueDate && <div style={{ fontSize: "0.875rem", opacity: 0.8 }}>{fmtD(issueDate)}</div>}
         </div>
       </div>
 
@@ -119,7 +117,7 @@ export default function DocView({
         <div style={{ marginBottom: 14 }}>
           <div
             style={{
-              fontSize: "0.8125rem",
+              fontSize: "0.875rem",
               color: "#94a3b8",
               fontWeight: 800,
               letterSpacing: 0.5,
@@ -167,7 +165,7 @@ export default function DocView({
                 {it.description && it.description !== it.title && (
                   <div className="sp-text-muted">{it.description}</div>
                 )}
-                <div style={{ fontSize: "0.75rem", color: "#9aa3b2" }}>
+                <div style={{ fontSize: "0.875rem", color: "#9aa3b2" }}>
                   {(it.qty_milli / 1000).toLocaleString("en-US")} ×{" "}
                   {money(it.unit_price_minor, currency)}
                   {hasNonTax && it.taxable === false ? " · no tax" : ""}
@@ -213,7 +211,7 @@ export default function DocView({
               background: "#f8fafc",
               borderRadius: 10,
               padding: 12,
-              fontSize: "0.8125rem",
+              fontSize: "0.875rem",
               color: "#475569",
             }}
           >

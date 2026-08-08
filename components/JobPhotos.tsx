@@ -129,9 +129,7 @@ export default function JobPhotos({
             ? "העלאת תמונות או וידאו"
             : "Upload photos or video"}
       </label>
-      {error && (
-        <div style={{ color: "#dc2626", fontSize: "0.8125rem", marginTop: 8 }}>{error}</div>
-      )}
+      {error && <div style={{ color: "#dc2626", fontSize: "0.875rem", marginTop: 8 }}>{error}</div>}
       <div
         style={{
           display: "grid",
@@ -168,7 +166,7 @@ export default function JobPhotos({
                 />
               )
             ) : (
-              <div style={{ padding: 8, fontSize: "0.8125rem", color: "#5c6675" }}>
+              <div style={{ padding: 8, fontSize: "0.875rem", color: "#5c6675" }}>
                 {p.mediaType}
               </div>
             )}
@@ -219,7 +217,7 @@ export default function JobPhotos({
           </div>
         ))}
         {photos.length === 0 && (
-          <div style={{ color: "#5c6675", fontSize: "0.8125rem", padding: 8 }}>
+          <div style={{ color: "#5c6675", fontSize: "0.875rem", padding: 8 }}>
             {he ? "עדיין אין תמונות או סרטונים." : "No photos or videos yet."}
           </div>
         )}
@@ -362,7 +360,7 @@ const delBtn: React.CSSProperties = {
   width: 24,
   height: 24,
   borderRadius: 7,
-  fontSize: "0.75rem",
+  fontSize: "0.875rem",
   cursor: "pointer",
 };
 const annotateBtn: React.CSSProperties = {
@@ -375,7 +373,7 @@ const annotateBtn: React.CSSProperties = {
   borderRadius: 7,
   background: "rgba(16,26,46,.88)",
   color: "#fff",
-  fontSize: "0.75rem",
+  fontSize: "0.875rem",
   fontWeight: 800,
   cursor: "pointer",
 };
@@ -389,7 +387,7 @@ const visibilityBtn = (visible: boolean): React.CSSProperties => ({
   borderRadius: 8,
   border: "none",
   cursor: "pointer",
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   lineHeight: 1,
   background: visible ? "rgba(21,128,61,.85)" : "rgba(100,116,139,.9)",
   color: "#fff",

@@ -127,6 +127,7 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
           customerEmail={c?.email ?? null}
           customerPhone={c?.phone ?? null}
           orgName={org?.name ?? ""}
+          locale={locale}
         />
       </div>
       <div className="no-print">

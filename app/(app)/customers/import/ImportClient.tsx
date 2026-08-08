@@ -69,7 +69,7 @@ export default function ImportClient() {
           background: "#f4f7fb",
           borderRadius: 10,
           padding: 12,
-          fontSize: "0.8125rem",
+          fontSize: "0.875rem",
           color: "#475569",
           marginBottom: 12,
           fontFamily: "monospace",

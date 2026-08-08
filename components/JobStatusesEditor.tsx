@@ -94,12 +94,12 @@ export default function JobStatusesEditor({
           <div className="sp-flex-fill">
             <b>{s.name}</b>
             {s.is_done && (
-              <span style={{ fontSize: "0.8125rem", color: "#15803d", marginInlineStart: 6 }}>
+              <span style={{ fontSize: "0.875rem", color: "#15803d", marginInlineStart: 6 }}>
                 · {he ? "נחשב כהושלם" : "counts as done"}
               </span>
             )}
             {s.is_cancelled && (
-              <span style={{ fontSize: "0.8125rem", color: "#dc2626", marginInlineStart: 6 }}>
+              <span style={{ fontSize: "0.875rem", color: "#dc2626", marginInlineStart: 6 }}>
                 · {he ? "בוטל" : "cancelled"}
               </span>
             )}
@@ -123,7 +123,7 @@ export default function JobStatusesEditor({
         </div>
       ))}
       {statuses.length === 0 && (
-        <div style={{ color: "#5c6675", fontSize: "0.8125rem", padding: 8 }}>
+        <div style={{ color: "#5c6675", fontSize: "0.875rem", padding: 8 }}>
           {he ? "עוד לא הוגדרו סטטוסים." : "No statuses yet."}
         </div>
       )}
@@ -241,5 +241,5 @@ const mini: React.CSSProperties = {
   borderRadius: 8,
   padding: "5px 8px",
   cursor: "pointer",
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
 };

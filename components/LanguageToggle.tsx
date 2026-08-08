@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import type { Locale } from "@/lib/i18n";
 
-/** Small EN / עברית switch. Stores the choice in a cookie and reloads. */
+/** Accessible EN / עברית switch. Stores the choice in a cookie and reloads. */
 export default function LanguageToggle({
   current,
   dark = false,
@@ -21,33 +21,31 @@ export default function LanguageToggle({
     window.location.reload();
   }
 
-  const base: React.CSSProperties = {
-    border: "none",
-    padding: "5px 10px",
-    borderRadius: 8,
-    fontSize: "0.8125rem",
-    fontWeight: 700,
-    cursor: "pointer",
-  };
-  const on = dark
-    ? { background: "rgba(255,255,255,.2)", color: "#fff" }
-    : { background: "#2563eb", color: "#fff" };
-  const off = dark
-    ? { background: "transparent", color: "#c6d6f5" }
-    : { background: "#e7ecf5", color: "#475569" };
-
+  // The look lives in `.language-toggle` in globals.css, not in inline styles.
+  // That is deliberate: the stylesheet is where the 14px (0.875rem) readable
+  // floor and the 44px hit target are enforced, and where `aria-pressed`
+  // drives the "on" state — so the selected language is ANNOUNCED, not only
+  // coloured. The old inline version painted the state and said nothing.
   return (
-    <div style={{ display: "inline-flex", gap: 4 }}>
+    <div
+      className={`language-toggle${dark ? " dark" : ""}`}
+      role="group"
+      aria-label={current === "he" ? "בחירת שפה" : "Choose language"}
+    >
       <button
         type="button"
-        style={{ ...base, ...(current === "en" ? on : off) }}
+        aria-pressed={current === "en"}
+        aria-label="English"
+        lang="en"
         onClick={() => set("en")}
       >
         EN
       </button>
       <button
         type="button"
-        style={{ ...base, ...(current === "he" ? on : off) }}
+        aria-pressed={current === "he"}
+        aria-label="עברית"
+        lang="he"
         onClick={() => set("he")}
       >
         עב

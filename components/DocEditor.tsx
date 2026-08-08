@@ -225,7 +225,7 @@ export default function DocEditor({
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                fontSize: "0.8125rem",
+                fontSize: "0.875rem",
                 fontWeight: 600,
                 cursor: "pointer",
               }}
@@ -272,7 +272,7 @@ export default function DocEditor({
           background: "#e2e9f4",
           color: "#2563eb",
           padding: "8px 12px",
-          fontSize: "0.8125rem",
+          fontSize: "0.875rem",
           marginTop: 4,
         }}
       >
@@ -313,12 +313,12 @@ export default function DocEditor({
               className="sp-input sp-control--lg"
             />
           </label>
-          <div style={{ fontSize: "0.75rem", color: "#5c6675", marginTop: 4 }}>
+          <div style={{ fontSize: "0.875rem", color: "#5c6675", marginTop: 4 }}>
             Shown on the estimate as the amount due to schedule the work.
           </div>
         </div>
       )}
-      <div style={{ textAlign: "end", fontSize: "0.8125rem", color: "#5c6675", margin: "6px 2px" }}>
+      <div style={{ textAlign: "end", fontSize: "0.875rem", color: "#5c6675", margin: "6px 2px" }}>
         Items subtotal ≈ ${(subtotal / 100).toFixed(2)} · tax &amp; total recalculated on save
       </div>
       <label className="sp-field">
@@ -378,14 +378,14 @@ const itemCard: React.CSSProperties = {
   marginBottom: 10,
 };
 const lbl: React.CSSProperties = {
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   fontWeight: 700,
   color: "#334155",
   display: "block",
   margin: "6px 0 6px",
 };
 const miniLbl: React.CSSProperties = {
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   color: "#5c6675",
   fontWeight: 700,
   display: "block",
@@ -413,7 +413,7 @@ const photoBtn: React.CSSProperties = {
   borderRadius: 8,
   padding: "7px 12px",
   fontWeight: 700,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   cursor: "pointer",
 };
 const xBtn: React.CSSProperties = {

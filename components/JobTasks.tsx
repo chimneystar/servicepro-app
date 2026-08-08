@@ -31,7 +31,7 @@ export default function JobTasks({ jobId, tasks }: { jobId: string; tasks: Task[
   return (
     <div>
       {tasks.length > 0 && (
-        <div style={{ fontSize: "0.8125rem", color: "#5c6675", marginBottom: 8 }}>
+        <div style={{ fontSize: "0.875rem", color: "#5c6675", marginBottom: 8 }}>
           {he
             ? `${doneCount} מתוך ${tasks.length} הושלמו`
             : `${doneCount} of ${tasks.length} complete`}

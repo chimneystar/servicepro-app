@@ -68,7 +68,7 @@ export default function LegacyImportClient() {
           color: "#9a3412",
           borderRadius: 12,
           padding: "11px 14px",
-          fontSize: "0.8125rem",
+          fontSize: "0.875rem",
           marginBottom: 14,
         }}
       >
@@ -87,7 +87,7 @@ export default function LegacyImportClient() {
           background: "#f4f7fb",
           borderRadius: 10,
           padding: 12,
-          fontSize: "0.8125rem",
+          fontSize: "0.875rem",
           color: "#475569",
           marginBottom: 12,
           fontFamily: "monospace",

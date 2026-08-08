@@ -14,15 +14,26 @@ export default async function MorePage() {
     loadCapabilities(profile),
     profile.role === "owner" ? isPlatformAdmin(profile.id) : Promise.resolve(false),
   ]);
-  // Same split as the tab bar. Filtering on `!i.bottom` here is what hid the
-  // overflow: an item the tab bar had already dropped was excluded again.
   const mine = NAV_ITEMS.filter(
     (i) =>
       i.roles.includes(profile.role) &&
       (!i.capability || capabilitySet.has(i.capability)) &&
       (!i.platformOnly || platformAdmin),
   );
-  const items = splitNavigation(mine).more;
+  // The mobile More hub is the complete route directory. Keeping even the
+  // bottom-tab destinations here prevents a navigation redesign from making an
+  // existing feature unreachable for a role.
+  //
+  // That is the same goal AUDIT A4 came at from the other side, so both
+  // mechanisms stay. `splitNavigation` is still the single authority on what
+  // the tab bar carries — re-filtering this page to exclude the tab-bar rows is
+  // exactly what hid the overflow before, and Invoices was then reachable
+  // nowhere on a phone: dropped by the bar's cut and excluded again here.
+  // Here the split decides only the ORDER: what the tab bar could not carry is
+  // listed first, then the rest, then the destinations that are also tabs. The
+  // directory decides the CONTENTS, which is everything.
+  const { tabs, more } = splitNavigation(mine);
+  const items = [...more, ...tabs];
 
   return (
     <div>

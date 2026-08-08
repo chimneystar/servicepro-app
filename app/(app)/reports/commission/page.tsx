@@ -94,7 +94,7 @@ export default async function CommissionPage({
       <h1 style={{ fontSize: "1.5rem", fontWeight: 800, margin: "8px 0 4px" }}>
         Technician commission
       </h1>
-      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 12 }}>
+      <p style={{ color: "#5c6675", fontSize: "0.875rem", marginBottom: 12 }}>
         Payroll based on money actually collected on completed jobs, after costs & fees.
       </p>
 
@@ -139,7 +139,7 @@ export default async function CommissionPage({
   );
 }
 const lbl: React.CSSProperties = {
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   fontWeight: 700,
   color: "#334155",
   display: "block",

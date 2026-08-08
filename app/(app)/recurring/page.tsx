@@ -26,7 +26,7 @@ export default async function RecurringPage() {
       <h1 style={{ fontSize: "1.5rem", fontWeight: 800, marginBottom: 4 }}>
         {he ? "עבודות חוזרות" : "Recurring work"}
       </h1>
-      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 14 }}>
+      <p style={{ color: "#5c6675", fontSize: "0.875rem", marginBottom: 14 }}>
         {he
           ? "עבודות תחזוקה שחוזרות אוטומטית במועד שבוחרים."
           : "Maintenance visits that repeat automatically on your schedule."}
