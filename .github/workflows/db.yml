@@ -1,0 +1,87 @@
+name: Database
+
+# THE GAP THIS CLOSES
+# -------------------
+# This repository has 42 SQL migrations defining ~230 RLS policies, and
+# db/016_isolation_tests.sql — a genuine, runnable proof of tenant isolation.
+# Nothing ever ran it. There was no database in CI at all, so every security
+# assertion in the test suite was static analysis of SQL text: greps that check
+# a policy is WRITTEN a certain way, which cannot prove that the policy REFUSES
+# a query.
+#
+# SINCE LEDGER 0.6 these same db/ci/*.sql files also run locally on every commit,
+# under tests/rls-assertions.test.mjs, against PGlite (Postgres compiled to
+# WebAssembly). This job is not redundant: PGlite is Postgres but not Supabase,
+# and this one runs against a stock postgres:16 server, so the two disagree only
+# where something is genuinely environment-specific. Both execute the SAME files,
+# so neither can drift from the other.
+#
+# This job stands up a real PostgreSQL 16, applies schema.sql and every numbered
+# migration in order, runs 016, and then executes adversarial assertions as
+# impersonated users — a technician, an office user, an owner, an owner of the
+# other tenant, and anon — proving that the two privilege-escalation paths from
+# docs/AUDIT-2026-07-31.md §2.1 and §2.12 are actually closed.
+#
+# The threat model is PostgREST, not the UI: these assertions talk to the
+# database directly with a role and a JWT subject, exactly as an attacker with
+# the public anon key would.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+concurrency:
+  group: db-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rls-proof:
+    name: Real Postgres — migrations apply, policies refuse
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: servicepro_ci
+        ports:
+          - 5432:5432
+        # Without the health check the first psql can race the server's own
+        # initdb restart and connect to a database that is about to go away.
+        options: >-
+          --health-cmd "pg_isready -U postgres -d servicepro_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/servicepro_ci
+      PGCLIENTENCODING: UTF8
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The migrations are applied by the repository's own runner
+      # (scripts/db-migrate.mjs), so this job proves the runner and its ledger
+      # against a real PostgreSQL, not only that the SQL applies. The runner
+      # imports nothing outside node's standard library and shells out to psql,
+      # so there is deliberately no `npm ci` here.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install the psql client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-client
+
+      # A superuser connection is required: the shim creates roles and the
+      # tests SET ROLE between identities. This is the same authority the
+      # Supabase SQL editor runs migrations with.
+      - name: Apply schema + every migration, then prove the policies
+        run: bash db/ci/run.sh

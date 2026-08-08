@@ -1,0 +1,28 @@
+# Build output and dependencies.
+node_modules/
+.next/
+out/
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+public/
+tsconfig.tsbuildinfo
+
+# Agent worktrees are full checkouts of this repo with their own node_modules.
+.claude/
+
+# Generated or checked-in-verbatim.
+package-lock.json
+next-env.d.ts
+
+# Hand-authored SQL. Prettier has no SQL parser; listing it here documents that
+# it is deliberately out of scope rather than accidentally unformatted.
+db/
+owner-needed-stuff/
+
+# Prose. Prettier's markdown printer reflows paragraphs and renumbers lists,
+# which would rewrite the remediation ledger and the audit into an unreviewable
+# diff. Docs are governed by review, not by a formatter.
+*.md
+docs/

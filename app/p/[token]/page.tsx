@@ -1,110 +1,297 @@
 import { createClient } from "@/lib/supabase/server";
 import { getLocale } from "@/lib/locale-server";
-import { t } from "@/lib/i18n";
+import { t, type Locale } from "@/lib/i18n";
 import { money } from "@/lib/format";
 import SignApprove from "@/components/SignApprove";
 import PrintButton from "@/components/PrintButton";
 import { providers } from "@/lib/providers";
 import CustomerPaymentOptions from "@/components/CustomerPaymentOptions";
-import type { PublicPaymentOptions } from "@/lib/payments/types";
+import OptionChooser from "./OptionChooser";
+import type { PublicPaymentOptions, PublicTipOptions } from "@/lib/payments/types";
 // @ts-ignore
 import { computeDocument, lineSubtotalMinor } from "@/lib/core/money.mjs";
 
 export const dynamic = "force-dynamic";
 
 function shade(hex: string, pct: number) {
-  const h = /^#?([0-9a-f]{6})$/i.exec(hex || ""); if (!h) return hex || "#0f2a5e";
-  const n = parseInt(h[1], 16); let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-  r = Math.round(r * (1 - pct)); g = Math.round(g * (1 - pct)); b = Math.round(b * (1 - pct));
+  const h = /^#?([0-9a-f]{6})$/i.exec(hex || "");
+  if (!h) return hex || "#0f2a5e";
+  const n = parseInt(h[1], 16);
+  let r = (n >> 16) & 255,
+    g = (n >> 8) & 255,
+    b = n & 255;
+  r = Math.round(r * (1 - pct));
+  g = Math.round(g * (1 - pct));
+  b = Math.round(b * (1 - pct));
   return `rgb(${r},${g},${b})`;
+}
+
+/**
+ * The small label that sits above a value ("PREPARED FOR", "AMOUNT DUE").
+ * Upper-casing and letter-spacing are English typographic devices — Hebrew has
+ * no letter case and letter-spacing only damages it — so both are dropped for
+ * `he`. The size is the 0.875rem readable floor, never smaller.
+ */
+function eyebrow(locale: Locale): React.CSSProperties {
+  return {
+    fontSize: "0.875rem",
+    color: "#55647a",
+    fontWeight: 800,
+    letterSpacing: locale === "en" ? 0.6 : 0,
+    textTransform: locale === "en" ? "uppercase" : "none",
+  };
 }
 
 export default async function PublicDocPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const locale = (await getLocale());
+  const locale = await getLocale();
   const supabase = await createClient();
-  const [{ data }, { data: paymentData }] = await Promise.all([
+  // Tip settings come from their own narrow RPC: payment_settings is
+  // owner/office-only (it holds the Zelle and cheque payout details), and this
+  // page is served to an anonymous customer.
+  const [{ data }, { data: paymentData }, { data: tipData }] = await Promise.all([
     supabase.rpc("public_document", { p_token: token }),
     supabase.rpc("public_payment_options", { p_token: token }),
+    supabase.rpc("public_tip_options", { p_token: token }),
   ]);
   const doc: any = data;
-  if (!doc) return <Center accent="#0f2a5e"><p style={{ color: "#55647a", fontSize: 15 }}>{t(locale, "public.invalid")}</p></Center>;
+  // An expired, voided or unknown token resolves to nothing here — the RPC is
+  // the authority — and the customer is told so rather than shown a document.
+  if (!doc)
+    return (
+      <Center accent="#0f2a5e">
+        <p style={{ color: "#55647a", fontSize: "0.9375rem" }}>{t(locale, "public.invalid")}</p>
+      </Center>
+    );
 
   const accent = doc.org?.accent_color || "#2563eb";
   const accentDark = shade(accent, 0.35);
   const cur = doc.currency ?? "USD";
   const items: any[] = doc.items ?? [];
-  const totals = computeDocument({ items: items.map((i) => ({ qtyMilli: i.qty_milli, unitPriceMinor: i.unit_price_minor, taxable: i.taxable })), discountMinor: doc.discount_minor, taxRateBps: doc.tax_rate_bps });
+  const totals = computeDocument({
+    items: items.map((i) => ({
+      qtyMilli: i.qty_milli,
+      unitPriceMinor: i.unit_price_minor,
+      taxable: i.taxable,
+    })),
+    discountMinor: doc.discount_minor,
+    taxRateBps: doc.tax_rate_bps,
+  });
   const title = doc.kind === "invoice" ? t(locale, "public.invoice") : t(locale, "public.estimate");
+  const bcp47 = locale === "he" ? "he-IL" : "en-US";
   const signed = !!doc.signed_at;
   const paymentOptions = paymentData as PublicPaymentOptions | null;
+  const tipOptions = tipData as PublicTipOptions | null;
   const hasNewPayments = !!paymentOptions?.methods;
-  const canPayOnline = !hasNewPayments && doc.kind === "invoice" && doc.status !== "paid" && providers.stripe();
+  const canPayOnline =
+    !hasNewPayments && doc.kind === "invoice" && doc.status !== "paid" && providers.stripe();
   const depositMinor = doc.deposit_minor ?? 0;
-  const canPayDeposit = !hasNewPayments && signed && doc.kind === "estimate" && depositMinor > 0 && providers.stripe();
+  const canPayDeposit =
+    !hasNewPayments && signed && doc.kind === "estimate" && depositMinor > 0 && providers.stripe();
   const isPaid = doc.status === "paid";
   const hasNonTaxable = items.some((i) => i.taxable === false);
-  const imgUrl = (path: string) => supabase.storage.from("item-photos").getPublicUrl(path).data.publicUrl;
-  const fmtD = (iso: string) => iso ? new Date(iso + "T00:00:00").toLocaleDateString(locale === "he" ? "he-IL" : "en-US", { year: "numeric", month: "short", day: "numeric" }) : "";
+  const imgUrl = (path: string) =>
+    supabase.storage.from("item-photos").getPublicUrl(path).data.publicUrl;
+  const fmtD = (iso: string) =>
+    iso
+      ? new Date(iso + "T00:00:00").toLocaleDateString(bcp47, {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        })
+      : "";
 
   return (
     <Center accent={accent}>
-      <div className="no-print" style={{ width: "100%", maxWidth: 680, marginBottom: 10, display: "flex", justifyContent: "flex-end" }}>
+      <div
+        className="no-print"
+        style={{
+          width: "100%",
+          maxWidth: 680,
+          marginBottom: 10,
+          display: "flex",
+          justifyContent: "flex-end",
+        }}
+      >
         <PrintButton label={t(locale, "public.save_pdf")} />
       </div>
-      <div className="print-card" style={{ background: "#fff", borderRadius: 20, boxShadow: "0 24px 70px rgba(15,42,94,.18)", overflow: "hidden", maxWidth: 680, width: "100%" }}>
+      <div
+        className="print-card"
+        style={{
+          background: "#fff",
+          borderRadius: 20,
+          boxShadow: "0 24px 70px rgba(15,42,94,.18)",
+          overflow: "hidden",
+          maxWidth: 680,
+          width: "100%",
+        }}
+      >
         {/* Header */}
-        <div style={{ background: `linear-gradient(135deg, ${accentDark}, ${accent})`, color: "#fff", padding: "28px 30px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}>
+        <div
+          style={{
+            background: `linear-gradient(135deg, ${accentDark}, ${accent})`,
+            color: "#fff",
+            padding: "28px 30px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-start",
+              gap: 16,
+            }}
+          >
             <div style={{ display: "flex", gap: 14, alignItems: "center", minWidth: 0 }}>
-              <div style={{ width: 60, height: 60, borderRadius: 16, background: "rgba(255,255,255,.16)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, flexShrink: 0, overflow: "hidden" }}>
-                {doc.org?.logo_url ? <img src={doc.org.logo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : "❄️"}
+              <div
+                style={{
+                  width: 60,
+                  height: 60,
+                  borderRadius: 16,
+                  background: "rgba(255,255,255,.16)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "1.75rem",
+                  flexShrink: 0,
+                  overflow: "hidden",
+                }}
+              >
+                {doc.org?.logo_url ? (
+                  <img
+                    src={doc.org.logo_url}
+                    alt=""
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                ) : (
+                  "❄️"
+                )}
               </div>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 20, fontWeight: 800 }}>{doc.org?.name}</div>
-                {doc.org?.tagline && <div style={{ fontSize: 14, opacity: .85 }}>{doc.org.tagline}</div>}
-                <div style={{ fontSize: 14, opacity: .8, marginTop: 4 }}>
+                <div style={{ fontSize: "1.25rem", fontWeight: 800 }}>{doc.org?.name}</div>
+                {doc.org?.tagline && (
+                  <div style={{ fontSize: "0.875rem", opacity: 0.85 }}>{doc.org.tagline}</div>
+                )}
+                <div style={{ fontSize: "0.875rem", opacity: 0.8, marginTop: 4 }}>
                   {[doc.org?.phone, doc.org?.email].filter(Boolean).join(" · ")}
                 </div>
               </div>
             </div>
             <div style={{ textAlign: "end", flexShrink: 0 }}>
-              <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: locale === "en" ? .5 : 0, textTransform: locale === "en" ? "uppercase" : "none" }}>{title}</div>
-              <div style={{ fontSize: 14, opacity: .9 }}>#{doc.number}</div>
-              {doc.issue_date && <div style={{ fontSize: 14, opacity: .8, marginTop: 2 }}>{fmtD(doc.issue_date)}</div>}
+              {/* Upper-casing is an English typographic device; Hebrew has no
+                  case, and letter-spacing only damages it. */}
+              <div
+                style={{
+                  fontSize: "1.625rem",
+                  fontWeight: 800,
+                  letterSpacing: locale === "en" ? 0.5 : 0,
+                  textTransform: locale === "en" ? "uppercase" : "none",
+                }}
+              >
+                {title}
+              </div>
+              <div style={{ fontSize: "0.875rem", opacity: 0.9 }}>#{doc.number}</div>
+              {doc.issue_date && (
+                <div style={{ fontSize: "0.875rem", opacity: 0.8, marginTop: 2 }}>
+                  {fmtD(doc.issue_date)}
+                </div>
+              )}
             </div>
           </div>
         </div>
 
         <div style={{ padding: "24px 30px" }}>
           {/* Bill to / addresses */}
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 20, flexWrap: "wrap", marginBottom: 20 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 20,
+              flexWrap: "wrap",
+              marginBottom: 20,
+            }}
+          >
             <div style={{ minWidth: 160 }}>
-              <div style={{ fontSize: 14, color: "#55647a", fontWeight: 800, letterSpacing: locale === "en" ? .6 : 0, textTransform: locale === "en" ? "uppercase" : "none" }}>{t(locale, "public.prepared_for")}</div>
-              <div style={{ fontSize: 17, fontWeight: 800, marginTop: 3 }}>{doc.customer?.name}</div>
-              {(doc.customer?.address || doc.customer?.city) && <div style={{ fontSize: 14, color: "#5c6675" }}>{[doc.customer.address, doc.customer.city].filter(Boolean).join(", ")}</div>}
-              {doc.customer?.phone && <div style={{ fontSize: 14, color: "#55647a" }}><bdi dir="ltr">{doc.customer.phone}</bdi></div>}
-              {doc.customer?.email && <div style={{ fontSize: 14, color: "#55647a" }}><bdi dir="ltr">{doc.customer.email}</bdi></div>}
+              <div style={eyebrow(locale)}>{t(locale, "public.prepared_for")}</div>
+              <div style={{ fontSize: "1.0625rem", fontWeight: 800, marginTop: 3 }}>
+                {doc.customer?.name}
+              </div>
+              {(doc.customer?.address || doc.customer?.city) && (
+                <div style={{ fontSize: "0.875rem", color: "#5c6675" }}>
+                  {[doc.customer.address, doc.customer.city].filter(Boolean).join(", ")}
+                </div>
+              )}
+              {/* A phone number or an address is read left-to-right even inside
+                  a right-to-left page. */}
+              {doc.customer?.phone && (
+                <div style={{ fontSize: "0.875rem", color: "#55647a" }}>
+                  <bdi dir="ltr">{doc.customer.phone}</bdi>
+                </div>
+              )}
+              {doc.customer?.email && (
+                <div style={{ fontSize: "0.875rem", color: "#55647a" }}>
+                  <bdi dir="ltr">{doc.customer.email}</bdi>
+                </div>
+              )}
             </div>
             <div style={{ textAlign: "end" }}>
-              <div style={{ fontSize: 14, color: "#55647a", fontWeight: 800, letterSpacing: locale === "en" ? .6 : 0, textTransform: locale === "en" ? "uppercase" : "none" }}>{doc.kind === "invoice" ? t(locale, "public.amount_due") : t(locale, "public.amount")}</div>
-              <div style={{ fontSize: 28, fontWeight: 800, color: accent }}>{money(totals.totalMinor, cur)}</div>
+              <div style={eyebrow(locale)}>
+                {doc.kind === "invoice"
+                  ? t(locale, "public.amount_due")
+                  : t(locale, "public.amount")}
+              </div>
+              <div style={{ fontSize: "1.75rem", fontWeight: 800, color: accent }}>
+                {money(totals.totalMinor, cur)}
+              </div>
             </div>
           </div>
 
           {/* Items */}
           <div style={{ borderTop: `2px solid ${accent}` }}>
             {items.map((it, i) => (
-              <div key={i} style={{ display: "flex", gap: 12, padding: "13px 0", borderBottom: "1px solid #f1f4f9" }}>
-                {it.image_path && <img src={imgUrl(it.image_path)} alt="" style={{ width: 52, height: 52, borderRadius: 10, objectFit: "cover", flexShrink: 0, border: "1px solid #e2e8f0" }} />}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14.5 }}>{it.title || it.description}</div>
-                  {it.description && it.description !== it.title && <div style={{ fontSize: 14, color: "#5c6675", marginTop: 2 }}>{it.description}</div>}
-                  <div style={{ fontSize: 14, color: "#9aa3b2", marginTop: 2 }}>
-                    {(it.qty_milli / 1000).toLocaleString(locale === "he" ? "he-IL" : "en-US")} × {money(it.unit_price_minor, cur)}{hasNonTaxable && it.taxable === false ? ` · ${t(locale, "public.no_tax")}` : ""}
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  padding: "13px 0",
+                  borderBottom: "1px solid #f1f4f9",
+                }}
+              >
+                {it.image_path && (
+                  <img
+                    src={imgUrl(it.image_path)}
+                    alt=""
+                    style={{
+                      width: 52,
+                      height: 52,
+                      borderRadius: 10,
+                      objectFit: "cover",
+                      flexShrink: 0,
+                      border: "1px solid #e2e8f0",
+                    }}
+                  />
+                )}
+                <div className="sp-flex-fill">
+                  <div style={{ fontWeight: 700, fontSize: "0.9375rem" }}>
+                    {it.title || it.description}
+                  </div>
+                  {it.description && it.description !== it.title && (
+                    <div style={{ fontSize: "0.875rem", color: "#5c6675", marginTop: 2 }}>
+                      {it.description}
+                    </div>
+                  )}
+                  <div style={{ fontSize: "0.875rem", color: "#9aa3b2", marginTop: 2 }}>
+                    {(it.qty_milli / 1000).toLocaleString(bcp47)} ×{" "}
+                    {money(it.unit_price_minor, cur)}
+                    {hasNonTaxable && it.taxable === false
+                      ? ` · ${t(locale, "public.no_tax")}`
+                      : ""}
                   </div>
                 </div>
-                <b style={{ whiteSpace: "nowrap", fontSize: 14.5 }}>{money(lineSubtotalMinor(it.qty_milli, it.unit_price_minor), cur)}</b>
+                <b style={{ whiteSpace: "nowrap", fontSize: "0.9375rem" }}>
+                  {money(lineSubtotalMinor(it.qty_milli, it.unit_price_minor), cur)}
+                </b>
               </div>
             ))}
           </div>
@@ -112,51 +299,216 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
           {/* Totals */}
           <div style={{ marginTop: 14, marginInlineStart: "auto", maxWidth: 280 }}>
             <Line label={t(locale, "doc.subtotal")} value={money(totals.subtotalMinor, cur)} />
-            {totals.discountMinor > 0 && <Line label={t(locale, "doc.discount")} value={"-" + money(totals.discountMinor, cur)} red />}
-            <Line label={`${doc.tax_label || t(locale, "doc.tax")} (${doc.tax_rate_bps / 100}%)`} value={money(totals.taxMinor, cur)} />
-            <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 12, marginTop: 8, borderTop: `2px solid ${accent}`, fontSize: 20, fontWeight: 800, color: accent }}>
-              <span>{t(locale, "doc.grand")}</span><span>{money(totals.totalMinor, cur)}</span>
+            {totals.discountMinor > 0 && (
+              <Line
+                label={t(locale, "doc.discount")}
+                value={"-" + money(totals.discountMinor, cur)}
+                red
+              />
+            )}
+            <Line
+              label={`${doc.tax_label || t(locale, "doc.tax")} (${doc.tax_rate_bps / 100}%)`}
+              value={money(totals.taxMinor, cur)}
+            />
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                paddingTop: 12,
+                marginTop: 8,
+                borderTop: `2px solid ${accent}`,
+                fontSize: "1.25rem",
+                fontWeight: 800,
+                color: accent,
+              }}
+            >
+              <span>{t(locale, "doc.grand")}</span>
+              <span>{money(totals.totalMinor, cur)}</span>
             </div>
           </div>
 
+          {/* 6c.4 — good / better / best. The chosen option's lines become the
+              estimate's lines, so the totals above and the invoice that follows
+              are the price the customer actually picked. */}
+          {doc.kind === "estimate" && (doc.options ?? []).length > 0 && (
+            <div className="no-print">
+              <OptionChooser
+                token={token}
+                options={doc.options ?? []}
+                selectedId={doc.selected_option_id ?? null}
+                currency={cur}
+                accent={accent}
+                locale={locale === "he" ? "he" : "en"}
+                discountMinor={doc.discount_minor ?? 0}
+                taxRateBps={doc.tax_rate_bps ?? 0}
+                estimateDeposit={depositMinor}
+                signed={signed}
+              />
+            </div>
+          )}
+
           {depositMinor > 0 && doc.kind === "estimate" && (
-            <div style={{ marginTop: 16, background: "#f8fafc", border: `1px solid ${accent}33`, borderRadius: 12, padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontWeight: 700, fontSize: 14 }}>{t(locale, "public.deposit_schedule")}</span>
-              <b style={{ fontSize: 16, color: accent }}>{money(depositMinor, cur)}</b>
+            <div
+              style={{
+                marginTop: 16,
+                background: "#f8fafc",
+                border: `1px solid ${accent}33`,
+                borderRadius: 12,
+                padding: "12px 14px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <span style={{ fontWeight: 700, fontSize: "0.875rem" }}>
+                {t(locale, "public.deposit_schedule")}
+              </span>
+              <b style={{ fontSize: "1rem", color: accent }}>{money(depositMinor, cur)}</b>
             </div>
           )}
           {canPayDeposit && (
-            <a href={`/api/pay/${token}?deposit=1`} style={{ display: "block", marginTop: 12, background: accent, color: "#fff", padding: "15px 16px", borderRadius: 12, fontWeight: 800, fontSize: 16, textAlign: "center", textDecoration: "none" }}>
+            <a
+              href={`/api/pay/${token}?deposit=1`}
+              style={{
+                display: "block",
+                marginTop: 12,
+                background: accent,
+                color: "#fff",
+                padding: "15px 16px",
+                borderRadius: 12,
+                fontWeight: 800,
+                fontSize: "1rem",
+                textAlign: "center",
+                textDecoration: "none",
+              }}
+            >
               💳 {t(locale, "public.pay_deposit", { amount: money(depositMinor, cur) })}
             </a>
           )}
           {isPaid && doc.kind === "invoice" && (
-            <div style={{ marginTop: 18, background: "#e6f6ec", color: "#126b35", padding: "14px 16px", borderRadius: 12, fontWeight: 800, textAlign: "center" }}>✓ {t(locale, "public.paid_thanks")}</div>
+            <div
+              style={{
+                marginTop: 18,
+                background: "#e6f6ec",
+                color: "#126b35",
+                padding: "14px 16px",
+                borderRadius: 12,
+                fontWeight: 800,
+                textAlign: "center",
+              }}
+            >
+              ✓ {t(locale, "public.paid_thanks")}
+            </div>
           )}
           {canPayOnline && (
-            <a href={`/api/pay/${token}`} style={{ display: "block", marginTop: 18, background: accent, color: "#fff", padding: "15px 16px", borderRadius: 12, fontWeight: 800, fontSize: 16, textAlign: "center", textDecoration: "none" }}>
+            <a
+              href={`/api/pay/${token}`}
+              style={{
+                display: "block",
+                marginTop: 18,
+                background: accent,
+                color: "#fff",
+                padding: "15px 16px",
+                borderRadius: 12,
+                fontWeight: 800,
+                fontSize: "1rem",
+                textAlign: "center",
+                textDecoration: "none",
+              }}
+            >
               💳 {t(locale, "public.pay_now", { amount: money(totals.totalMinor, cur) })}
             </a>
           )}
 
-          {doc.notes && <div style={{ marginTop: 18, background: "#f8fafc", borderRadius: 12, padding: 14, fontSize: 14, color: "#475569" }}><b>{t(locale, "public.notes")}</b><br />{doc.notes}</div>}
-          {doc.org?.terms && <div style={{ marginTop: 12, padding: 14, border: "1px solid #d7e0ec", borderRadius: 12 }}><div style={{ fontSize: 14, color: "#55647a", fontWeight: 800, letterSpacing: locale === "en" ? .5 : 0, textTransform: locale === "en" ? "uppercase" : "none", marginBottom: 4 }}>{t(locale, "public.terms")}</div><div style={{ fontSize: 14, color: "#55647a", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{doc.org.terms}</div></div>}
+          {doc.notes && (
+            <div
+              style={{
+                marginTop: 18,
+                background: "#f8fafc",
+                borderRadius: 12,
+                padding: 14,
+                fontSize: "0.875rem",
+                color: "#475569",
+              }}
+            >
+              <b>{t(locale, "public.notes")}</b>
+              <br />
+              {doc.notes}
+            </div>
+          )}
+          {doc.org?.terms && (
+            <div
+              style={{ marginTop: 12, padding: 14, border: "1px solid #d7e0ec", borderRadius: 12 }}
+            >
+              <div
+                style={{
+                  ...eyebrow(locale),
+                  letterSpacing: locale === "en" ? 0.5 : 0,
+                  marginBottom: 4,
+                }}
+              >
+                {t(locale, "public.terms")}
+              </div>
+              <div
+                style={{
+                  fontSize: "0.875rem",
+                  color: "#55647a",
+                  lineHeight: 1.6,
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {doc.org.terms}
+              </div>
+            </div>
+          )}
 
           {/* Sign / approve */}
           <div style={{ marginTop: 22 }}>
             {signed ? (
-              <div style={{ background: "#e6f6ec", color: "#15803d", padding: "14px 16px", borderRadius: 12, fontWeight: 700 }}>
-                ✓ {t(locale, "doc.approved")} — {doc.signer_name} · {new Date(doc.signed_at).toLocaleDateString(locale === "he" ? "he-IL" : "en-US")}
+              // Already signed: the approval record is shown and the pad is not
+              // rendered at all, so a document cannot be signed twice from here.
+              <div
+                style={{
+                  background: "#e6f6ec",
+                  color: "#15803d",
+                  padding: "14px 16px",
+                  borderRadius: 12,
+                  fontWeight: 700,
+                }}
+              >
+                ✓ {t(locale, "doc.approved")} — {doc.signer_name} ·{" "}
+                {new Date(doc.signed_at).toLocaleDateString(bcp47)}
               </div>
             ) : (
-              <div className="no-print"><SignApprove token={token} locale={locale} /></div>
+              <div className="no-print">
+                <SignApprove token={token} locale={locale} />
+              </div>
             )}
           </div>
-          {paymentOptions && <div className="no-print" style={{ marginTop: 18 }}><CustomerPaymentOptions token={token} locale={locale} options={paymentOptions} accent={accent} /></div>}
+          {paymentOptions && (
+            <div className="no-print" style={{ marginTop: 18 }}>
+              <CustomerPaymentOptions
+                token={token}
+                locale={locale}
+                options={paymentOptions}
+                accent={accent}
+                tips={tipOptions}
+              />
+            </div>
+          )}
         </div>
 
         {/* Footer */}
-        <div style={{ background: "#f8fafc", borderTop: "1px solid #eef1f6", padding: "14px 30px", textAlign: "center", fontSize: 14, color: "#94a3b8" }}>
+        <div
+          style={{
+            background: "#f8fafc",
+            borderTop: "1px solid #eef1f6",
+            padding: "14px 30px",
+            textAlign: "center",
+            fontSize: "0.875rem",
+            color: "#94a3b8",
+          }}
+        >
           {doc.org?.footer || `${doc.org?.name} · ${t(locale, "public.footer")}`}
         </div>
       </div>
@@ -165,8 +517,41 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
 }
 
 function Center({ children, accent }: { children: React.ReactNode; accent: string }) {
-  return <div className="public-document-page" style={{ borderTopColor: accent }}>{children}</div>;
+  // Kept as inline style rather than a `.public-document-page` class: this page
+  // is served to an anonymous customer and must render correctly on its own,
+  // without depending on a stylesheet class landing alongside it.
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#eef3fb",
+        color: "#101a2e",
+        colorScheme: "light",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "flex-start",
+        padding: "20px 14px",
+        borderTop: `5px solid ${accent}`,
+      }}
+    >
+      {children}
+    </div>
+  );
 }
 function Line({ label, value, red }: { label: string; value: string; red?: boolean }) {
-  return <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 14, color: red ? "#dc2626" : "#334155" }}><span>{label}</span><b>{value}</b></div>;
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        padding: "5px 0",
+        fontSize: "0.875rem",
+        color: red ? "#dc2626" : "#334155",
+      }}
+    >
+      <span>{label}</span>
+      <b>{value}</b>
+    </div>
+  );
 }

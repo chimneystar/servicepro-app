@@ -6,10 +6,16 @@ import { requireProfile, assertRole } from "@/lib/auth";
 
 export type ImportResult = { ok: boolean; inserted: number; error?: string };
 
-export async function bulkImportCustomers(rows: { name: string; phone?: string; email?: string; city?: string }[]): Promise<ImportResult> {
+export async function bulkImportCustomers(
+  rows: { name: string; phone?: string; email?: string; city?: string }[],
+): Promise<ImportResult> {
   let profile;
-  try { profile = await requireProfile(); assertRole(profile, ["owner", "office"]); }
-  catch { return { ok: false, inserted: 0, error: "forbidden" }; }
+  try {
+    profile = await requireProfile();
+    assertRole(profile, ["owner", "office"]);
+  } catch {
+    return { ok: false, inserted: 0, error: "forbidden" };
+  }
 
   const clean = (rows ?? [])
     .filter((r) => r && typeof r.name === "string" && r.name.trim())
@@ -23,7 +29,8 @@ export async function bulkImportCustomers(rows: { name: string; phone?: string; 
       city: (r.city ?? "").trim().slice(0, 80) || null,
     }));
 
-  if (!clean.length) return { ok: false, inserted: 0, error: "No valid rows found (need at least a name)." };
+  if (!clean.length)
+    return { ok: false, inserted: 0, error: "No valid rows found (need at least a name)." };
 
   const supabase = await createClient();
   // insert in chunks to stay well within limits

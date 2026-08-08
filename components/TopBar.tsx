@@ -21,12 +21,29 @@ export default function TopBar({ canManage, locale }: { canManage: boolean; loca
     <div className="topbar">
       <form onSubmit={submit} className="top-search" role="search">
         <AppIcon name="search" />
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={he ? "חיפוש לקוח, עבודה, חשבונית או הצעת מחיר…" : "Search customers, jobs, invoices or estimates…"} aria-label={he ? "חיפוש" : "Search"} />
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder={
+            he
+              ? "חיפוש לקוח, עבודה, חשבונית או הצעת מחיר…"
+              : "Search customers, jobs, invoices or estimates…"
+          }
+          aria-label={he ? "חיפוש" : "Search"}
+        />
       </form>
       <div className="top-actions">
         {canManage && <QuickCreate locale={locale} />}
-        {canManage && <Link href="/messages" title={he ? "הודעות" : "Messages"} className="top-icon"><AppIcon name="messages" /></Link>}
-        {canManage && <Link href="/settings" title={he ? "הגדרות" : "Settings"} className="top-icon"><AppIcon name="settings" /></Link>}
+        {canManage && (
+          <Link href="/messages" title={he ? "הודעות" : "Messages"} className="top-icon">
+            <AppIcon name="messages" />
+          </Link>
+        )}
+        {canManage && (
+          <Link href="/settings" title={he ? "הגדרות" : "Settings"} className="top-icon">
+            <AppIcon name="settings" />
+          </Link>
+        )}
       </div>
     </div>
   );

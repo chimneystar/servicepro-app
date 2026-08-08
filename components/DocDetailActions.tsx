@@ -1,55 +1,254 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ShareDoc, { type ShareTarget } from "@/components/ShareDoc";
 import { t, type Locale } from "@/lib/i18n";
-import { duplicateEstimate, deleteEstimate, setEstimateStatus, convertEstimateToInvoice } from "@/app/(app)/estimates/actions";
-import { duplicateInvoice, deleteInvoice, setInvoicePaid } from "@/app/(app)/invoices/actions";
+import {
+  duplicateEstimate,
+  deleteEstimate,
+  setEstimateStatus,
+  convertEstimateToInvoice,
+  markEstimateSent,
+} from "@/app/(app)/estimates/actions";
+import {
+  duplicateInvoice,
+  deleteInvoice,
+  setInvoicePaid,
+  markInvoiceSent,
+} from "@/app/(app)/invoices/actions";
+import { ActionError, useActionStatus } from "@/components/ActionStatus";
 
-export default function DocDetailActions({ kind, id, token, status, number, customerName, customerEmail, customerPhone, orgName, locale }: {
-  kind: "estimate" | "invoice"; id: string; token: string; status: string; number: number;
-  customerName: string; customerEmail: string | null; customerPhone: string | null; orgName: string; locale: Locale;
+export default function DocDetailActions({
+  kind,
+  id,
+  token,
+  status,
+  number,
+  locked = false,
+  voided = false,
+  customerName,
+  customerEmail,
+  customerPhone,
+  orgName,
+  locale,
+}: {
+  kind: "estimate" | "invoice";
+  id: string;
+  token: string;
+  status: string;
+  number: number;
+  locked?: boolean;
+  voided?: boolean;
+  customerName: string;
+  customerEmail: string | null;
+  customerPhone: string | null;
+  orgName: string;
+  locale: Locale;
 }) {
   const router = useRouter();
-  const [pending, start] = useTransition();
+  // Every one of these buttons used to fail silently: the transition ended and
+  // the page simply did not change. Duplicate, delete, convert and mark-paid
+  // are all irreversible-looking operations on money documents.
+  // The failure banner speaks the reader's language: the same locale that
+  // labels the buttons picks the Hebrew or English refusal message.
+  const { pending, error, run } = useActionStatus(locale === "he");
   const [share, setShare] = useState<ShareTarget | null>(null);
   const [copied, setCopied] = useState(false);
   const base = kind === "estimate" ? "/estimates" : "/invoices";
 
-  function copyLink() { navigator.clipboard?.writeText(`${window.location.origin}/p/${token}`).catch(() => {}); setCopied(true); setTimeout(() => setCopied(false), 1600); }
-  function dup() { start(async () => { const r: any = kind === "estimate" ? await duplicateEstimate(id) : await duplicateInvoice(id); if (r.ok && r.newId) router.push(`${base}/${r.newId}`); }); }
-  function del() { if (!confirm(t(locale, `doc.delete_${kind}_confirm`))) return; start(async () => { const r = kind === "estimate" ? await deleteEstimate(id) : await deleteInvoice(id); if (r.ok) router.push(base); }); }
-  function estStatus(s: string) { start(async () => { await setEstimateStatus(id, s); router.refresh(); }); }
-  function convert() { start(async () => { const r = await convertEstimateToInvoice(id); if (r.ok) router.push("/invoices"); }); }
-  function togglePaid(paid: boolean) { start(async () => { await setInvoicePaid(id, paid); router.refresh(); }); }
+  /**
+   * Ledger 6a.5 — the product tracked "sent" nowhere, so an invoice could be
+   * repriced after the customer had it and nothing recorded that it had
+   * changed. Putting the public link in front of the customer — by copying it
+   * or by opening the Send dialog — is the moment the figures leave the
+   * building, so that is where sent_at is stamped. From then on the amounts are
+   * locked and a correction is a credit note, a void or (for an estimate) a
+   * recorded reopen. Failure to stamp is deliberately not surfaced: it must
+   * never stop someone sending a document.
+   */
+  function recordSent() {
+    if (locked || voided) return;
+    (kind === "estimate" ? markEstimateSent(id) : markInvoiceSent(id))
+      .then(() => router.refresh())
+      .catch(() => {});
+  }
+  function copyLink() {
+    navigator.clipboard?.writeText(`${window.location.origin}/p/${token}`).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1600);
+    recordSent();
+  }
+  function openShare() {
+    setShare({ kind, number, token, customerName, customerEmail, customerPhone, orgName });
+    recordSent();
+  }
+  function dup() {
+    let newId: string | undefined;
+    run(
+      async () => {
+        const r = kind === "estimate" ? await duplicateEstimate(id) : await duplicateInvoice(id);
+        newId = r.newId;
+        return r;
+      },
+      () => {
+        if (newId) router.push(`${base}/${newId}`);
+        else router.refresh();
+      },
+    );
+  }
+  function del() {
+    if (!confirm(t(locale, `doc.delete_${kind}_confirm`))) return;
+    run(
+      () => (kind === "estimate" ? deleteEstimate(id) : deleteInvoice(id)),
+      () => router.push(base),
+    );
+  }
+  function estStatus(s: string) {
+    run(
+      () => setEstimateStatus(id, s),
+      () => router.refresh(),
+    );
+  }
+  function convert() {
+    run(
+      () => convertEstimateToInvoice(id),
+      () => router.push("/invoices"),
+    );
+  }
+  function togglePaid(paid: boolean) {
+    run(
+      () => setInvoicePaid(id, paid),
+      () => router.refresh(),
+    );
+  }
 
   return (
     <div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <Link href={`${base}/${id}/edit`} style={{ ...btn, background: "#2563eb", color: "#fff", textDecoration: "none" }}>✏️ {t(locale, "doc.edit")}</Link>
-        <button onClick={() => setShare({ kind, number, token, customerName, customerEmail, customerPhone, orgName })} style={{ ...btn, background: "#e0ebff", color: "#2563eb" }}>📤 {t(locale, "doc.send")}</button>
-        <button onClick={copyLink} style={btn}>{copied ? `✓ ${t(locale, "share.copied")}` : `🔗 ${t(locale, "doc.link")}`}</button>
-        <button onClick={dup} disabled={pending} style={btn}>⧉ {t(locale, "doc.duplicate")}</button>
-        {kind === "estimate" && status !== "approved" && <button onClick={convert} disabled={pending} style={{ ...btn, background: "#fff6d5", color: "#705500" }}>🧾 {t(locale, "doc.convert_invoice")}</button>}
-        {kind === "invoice" && status !== "paid" && <button onClick={() => togglePaid(true)} disabled={pending} style={{ ...btn, background: "#e6f6ec", color: "#15803d" }}>✓ {t(locale, "doc.mark_paid")}</button>}
-        {kind === "invoice" && status === "paid" && <button onClick={() => togglePaid(false)} disabled={pending} style={btn}>↩ {t(locale, "doc.mark_due")}</button>}
-        <button onClick={del} disabled={pending} style={{ ...btn, background: "#fdeaea", color: "#dc2626" }}>🗑️ {t(locale, "doc.delete")}</button>
+        {/* Editing a locked document is refused by the action AND by a database
+            trigger. Showing the button anyway would just walk the user into a
+            refusal, so it is replaced by the reason. */}
+        {!locked && (
+          <Link
+            href={`${base}/${id}/edit`}
+            style={{ ...btn, background: "#2563eb", color: "#fff", textDecoration: "none" }}
+          >
+            <span aria-hidden="true">✏️</span> {t(locale, "doc.edit")}
+          </Link>
+        )}
+        {locked && !voided && (
+          <span style={{ ...btn, background: "#fdf1dc", color: "#7c4a03", cursor: "default" }}>
+            {/* No dictionary key exists for this state yet; it stays English in
+                both locales until one is added to lib/i18n.ts. */}
+            <span aria-hidden="true">🔒</span> Amounts locked
+          </span>
+        )}
+        {!voided && (
+          <button
+            type="button"
+            onClick={openShare}
+            style={{ ...btn, background: "#e0ebff", color: "#2563eb" }}
+          >
+            <span aria-hidden="true">📤</span> {t(locale, "doc.send")}
+          </button>
+        )}
+        {!voided && (
+          <button type="button" onClick={copyLink} style={btn}>
+            {copied ? (
+              <>
+                <span aria-hidden="true">✓</span> {t(locale, "share.copied")}
+              </>
+            ) : (
+              <>
+                <span aria-hidden="true">🔗</span> {t(locale, "doc.link")}
+              </>
+            )}
+          </button>
+        )}
+        <button type="button" onClick={dup} disabled={pending} style={btn}>
+          <span aria-hidden="true">⧉</span> {t(locale, "doc.duplicate")}
+        </button>
+        {kind === "estimate" && status !== "approved" && !voided && (
+          <button
+            type="button"
+            onClick={convert}
+            disabled={pending}
+            style={{ ...btn, background: "#fff6d5", color: "#705500" }}
+          >
+            <span aria-hidden="true">🧾</span> {t(locale, "doc.convert_invoice")}
+          </button>
+        )}
+        {kind === "invoice" && status !== "paid" && !voided && (
+          <button
+            type="button"
+            onClick={() => togglePaid(true)}
+            disabled={pending}
+            style={{ ...btn, background: "#e6f6ec", color: "#15803d" }}
+          >
+            <span aria-hidden="true">✓</span> {t(locale, "doc.mark_paid")}
+          </button>
+        )}
+        {kind === "invoice" && status === "paid" && (
+          <button type="button" onClick={() => togglePaid(false)} disabled={pending} style={btn}>
+            <span aria-hidden="true">↩</span> {t(locale, "doc.mark_due")}
+          </button>
+        )}
+        {!locked && (
+          <button
+            type="button"
+            onClick={del}
+            disabled={pending}
+            style={{ ...btn, background: "#fdeaea", color: "#dc2626" }}
+          >
+            <span aria-hidden="true">🗑️</span> {t(locale, "doc.delete")}
+          </button>
+        )}
       </div>
 
-      {kind === "estimate" && (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
-          <span style={{ fontSize: 14, color: "#5c6675", fontWeight: 700 }}>{t(locale, "doc.status")}:</span>
-          <select value={status} onChange={(e) => estStatus(e.target.value)} disabled={pending} style={{ minHeight: 44, border: "1px solid #e2e8f0", borderRadius: 9, padding: "7px 10px", fontSize: 14, fontWeight: 600, background: "#fff" }}>
-            <option value="draft">{t(locale, "dst.draft")}</option><option value="sent">{t(locale, "dst.sent")}</option><option value="approved">{t(locale, "dst.approved")}</option><option value="rejected">{t(locale, "dst.rejected")}</option>
+      {kind === "estimate" && !voided && (
+        <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+          <span style={{ fontSize: "0.875rem", color: "#5c6675", fontWeight: 700 }}>
+            {t(locale, "doc.status")}:
+          </span>
+          <select
+            value={status}
+            onChange={(e) => estStatus(e.target.value)}
+            disabled={pending}
+            style={{
+              minHeight: 44,
+              border: "1px solid #e2e8f0",
+              borderRadius: 9,
+              padding: "7px 10px",
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              background: "#fff",
+            }}
+          >
+            <option value="draft">{t(locale, "dst.draft")}</option>
+            <option value="sent">{t(locale, "dst.sent")}</option>
+            <option value="approved">{t(locale, "dst.approved")}</option>
+            <option value="rejected">{t(locale, "dst.rejected")}</option>
           </select>
-        </div>
+        </label>
       )}
+
+      <ActionError error={error} />
 
       {share && <ShareDoc target={share} locale={locale} onClose={() => setShare(null)} />}
     </div>
   );
 }
 
-const btn: React.CSSProperties = { minHeight: 44, background: "#eef2f8", color: "#2563eb", border: "none", borderRadius: 9, padding: "9px 13px", fontWeight: 700, fontSize: 14, cursor: "pointer" };
+const btn: React.CSSProperties = {
+  minHeight: 44,
+  background: "#eef2f8",
+  color: "#2563eb",
+  border: "none",
+  borderRadius: 9,
+  padding: "9px 13px",
+  fontWeight: 700,
+  fontSize: "0.875rem",
+  cursor: "pointer",
+};

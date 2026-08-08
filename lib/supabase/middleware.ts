@@ -19,16 +19,14 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet: CookieToSet[]) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           response = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
+            response.cookies.set(name, value, options),
           );
         },
       },
-    }
+    },
   );
 
   const {
@@ -42,10 +40,11 @@ export async function updateSession(request: NextRequest) {
     path.startsWith("/forgot-password") ||
     path.startsWith("/reset-password") ||
     path.startsWith("/auth") ||
-    path.startsWith("/p/") ||        // public client document links (view / sign)
-    path.startsWith("/book/") ||     // public online-booking request page
-    path.startsWith("/portal/") ||   // public customer portal (magic link)
-    path.startsWith("/api/") ||      // payment webhooks / pay redirect
+    path.startsWith("/p/") || // public client document links (view / sign)
+    path.startsWith("/book/") || // public online-booking request page
+    path.startsWith("/portal/") || // public customer portal (magic link)
+    path === "/join" || // invitation link: parks the token, grants nothing
+    path.startsWith("/api/") || // payment webhooks / pay redirect
     path === "/offline" ||
     path === "/sw.js" ||
     path.startsWith("/_next") ||

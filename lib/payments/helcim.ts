@@ -55,7 +55,8 @@ export async function initializeHelcimCheckout(opts: {
     body: JSON.stringify(body),
     cache: "no-store",
   });
-  const data = await response.json().catch(() => null) as Partial<HelcimCheckoutTokens> & { errors?: unknown } | null;
+  const data = (await response.json().catch(() => null)) as
+    (Partial<HelcimCheckoutTokens> & { errors?: unknown }) | null;
   if (!response.ok || !data?.checkoutToken || !data.secretToken) {
     throw new Error(`Helcim checkout initialization failed (${response.status})`);
   }
@@ -71,8 +72,15 @@ export function helcimRegistrationUrl(connectedAccountId: string): string | null
   return url.toString();
 }
 
-export async function getHelcimTransaction(apiToken: string, transactionId: string, method: "card" | "ach") {
-  const path = method === "ach" ? `/ach/transactions/${encodeURIComponent(transactionId)}` : `/card-transactions/${encodeURIComponent(transactionId)}`;
+export async function getHelcimTransaction(
+  apiToken: string,
+  transactionId: string,
+  method: "card" | "ach",
+) {
+  const path =
+    method === "ach"
+      ? `/ach/transactions/${encodeURIComponent(transactionId)}`
+      : `/card-transactions/${encodeURIComponent(transactionId)}`;
   const response = await fetch(`${HELCIM_API}${path}`, {
     headers: { accept: "application/json", "api-token": apiToken },
     cache: "no-store",
@@ -82,14 +90,22 @@ export async function getHelcimTransaction(apiToken: string, transactionId: stri
 }
 
 function unicodeEscapedJson(value: unknown): string {
-  return JSON.stringify(value).replace(/[\u007f-\uffff]/g, (character) =>
-    `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`
+  return JSON.stringify(value).replace(
+    /[\u007f-\uffff]/g,
+    (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, "0")}`,
   );
 }
 
-export function verifyHelcimPaymentHash(data: unknown, secretToken: string, providedHash: string): boolean {
+export function verifyHelcimPaymentHash(
+  data: unknown,
+  secretToken: string,
+  providedHash: string,
+): boolean {
   if (!providedHash || !secretToken) return false;
-  const expected = crypto.createHash("sha256").update(unicodeEscapedJson(data) + secretToken).digest("hex");
+  const expected = crypto
+    .createHash("sha256")
+    .update(unicodeEscapedJson(data) + secretToken)
+    .digest("hex");
   try {
     return crypto.timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(providedHash, "hex"));
   } catch {
@@ -106,20 +122,27 @@ export function verifyHelcimWebhook(opts: {
 }): boolean {
   if (!opts.webhookId || !opts.timestamp || !opts.signature || !opts.verifierToken) return false;
   const timestampMs = Number(opts.timestamp) * 1000;
-  if (!Number.isFinite(timestampMs) || Math.abs(Date.now() - timestampMs) > 5 * 60 * 1000) return false;
+  if (!Number.isFinite(timestampMs) || Math.abs(Date.now() - timestampMs) > 5 * 60 * 1000)
+    return false;
   const signedContent = `${opts.webhookId}.${opts.timestamp}.${opts.rawBody}`;
   const key = Buffer.from(opts.verifierToken.replace(/^whsec_/, ""), "base64");
   if (key.length === 0) return false;
   const expected = crypto.createHmac("sha256", key).update(signedContent).digest("base64");
   return opts.signature.split(/\s+/).some((signature) => {
     const provided = signature.replace(/^v1,/, "");
-    try { return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(provided)); }
-    catch { return false; }
+    try {
+      return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(provided));
+    } catch {
+      return false;
+    }
   });
 }
 
 export function normalizeHelcimTransaction(data: HelcimTransactionData) {
-  return normalizeTransaction(data) as { method: "card" | "ach"; status: "settled" | "processing" | "failed" };
+  return normalizeTransaction(data) as {
+    method: "card" | "ach";
+    status: "settled" | "processing" | "failed";
+  };
 }
 
 export function safeHelcimTransaction(data: HelcimTransactionData) {

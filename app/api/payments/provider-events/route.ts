@@ -8,7 +8,8 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   const verifierToken = process.env.HELCIM_PAYMENT_WEBHOOK_VERIFIER;
-  if (!verifierToken) return NextResponse.json({ ok: false, reason: "not configured" }, { status: 503 });
+  if (!verifierToken)
+    return NextResponse.json({ ok: false, reason: "not configured" }, { status: 503 });
   const rawBody = await request.text();
   const webhookId = request.headers.get("webhook-id");
   const valid = verifyHelcimWebhook({
@@ -18,16 +19,31 @@ export async function POST(request: NextRequest) {
     signature: request.headers.get("webhook-signature"),
     verifierToken,
   });
-  if (!valid) return NextResponse.json({ ok: false, reason: "bad signature" }, { status: 400 });
+  // `|| !webhookId` is a no-op at runtime: verifyHelcimWebhook returns false
+  // when the header is missing, so this branch was already taken. Stating it
+  // here is what lets the compiler see that `provider_event_id` — NOT NULL in
+  // `payment_events` — cannot be null below, and removes the two `!` the
+  // insert and the duplicate check needed.
+  if (!valid || !webhookId)
+    return NextResponse.json({ ok: false, reason: "bad signature" }, { status: 400 });
 
   let body: { id?: unknown; type?: unknown };
-  try { body = JSON.parse(rawBody); } catch { return NextResponse.json({ ok: false, reason: "invalid json" }, { status: 400 }); }
-  const transactionId = typeof body.id === "string" || typeof body.id === "number" ? String(body.id) : "";
+  try {
+    body = JSON.parse(rawBody);
+  } catch {
+    return NextResponse.json({ ok: false, reason: "invalid json" }, { status: 400 });
+  }
+  const transactionId =
+    typeof body.id === "string" || typeof body.id === "number" ? String(body.id) : "";
   if (!transactionId) return NextResponse.json({ ok: true, ignored: true });
 
   const admin = createAdminClient();
-  const { data: duplicate } = await admin.from("payment_events").select("id")
-    .eq("provider", "helcim").eq("provider_event_id", webhookId!).maybeSingle();
+  const { data: duplicate } = await admin
+    .from("payment_events")
+    .select("id")
+    .eq("provider", "helcim")
+    .eq("provider_event_id", webhookId)
+    .maybeSingle();
   if (duplicate) return NextResponse.json({ ok: true, duplicate: true });
 
   try {

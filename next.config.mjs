@@ -1,5 +1,71 @@
 /** @type {import('next').NextConfig} */
+
+// Security response headers. This app serves card-payment and e-signature pages,
+// so it must not be framable and must not silently allow injected script hosts.
+//
+// CSP notes:
+//  - 'unsafe-inline' on style-src is required: the app uses inline style={{}}
+//    objects extensively. Removing it is Phase 7 work (design-system extraction).
+//  - 'unsafe-inline'/'unsafe-eval' on script-src are required by the Next.js
+//    dev overlay and by HelcimPay.js, which injects its checkout iframe.
+//  - connect-src must include the Supabase project host; it is derived from the
+//    public env var so it stays correct across environments.
+//  - style-src/font-src must name the Google Fonts origins, because
+//    `app/layout.tsx` loads Heebo and Rubik from them. THIS WAS A LIVE DEFECT
+//    from the day these headers shipped until 2026-08-01: the stylesheet was
+//    blocked by style-src and the font files by font-src, so every page in
+//    production silently fell back to system fonts — including the Hebrew UI,
+//    whose face is Heebo. No test could see it, because the assertions on this
+//    file read the header STRING and a header that blocks your own fonts is a
+//    perfectly well-formed header. It took a browser actually loading a page.
+//    The two origins are named exactly; `https:` is deliberately NOT used.
+//    Self-hosting these through `next/font` would let both entries go away and
+//    would stop leaking a visitor's IP to Google — recommended, but it touches
+//    the typography A1/A2 just rebuilt, so it is a follow-up, not a hotfix.
+const supabaseOrigin = (() => {
+  try {
+    return process.env.NEXT_PUBLIC_SUPABASE_URL
+      ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).origin
+      : "";
+  } catch {
+    return "";
+  }
+})();
+
+const csp = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://secure.helcim.app",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  `connect-src 'self' ${supabaseOrigin} https://api.helcim.com https://secure.helcim.app`.trim(),
+  "frame-src 'self' https://secure.helcim.app https://js.stripe.com https://checkout.stripe.com",
+  "upgrade-insecure-requests",
+].join("; ");
+
+const securityHeaders = [
+  { key: "Content-Security-Policy", value: csp },
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(self), microphone=(), geolocation=(self), payment=(self)",
+  },
+  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+];
+
 const nextConfig = {
   reactStrictMode: true,
+  poweredByHeader: false,
+  async headers() {
+    return [{ source: "/:path*", headers: securityHeaders }];
+  },
 };
+
 export default nextConfig;

@@ -6,19 +6,33 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint .",
+    "lint": "eslint . && npm run format:check",
     "typecheck": "tsc --noEmit",
-    "test:features": "node --test tests/feature-preservation.test.mjs tests/booking.test.mjs tests/calls.test.mjs"
+    "test": "node --test tests/",
+    "test:features": "node --test tests/feature-preservation.test.mjs tests/booking.test.mjs tests/calls.test.mjs",
+    "test:e2e": "playwright test",
+    "db:plan": "node scripts/db-migrate.mjs plan",
+    "db:status": "node scripts/db-migrate.mjs status",
+    "db:migrate": "node scripts/db-migrate.mjs up",
+    "db:docs": "node scripts/db-docs.mjs",
+    "verify": "npm run typecheck && npm run lint && npm test",
+    "db:schema": "node scripts/db-schema.mjs",
+    "db:types": "node scripts/db-types.mjs",
+    "count:any": "node scripts/count-any.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prove:probes": "node scripts/prove-probes-red.mjs"
   },
   "dependencies": {
-    "@supabase/ssr": "^0.5.2",
-    "@supabase/supabase-js": "^2.45.4",
+    "@supabase/ssr": "^0.12.4",
+    "@supabase/supabase-js": "^2.111.0",
     "next": "^16.2.12",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.4",
     "@playwright/test": "^1.62.0",
     "@types/node": "^20.14.10",
     "@types/react": "^19.2.17",
@@ -26,8 +40,10 @@
     "autoprefixer": "^10.4.20",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.2.12",
+    "eslint-config-prettier": "^9.1.2",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
     "postcss": "^8.5.18",
-    "tailwindcss": "^3.4.13",
+    "prettier": "^3.9.6",
     "typescript": "^5.5.4"
   }
 }

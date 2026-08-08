@@ -6,72 +6,184 @@ import { money } from "@/lib/format";
 import DocForm from "@/components/DocForm";
 import { createInvoice } from "./actions";
 import DocList from "@/components/DocList";
+import InvoiceBulkBar from "./InvoiceBulkBar";
 import Link from "next/link";
+import { listInvoicesForListPage } from "@/lib/data/documents-extra";
+import * as customersData from "@/lib/data/customers";
+import * as priceBookData from "@/lib/data/price-book";
 
 export const dynamic = "force-dynamic";
 
-export default async function InvoicesPage({ searchParams }: { searchParams: Promise<{ filter?: string; new?: string }> }) {
+export default async function InvoicesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ filter?: string; new?: string }>;
+}) {
   const search = await searchParams;
   const profile = await requireProfile();
-  const locale = (await getLocale());
+  const locale = await getLocale();
   const supabase = await createClient();
   const filter = search.filter ?? "all";
 
-  const [{ data: invoices }, { data: customers }, { data: org }, { data: catalog }] = await Promise.all([
-    supabase.from("invoices").select("id, number, status, total_minor, issue_date, public_token, customers(name, email, phone)").is("deleted_at", null).eq("archived", false).order("number", { ascending: false }),
-    supabase.from("customers").select("id, name").is("deleted_at", null).eq("archived", false).order("name"),
+  const [invoices, customers, { data: org }, catalog] = await Promise.all([
+    listInvoicesForListPage(supabase),
+    customersData.listPickable(supabase),
     supabase.from("organizations").select("currency, name").single(),
-    supabase.from("price_book").select("id, name, description, price_minor, cost_minor, taxable, image_path").order("name"),
+    // `PriceBookRow.cost_minor` is typed nullable in lib/data/price-book.ts even
+    // though the column is NOT NULL; coerced here to match `CatalogItem` without
+    // touching a file this migration doesn't own.
+    priceBookData.listForPicker(supabase),
   ]);
-  const custOpts = (customers ?? []).map((c) => ({ id: c.id, label: c.name }));
+  const custOpts = customers.map((c) => ({ id: c.id, label: c.name }));
   const cur = org?.currency ?? "USD";
-  const all = invoices ?? [];
+  const all = invoices;
 
-  // Due vs paid totals
-  const outstanding = all.filter((i) => i.status === "unpaid").reduce((s, i) => s + i.total_minor, 0);
-  const collected = all.filter((i) => i.status === "paid").reduce((s, i) => s + i.total_minor, 0);
-  const dueCount = all.filter((i) => i.status === "unpaid").length;
-  const paidCount = all.filter((i) => i.status === "paid").length;
+  // Due vs paid totals.
+  //
+  // Ledger 6a.1: a voided invoice is cancelled, so it owes nothing and earned
+  // nothing — counting it here would keep a withdrawn invoice in the
+  // receivables for ever. A credit note reduces what is still owed without
+  // touching the invoice, so it is netted off the same way.
+  const live = all.filter((i) => !i.voided_at);
+  const billed = (i: (typeof all)[number]) =>
+    Math.max(0, Number(i.total_minor ?? 0) - Number(i.credited_minor ?? 0));
+  const outstanding = live.filter((i) => i.status === "unpaid").reduce((s, i) => s + billed(i), 0);
+  const collected = live.filter((i) => i.status === "paid").reduce((s, i) => s + billed(i), 0);
+  const dueCount = live.filter((i) => i.status === "unpaid").length;
+  const paidCount = live.filter((i) => i.status === "paid").length;
 
-  const shown = filter === "unpaid" ? all.filter((i) => i.status === "unpaid")
-    : filter === "paid" ? all.filter((i) => i.status === "paid")
-    : all;
+  const shown =
+    filter === "unpaid"
+      ? live.filter((i) => i.status === "unpaid")
+      : filter === "paid"
+        ? live.filter((i) => i.status === "paid")
+        : all;
 
   const tab = (key: string, label: string) => (
-    <Link href={`/invoices?filter=${key}`} style={{ ...seg, ...(filter === key ? segOn : {}) }}>{label}</Link>
+    <Link href={`/invoices?filter=${key}`} style={{ ...seg, ...(filter === key ? segOn : {}) }}>
+      {label}
+    </Link>
   );
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 800 }}>{t(locale, "inv.title")}</h1>
-        <DocForm locale={locale} customers={custOpts} action={createInvoice} newKey="inv.new" catalog={catalog ?? []} orgId={profile.organization_id!} initialOpen={search.new === "1"} />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 16,
+        }}
+      >
+        <h1 className="sp-heading sp-heading--lg">{t(locale, "inv.title")}</h1>
+        <DocForm
+          locale={locale}
+          customers={custOpts}
+          action={createInvoice}
+          newKey="inv.new"
+          catalog={catalog}
+          orgId={profile.organization_id!}
+          initialOpen={search.new === "1"}
+        />
       </div>
 
       {/* Due vs paid summary */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
-        <div style={{ background: "#fdf1dc", border: "1px solid #f5d99b", borderRadius: 14, padding: "14px 16px" }}>
-          <div style={{ fontSize: 14, color: "#b45309", fontWeight: 700 }}>● Due (unpaid)</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: "#b45309" }}>{money(outstanding, cur)}</div>
-          <div style={{ fontSize: 14, color: "#b45309" }}>{dueCount} invoice{dueCount === 1 ? "" : "s"}</div>
+        <div
+          style={{
+            background: "#fdf1dc",
+            border: "1px solid #f5d99b",
+            borderRadius: 14,
+            padding: "14px 16px",
+          }}
+        >
+          <div style={{ fontSize: "0.875rem", color: "#b45309", fontWeight: 700 }}>
+            ● Due (unpaid)
+          </div>
+          <div style={{ fontSize: "1.375rem", fontWeight: 800, color: "#b45309" }}>
+            {money(outstanding, cur)}
+          </div>
+          <div style={{ fontSize: "0.875rem", color: "#b45309" }}>
+            {dueCount} invoice{dueCount === 1 ? "" : "s"}
+          </div>
         </div>
-        <div style={{ background: "#e6f6ec", border: "1px solid #b7e3c6", borderRadius: 14, padding: "14px 16px" }}>
-          <div style={{ fontSize: 14, color: "#15803d", fontWeight: 700 }}>✓ Paid</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: "#15803d" }}>{money(collected, cur)}</div>
-          <div style={{ fontSize: 14, color: "#15803d" }}>{paidCount} invoice{paidCount === 1 ? "" : "s"}</div>
+        <div
+          style={{
+            background: "#e6f6ec",
+            border: "1px solid #b7e3c6",
+            borderRadius: 14,
+            padding: "14px 16px",
+          }}
+        >
+          <div style={{ fontSize: "0.875rem", color: "#15803d", fontWeight: 700 }}>✓ Paid</div>
+          <div style={{ fontSize: "1.375rem", fontWeight: 800, color: "#15803d" }}>
+            {money(collected, cur)}
+          </div>
+          <div style={{ fontSize: "0.875rem", color: "#15803d" }}>
+            {paidCount} invoice{paidCount === 1 ? "" : "s"}
+          </div>
         </div>
       </div>
 
-      <div style={{ display: "inline-flex", background: "#eef2f8", borderRadius: 10, padding: 3, marginBottom: 14 }}>
-        {tab("all", `All (${all.length})`)}{tab("unpaid", `Due (${dueCount})`)}{tab("paid", `Paid (${paidCount})`)}
+      <div
+        style={{
+          display: "inline-flex",
+          background: "#eef2f8",
+          borderRadius: 10,
+          padding: 3,
+          marginBottom: 14,
+        }}
+      >
+        {tab("all", `All (${all.length})`)}
+        {tab("unpaid", `Due (${dueCount})`)}
+        {tab("paid", `Paid (${paidCount})`)}
       </div>
+
+      {/* Ledger 6c.10 — multi-select. Owner/office only, matching the actions'
+          own guard, so a technician is not shown buttons that would be refused. */}
+      {profile.role !== "tech" && shown.length > 0 && (
+        <InvoiceBulkBar
+          rows={shown.map((i) => ({
+            id: i.id,
+            label: `#${i.number} · ${i.customers?.name ?? "—"}`,
+          }))}
+        />
+      )}
 
       <DocList
-        rows={shown.map((e: any) => ({ id: e.id, number: e.number, status: e.status, total_minor: e.total_minor, issue_date: e.issue_date, public_token: e.public_token, customer_name: e.customers?.name ?? "—", customer_email: e.customers?.email ?? null, customer_phone: e.customers?.phone ?? null }))}
-        locale={locale} currency={cur} orgName={org?.name ?? ""} kind="invoice" emptyKey="inv.empty" statusPrefix="ist" />
+        rows={shown.map((e) => ({
+          id: e.id,
+          number: e.number,
+          status: e.status,
+          total_minor: e.total_minor,
+          issue_date: e.issue_date,
+          public_token: e.public_token,
+          voided_at: e.voided_at ?? null,
+          customer_name: e.customers?.name ?? "—",
+          customer_email: e.customers?.email ?? null,
+          customer_phone: e.customers?.phone ?? null,
+        }))}
+        locale={locale}
+        currency={cur}
+        orgName={org?.name ?? ""}
+        kind="invoice"
+        emptyKey="inv.empty"
+        statusPrefix="ist"
+      />
     </div>
   );
 }
 
-const seg: React.CSSProperties = { padding: "6px 14px", borderRadius: 8, fontWeight: 700, fontSize: 14, color: "#5c6675", textDecoration: "none" };
-const segOn: React.CSSProperties = { background: "#fff", color: "#0b1524", boxShadow: "0 1px 3px rgba(0,0,0,.12)" };
+const seg: React.CSSProperties = {
+  padding: "6px 14px",
+  borderRadius: 8,
+  fontWeight: 700,
+  fontSize: "0.875rem",
+  color: "#5c6675",
+  textDecoration: "none",
+};
+const segOn: React.CSSProperties = {
+  background: "#fff",
+  color: "#0b1524",
+  boxShadow: "0 1px 3px rgba(0,0,0,.12)",
+};

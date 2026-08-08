@@ -1,0 +1,128 @@
+name: CI
+
+# The previous state of this repo: `npm run test:features` failed on every
+# machine (a test imported a .ts file under `node --test`), 7 of 10 test files
+# were wired into no script at all, and nothing ran automatically. A red suite
+# nobody runs is indistinguishable from no suite.
+#
+# This workflow makes the checks unavoidable: types, lint, unit tests and a real
+# production build, on every push and pull request.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Types, lint, tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      # `tests/nav-reachability.test.mjs` measures the sidebar in a real browser
+      # — audit A3 is a layout defect and reading CSS cannot prove it fixed. The
+      # probe FAILS rather than skips when the browser is missing, so this step
+      # is what keeps it from being a permanently-skipped test.
+      - name: Install Chromium (layout probes)
+        run: npx playwright install --with-deps chromium
+
+      - name: Unit tests
+        run: npm test
+
+      # The build needs the public Supabase vars to exist, but never contacts
+      # Supabase — placeholders are enough and no real secret belongs in CI.
+      - name: Production build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+
+      # The browser suite existed, was wired to `npm run test:e2e`, and ran
+      # NOWHERE — not here, not anywhere. It was also broken: the boot-time env
+      # validation added in ledger 3.3 fails closed, `playwright.config.ts` did
+      # not pass SUPABASE_SERVICE_ROLE_KEY, so the server never started and
+      # every test timed out. Both are fixed, and this step is what stops it
+      # rotting again: on 2026-08-01 the first successful run immediately found
+      # that the CSP was blocking the app's own Google Fonts in production.
+      #
+      # The public pages are checked here. The 12 authenticated routes SKIP
+      # without STORAGE_STATE (a signed-in session needs a real Supabase
+      # project) — that remains the largest untested surface on this branch and
+      # is called out in docs/REMEDIATION-PLAN.md.
+      - name: Browser tests (public pages)
+        run: npm run test:e2e
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: placeholder-service-role-key
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+
+  migrations:
+    name: Migration hygiene
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Migrations are applied by hand in the Supabase SQL editor, so the only
+      # protection against a malformed file is checking it here.
+      - name: Every migration is numbered and idempotent
+        run: |
+          set -euo pipefail
+          fail=0
+          for f in db/[0-9]*.sql; do
+            # Dollar-quote tags must balance, or the file aborts halfway through
+            # and leaves the database in a partially-migrated state.
+            #
+            # `|| true` is load-bearing: grep exits 1 when it finds nothing, and
+            # under `set -e` + `pipefail` that killed this entire job on the
+            # first migration with no $$ in it — before a single check had run.
+            # The job then reported failure having emitted NO findings at all,
+            # which is a false RED: it looked like a broken migration and was a
+            # broken checker. It went unnoticed because this workflow had never
+            # actually executed until the branch was first pushed. A guard that
+            # cannot complete proves nothing; see docs/REMEDIATION-PLAN.md on
+            # proving guards both ways.
+            count=$(grep -o '\$\$' "$f" | wc -l || true)
+            if [ $((count % 2)) -ne 0 ]; then
+              echo "::error file=$f::unbalanced \$\$ quoting ($count occurrences)"
+              fail=1
+            fi
+            # Re-running a migration must not fail.
+            if grep -niE '^[[:space:]]*create[[:space:]]+table' "$f" | grep -qivE 'if not exists'; then
+              echo "::error file=$f::CREATE TABLE without IF NOT EXISTS is not re-runnable"
+              fail=1
+            fi
+            # Destructive DDL never belongs in an additive migration.
+            if grep -nEi '^\s*(drop table|drop column|alter table[^;]*drop column)' "$f"; then
+              echo "::error file=$f::destructive DDL — data loss risk"
+              fail=1
+            fi
+          done
+          exit $fail
