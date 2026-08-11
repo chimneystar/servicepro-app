@@ -69,7 +69,7 @@ export default function FeedRow({
         }}
       >
         <b>{feed.label || (feed.scope === "mine" ? "My schedule" : "Whole schedule")}</b>
-        <span style={{ fontSize: "0.8125rem", color: daysLeft <= 14 ? "#b45309" : "#5c6675" }}>
+        <span style={{ fontSize: "0.875rem", color: daysLeft <= 14 ? "#b45309" : "#5c6675" }}>
           {daysLeft > 0 ? `expires in ${daysLeft} day${daysLeft === 1 ? "" : "s"}` : "expired"}
           {feed.last_accessed_at
             ? ` · last fetched ${feed.last_accessed_at.slice(0, 10)}`
@@ -87,7 +87,7 @@ export default function FeedRow({
             border: "1px solid #eef1f6",
             borderRadius: 8,
             padding: "7px 9px",
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
             overflowX: "auto",
             whiteSpace: "nowrap",
           }}
@@ -134,7 +134,7 @@ export default function FeedRow({
       {error && (
         <div
           role="alert"
-          style={{ marginTop: 8, color: "#b91c1c", fontSize: "0.8125rem", fontWeight: 700 }}
+          style={{ marginTop: 8, color: "#b91c1c", fontSize: "0.875rem", fontWeight: 700 }}
         >
           {error}
         </div>
@@ -150,6 +150,6 @@ const button: React.CSSProperties = {
   borderRadius: 8,
   padding: "7px 11px",
   fontWeight: 700,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   cursor: "pointer",
 };

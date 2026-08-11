@@ -48,7 +48,7 @@ export default function ArchiveList({ records }: { records: ArchRow[] }) {
             left: 12,
             top: "50%",
             transform: "translateY(-50%)",
-            color: "#94a3b8",
+            color: "#5c6675",
           }}
         >
           🔍

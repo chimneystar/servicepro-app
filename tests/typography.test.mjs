@@ -23,7 +23,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CSS_PATH = path.join(ROOT, "app/globals.css");
 
 /** The floor below which no text may be sized, in px at the default root. */
-const MIN_TEXT_PX = 12;
+const MIN_TEXT_PX = 14;
 const DEFAULT_ROOT_PX = 16;
 
 /** Comments cannot satisfy a structural check. Strip them first. */
@@ -67,7 +67,7 @@ const lengths = (value) =>
 
 /**
  * The design tokens (ledger 6.5). A primitive writes `font-size:
- * var(--sp-font-sm)` rather than repeating `0.8125rem` in fifteen files, so
+ * var(--sp-font-sm)` rather than repeating `0.875rem` in fifteen files, so
  * this parser has to see through `var()` or the type scale would become the one
  * part of the product these checks cannot read — the exact hole that makes a
  * probe pass while covering less. Every `--*: value` in the file, one pass of
@@ -320,7 +320,7 @@ test(`A1: no inline fontSize prop resolves below ${MIN_TEXT_PX}px`, () => {
   const preTooSmall = PRE_CHANGE_INLINE.flatMap((item) =>
     inlineSizesPx(item.expression, DEFAULT_ROOT_PX).filter((s) => s.px < MIN_TEXT_PX),
   );
-  assert.equal(preTooSmall.length, 1, "9px was under the floor before this fix");
+  assert.equal(preTooSmall.length, 2, "12.5px and 9px were under the field-use floor");
 });
 
 test("A1: the floor check REJECTS the pre-change stylesheet", () => {
@@ -474,8 +474,8 @@ test("A2: the same computation shows the PRE-CHANGE product did not move at all"
 /**
  * The ONLY font sizes in this product that are not `rem`, pinned by selector.
  *
- * All four arrived with ledger 6.5, which deleted Tailwind and inlined its
- * Preflight reset verbatim into app/globals.css. They were always shipping —
+ * These selectors arrived with ledger 6.5, which deleted Tailwind and inlined
+ * its Preflight reset into app/globals.css. They were always shipping —
  * Tailwind emitted them into the compiled stylesheet — but they lived outside
  * this file, so this suite had never seen them. Making the reset visible made
  * them visible, which is the point of inlining it.
@@ -484,13 +484,13 @@ test("A2: the same computation shows the PRE-CHANGE product did not move at all"
  * so they follow the root just as `rem` does and cannot opt out of the toggle.
  * They are PINNED rather than waved through by unit, because "relative units
  * are fine" as a blanket rule would let a hand-written `font-size: 0.6em` into
- * the product, and 0.6em of 13px is 7.8px — the A1 defect, wearing a unit this
+ * the product, and 0.6em of 14px is 8.4px — the A1 defect, wearing a unit this
  * check accepts.
  */
 const RELATIVE_SIZE_ALLOWLIST = new Set([
   "code, kbd, samp, pre -> 1em",
-  "small -> 80%",
-  "sub, sup -> 75%",
+  "small -> 1em",
+  "sub, sup -> 1em",
   "button, input, optgroup, select, textarea -> 100%",
 ]);
 
@@ -552,8 +552,8 @@ test("A2: the type-scale tokens are readable, and every one of them is rem", () 
     assert.ok(resolved.min >= MIN_TEXT_PX, `${name} is below the ${MIN_TEXT_PX}px floor`);
   }
   // Cry-wolf: the expansion is real, not a regex that always finds "rem".
-  assert.equal(resolvePx("var(--sp-font-sm)", 16).min, 13);
-  assert.equal(resolvePx("var(--sp-font-sm)", 18).min, 14.625);
+  assert.equal(resolvePx("var(--sp-font-sm)", 16).min, 14);
+  assert.equal(resolvePx("var(--sp-font-sm)", 18).min, 15.75);
   assert.equal(resolvePx("var(--nope-not-a-token)", 16), null);
 });
 

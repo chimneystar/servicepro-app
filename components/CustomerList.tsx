@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import type { Locale } from "@/lib/i18n";
 
 export type Cust = {
   id: string;
@@ -27,10 +28,13 @@ function colorFor(s: string) {
 export default function CustomerList({
   customers,
   emptyText,
+  locale,
 }: {
   customers: Cust[];
   emptyText: string;
+  locale: Locale;
 }) {
+  const he = locale === "he";
   const [q, setQ] = useState("");
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -44,67 +48,40 @@ export default function CustomerList({
 
   return (
     <div>
-      <div style={{ position: "relative", marginBottom: 12 }}>
-        <span
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            left: 12,
-            top: "50%",
-            transform: "translateY(-50%)",
-            fontSize: "0.9375rem",
-            color: "#94a3b8",
-          }}
-        >
+      <div className="customer-search">
+        <span aria-hidden="true" className="customer-search-icon">
           🔍
         </span>
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search by name, address, or phone…"
-          aria-label="Search by name, address, or phone…"
-          style={{
-            width: "100%",
-            border: "1px solid #e2e8f0",
-            borderRadius: 12,
-            padding: "12px 38px",
-            fontSize: "1rem",
-            outline: "none",
-          }}
+          placeholder={he ? "חיפוש לפי שם, כתובת או טלפון…" : "Search by name, address, or phone…"}
+          aria-label={he ? "חיפוש לקוחות" : "Search customers"}
         />
         {q && (
           <button
             type="button"
             onClick={() => setQ("")}
-            aria-label="Clear search"
-            style={{
-              position: "absolute",
-              right: 8,
-              top: "50%",
-              transform: "translateY(-50%)",
-              border: "none",
-              background: "#eef2f8",
-              borderRadius: 8,
-              padding: "4px 8px",
-              cursor: "pointer",
-              color: "#5c6675",
-            }}
+            aria-label={he ? "ניקוי החיפוש" : "Clear search"}
+            className="customer-search-clear"
           >
             ✕
           </button>
         )}
       </div>
       {q && (
-        <div style={{ fontSize: "0.875rem", color: "#5c6675", margin: "0 4px 8px" }}>
-          {filtered.length} match{filtered.length === 1 ? "" : "es"}
+        <div className="customer-search-count" role="status">
+          {he
+            ? `${filtered.length} תוצאות`
+            : `${filtered.length} match${filtered.length === 1 ? "" : "es"}`}
         </div>
       )}
 
       <div className="rlist">
         {filtered.map((c) => (
           <Link className="ritem" href={`/customers/${c.id}`} key={c.id}>
-            <div className="avatar-sm" style={{ background: colorFor(c.name) }}>
-              {initials(c.name)}
+            <div className="avatar-sm" style={{ background: colorFor(c.name) }} aria-hidden="true">
+              <bdi>{initials(c.name)}</bdi>
             </div>
             <div className="rmain">
               <div className="rtitle">{c.name}</div>
@@ -124,7 +101,13 @@ export default function CustomerList({
           </Link>
         ))}
         {filtered.length === 0 && (
-          <div className="rempty">{q ? "No customers match your search." : emptyText}</div>
+          <div className="rempty">
+            {q
+              ? he
+                ? "לא נמצאו לקוחות שמתאימים לחיפוש."
+                : "No customers match your search."
+              : emptyText}
+          </div>
         )}
       </div>
     </div>

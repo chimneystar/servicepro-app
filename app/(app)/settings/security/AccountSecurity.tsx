@@ -39,7 +39,7 @@ const initial: SecurityResult = { ok: false };
 const listStyle = {
   margin: "6px 0 0",
   paddingInlineStart: 18,
-  fontSize: "0.75rem",
+  fontSize: "0.875rem",
   lineHeight: 1.5,
 } as const;
 
@@ -268,7 +268,7 @@ function TwoFactor({
       </header>
       <div className="ops-card-body" style={{ display: "grid", gap: 10 }}>
         {role === "owner" && verified.length === 0 && (
-          <p style={{ margin: 0, fontSize: "0.75rem" }}>
+          <p style={{ margin: 0, fontSize: "0.875rem" }}>
             {he
               ? "החשבון הזה שולט בתשלומים ובכל נתוני הלקוחות. סיסמה בלבד היא לא מספיק."
               : "This account controls payouts and every customer record. A password alone is not enough."}
@@ -326,7 +326,7 @@ function TwoFactor({
               {he ? "או הזינו את המפתח ידנית:" : "Or enter this key by hand:"}{" "}
               <code>{enrolling.secret}</code>
             </small>
-            <label style={{ display: "grid", gap: 5, fontSize: "0.75rem", fontWeight: 800 }}>
+            <label style={{ display: "grid", gap: 5, fontSize: "0.875rem", fontWeight: 800 }}>
               {he ? "קוד בן שש ספרות" : "Six-digit code"}
               <input
                 value={code}
@@ -418,7 +418,7 @@ function Devices({
         </div>
       </header>
       <div className="ops-card-body" style={{ display: "grid", gap: 10 }}>
-        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.75rem" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.875rem" }}>
           <input
             type="checkbox"
             checked={alertsOn}
@@ -492,7 +492,7 @@ function Devices({
           ))}
         </ul>
 
-        <p style={{ margin: 0, fontSize: "0.75rem", color: "var(--muted)" }}>
+        <p style={{ margin: 0, fontSize: "0.875rem", color: "var(--muted)" }}>
           {he
             ? "אלה התחברויות, לא הפעלות חיות. ניתוק מכשיר בודד אינו אפשרי דרך ה-API של Supabase, ולכן הניתוק הוא של כל המכשירים."
             : "These are sign-ins, not live sessions. Supabase's client API cannot revoke one device on its own, so revocation is all-or-nothing."}

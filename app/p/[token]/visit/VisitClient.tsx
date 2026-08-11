@@ -85,15 +85,15 @@ export default function VisitClient({
       <div style={{ background: accent, color: "#fff", padding: "22px 24px" }}>
         <div style={{ fontSize: "1.25rem", fontWeight: 800 }}>{appointment.org?.name}</div>
         {appointment.org?.tagline && (
-          <div style={{ fontSize: "0.8125rem", opacity: 0.85 }}>{appointment.org.tagline}</div>
+          <div style={{ fontSize: "0.875rem", opacity: 0.85 }}>{appointment.org.tagline}</div>
         )}
       </div>
 
       <div style={{ padding: "22px 24px" }}>
         <div
           style={{
-            fontSize: "0.8125rem",
-            color: "#94a3b8",
+            fontSize: "0.875rem",
+            color: "#5c6675",
             fontWeight: 800,
             letterSpacing: 0.6,
             textTransform: "uppercase",
@@ -158,7 +158,7 @@ export default function VisitClient({
                   : he
                     ? "ביקשתם לשנות את המועד — ניצור קשר בהקדם."
                     : "You asked to change this appointment — we will call you shortly."}
-                <div style={{ fontWeight: 400, fontSize: "0.8125rem", marginTop: 4 }}>
+                <div style={{ fontWeight: 400, fontSize: "0.875rem", marginTop: 4 }}>
                   {he ? "אפשר לשנות את התשובה למטה." : "You can change your answer below."}
                 </div>
               </div>
@@ -244,7 +244,7 @@ export default function VisitClient({
               color: "#dc2626",
               padding: "10px 12px",
               borderRadius: 10,
-              fontSize: "0.8125rem",
+              fontSize: "0.875rem",
               marginTop: 12,
             }}
           >
@@ -262,9 +262,7 @@ export default function VisitClient({
             </a>
           </div>
         )}
-        <div
-          style={{ marginTop: 14, fontSize: "0.8125rem", color: "#94a3b8", textAlign: "center" }}
-        >
+        <div style={{ marginTop: 14, fontSize: "0.875rem", color: "#5c6675", textAlign: "center" }}>
           {he
             ? "קישור אישי לפגישה זו בלבד. הוא פג תוקף וניתן לביטול."
             : "A private link to this appointment only. It expires and can be revoked."}

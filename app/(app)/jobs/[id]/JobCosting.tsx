@@ -148,7 +148,7 @@ export default function JobCosting({
         </small>
       </div>
       {error && <div style={{ ...warn, background: "#fdeaea", color: "#dc2626" }}>{error}</div>}
-      <div style={{ fontSize: "0.75rem", color: "#5c6675", marginTop: 8, lineHeight: 1.5 }}>
+      <div style={{ fontSize: "0.875rem", color: "#5c6675", marginTop: 8, lineHeight: 1.5 }}>
         {he
           ? "עלות העבודה נכנסת לחשבונית כשורת עלות במחיר 0, ולכן היא מגיעה לדוח הרווחיות בלי לחייב את הלקוח פעמיים."
           : "The labour cost is carried onto the invoice as a zero-priced cost line, which is how it reaches the margin report without charging the customer twice."}
@@ -189,7 +189,7 @@ const warn: React.CSSProperties = {
   color: "#a15c07",
   padding: "9px 12px",
   borderRadius: 10,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   marginTop: 10,
   lineHeight: 1.5,
 };

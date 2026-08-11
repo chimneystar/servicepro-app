@@ -94,8 +94,8 @@ export default function OptionChooser({
     <div style={{ marginTop: 20 }}>
       <div
         style={{
-          fontSize: "0.8125rem",
-          color: "#94a3b8",
+          fontSize: "0.875rem",
+          color: "#5c6675",
           fontWeight: 800,
           letterSpacing: 0.6,
           textTransform: "uppercase",
@@ -111,7 +111,7 @@ export default function OptionChooser({
             color: "#dc2626",
             padding: "10px 12px",
             borderRadius: 10,
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
             marginBottom: 10,
           }}
         >
@@ -142,7 +142,7 @@ export default function OptionChooser({
                       color: accent,
                       borderRadius: 999,
                       padding: "2px 9px",
-                      fontSize: "0.8125rem",
+                      fontSize: "0.875rem",
                       fontWeight: 800,
                     }}
                   >
@@ -161,12 +161,12 @@ export default function OptionChooser({
                 </span>
               </div>
               {row.description && (
-                <div style={{ fontSize: "0.8125rem", color: "#5c6675", marginTop: 4 }}>
+                <div style={{ fontSize: "0.875rem", color: "#5c6675", marginTop: 4 }}>
                   {row.description}
                 </div>
               )}
               {row.depositMinor > 0 && (
-                <div style={{ fontSize: "0.8125rem", color: "#5c6675", marginTop: 3 }}>
+                <div style={{ fontSize: "0.875rem", color: "#5c6675", marginTop: 3 }}>
                   {he ? "מקדמה לתיאום" : "Deposit to schedule"}: {money(row.depositMinor, currency)}
                 </div>
               )}
@@ -207,7 +207,7 @@ export default function OptionChooser({
           );
         })}
       </div>
-      <div style={{ fontSize: "0.75rem", color: "#94a3b8", marginTop: 8 }}>
+      <div style={{ fontSize: "0.875rem", color: "#5c6675", marginTop: 8 }}>
         {signed
           ? he
             ? "ההצעה כבר אושרה — הבחירה נעולה."

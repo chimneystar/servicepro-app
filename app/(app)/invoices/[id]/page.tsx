@@ -175,14 +175,16 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           }}
         >
           <div style={{ background: "#e6f6ec", borderRadius: 12, padding: "12px 14px" }}>
-            <div style={{ fontSize: "0.75rem", color: "#15803d", fontWeight: 700 }}>Paid</div>
+            <div style={{ fontSize: "0.875rem", color: "#15803d", fontWeight: 700 }}>Paid</div>
             <div style={{ fontSize: "1.25rem", fontWeight: 800, color: "#15803d" }}>
               {money(paid, cur)}
             </div>
           </div>
           {credited > 0 && (
             <div style={{ background: "#eef2f8", borderRadius: 12, padding: "12px 14px" }}>
-              <div style={{ fontSize: "0.75rem", color: "#5c6675", fontWeight: 700 }}>Credited</div>
+              <div style={{ fontSize: "0.875rem", color: "#5c6675", fontWeight: 700 }}>
+                Credited
+              </div>
               <div style={{ fontSize: "1.25rem", fontWeight: 800, color: "#5c6675" }}>
                 −{money(credited, cur)}
               </div>
@@ -195,7 +197,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
               padding: "12px 14px",
             }}
           >
-            <div style={{ fontSize: "0.75rem", color: "#b45309", fontWeight: 700 }}>Balance</div>
+            <div style={{ fontSize: "0.875rem", color: "#b45309", fontWeight: 700 }}>Balance</div>
             <div
               style={{
                 fontSize: "1.25rem",

@@ -92,7 +92,7 @@ export default function GlobalError({
             Reload · טעינה מחדש
           </button>
           {error.digest && (
-            <p style={{ marginTop: "1.25rem", fontSize: "0.8125rem", color: "#5c6675" }}>
+            <p style={{ marginTop: "1.25rem", fontSize: "0.875rem", color: "#5c6675" }}>
               Error reference · מספר תקלה: <code>{error.digest}</code>
             </p>
           )}

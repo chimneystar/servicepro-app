@@ -323,7 +323,7 @@ function TimeGrid({
               style={{
                 height: HOUR,
                 fontSize: "0.875rem",
-                color: "#94a3b8",
+                color: "#5c6675",
                 textAlign: "end",
                 paddingInlineEnd: 6,
                 paddingTop: 2,

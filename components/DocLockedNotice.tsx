@@ -41,7 +41,7 @@ export default function DocLockedNotice({
       >
         {reason}
       </div>
-      <p style={{ fontSize: "0.8125rem", color: "#5c6675", marginTop: 12, lineHeight: 1.6 }}>
+      <p style={{ fontSize: "0.875rem", color: "#5c6675", marginTop: 12, lineHeight: 1.6 }}>
         The figures the customer was shown stay exactly as they were shown. That is the point: a
         correction is its own record, not a quiet rewrite of the old one.
       </p>

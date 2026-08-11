@@ -53,7 +53,7 @@ export default async function CalendarFeedPage() {
       <h1 style={{ fontSize: "1.5rem", fontWeight: 800, margin: "8px 0 4px" }}>
         Calendar subscriptions
       </h1>
-      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 14 }}>
+      <p style={{ color: "#5c6675", fontSize: "0.875rem", marginBottom: 14 }}>
         Subscribe to your schedule from Google Calendar, Apple Calendar or Outlook. Paste the URL
         into &ldquo;Add calendar → From URL&rdquo;.
       </p>
@@ -65,7 +65,7 @@ export default async function CalendarFeedPage() {
           color: "#9a3412",
           borderRadius: 12,
           padding: "12px 14px",
-          fontSize: "0.8125rem",
+          fontSize: "0.875rem",
           marginBottom: 16,
         }}
       >
@@ -86,7 +86,7 @@ export default async function CalendarFeedPage() {
             color: "#b91c1c",
             borderRadius: 12,
             padding: "11px 14px",
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
             marginBottom: 16,
           }}
         >
@@ -127,7 +127,7 @@ export default async function CalendarFeedPage() {
       </ActionForm>
 
       {!canOrgScope && (
-        <p style={{ fontSize: "0.8125rem", color: "#5c6675", marginBottom: 14 }}>
+        <p style={{ fontSize: "0.875rem", color: "#5c6675", marginBottom: 14 }}>
           Technicians can subscribe to their own jobs. A whole-schedule feed would put every
           customer address in the business behind one long-lived URL, so it is offered to owners and
           office members only.

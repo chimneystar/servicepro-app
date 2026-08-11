@@ -194,11 +194,11 @@ const mini: React.CSSProperties = {
   borderRadius: 8,
   padding: "5px 9px",
   cursor: "pointer",
-  fontSize: "0.75rem",
+  fontSize: "0.875rem",
   fontWeight: 700,
 };
 const lbl: React.CSSProperties = {
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   fontWeight: 700,
   color: "#334155",
   display: "grid",

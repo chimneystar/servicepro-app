@@ -54,7 +54,7 @@ export default async function PrivacyPage() {
           ✓
         </div>
       </header>
-      <p style={{ marginBottom: 14, fontSize: "0.8125rem" }}>
+      <p style={{ marginBottom: 14, fontSize: "0.875rem" }}>
         {/* `audit_retention_days` was configurable here while the audit log itself had no reader. */}
         <Link href="/settings/security">
           {he ? "יומן הביקורת של העסק ואבטחת חשבון →" : "Business audit log & account security →"}

@@ -84,7 +84,7 @@ export default function JobAppointment({
           color: tone.fg,
           borderRadius: 10,
           padding: "9px 12px",
-          fontSize: "0.8125rem",
+          fontSize: "0.875rem",
           fontWeight: 700,
         }}
       >
@@ -92,7 +92,7 @@ export default function JobAppointment({
         {stamp ? ` · ${new Date(stamp).toLocaleString(he ? "he-IL" : "en-US")}` : ""}
       </div>
       {note && (
-        <div style={{ fontSize: "0.8125rem", color: "#5c6675", marginTop: 6 }}>
+        <div style={{ fontSize: "0.875rem", color: "#5c6675", marginTop: 6 }}>
           {he ? "הערת הלקוח" : "Customer note"}: {note}
         </div>
       )}
@@ -168,7 +168,7 @@ export default function JobAppointment({
       </div>
 
       {url && (
-        <div style={{ marginTop: 10, fontSize: "0.8125rem" }}>
+        <div style={{ marginTop: 10, fontSize: "0.875rem" }}>
           <a
             href={url}
             target="_blank"
@@ -194,7 +194,7 @@ export default function JobAppointment({
             color: "#a15c07",
             padding: "9px 12px",
             borderRadius: 10,
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
             marginTop: 10,
           }}
         >
@@ -208,7 +208,7 @@ export default function JobAppointment({
             color: "#dc2626",
             padding: "9px 12px",
             borderRadius: 10,
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
             marginTop: 10,
           }}
         >

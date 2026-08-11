@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Tables } from "@/lib/supabase/database.types";
 import { getLocale } from "@/lib/locale-server";
 import { t } from "@/lib/i18n";
-import { money, todayISO, monthBounds, fmtDate } from "@/lib/format";
+import { money, moneyShort, todayISO, monthBounds, fmtDate } from "@/lib/format";
 // @ts-ignore — pure date arithmetic, unit-tested by node:test.
 import { monthsBack, isTruncated } from "@/lib/core/query-window.mjs";
 import { Donut, Bars, Legend } from "@/components/MiniCharts";
@@ -463,11 +463,11 @@ export default async function DashboardPage() {
       >
         <Link href="/invoices">
           <span>{he ? "מכירות החודש" : "Sales this month"}</span>
-          <strong>{money(monthSales, cur)}</strong>
+          <KpiMoney minor={monthSales} currency={cur} />
         </Link>
         <Link href="/invoices?filter=unpaid">
           <span>{he ? "ממתין לגבייה" : "Waiting to collect"}</span>
-          <strong>{money(dueSum, cur)}</strong>
+          <KpiMoney minor={dueSum} currency={cur} />
         </Link>
         <Link href="/schedule">
           <span>{he ? "עבודות היום" : "Jobs today"}</span>
@@ -782,6 +782,22 @@ function AttentionQueue({
         </div>
       )}
     </aside>
+  );
+}
+function KpiMoney({ minor, currency }: { minor: number; currency: string }) {
+  const compact = moneyShort(minor, currency);
+  const parts = /^([^0-9-]*)(-?[0-9.,]+)([A-Za-z]+)?$/.exec(compact);
+  if (!parts) return <strong>{compact}</strong>;
+
+  return (
+    <strong className="dashboard-kpi-value">
+      <span className="sr-only">{money(minor, currency)}</span>
+      <bdi dir="ltr" aria-hidden="true">
+        <span className="dashboard-kpi-currency">{parts[1]}</span>
+        <span className="dashboard-kpi-number">{parts[2]}</span>
+        {parts[3] && <span className="dashboard-kpi-suffix">{parts[3]}</span>}
+      </bdi>
+    </strong>
   );
 }
 function Card({

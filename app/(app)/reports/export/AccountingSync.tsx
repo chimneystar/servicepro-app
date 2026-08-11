@@ -84,7 +84,7 @@ export default function AccountingSync({
           color: "#9a3412",
           borderRadius: 12,
           padding: "12px 14px",
-          fontSize: "0.8125rem",
+          fontSize: "0.875rem",
           marginBottom: 14,
         }}
       >
@@ -171,7 +171,7 @@ export default function AccountingSync({
               marginTop: 12,
               color: message.ok ? "#15803d" : "#dc2626",
               fontWeight: 700,
-              fontSize: "0.8125rem",
+              fontSize: "0.875rem",
             }}
           >
             {message.text}
@@ -182,7 +182,7 @@ export default function AccountingSync({
       <h3 style={{ fontSize: "0.9375rem", fontWeight: 800, margin: "18px 0 6px" }}>
         Check the books match
       </h3>
-      <p style={{ fontSize: "0.8125rem", color: "#5c6675", marginBottom: 8 }}>
+      <p style={{ fontSize: "0.875rem", color: "#5c6675", marginBottom: 8 }}>
         Export the same period out of {target === "xero" ? "Xero" : "QuickBooks"} and paste it here.
         Rows are matched on the SP- reference, so only what this product sent is compared.
       </p>
@@ -192,7 +192,7 @@ export default function AccountingSync({
         placeholder="Paste the ledger's CSV export here…"
         aria-label="Paste the ledger's CSV export here…"
         rows={5}
-        style={{ ...inp, fontFamily: "ui-monospace, monospace", fontSize: "0.75rem" }}
+        style={{ ...inp, fontFamily: "ui-monospace, monospace", fontSize: "0.875rem" }}
       />
       <button
         type="button"
@@ -210,7 +210,7 @@ export default function AccountingSync({
             marginTop: 12,
             borderRadius: 12,
             padding: "12px 14px",
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
             border: "1px solid",
             ...(result.balanced
               ? { background: "#e6f6ec", borderColor: "#b7e3c6", color: "#15803d" }
@@ -275,7 +275,7 @@ export default function AccountingSync({
 }
 
 const lbl: React.CSSProperties = {
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   fontWeight: 700,
   color: "#334155",
   display: "block",

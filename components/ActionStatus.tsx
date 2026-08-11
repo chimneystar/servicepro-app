@@ -69,7 +69,7 @@ const errorBox: React.CSSProperties = {
   color: "#dc2626",
   padding: "9px 12px",
   borderRadius: 10,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   fontWeight: 600,
   marginTop: 8,
 };

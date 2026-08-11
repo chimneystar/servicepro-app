@@ -219,7 +219,7 @@ export default async function JobReportPage({ params }: { params: Promise<{ id: 
                 </div>
               </div>
             ) : (
-              <div style={{ fontSize: "0.875rem", color: "#94a3b8", marginTop: 6 }}>
+              <div style={{ fontSize: "0.875rem", color: "#5c6675", marginTop: 6 }}>
                 Not signed yet.
               </div>
             )}
@@ -232,7 +232,7 @@ export default async function JobReportPage({ params }: { params: Promise<{ id: 
             padding: "12px 26px",
             textAlign: "center",
             fontSize: "0.875rem",
-            color: "#94a3b8",
+            color: "#5c6675",
           }}
         >
           {org?.document_footer || `${org?.name} · Thank you for your business!`}
@@ -252,7 +252,7 @@ function Kv({ label, value }: { label: string; value: string }) {
 }
 const cap: React.CSSProperties = {
   fontSize: "0.875rem",
-  color: "#94a3b8",
+  color: "#5c6675",
   fontWeight: 800,
   letterSpacing: 0.5,
   textTransform: "uppercase",

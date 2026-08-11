@@ -296,7 +296,7 @@ const REPLACED = [
       color: "#dc2626",
       padding: "9px 12px",
       borderRadius: 10,
-      fontSize: "0.8125rem",
+      fontSize: "0.875rem",
       marginTop: 10,
     },
   ],
@@ -313,7 +313,7 @@ const REPLACED = [
   [
     "sp-label",
     {
-      fontSize: "0.8125rem",
+      fontSize: "0.875rem",
       fontWeight: 700,
       color: "#334155",
       display: "block",
@@ -321,8 +321,8 @@ const REPLACED = [
     },
   ],
   ["sp-link", { color: "#2563eb", fontWeight: 700, fontSize: "0.875rem", textDecoration: "none" }],
-  ["sp-text-muted", { fontSize: "0.8125rem", color: "#5c6675" }],
-  ["sp-text-muted-xs", { fontSize: "0.75rem", color: "#5c6675" }],
+  ["sp-text-muted", { fontSize: "0.875rem", color: "#5c6675" }],
+  ["sp-text-muted-xs", { fontSize: "0.875rem", color: "#5c6675" }],
   ["sp-empty", { padding: 40, textAlign: "center", color: "#5c6675" }],
   ["sp-heading", { fontSize: "0.9375rem", fontWeight: 800 }],
   ["sp-field", { display: "block" }],

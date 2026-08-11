@@ -78,7 +78,7 @@ export default function CustomFieldsEditor({
           {he ? "הוספה" : "Add"}
         </button>
       </div>
-      <p style={{ fontSize: "0.8125rem", color: "#5c6675", marginBottom: 10 }}>
+      <p style={{ fontSize: "0.875rem", color: "#5c6675", marginBottom: 10 }}>
         {he ? `שדות שמופיעים בכרטיס ה${noun}.` : `These appear on every ${entityType} record.`}
       </p>
 
@@ -154,12 +154,12 @@ export default function CustomFieldsEditor({
         </div>
       ))}
       {definitions.length === 0 && (
-        <div style={{ color: "#5c6675", fontSize: "0.8125rem", padding: 8 }}>
+        <div style={{ color: "#5c6675", fontSize: "0.875rem", padding: 8 }}>
           {he ? "עוד לא הוגדרו שדות." : "No fields defined yet."}
         </div>
       )}
       {message && (
-        <div style={{ fontSize: "0.8125rem", color: "#2563eb", marginTop: 8 }} role="status">
+        <div style={{ fontSize: "0.875rem", color: "#2563eb", marginTop: 8 }} role="status">
           {message}
         </div>
       )}
@@ -278,5 +278,5 @@ const mini: React.CSSProperties = {
   borderRadius: 8,
   padding: "5px 8px",
   cursor: "pointer",
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
 };

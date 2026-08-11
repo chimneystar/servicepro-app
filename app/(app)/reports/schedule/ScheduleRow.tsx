@@ -67,7 +67,7 @@ export default function ScheduleRow({
         <b>{schedule.name}</b>
         <span
           style={{
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
             color: schedule.enabled ? "#15803d" : "#5c6675",
             fontWeight: 700,
           }}
@@ -76,7 +76,7 @@ export default function ScheduleRow({
         </span>
       </div>
 
-      <div style={{ fontSize: "0.8125rem", color: "#5c6675", marginTop: 4 }}>
+      <div style={{ fontSize: "0.875rem", color: "#5c6675", marginTop: 4 }}>
         To:{" "}
         {recipients.length ? (
           recipients.join(", ")
@@ -100,7 +100,7 @@ export default function ScheduleRow({
             color: "#b91c1c",
             borderRadius: 9,
             padding: "8px 10px",
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
           }}
         >
           Last run reported: {schedule.last_error}
@@ -132,7 +132,7 @@ export default function ScheduleRow({
       {error && (
         <div
           role="alert"
-          style={{ marginTop: 8, color: "#b91c1c", fontSize: "0.8125rem", fontWeight: 700 }}
+          style={{ marginTop: 8, color: "#b91c1c", fontSize: "0.875rem", fontWeight: 700 }}
         >
           {error}
         </div>
@@ -148,6 +148,6 @@ const button: React.CSSProperties = {
   borderRadius: 8,
   padding: "7px 12px",
   fontWeight: 700,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   cursor: "pointer",
 };

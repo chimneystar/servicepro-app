@@ -33,7 +33,7 @@ export default function Tabs({
             }}
           >
             {t.label}
-            {t.badge ? <span style={{ color: "#9aa3b2", fontWeight: 600 }}> · {t.badge}</span> : ""}
+            {t.badge ? <span style={{ color: "#5c6675", fontWeight: 600 }}> · {t.badge}</span> : ""}
           </button>
         ))}
       </div>

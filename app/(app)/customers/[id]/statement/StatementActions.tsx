@@ -49,7 +49,7 @@ export default function StatementActions({ customerId }: { customerId: string })
         <span
           role="status"
           style={{
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
             fontWeight: 700,
             color: message.ok ? "#15803d" : "#b91c1c",
           }}

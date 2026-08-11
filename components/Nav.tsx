@@ -115,7 +115,10 @@ export default function Nav({
       <header className="mobile-top">
         <div className="mobile-brand">
           <span className="brand-mark" aria-hidden="true" />
-          <strong>{businessName}</strong>
+          <span className="mobile-brand-copy">
+            <strong>{businessName}</strong>
+            <small>{t(locale, roleKey)}</small>
+          </span>
         </div>
         <form action={signOut}>
           <button type="submit" className="mobile-sign-out">

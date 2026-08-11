@@ -18,7 +18,7 @@ const initial: SignUpState = { ok: false };
 const problemListStyle = {
   margin: "6px 0 0",
   paddingInlineStart: 18,
-  fontSize: "0.7812rem",
+  fontSize: "0.875rem",
   lineHeight: 1.5,
 } as const;
 

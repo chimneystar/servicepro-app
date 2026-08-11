@@ -78,7 +78,7 @@ export default function JobTagsEditor({ jobId, tags }: { jobId: string; tags: st
           </span>
         ))}
         {list.length === 0 && (
-          <span style={{ fontSize: "0.875rem", color: "#94a3b8" }}>
+          <span style={{ fontSize: "0.875rem", color: "#5c6675" }}>
             {he ? "עוד אין תגיות." : "No tags yet."}
           </span>
         )}

@@ -153,7 +153,7 @@ export default function BulkActions({
                 display: "flex",
                 alignItems: "center",
                 gap: 7,
-                fontSize: "0.8125rem",
+                fontSize: "0.875rem",
                 padding: "3px 6px",
                 cursor: "pointer",
               }}
@@ -177,7 +177,7 @@ export default function BulkActions({
             marginTop: 10,
             borderRadius: 12,
             padding: "12px 14px",
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
             border: "1px solid",
             ...(result.ok && result.failedCount === 0
               ? { background: "#e6f6ec", borderColor: "#b7e3c6", color: "#15803d" }
@@ -262,7 +262,7 @@ const actionButton: React.CSSProperties = {
   borderRadius: 9,
   padding: "8px 12px",
   fontWeight: 700,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   cursor: "pointer",
 };
 const danger: React.CSSProperties = { background: "#fdeaea", color: "#b91c1c" };

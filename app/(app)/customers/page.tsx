@@ -49,7 +49,7 @@ export default async function CustomersPage({
               textDecoration: "none",
             }}
           >
-            🗄️ Archive
+            🗄️ {locale === "he" ? "ארכיון" : "Archive"}
           </Link>
           <Link
             href="/customers/import"
@@ -63,7 +63,7 @@ export default async function CustomersPage({
               textDecoration: "none",
             }}
           >
-            ⬆ Import
+            ⬆ {locale === "he" ? "ייבוא" : "Import"}
           </Link>
           <CustomerForm locale={locale} initialOpen={search.new === "1"} />
         </div>
@@ -75,7 +75,11 @@ export default async function CustomersPage({
         <CustomerBulkBar rows={customers.map((c) => ({ id: c.id, label: c.name }))} />
       )}
 
-      <CustomerList customers={customers as Cust[]} emptyText={t(locale, "cust.empty")} />
+      <CustomerList
+        customers={customers as Cust[]}
+        emptyText={t(locale, "cust.empty")}
+        locale={locale}
+      />
     </div>
   );
 }

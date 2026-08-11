@@ -118,7 +118,7 @@ export default function DocView({
           <div
             style={{
               fontSize: "0.875rem",
-              color: "#94a3b8",
+              color: "#5c6675",
               fontWeight: 800,
               letterSpacing: 0.5,
               textTransform: "uppercase",
@@ -165,7 +165,7 @@ export default function DocView({
                 {it.description && it.description !== it.title && (
                   <div className="sp-text-muted">{it.description}</div>
                 )}
-                <div style={{ fontSize: "0.875rem", color: "#9aa3b2" }}>
+                <div style={{ fontSize: "0.875rem", color: "#5c6675" }}>
                   {(it.qty_milli / 1000).toLocaleString("en-US")} ×{" "}
                   {money(it.unit_price_minor, currency)}
                   {hasNonTax && it.taxable === false ? " · no tax" : ""}

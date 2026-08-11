@@ -104,7 +104,7 @@ export default function AddressAutocomplete({
         style={{ ...inp, marginTop: 8 }}
       />
       {key && ready && (
-        <div style={{ fontSize: "0.875rem", color: "#94a3b8", marginTop: 4 }}>
+        <div style={{ fontSize: "0.875rem", color: "#5c6675", marginTop: 4 }}>
           📍 Powered by Google — pick a suggestion to auto-fill.
         </div>
       )}

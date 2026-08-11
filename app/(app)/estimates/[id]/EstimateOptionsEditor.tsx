@@ -173,7 +173,7 @@ export default function EstimateOptionsEditor({
               )}
             </div>
             {summary.depositMinor > 0 && (
-              <div style={{ fontSize: "0.75rem", color: "#5c6675", marginTop: 2 }}>
+              <div style={{ fontSize: "0.875rem", color: "#5c6675", marginTop: 2 }}>
                 {he ? "מקדמה" : "Deposit"}: {money(summary.depositMinor, currency)}
               </div>
             )}
@@ -185,7 +185,7 @@ export default function EstimateOptionsEditor({
                   display: "flex",
                   gap: 8,
                   alignItems: "center",
-                  fontSize: "0.8125rem",
+                  fontSize: "0.875rem",
                   padding: "5px 0",
                   borderTop: "1px solid #f1f4f9",
                 }}
@@ -287,7 +287,7 @@ const card: React.CSSProperties = {
   marginTop: 14,
 };
 const hint: React.CSSProperties = {
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   color: "#5c6675",
   marginBottom: 10,
   lineHeight: 1.5,
@@ -296,7 +296,7 @@ const inp: React.CSSProperties = {
   border: "1px solid #e2e8f0",
   borderRadius: 9,
   padding: "8px 10px",
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   outline: "none",
   background: "#fff",
 };
@@ -308,7 +308,7 @@ const btn: React.CSSProperties = {
   borderRadius: 9,
   fontWeight: 700,
   cursor: "pointer",
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
 };
 const ghost: React.CSSProperties = {
   background: "#eef1f6",
@@ -318,7 +318,7 @@ const ghost: React.CSSProperties = {
   borderRadius: 9,
   fontWeight: 700,
   cursor: "pointer",
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
 };
 const rm: React.CSSProperties = {
   background: "#fdeaea",
@@ -327,7 +327,7 @@ const rm: React.CSSProperties = {
   padding: "6px 11px",
   borderRadius: 9,
   fontWeight: 700,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   cursor: "pointer",
 };
 const errBox: React.CSSProperties = {
@@ -335,7 +335,7 @@ const errBox: React.CSSProperties = {
   color: "#dc2626",
   padding: "9px 12px",
   borderRadius: 10,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   marginBottom: 10,
 };
 const warnBox: React.CSSProperties = {
@@ -343,6 +343,6 @@ const warnBox: React.CSSProperties = {
   color: "#a15c07",
   padding: "9px 12px",
   borderRadius: 10,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   marginBottom: 10,
 };

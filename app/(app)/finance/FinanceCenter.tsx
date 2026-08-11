@@ -265,7 +265,7 @@ function TaxSetupCard({ he, setup }: { he: boolean; setup: TaxSetup }) {
       )}
       <form action={action} className="ops-form">
         <input type="hidden" name="mode" value={on ? "flat" : "jurisdictions"} />
-        <p style={{ fontSize: "0.8125rem", color: "#5c6675", margin: "6px 0" }}>
+        <p style={{ fontSize: "0.875rem", color: "#5c6675", margin: "6px 0" }}>
           {on
             ? he
               ? "מעבר לשיעור אחיד יחזיר את החישוב לשיעור היחיד שבהגדרות. מסמכים קיימים לא משתנים."

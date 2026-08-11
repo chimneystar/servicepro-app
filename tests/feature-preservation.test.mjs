@@ -363,9 +363,8 @@ test("English and Hebrew dictionaries contain the same keys", async () => {
   assert.deepEqual(keys(hebrew), keys(english));
 });
 
-// origin/main's floor is 12px. Our branch moved typography to rem and holds a
-// stricter floor of 0.875rem (14px) — the two do not conflict (14 >= 12), so
-// their assertion is kept exactly as written. Note its reach: the inline
+// The field-use floor is 0.875rem (14px) across both the shared primitives and
+// the remaining inline declarations. Note the numeric pattern's reach: the inline
 // pattern matches only UNQUOTED numeric values (`fontSize: 13`), so quoted rem
 // values are outside it by construction. It still catches any relapse to raw
 // numeric/px sizes, which is what it was written to catch.
@@ -383,8 +382,8 @@ test("readable typography and public-page theme isolation cannot regress", async
       (match) => Number(match[1]),
     );
     assert.ok(
-      [...inlineSizes, ...stylesheetSizes].every((size) => size >= 12),
-      `text below the 12px support floor in ${file}`,
+      [...inlineSizes, ...stylesheetSizes].every((size) => size >= 14),
+      `text below the 14px field-use floor in ${file}`,
     );
   }
   const css = await readFile(resolve(root, "app/globals.css"), "utf8");
@@ -409,4 +408,55 @@ test("mobile and desktop navigation keep every allowed destination reachable", a
   assert.match(more, /NAV_ITEMS\.filter/);
   assert.match(nav, /className="side-utilities"/);
   assert.match(css, /\.side-utilities\s*\{[^}]*flex:\s*0 0 auto/);
+});
+
+test("the restored UX stays connected to the secured functional components", async () => {
+  const [signing, sharing, customers, customerPage, nav, publicDocument] = await Promise.all([
+    readFile(resolve(root, "components/SignApprove.tsx"), "utf8"),
+    readFile(resolve(root, "components/ShareDoc.tsx"), "utf8"),
+    readFile(resolve(root, "components/CustomerList.tsx"), "utf8"),
+    readFile(resolve(root, "app/(app)/customers/page.tsx"), "utf8"),
+    readFile(resolve(root, "components/Nav.tsx"), "utf8"),
+    readFile(resolve(root, "app/p/[token]/page.tsx"), "utf8"),
+  ]);
+
+  assert.match(signing, /approveDocument\(/, "secure signing action was disconnected");
+  assert.match(signing, /className="sign-approve"/, "readable signing layout was removed");
+  assert.match(signing, /className="sign-approve-canvas"/, "signature pad styling was removed");
+
+  assert.match(sharing, /<Modal /, "accessible modal behavior was removed from sharing");
+  assert.match(sharing, /className="share-dialog"/, "share dialog styling was removed");
+  assert.match(sharing, /autoSendDocument\(/, "in-app document delivery was disconnected");
+
+  assert.match(customers, /locale: Locale/, "customer search lost bilingual behavior");
+  assert.match(customers, /className="avatar-sm"/, "customer initials styling was removed");
+  assert.match(customerPage, /locale=\{locale\}/, "the customer locale was not passed through");
+
+  assert.match(nav, /className="mobile-brand-copy"/, "mobile identity layout was removed");
+  assert.match(nav, /t\(locale, roleKey\)/, "mobile member role is no longer visible");
+  assert.match(
+    publicDocument,
+    /className="public-document-page"/,
+    "public theme isolation was removed",
+  );
+  assert.match(
+    publicDocument,
+    /public-document-card/,
+    "public document surface styling was removed",
+  );
+});
+
+test("known faint text colours cannot return to operational UI", async () => {
+  const files = [
+    ...(await sourceFiles(resolve(root, "app"))),
+    ...(await sourceFiles(resolve(root, "components"))),
+  ];
+  const faint = [];
+  for (const file of files) {
+    const source = await readFile(file, "utf8");
+    if (/color:\s*["']#(?:94a3b8|9aa3b2)["']/i.test(source)) {
+      faint.push(relative(root, file));
+    }
+  }
+  assert.deepEqual(faint, [], `faint operational text returned in: ${faint.join(", ")}`);
 });

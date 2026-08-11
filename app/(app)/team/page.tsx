@@ -77,7 +77,7 @@ export default async function TeamPage() {
       </h1>
       {/* Permission changes are now recorded (migration 038 §3). This is where
           somebody who has just changed a role goes to check what was recorded. */}
-      <p style={{ marginBottom: 16, fontSize: "0.8125rem" }}>
+      <p style={{ marginBottom: 16, fontSize: "0.875rem" }}>
         <Link href="/settings/security">
           {locale === "he"
             ? "יומן שינויי הרשאות ואבטחת חשבון →"

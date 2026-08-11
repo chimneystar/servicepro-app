@@ -76,7 +76,7 @@ export default async function StatementPage({
             {statement.since ? ` · activity since ${fmtDate(statement.since)}` : ""}
           </p>
         </div>
-        <div style={{ textAlign: "end", fontSize: "0.8125rem", color: "#5c6675" }}>
+        <div style={{ textAlign: "end", fontSize: "0.875rem", color: "#5c6675" }}>
           <div style={{ fontWeight: 800, fontSize: "0.9375rem", color: "#0b1524" }}>{org.name}</div>
           {[org.address, org.city].filter(Boolean).join(", ") && (
             <div>{[org.address, org.city].filter(Boolean).join(", ")}</div>
@@ -122,7 +122,7 @@ export default async function StatementPage({
         {customer.phone && <div style={{ color: "#5c6675" }}>{customer.phone}</div>}
         {/* Consent is shown, because whoever is about to press Send should know
             before they press it, not afterwards from a skip reason. */}
-        <div style={{ marginTop: 6, fontSize: "0.8125rem", color: "#5c6675" }}>
+        <div style={{ marginTop: 6, fontSize: "0.875rem", color: "#5c6675" }}>
           SMS:{" "}
           {customer.sms_opt_in === false
             ? "opted OUT"
@@ -255,7 +255,7 @@ export default async function StatementPage({
           background: "#f5f7fb",
           border: "1px solid #e2e8f0",
           borderRadius: 12,
-          fontSize: "0.8125rem",
+          fontSize: "0.875rem",
           color: "#5c6675",
         }}
       >
@@ -271,7 +271,7 @@ function Kpi({ label, value, tone }: { label: string; value: string; tone?: stri
   return (
     <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 14 }}>
       <div style={{ fontSize: "1.25rem", fontWeight: 800, color: tone ?? "#0b1524" }}>{value}</div>
-      <div style={{ fontSize: "0.8125rem", color: "#5c6675", fontWeight: 600 }}>{label}</div>
+      <div style={{ fontSize: "0.875rem", color: "#5c6675", fontWeight: 600 }}>{label}</div>
     </div>
   );
 }

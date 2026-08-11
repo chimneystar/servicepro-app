@@ -13,8 +13,9 @@
    The reset itself is load-bearing and could not simply be deleted: this
    product was built on top of it, so its headings, lists, links, images and
    form controls all assume browser defaults are already gone. What follows is
-   Tailwind Preflight v3.4.19 (MIT) inlined VERBATIM as the build emitted it,
-   with the theme values already resolved. Nothing is edited. The dead
+   Tailwind Preflight v3.4.19 (MIT), with the theme values already resolved.
+   The only deliberate adjustment is that `small`, `sub`, and `sup` inherit the
+   readable text size instead of shrinking beneath the product's 14px floor. The dead
    `--tw-*` custom-property defaults that accompanied it are dropped: they exist
    only to be read by utilities, and there are none.
 
@@ -175,7 +176,7 @@ Add the correct font size in all browsers.
 */
 
 small {
-  font-size: 80%;
+  font-size: 1em;
 }
 
 /*
@@ -184,7 +185,7 @@ Prevent `sub` and `sup` elements from affecting the line height in all browsers.
 
 sub,
 sup {
-  font-size: 75%;
+  font-size: 1em;
   line-height: 0;
   position: relative;
   vertical-align: baseline;
@@ -558,7 +559,7 @@ video {
   --sp-text: #0b1524; /* 13 */
   --sp-text-strong: #334155; /* 44 — field labels */
   --sp-text-muted: #5c6675; /* 169 — the dominant secondary colour */
-  --sp-text-subtle: #94a3b8; /* 25 */
+  --sp-text-subtle: #5c6675; /* readable supporting text on light surfaces */
   --sp-text-on-accent: #ffffff; /* 77 uses as `color` */
 
   /* Surfaces. */
@@ -623,8 +624,8 @@ video {
      fixed because it would be centralised. tests/typography.test.mjs resolves
      `var(--sp-font-*)` through this block, so these are checked like any other
      font size in the product, not skipped as opaque. */
-  --sp-font-xs: 0.75rem; /* 12px — 67 */
-  --sp-font-sm: 0.8125rem; /* 13px — 337, the dominant size */
+  --sp-font-xs: 0.875rem; /* 14px — the field-use readability floor */
+  --sp-font-sm: 0.875rem; /* 14px — supporting and compact text */
   --sp-font-base: 0.875rem; /* 14px — 118 */
   --sp-font-md: 0.9375rem; /* 15px — 47 */
   --sp-font-lg: 1rem; /* 16px — 47 */
@@ -663,6 +664,19 @@ html[data-theme="dark"] {
   --focus-ring: #8fb2ff;
   --focus-ring-halo: rgba(143, 178, 255, 0.34);
 }
+html[data-theme="dark"] .shell {
+  --sp-text: var(--ink);
+  --sp-text-strong: var(--ink-soft);
+  --sp-text-muted: var(--muted);
+  --sp-text-subtle: var(--muted);
+  --sp-surface: var(--surface);
+  --sp-surface-sunken: var(--surface-2);
+  --sp-border: var(--line);
+  --sp-accent: var(--accent);
+  --sp-accent-strong: var(--accent-dark);
+  --sp-accent-surface: var(--accent-soft);
+  --sp-accent-soft: var(--accent-soft);
+}
 @media (prefers-color-scheme: dark) {
   html[data-theme="system"] {
     color-scheme: dark;
@@ -688,6 +702,19 @@ html[data-theme="dark"] {
     --shadow-lg: 0 28px 75px rgba(0, 0, 0, 0.4);
     --focus-ring: #8fb2ff;
     --focus-ring-halo: rgba(143, 178, 255, 0.34);
+  }
+  html[data-theme="system"] .shell {
+    --sp-text: var(--ink);
+    --sp-text-strong: var(--ink-soft);
+    --sp-text-muted: var(--muted);
+    --sp-text-subtle: var(--muted);
+    --sp-surface: var(--surface);
+    --sp-surface-sunken: var(--surface-2);
+    --sp-border: var(--line);
+    --sp-accent: var(--accent);
+    --sp-accent-strong: var(--accent-dark);
+    --sp-accent-surface: var(--accent-soft);
+    --sp-accent-soft: var(--accent-soft);
   }
 }
 html[data-contrast="high"] {
@@ -727,16 +754,9 @@ html[data-contrast="high"] {
    the rest of the way. Display type stays where A1 put it, so the ratio
    between the two is still a hierarchy rather than an inversion.
 
-   ONE LAYER IS DELIBERATELY EXEMPT, and it is a known gap rather than an
-   oversight: the `.sp-*` primitives at the foot of this file still read
-   `var(--sp-font-sm)` (13px) and `var(--sp-font-xs)` (12px). Those primitives
-   exist to be byte-equivalent to the inline style objects they replaced in
-   app/ and components/, and tests/design-system.test.mjs checks exactly that
-   equivalence. Raising them here — without raising the ~705 inline `fontSize`
-   props they mirror, which live in other files — would break the equivalence
-   and would still leave the un-migrated half of the product below the floor.
-   Lifting the primitives and their inline twins together is one follow-up
-   change, not a merge conflict resolution.
+   The shared `.sp-*` primitives and the remaining inline declarations now use
+   the same 14px floor. This closes the last known gap where newly added finance,
+   security, dispatch and public-document screens could fall back to 12–13px.
 --------------------------------------------------------------------------- */
 html[data-text-scale="large"] {
   font-size: 112.5%;
@@ -1716,7 +1736,7 @@ main:focus {
   width: min(510px, 100%);
   margin: 28px 0 0;
   color: #5f6d81;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.5;
   text-align: center;
 }
@@ -2294,7 +2314,7 @@ main:focus {
 }
 .setup-next small {
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 .setup-next strong {
@@ -2340,7 +2360,7 @@ main:focus {
   border-radius: 8px;
   background: #e6edfb;
   color: var(--accent);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .setup-all > div {
   display: grid;
@@ -2365,7 +2385,7 @@ main:focus {
   border-radius: 8px;
   background: #eaf0ff;
   color: var(--accent);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 900;
 }
 .setup-all a.done {
@@ -2422,6 +2442,25 @@ main:focus {
   color: var(--ink);
   font-family: "Rubik", "Heebo", sans-serif;
   font-size: 1.375rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.05;
+}
+.dashboard-kpis strong .dashboard-kpi-currency,
+.dashboard-kpis strong .dashboard-kpi-number,
+.dashboard-kpis strong .dashboard-kpi-suffix {
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+}
+.dashboard-kpis strong .dashboard-kpi-currency {
+  margin-inline-end: 0.08em;
+  font-size: 0.875rem;
+  vertical-align: 0.08em;
+}
+.dashboard-kpis strong .dashboard-kpi-suffix {
+  margin-inline-start: 0.08em;
+  font-size: 0.875rem;
+  vertical-align: 0.08em;
 }
 .dashboard-kpis a:nth-child(2) {
   border-color: #ecd15d;
@@ -2769,8 +2808,71 @@ button.ritem:hover {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
   border-radius: 13px !important;
+  color: #fff;
+  font-family: "Rubik", "Heebo", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+}
+.avatar-sm bdi {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  line-height: 1;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+.customer-search {
+  position: relative;
+  margin-bottom: 12px;
+}
+.customer-search input {
+  width: 100%;
+  min-height: var(--control-height);
+  padding: 11px 42px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 1rem;
+  outline: none;
+}
+.customer-search-icon {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 13px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+.customer-search-clear {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-end: 5px;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.875rem;
+  transform: translateY(-50%);
+}
+.customer-search-count {
+  margin: 0 4px 8px;
+  color: var(--muted);
+  font-size: 0.875rem;
 }
 .card-h {
   transition:
@@ -4381,7 +4483,7 @@ button.ritem:hover {
   border-radius: 7px;
   background: var(--accent-soft);
   color: var(--accent-dark);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 .tech-job-card strong {
   font-size: 0.875rem;
@@ -5411,6 +5513,9 @@ button.ritem:hover {
   --muted: #55647a;
   --subtle: #718096;
   --line: #d7e0ec;
+  --surface: #ffffff;
+  --surface-2: #edf2f8;
+  --surface-3: #f8faff;
   color-scheme: light;
   min-height: 100vh;
   display: flex;
@@ -5420,6 +5525,11 @@ button.ritem:hover {
   padding: 20px 14px;
   border-top: 5px solid;
   background: #eef3fb;
+  color: #101a2e;
+}
+.public-document-card {
+  color-scheme: light;
+  background: #fff;
   color: #101a2e;
 }
 .sign-approve {
@@ -5493,7 +5603,7 @@ button.ritem:hover {
 }
 .sign-approve-label span {
   color: #273652;
-  font-size: 0.75rem;
+  font-size: 0.875rem;
   font-weight: 800;
 }
 .sign-approve-label small {
@@ -6596,7 +6706,7 @@ button.ritem:hover {
   .mobile-brand small {
     margin-top: 1px;
     color: #aebddd;
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     font-weight: 700;
   }
   .mobile-sign-out {
@@ -6634,7 +6744,7 @@ button.ritem:hover {
     gap: 4px;
     padding: 7px 2px 6px;
     color: #66758c;
-    font-size: 0.75rem;
+    font-size: 0.875rem;
     font-weight: 800;
     text-decoration: none;
   }
@@ -8141,7 +8251,7 @@ button.ritem:hover {
   gap: 7px;
   margin: 15px 0 0;
   color: #64748b;
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   line-height: 1.45;
   text-align: center;
 }
@@ -9001,8 +9111,8 @@ html[data-theme="dark"] .dashboard-attention {
   border-color: var(--line) !important;
   color: var(--ink) !important;
 }
-html[data-theme="dark"] [style*='background: "#fff"'],
-html[data-theme="dark"] [style*="background: rgb(255, 255, 255)"] {
+html[data-theme="dark"] .app-content [style*='background: "#fff"'],
+html[data-theme="dark"] .app-content [style*="background: rgb(255, 255, 255)"] {
   background: var(--surface) !important;
   color: var(--ink) !important;
   border-color: var(--line) !important;
@@ -9017,6 +9127,12 @@ html[data-theme="dark"] [style*="background: rgb(255, 255, 255)"] {
     background-color: var(--surface) !important;
     border-color: var(--line) !important;
     color: var(--ink) !important;
+  }
+  html[data-theme="system"] .app-content [style*='background: "#fff"'],
+  html[data-theme="system"] .app-content [style*="background: rgb(255, 255, 255)"] {
+    background: var(--surface) !important;
+    color: var(--ink) !important;
+    border-color: var(--line) !important;
   }
 }
 

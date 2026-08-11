@@ -102,11 +102,11 @@ export default function TrashList({ rows }: { rows: TrashRow[] }) {
               <div style={{ flex: "1 1 240px", minWidth: 0 }}>
                 <div
                   style={{
-                    fontSize: "0.8125rem",
+                    fontSize: "0.875rem",
                     fontWeight: 800,
                     letterSpacing: 0.4,
                     textTransform: "uppercase",
-                    color: "#94a3b8",
+                    color: "#5c6675",
                   }}
                 >
                   {LABEL[row.kind]}
@@ -125,7 +125,7 @@ export default function TrashList({ rows }: { rows: TrashRow[] }) {
                   <div
                     style={{
                       color: "#5c6675",
-                      fontSize: "0.8125rem",
+                      fontSize: "0.875rem",
                       marginTop: 2,
                       overflowWrap: "anywhere",
                     }}
@@ -133,7 +133,7 @@ export default function TrashList({ rows }: { rows: TrashRow[] }) {
                     {row.detail}
                   </div>
                 )}
-                <div style={{ color: "#94a3b8", fontSize: "0.75rem", marginTop: 6 }}>
+                <div style={{ color: "#5c6675", fontSize: "0.875rem", marginTop: 6 }}>
                   Deleted {row.deletedAtLabel} · by{" "}
                   {row.deletedBy ??
                     "unknown (deleted before this was recorded, or by an automated task)"}
@@ -141,7 +141,7 @@ export default function TrashList({ rows }: { rows: TrashRow[] }) {
               </div>
               <div style={{ flex: "0 0 auto" }}>
                 {isRestored ? (
-                  <span style={{ color: "#15803d", fontWeight: 700, fontSize: "0.8125rem" }}>
+                  <span style={{ color: "#15803d", fontWeight: 700, fontSize: "0.875rem" }}>
                     ✓ Restored
                   </span>
                 ) : (
@@ -175,7 +175,7 @@ export default function TrashList({ rows }: { rows: TrashRow[] }) {
                   color: "#7c2d12",
                   borderRadius: 10,
                   padding: "9px 12px",
-                  fontSize: "0.8125rem",
+                  fontSize: "0.875rem",
                   marginTop: 10,
                   lineHeight: 1.5,
                 }}
@@ -190,7 +190,7 @@ export default function TrashList({ rows }: { rows: TrashRow[] }) {
               <div
                 style={{
                   marginTop: 10,
-                  fontSize: "0.8125rem",
+                  fontSize: "0.875rem",
                   fontWeight: 700,
                   color: message.ok ? "#15803d" : "#dc2626",
                 }}

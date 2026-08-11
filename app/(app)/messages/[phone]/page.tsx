@@ -126,7 +126,7 @@ export default async function ThreadPage({
             <div
               style={{
                 fontSize: "0.875rem",
-                color: "#94a3b8",
+                color: "#5c6675",
                 marginTop: 2,
                 textAlign: m.direction === "inbound" ? "start" : "end",
               }}

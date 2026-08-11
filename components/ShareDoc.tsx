@@ -73,191 +73,123 @@ export default function ShareDoc({
   }
 
   return (
-    <Modal onClose={onClose} labelledBy={titleId} width={420}>
+    <Modal onClose={onClose} labelledBy={titleId} width={460} className="share-dialog">
       <div dir={dirFor(locale)}>
-        <h3 id={titleId} style={{ fontSize: "1.125rem", fontWeight: 800, marginBottom: 4 }}>
-          {t(locale, `share.title_${target.kind}`, { number: target.number })}
-        </h3>
-        <p style={{ color: "#5c6675", fontSize: "0.875rem", marginBottom: 14 }}>
-          {t(locale, "share.to_customer", { name: target.customerName })}
-        </p>
+        <header className="share-dialog-heading">
+          <div>
+            <h2 id={titleId}>
+              {t(locale, `share.title_${target.kind}`, { number: target.number })}
+            </h2>
+            <p>{t(locale, "share.to_customer", { name: target.customerName })}</p>
+          </div>
+          <button
+            type="button"
+            className="share-dialog-dismiss"
+            onClick={onClose}
+            aria-label={t(locale, "share.close")}
+          >
+            ×
+          </button>
+        </header>
 
         <div
-          role="group"
+          className="share-channel-tabs"
+          role="tablist"
           aria-label={t(locale, "share.channel_label")}
-          style={{
-            display: "inline-flex",
-            background: "#eef2f8",
-            borderRadius: 10,
-            padding: 3,
-            marginBottom: 14,
-          }}
         >
           <button
             type="button"
+            role="tab"
+            aria-selected={mode === "email"}
             onClick={() => {
               setMode("email");
               setNotice(null);
             }}
-            aria-pressed={mode === "email"}
-            style={{ ...seg, ...(mode === "email" ? segOn : {}) }}
           >
-            <span aria-hidden="true">✉️</span> {t(locale, "share.email")}
+            <span aria-hidden="true">✉</span>
+            {t(locale, "share.email")}
           </button>
           <button
             type="button"
+            role="tab"
+            aria-selected={mode === "text"}
             onClick={() => {
               setMode("text");
               setNotice(null);
             }}
-            aria-pressed={mode === "text"}
-            style={{ ...seg, ...(mode === "text" ? segOn : {}) }}
           >
-            <span aria-hidden="true">💬</span> {t(locale, "share.text")}
+            <span aria-hidden="true">●</span>
+            {t(locale, "share.text")}
           </button>
         </div>
 
-        {mode === "email" ? (
-          <>
-            <label className="sp-field">
-              <span style={lbl}>{t(locale, "share.email_label")}</span>
+        <div className="share-channel-panel" role="tabpanel">
+          {mode === "email" ? (
+            <>
+              <label htmlFor="share-customer-email">{t(locale, "share.email_label")}</label>
               <input
+                id="share-customer-email"
                 type="email"
                 dir="ltr"
                 value={to}
-                onChange={(e) => setTo(e.target.value)}
+                onChange={(event) => setTo(event.target.value)}
                 placeholder="client@example.com"
                 autoComplete="email"
-                className="sp-input sp-control--lg"
               />
-            </label>
-            <button
-              type="button"
-              onClick={() => send("email")}
-              disabled={!to || pending}
-              style={{ ...btn, marginTop: 12, width: "100%", opacity: to ? 1 : 0.5 }}
-            >
-              {pending ? t(locale, "share.sending") : t(locale, "share.send_email")}
-            </button>
-          </>
-        ) : (
-          <>
-            <label className="sp-field">
-              <span style={lbl}>{t(locale, "share.phone_label")}</span>
+              <button
+                type="button"
+                className="share-primary"
+                onClick={() => send("email")}
+                disabled={!to || pending}
+              >
+                {pending ? t(locale, "share.sending") : t(locale, "share.send_email")}
+              </button>
+            </>
+          ) : (
+            <>
+              <label htmlFor="share-customer-phone">{t(locale, "share.phone_label")}</label>
               <input
+                id="share-customer-phone"
                 type="tel"
                 dir="ltr"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(event) => setPhone(event.target.value)}
                 placeholder="+1 555 123 4567"
                 autoComplete="tel"
-                className="sp-input sp-control--lg"
               />
-            </label>
-            <button
-              type="button"
-              onClick={() => send("text")}
-              disabled={!phone || pending}
-              style={{ ...btn, marginTop: 12, width: "100%", opacity: phone ? 1 : 0.5 }}
-            >
-              {pending ? t(locale, "share.sending") : t(locale, "share.send_text")}
-            </button>
-          </>
-        )}
+              <button
+                type="button"
+                className="share-primary"
+                onClick={() => send("text")}
+                disabled={!phone || pending}
+              >
+                {pending ? t(locale, "share.sending") : t(locale, "share.send_text")}
+              </button>
+            </>
+          )}
+        </div>
 
         {notice && (
-          <div
-            role="status"
-            style={{
-              marginTop: 10,
-              background: notice.tone === "success" ? "#e6f6ec" : "#fdeaea",
-              color: notice.tone === "success" ? "#15803d" : "#dc2626",
-              padding: "9px 12px",
-              borderRadius: 10,
-              fontSize: "0.875rem",
-              fontWeight: 700,
-              textAlign: "center",
-            }}
-          >
+          <p className={`share-notice ${notice.tone}`} role="status">
             {notice.text}
-          </div>
+          </p>
         )}
 
-        <div style={{ marginTop: 14, borderTop: "1px solid #eef1f6", paddingTop: 12 }}>
-          <div style={{ fontSize: "0.875rem", color: "#5c6675", marginBottom: 6 }}>
-            {t(locale, "share.copy_help")}
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              readOnly
-              dir="ltr"
-              value={link}
-              style={{ ...inp, fontSize: "0.875rem", color: "#5c6675" }}
-              aria-label={t(locale, "share.copy_help")}
-            />
-            <button
-              type="button"
-              onClick={copy}
-              style={{ ...btn, background: "#eef2f8", color: "#2563eb", flexShrink: 0 }}
-            >
-              {copied ? `✓ ${t(locale, "share.copied")}` : t(locale, "share.copy")}
+        <div className="share-copy-area">
+          <label htmlFor="share-secure-link">{t(locale, "share.copy_help")}</label>
+          <div>
+            <input id="share-secure-link" readOnly dir="ltr" value={link} />
+            <button type="button" onClick={copy}>
+              {copied ? t(locale, "share.copied") : t(locale, "share.copy")}
             </button>
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={onClose}
-          style={{ ...btn, background: "#e2e9f4", color: "#2563eb", width: "100%", marginTop: 14 }}
-        >
-          {t(locale, "share.close")}
-        </button>
-        <p style={{ fontSize: "0.875rem", color: "#94a3b8", marginTop: 10, textAlign: "center" }}>
-          <span aria-hidden="true">🔒</span> {t(locale, "share.security_note")}
+        <p className="share-security-note">
+          <span aria-hidden="true">●</span>
+          {t(locale, "share.security_note")}
         </p>
       </div>
     </Modal>
   );
 }
-
-const seg: React.CSSProperties = {
-  minHeight: 44,
-  border: "none",
-  background: "transparent",
-  padding: "7px 16px",
-  borderRadius: 8,
-  fontWeight: 700,
-  fontSize: "0.875rem",
-  color: "#5c6675",
-  cursor: "pointer",
-};
-const segOn: React.CSSProperties = {
-  background: "#fff",
-  color: "#0b1524",
-  boxShadow: "0 1px 3px rgba(0,0,0,.12)",
-};
-const lbl: React.CSSProperties = {
-  fontSize: "0.875rem",
-  fontWeight: 700,
-  color: "#334155",
-  display: "block",
-  marginBottom: 6,
-};
-const inp: React.CSSProperties = {
-  width: "100%",
-  border: "1px solid #e2e8f0",
-  borderRadius: 10,
-  padding: "10px 12px",
-  fontSize: "1rem",
-  outline: "none",
-};
-const btn: React.CSSProperties = {
-  minHeight: 44,
-  background: "#2563eb",
-  color: "#fff",
-  border: "none",
-  padding: "11px 16px",
-  borderRadius: 10,
-  fontWeight: 700,
-  cursor: "pointer",
-};

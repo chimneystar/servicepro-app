@@ -150,7 +150,7 @@ export default function JobsList({
               left: 12,
               top: "50%",
               transform: "translateY(-50%)",
-              color: "#94a3b8",
+              color: "#5c6675",
             }}
             aria-hidden="true"
           >

@@ -23,7 +23,7 @@ const AUTHED = [
   "/inventory",
   "/settings",
 ];
-const PUBLIC = ["/login"];
+const PUBLIC = ["/login", "/signup", "/forgot-password"];
 
 const IGNORE = [/Failed to load resource/i, /favicon/i, /ResizeObserver loop/i];
 
@@ -35,13 +35,51 @@ function watch(page: import("@playwright/test").Page, errors: string[]) {
   page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
 }
 
-for (const path of PUBLIC) {
-  test(`no console errors on ${path}`, async ({ page }) => {
-    const errors: string[] = [];
-    watch(page, errors);
-    await page.goto(path, { waitUntil: "networkidle" });
-    expect(errors, errors.join("\n")).toHaveLength(0);
-  });
+async function unreadableVisibleText(page: import("@playwright/test").Page) {
+  return page.locator("body *").evaluateAll((elements) =>
+    elements.flatMap((element) => {
+      if (!(element instanceof HTMLElement)) return [];
+      const ownText = [...element.childNodes]
+        .filter((node) => node.nodeType === Node.TEXT_NODE)
+        .map((node) => node.textContent ?? "")
+        .join(" ")
+        .trim();
+      if (!ownText || !element.checkVisibility()) return [];
+
+      const style = getComputedStyle(element);
+      const size = Number.parseFloat(style.fontSize);
+      const transparent =
+        Number.parseFloat(style.opacity) < 0.2 ||
+        style.color === "transparent" ||
+        /rgba\([^)]*,\s*0(?:\.0+)?\)$/.test(style.color);
+      if (size >= 14 && !transparent) return [];
+
+      return [
+        `${element.tagName.toLowerCase()}${element.id ? `#${element.id}` : ""}: ${size}px, ${style.color}, opacity ${style.opacity} — ${ownText.slice(0, 80)}`,
+      ];
+    }),
+  );
+}
+
+for (const locale of ["en", "he"] as const) {
+  for (const path of PUBLIC) {
+    test(`no console or unreadable text errors on ${path} (${locale})`, async ({
+      page,
+      context,
+      baseURL,
+    }) => {
+      await context.addCookies([
+        { name: "locale", value: locale, url: baseURL ?? "http://localhost:3000" },
+      ]);
+      const errors: string[] = [];
+      watch(page, errors);
+      await page.goto(path, { waitUntil: "networkidle" });
+      await expect(page.locator("html")).toHaveAttribute("dir", locale === "he" ? "rtl" : "ltr");
+      expect(errors, errors.join("\n")).toHaveLength(0);
+      const unreadable = await unreadableVisibleText(page);
+      expect(unreadable, unreadable.join("\n")).toHaveLength(0);
+    });
+  }
 }
 
 test.describe("authenticated pages", () => {

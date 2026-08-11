@@ -60,7 +60,7 @@ export default function TaxExemptionPanel({
           {exempt ? (he ? "פטור פעיל" : "Exempt") : he ? "חייב במס" : "Taxable"}
         </span>
       </div>
-      <p style={{ fontSize: "0.8125rem", color: "#5c6675", margin: "4px 0 10px" }}>
+      <p style={{ fontSize: "0.875rem", color: "#5c6675", margin: "4px 0 10px" }}>
         {exempt
           ? he
             ? "מסמכים חדשים ללקוח הזה ייווצרו ללא מס."
@@ -79,7 +79,7 @@ export default function TaxExemptionPanel({
             gap: 10,
             padding: "9px 0",
             borderTop: "1px solid #f1f4f9",
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
           }}
         >
           <div className="sp-flex-fill">
@@ -97,7 +97,7 @@ export default function TaxExemptionPanel({
               href={row.document_url}
               target="_blank"
               rel="noreferrer"
-              style={{ fontSize: "0.75rem", color: "#2563eb", fontWeight: 700 }}
+              style={{ fontSize: "0.875rem", color: "#2563eb", fontWeight: 700 }}
             >
               {he ? "מסמך" : "Document"}
             </a>
@@ -123,14 +123,14 @@ export default function TaxExemptionPanel({
         </div>
       )}
       {message && (
-        <div style={{ fontSize: "0.8125rem", color: "#2563eb", marginTop: 8 }} role="status">
+        <div style={{ fontSize: "0.875rem", color: "#2563eb", marginTop: 8 }} role="status">
           {message}
         </div>
       )}
 
       <details style={{ marginTop: 10 }}>
         <summary
-          style={{ fontSize: "0.8125rem", fontWeight: 700, color: "#2563eb", cursor: "pointer" }}
+          style={{ fontSize: "0.875rem", fontWeight: 700, color: "#2563eb", cursor: "pointer" }}
         >
           {he ? "רישום אישור פטור" : "Record an exemption certificate"}
         </summary>
@@ -206,11 +206,11 @@ const mini: React.CSSProperties = {
   borderRadius: 8,
   padding: "5px 9px",
   cursor: "pointer",
-  fontSize: "0.75rem",
+  fontSize: "0.875rem",
   fontWeight: 700,
 };
 const lbl: React.CSSProperties = {
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   fontWeight: 700,
   color: "#334155",
   display: "grid",

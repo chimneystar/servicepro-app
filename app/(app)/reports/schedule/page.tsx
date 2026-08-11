@@ -38,7 +38,7 @@ export default async function ReportSchedulePage() {
         ‹ Reports
       </Link>
       <h1 style={{ fontSize: "1.5rem", fontWeight: 800, margin: "8px 0 4px" }}>Emailed reports</h1>
-      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginBottom: 14 }}>
+      <p style={{ color: "#5c6675", fontSize: "0.875rem", marginBottom: 14 }}>
         A summary of collected revenue, margin, expenses and receivables, sent on the nightly run.
       </p>
 
@@ -51,7 +51,7 @@ export default async function ReportSchedulePage() {
             color: "#b91c1c",
             borderRadius: 12,
             padding: "11px 14px",
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
             marginBottom: 16,
           }}
         >
@@ -92,7 +92,7 @@ export default async function ReportSchedulePage() {
           </div>
           <fieldset style={{ border: "1px solid #eef1f6", borderRadius: 10, padding: 10 }}>
             <legend
-              style={{ fontSize: "0.8125rem", fontWeight: 700, color: "#5c6675", padding: "0 6px" }}
+              style={{ fontSize: "0.875rem", fontWeight: 700, color: "#5c6675", padding: "0 6px" }}
             >
               Send to
             </legend>
@@ -110,7 +110,7 @@ export default async function ReportSchedulePage() {
                     display: "flex",
                     alignItems: "center",
                     gap: 7,
-                    fontSize: "0.8125rem",
+                    fontSize: "0.875rem",
                     cursor: "pointer",
                   }}
                 >
@@ -130,7 +130,7 @@ export default async function ReportSchedulePage() {
                 </label>
               ))}
             </div>
-            <p style={{ fontSize: "0.75rem", color: "#5c6675", margin: "8px 0 0" }}>
+            <p style={{ fontSize: "0.875rem", color: "#5c6675", margin: "8px 0 0" }}>
               Recipients are teammates, not free-text addresses. Anyone who has turned notification
               email off is skipped at send time, with the reason recorded — the same opt-out rule
               that protects customers.

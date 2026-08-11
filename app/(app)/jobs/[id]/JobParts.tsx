@@ -115,7 +115,7 @@ export default function JobParts({ jobId, stock }: { jobId: string; stock: Stock
           )}
           {needsOverride && (
             <label
-              style={{ display: "block", fontSize: "0.8125rem", color: "#9a3412", marginTop: 8 }}
+              style={{ display: "block", fontSize: "0.875rem", color: "#9a3412", marginTop: 8 }}
             >
               <input type="checkbox" name="allowNegative" value="true" defaultChecked />{" "}
               {he

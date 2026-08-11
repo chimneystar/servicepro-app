@@ -175,7 +175,7 @@ export default async function TrashPage({
   return (
     <div style={{ maxWidth: 820 }}>
       <h1 className="sp-heading sp-heading--lg">Trash</h1>
-      <p style={{ color: "#5c6675", fontSize: "0.8125rem", marginTop: 4 }}>
+      <p style={{ color: "#5c6675", fontSize: "0.875rem", marginTop: 4 }}>
         {total} deleted {total === 1 ? "record" : "records"} · customers, jobs, estimates and
         invoices
       </p>
@@ -187,7 +187,7 @@ export default async function TrashPage({
           color: "#1e3a8a",
           borderRadius: 12,
           padding: "11px 14px",
-          fontSize: "0.8125rem",
+          fontSize: "0.875rem",
           margin: "12px 0 16px",
           lineHeight: 1.55,
         }}
@@ -214,7 +214,7 @@ export default async function TrashPage({
             color: "#991b1b",
             borderRadius: 12,
             padding: "11px 14px",
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
             marginBottom: 14,
           }}
         >
@@ -251,7 +251,7 @@ const pageBtn: React.CSSProperties = {
   borderRadius: 10,
   padding: "9px 14px",
   fontWeight: 700,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   color: "#334155",
   textDecoration: "none",
 };

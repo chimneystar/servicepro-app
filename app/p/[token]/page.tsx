@@ -116,7 +116,7 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
         <PrintButton label={t(locale, "public.save_pdf")} />
       </div>
       <div
-        className="print-card"
+        className="print-card public-document-card"
         style={{
           background: "#fff",
           borderRadius: 20,
@@ -281,7 +281,7 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
                       {it.description}
                     </div>
                   )}
-                  <div style={{ fontSize: "0.875rem", color: "#9aa3b2", marginTop: 2 }}>
+                  <div style={{ fontSize: "0.875rem", color: "#55647a", marginTop: 2 }}>
                     {(it.qty_milli / 1000).toLocaleString(bcp47)} ×{" "}
                     {money(it.unit_price_minor, cur)}
                     {hasNonTaxable && it.taxable === false
@@ -506,7 +506,7 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
             padding: "14px 30px",
             textAlign: "center",
             fontSize: "0.875rem",
-            color: "#94a3b8",
+            color: "#55647a",
           }}
         >
           {doc.org?.footer || `${doc.org?.name} · ${t(locale, "public.footer")}`}
@@ -517,24 +517,8 @@ export default async function PublicDocPage({ params }: { params: Promise<{ toke
 }
 
 function Center({ children, accent }: { children: React.ReactNode; accent: string }) {
-  // Kept as inline style rather than a `.public-document-page` class: this page
-  // is served to an anonymous customer and must render correctly on its own,
-  // without depending on a stylesheet class landing alongside it.
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#eef3fb",
-        color: "#101a2e",
-        colorScheme: "light",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "flex-start",
-        padding: "20px 14px",
-        borderTop: `5px solid ${accent}`,
-      }}
-    >
+    <div className="public-document-page" style={{ borderColor: accent }}>
       {children}
     </div>
   );

@@ -261,7 +261,7 @@ export default function CommissionClient({
 function KV({ label, v, strong }: { label: string; v: string; strong?: boolean }) {
   return (
     <div style={{ background: "#f8fafc", borderRadius: 8, padding: "7px 10px" }}>
-      <div style={{ color: "#94a3b8", fontWeight: 700, fontSize: "0.875rem" }}>{label}</div>
+      <div style={{ color: "#5c6675", fontWeight: 700, fontSize: "0.875rem" }}>{label}</div>
       <b style={{ color: strong ? "#15803d" : "#0b1524" }}>{v}</b>
     </div>
   );

@@ -128,11 +128,11 @@ export default function DocCorrections({
           </b>
         </div>
         {voidReason && (
-          <div style={{ fontSize: "0.8125rem", color: "#5c6675", marginTop: 6 }}>
+          <div style={{ fontSize: "0.875rem", color: "#5c6675", marginTop: 6 }}>
             Reason: {voidReason}
           </div>
         )}
-        <div style={{ fontSize: "0.8125rem", color: "#5c6675", marginTop: 8, lineHeight: 1.6 }}>
+        <div style={{ fontSize: "0.875rem", color: "#5c6675", marginTop: 8, lineHeight: 1.6 }}>
           The document and its number are kept on purpose, so the numbering has a cancelled entry
           rather than an unexplained gap. It can no longer be signed or paid. Duplicate it if a
           replacement is needed.
@@ -149,7 +149,7 @@ export default function DocCorrections({
 
   return (
     <div style={panel}>
-      <div style={{ fontSize: "0.8125rem", fontWeight: 800, color: "#334155", marginBottom: 8 }}>
+      <div style={{ fontSize: "0.875rem", fontWeight: 800, color: "#334155", marginBottom: 8 }}>
         Corrections
       </div>
 
@@ -160,7 +160,7 @@ export default function DocCorrections({
             border: "1px solid #f5d99b",
             borderRadius: 10,
             padding: "10px 12px",
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
             color: "#7c4a03",
             lineHeight: 1.6,
             marginBottom: 10,
@@ -204,7 +204,7 @@ export default function DocCorrections({
       </div>
 
       {!canVoid && (
-        <div style={{ fontSize: "0.75rem", color: "#5c6675", marginTop: 8, lineHeight: 1.6 }}>
+        <div style={{ fontSize: "0.875rem", color: "#5c6675", marginTop: 8, lineHeight: 1.6 }}>
           {m(collectedMinor)} has been collected against this document, so it cannot be voided —
           voiding says the sale never happened.{" "}
           {kind === "invoice"
@@ -308,7 +308,7 @@ function CreditList({
 }) {
   return (
     <div style={{ marginTop: 12 }}>
-      <div style={{ fontSize: "0.75rem", fontWeight: 800, color: "#334155", marginBottom: 6 }}>
+      <div style={{ fontSize: "0.875rem", fontWeight: 800, color: "#334155", marginBottom: 6 }}>
         Credit notes
       </div>
       {notes.map((n) => {
@@ -340,7 +340,7 @@ function CreditList({
                 {n.issue_date} · {n.reason}
               </div>
               {cancelled && (
-                <div style={{ fontSize: "0.75rem", color: "#b45309" }}>
+                <div style={{ fontSize: "0.875rem", color: "#b45309" }}>
                   Cancelled: {n.cancel_reason ?? "—"}
                 </div>
               )}
@@ -355,7 +355,7 @@ function CreditList({
                   background: "#eef2f8",
                   color: "#5c6675",
                   padding: "6px 10px",
-                  fontSize: "0.75rem",
+                  fontSize: "0.875rem",
                 }}
               >
                 Cancel
@@ -364,7 +364,7 @@ function CreditList({
           </div>
         );
       })}
-      <div style={{ fontSize: "0.8125rem", color: "#94a3b8", marginTop: 6, lineHeight: 1.5 }}>
+      <div style={{ fontSize: "0.875rem", color: "#5c6675", marginTop: 6, lineHeight: 1.5 }}>
         A credit note is never deleted. Cancelling one records the cancellation and its reason, so
         the credit-note sequence has no gaps either.
       </div>
@@ -443,11 +443,11 @@ const btn: React.CSSProperties = {
   borderRadius: 9,
   padding: "9px 13px",
   fontWeight: 700,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   cursor: "pointer",
 };
 const lbl: React.CSSProperties = {
-  fontSize: "0.75rem",
+  fontSize: "0.875rem",
   fontWeight: 700,
   color: "#334155",
   display: "block",
@@ -462,7 +462,7 @@ const inp: React.CSSProperties = {
   outline: "none",
 };
 const hint: React.CSSProperties = {
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   color: "#5c6675",
   lineHeight: 1.6,
   margin: "0 0 4px",
@@ -471,6 +471,6 @@ const pill: React.CSSProperties = {
   borderRadius: 999,
   padding: "3px 10px",
   fontWeight: 800,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   letterSpacing: 0.4,
 };

@@ -252,7 +252,7 @@ const smallBtn: React.CSSProperties = {
   borderRadius: 9,
   fontWeight: 700,
   cursor: "pointer",
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
 };
 const inp: React.CSSProperties = {
   width: "100%",
@@ -267,5 +267,5 @@ const errBox: React.CSSProperties = {
   color: "#dc2626",
   padding: "8px 12px",
   borderRadius: 10,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
 };

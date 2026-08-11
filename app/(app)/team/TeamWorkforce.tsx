@@ -190,7 +190,7 @@ export default function TeamWorkforce({
             <div key={s.id} style={row}>
               <div className="sp-flex-fill">
                 <b>{nameOf(s.profile_id)}</b> · {s.label || s.skill_code}
-                <div style={{ fontSize: "0.75rem", color: tone }}>
+                <div style={{ fontSize: "0.875rem", color: tone }}>
                   {status === "expired"
                     ? he
                       ? "פג תוקף"
@@ -385,7 +385,7 @@ function PayRateRow({
     <div style={row}>
       <div style={{ flex: 1, minWidth: 140 }}>
         <b>{member.full_name || "—"}</b>
-        <div style={{ fontSize: "0.75rem", color: rate ? "#5c6675" : "#a15c07" }}>
+        <div style={{ fontSize: "0.875rem", color: rate ? "#5c6675" : "#a15c07" }}>
           {rate
             ? `${he ? "כעת" : "now"} ${money(rate.cost_rate_minor, currency)}/${he ? "שעה" : "h"} · ${he ? "מ-" : "from"} ${rate.effective_from}`
             : he
@@ -430,7 +430,7 @@ const card: React.CSSProperties = {
 };
 const h3: React.CSSProperties = { fontSize: "0.9375rem", fontWeight: 800, marginBottom: 8 };
 const hint: React.CSSProperties = {
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   color: "#5c6675",
   marginBottom: 10,
   lineHeight: 1.5,
@@ -468,7 +468,7 @@ const rm: React.CSSProperties = {
   padding: "7px 12px",
   borderRadius: 9,
   fontWeight: 700,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   cursor: "pointer",
 };
 const err: React.CSSProperties = {
@@ -476,6 +476,6 @@ const err: React.CSSProperties = {
   color: "#dc2626",
   padding: "9px 12px",
   borderRadius: 10,
-  fontSize: "0.8125rem",
+  fontSize: "0.875rem",
   marginBottom: 10,
 };

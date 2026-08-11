@@ -128,7 +128,7 @@ export default function MovementForm({ items }: { items: ItemRow[] }) {
         </Notice>
       )}
       {needsOverride && (
-        <label style={{ display: "block", fontSize: "0.8125rem", color: "#9a3412", marginTop: 8 }}>
+        <label style={{ display: "block", fontSize: "0.875rem", color: "#9a3412", marginTop: 8 }}>
           <input type="checkbox" name="allowNegative" value="true" defaultChecked /> Record it
           anyway — the stock was really used. The item is flagged for a count.
         </label>

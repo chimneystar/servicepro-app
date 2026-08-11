@@ -7,7 +7,7 @@ type TextProps = Omit<HTMLAttributes<HTMLElement>, "className"> & {
 };
 
 /**
- * Secondary text: `font-size:0.8125rem; color:#5c6675`. Twenty-seven exact
+ * Secondary text: `font-size:0.875rem; color:#5c6675`. Twenty-seven exact
  * copies of that pair, which made it the single most repeated declaration pair
  * in the product.
  */

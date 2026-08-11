@@ -69,7 +69,7 @@ export default async function DispatchPage({
             borderRadius: 12,
             padding: "10px 14px",
             marginBottom: 12,
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
           }}
         >
           <b>
@@ -93,7 +93,7 @@ export default async function DispatchPage({
               ))}
             </span>
           )}
-          <div style={{ marginTop: 4, fontSize: "0.75rem" }}>
+          <div style={{ marginTop: 4, fontSize: "0.875rem" }}>
             {he
               ? "שיבוץ לאדם שאינו זמין יידחה עם ההסבר."
               : "Assigning work to anyone listed here is refused, with the reason."}
@@ -108,7 +108,7 @@ export default async function DispatchPage({
             borderRadius: 12,
             padding: "10px 14px",
             marginBottom: 12,
-            fontSize: "0.8125rem",
+            fontSize: "0.875rem",
           }}
         >
           <b>{he ? "הסמכות נדרשות היום" : "Certifications needed today"}:</b>{" "}
