@@ -1,6 +1,11 @@
 export type MerchantConnectionStatus =
-  | "not_started" | "application_started" | "under_review" | "action_required"
-  | "approved" | "rejected" | "suspended";
+  | "not_started"
+  | "application_started"
+  | "under_review"
+  | "action_required"
+  | "approved"
+  | "rejected"
+  | "suspended";
 
 export type PaymentSettings = {
   organization_id: string;
@@ -28,6 +33,15 @@ export type PaymentSettings = {
   receipt_email_enabled: boolean;
   receipt_sms_enabled: boolean;
 };
+/**
+ * Tip choices for an anonymous customer on /p/[token].
+ *
+ * Served by the `public_tip_options` RPC (migration 031) rather than read off
+ * `payment_settings`, which is owner/office-only because it also holds the
+ * Zelle and cheque payout details.
+ */
+export type PublicTipOptions = { enabled: boolean; percents: number[] };
+
 export type PublicPaymentOptions = {
   available: boolean;
   reason?: string;
@@ -39,11 +53,18 @@ export type PublicPaymentOptions = {
   fee_saver?: boolean;
   methods?: { helcim: boolean; card: boolean; ach: boolean; zelle: boolean; check: boolean };
   zelle?: null | {
-    recipient_name?: string | null; email?: string | null; phone?: string | null;
-    qr_url?: string | null; instructions?: string | null; memo?: string;
+    recipient_name?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    qr_url?: string | null;
+    instructions?: string | null;
+    memo?: string;
   };
   check?: null | {
-    payee?: string | null; address?: string | null; city_state_zip?: string | null;
-    memo_instructions?: string | null; memo?: string;
+    payee?: string | null;
+    address?: string | null;
+    city_state_zip?: string | null;
+    memo_instructions?: string | null;
+    memo?: string;
   };
 };

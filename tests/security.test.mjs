@@ -1,0 +1,371 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { isAuthorizedBearer, isSmsOptOut, isSmsOptIn, escapeHtml } from "../lib/core/security.mjs";
+
+// ---------------------------------------------------------------------------
+// Cron authorization — proven in BOTH directions.
+// The regression: `if (secret && ...)` let an unset CRON_SECRET disable auth on
+// an endpoint that deletes customer data across every organisation.
+// ---------------------------------------------------------------------------
+
+test("cron auth REFUSES when no secret is configured (fail closed)", () => {
+  // This is the exact bug being guarded. Every one of these must be refused.
+  assert.equal(isAuthorizedBearer("Bearer anything", undefined), false);
+  assert.equal(isAuthorizedBearer("Bearer anything", null), false);
+  assert.equal(isAuthorizedBearer("Bearer anything", ""), false);
+  assert.equal(isAuthorizedBearer("", ""), false);
+  // Even an empty presented header against an empty secret must not "match".
+  assert.equal(isAuthorizedBearer("Bearer ", ""), false);
+});
+
+test("cron auth REFUSES a wrong, absent or malformed token", () => {
+  const secret = "s3cret-value";
+  assert.equal(isAuthorizedBearer("Bearer wrong", secret), false);
+  assert.equal(isAuthorizedBearer("", secret), false);
+  assert.equal(isAuthorizedBearer(null, secret), false);
+  assert.equal(
+    isAuthorizedBearer(secret, secret),
+    false,
+    "raw secret without the Bearer prefix must not pass",
+  );
+  assert.equal(
+    isAuthorizedBearer("bearer s3cret-value", secret),
+    false,
+    "scheme is case-sensitive here",
+  );
+  assert.equal(
+    isAuthorizedBearer("Bearer s3cret-value ", secret),
+    false,
+    "trailing whitespace must not pass",
+  );
+});
+
+test("cron auth ACCEPTS the correct token (guard is not a cry-wolf)", () => {
+  // The other half of the both-ways proof: a guard that can only ever refuse is
+  // the same bug wearing the other face.
+  assert.equal(isAuthorizedBearer("Bearer s3cret-value", "s3cret-value"), true);
+  const long = "a".repeat(512);
+  assert.equal(isAuthorizedBearer(`Bearer ${long}`, long), true);
+});
+
+test("cron auth tolerates length mismatch without throwing", () => {
+  // timingSafeEqual throws on unequal buffer lengths; hashing first prevents a
+  // 500 that would otherwise be trivially distinguishable from a 401.
+  assert.doesNotThrow(() => isAuthorizedBearer("Bearer short", "a".repeat(300)));
+  assert.equal(isAuthorizedBearer("Bearer short", "a".repeat(300)), false);
+});
+
+// ---------------------------------------------------------------------------
+// SMS opt-out — a customer replying STOP must stop receiving reminders.
+// ---------------------------------------------------------------------------
+
+test("STOP and its variants are recognised as opt-out", () => {
+  for (const word of [
+    "STOP",
+    "stop",
+    " Stop ",
+    "STOPALL",
+    "unsubscribe",
+    "CANCEL",
+    "end",
+    "quit",
+    "OptOut",
+    "opt-out",
+  ]) {
+    assert.equal(isSmsOptOut(word), true, `${JSON.stringify(word)} should opt out`);
+  }
+});
+
+test("ordinary messages are NOT treated as opt-out", () => {
+  // The false-positive half: silently unsubscribing a customer who asked a
+  // question would be its own bug.
+  for (const word of [
+    "stop by tomorrow please",
+    "can you stop at 4?",
+    "",
+    "  ",
+    "STOPPED",
+    "yes please",
+    null,
+    undefined,
+  ]) {
+    assert.equal(isSmsOptOut(word), false, `${JSON.stringify(word)} should NOT opt out`);
+  }
+});
+
+test("START re-subscribes and does not collide with opt-out", () => {
+  assert.equal(isSmsOptIn("START"), true);
+  assert.equal(isSmsOptIn("start"), true);
+  assert.equal(isSmsOptOut("START"), false);
+  assert.equal(isSmsOptIn("STOP"), false);
+});
+
+// ---------------------------------------------------------------------------
+// HTML escaping for values interpolated into outbound email.
+// ---------------------------------------------------------------------------
+
+test("customer-controlled values cannot inject markup into an email", () => {
+  assert.equal(escapeHtml(`<script>alert(1)</script>`), "&lt;script&gt;alert(1)&lt;/script&gt;");
+  assert.equal(escapeHtml(`" onmouseover="x`), "&quot; onmouseover=&quot;x");
+  assert.equal(escapeHtml("Tom & Jerry's"), "Tom &amp; Jerry&#39;s");
+  assert.equal(escapeHtml("plain name"), "plain name", "ordinary text must pass through untouched");
+  assert.equal(escapeHtml(null), "");
+});
+
+// ---------------------------------------------------------------------------
+// Structural guards. These assert on source because the property is structural,
+// and each one names the exact regression it prevents.
+// ---------------------------------------------------------------------------
+
+/**
+ * Read a source file with comments stripped.
+ *
+ * This matters: these guards describe the bug they prevent in a comment, so a
+ * naive scan matches the prose and reports a regression that does not exist.
+ * A check that fires on a healthy input is the same bug as one that misses a
+ * broken input — it just fails in the other direction.
+ */
+const read = (p) => {
+  const src = readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, "") // block comments
+    .replace(/(^|[^:])\/\/.*$/gm, "$1"); // line comments (leave "https://" alone)
+};
+
+/** Raw read, for assertions that legitimately want the whole file. */
+const readRaw = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+
+test("the comment-stripping used by these guards actually works", () => {
+  // Prove the helper before trusting the checks built on it.
+  const stripped = read("app/api/cron/daily/route.ts");
+  assert.ok(!/previously ran/.test(stripped), "block comments must be removed");
+  assert.ok(/NextResponse/.test(stripped), "code must survive stripping");
+});
+
+test("the daily cron cannot regress to the fail-open pattern", () => {
+  const src = read("app/api/cron/daily/route.ts");
+  assert.ok(
+    !/if\s*\(\s*secret\s*&&/.test(src),
+    "`if (secret && ...)` skips auth entirely when CRON_SECRET is unset",
+  );
+  // The fail-closed property itself is proven behaviourally above; what this
+  // asserts is that the route still routes through that proven guard rather
+  // than re-implementing the comparison inline.
+  assert.ok(
+    /isAuthorizedBearer\s*\(/.test(src),
+    "the route must delegate to the both-ways-proven bearer check",
+  );
+  assert.ok(
+    !/timingSafeEqual/.test(src),
+    "a second inline implementation would drift from the tested one",
+  );
+});
+
+test("the daily cron reports failure instead of always returning ok", () => {
+  const src = read("app/api/cron/daily/route.ts");
+  assert.ok(
+    /failures\.length === 0|ok\s*=\s*failures/.test(src),
+    "a cron that always returns ok:true hides a broken system behind a green dashboard",
+  );
+});
+
+test("the inbound SMS webhook verifies its signature and scopes the tenant", () => {
+  const src = read("app/api/sms/incoming/route.ts");
+  assert.ok(
+    /validateTwilioSignature/.test(src),
+    "inbound SMS must be authenticated like the voice webhooks",
+  );
+  assert.ok(
+    /tracked_phone_numbers/.test(src),
+    "the organisation must be resolved from the number texted",
+  );
+  assert.ok(
+    !/from\("organizations"\)[\s\S]{0,80}limit\(1\)/.test(src),
+    "falling back to an arbitrary organisation files a customer message under the wrong business",
+  );
+});
+
+test("photo deletion derives the storage path from the row, not the caller", () => {
+  const src = read("app/(app)/jobs/[id]/actions.ts");
+  assert.ok(
+    !/storage\.from\("job-photos"\)\.remove\(\[path\]\)/.test(src),
+    "a client-supplied path allows deleting arbitrary objects",
+  );
+  assert.ok(/photo\.storage_path/.test(src), "the path must come from the fetched row");
+});
+
+test("document sending derives its origin from configuration, not the client", () => {
+  const src = read("app/(app)/share-actions.ts");
+  assert.ok(/function appOrigin/.test(src), "the link origin must be server-derived");
+  assert.ok(
+    !/const link = `\$\{origin\}/.test(src),
+    "a caller-supplied origin turns this into branded phishing from the business's own identity",
+  );
+});
+
+test("migration 023 constrains the privilege columns on profiles", () => {
+  const sql = read("db/023_authorization_hardening.sql").toLowerCase();
+  assert.ok(/guard_profile_privilege_columns/.test(sql));
+  for (const col of ["role", "organization_id", "active", "commission_pct"]) {
+    assert.ok(sql.includes(`new.${col}`), `${col} must be pinned against self-service escalation`);
+  }
+  assert.ok(
+    /inviter_role/.test(sql),
+    "accept_invitation must verify who issued an owner-level invite",
+  );
+});
+
+test("portal links expire and can be revoked", () => {
+  const sql = readRaw("db/023_authorization_hardening.sql");
+  assert.ok(
+    /portal_token_expires_at/.test(sql),
+    "a permanent customer link cannot be revoked after a leak",
+  );
+  assert.ok(
+    /rotate_customer_portal_token/.test(sql),
+    "the business must be able to invalidate a leaked link",
+  );
+  assert.ok(
+    /portal_token_expires_at is null or portal_token_expires_at > now\(\)/.test(sql),
+    "expiry must actually be enforced on lookup, not merely recorded",
+  );
+});
+
+test("portal preference changes are rate limited like every other request", () => {
+  const sql = readRaw("db/023_authorization_hardening.sql");
+  const fn = sql.slice(sql.indexOf("function public.submit_customer_portal_request"));
+  const limitAt = fn.indexOf("recent_count >= 10");
+  const prefAt = fn.indexOf("if p_type = 'preferences'");
+  assert.ok(limitAt > -1 && prefAt > -1, "both the limit and the preferences branch must exist");
+  assert.ok(
+    limitAt < prefAt,
+    "the preferences branch previously returned BEFORE the rate check, allowing unbounded consent flipping",
+  );
+});
+
+test("migration 023 only uses request types the CHECK constraint permits", () => {
+  const sql = readRaw("db/023_authorization_hardening.sql");
+  const allowed = /check \(request_type in \(([^)]*)\)\)/.exec(sql);
+  assert.ok(allowed, "the constraint must be declared in this migration");
+  const permitted = allowed[1].split(",").map((s) => s.trim().replace(/'/g, ""));
+  for (const used of [...sql.matchAll(/request_type\s*\)?\s*\n?\s*values[^;]*?'([a-z_]+)'/g)].map(
+    (m) => m[1],
+  )) {
+    assert.ok(
+      permitted.includes(used),
+      `inserts '${used}' but the CHECK allows only ${permitted.join(", ")}`,
+    );
+  }
+});
+
+test("security response headers are configured", () => {
+  const src = readRaw("next.config.mjs");
+  for (const header of [
+    "Content-Security-Policy",
+    "Strict-Transport-Security",
+    "X-Frame-Options",
+    "Referrer-Policy",
+  ]) {
+    assert.ok(src.includes(header), `${header} must be set on an app serving payment pages`);
+  }
+  assert.ok(/frame-ancestors 'none'/.test(src), "payment and signing pages must not be framable");
+});
+
+// ---------------------------------------------------------------------------
+// A CSP that blocks the app's OWN assets is a well-formed header and a live
+// defect. From the day the security headers shipped until 2026-08-01 this one
+// blocked `app/layout.tsx`'s Google Fonts stylesheet (style-src) and its font
+// files (font-src), so production rendered in fallback faces — including the
+// Hebrew UI, whose face is Heebo. The test above could not see it: it asserts
+// the header EXISTS. Nothing asserted that what the document loads is what the
+// policy permits, and only a browser loading a real page found it.
+//
+// So this probe is DERIVED, not a hardcoded pair of origins: it reads the
+// origins the layout actually references and requires the policy to allow each
+// one. Add a third font host tomorrow and this fails until the CSP names it.
+// ---------------------------------------------------------------------------
+
+/** The CSP directive values, parsed out of the `csp` array in next.config.mjs. */
+function cspDirectives() {
+  const src = readRaw("next.config.mjs");
+  const block = src.match(/const csp = \[([\s\S]*?)\]\.join/);
+  assert.ok(block, "next.config.mjs must still declare the CSP as a `csp` array");
+  // Parse line by line, NOT with a quote-delimited regex: every entry contains
+  // inner single quotes (`'self'`, `'unsafe-inline'`), so a naive quote match
+  // stops at the first keyword and silently loses the origins — which would
+  // make this whole probe report a false RED.
+  const entries = block[1]
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith("//"))
+    .map((line) =>
+      line
+        .replace(/,$/, "")
+        .replace(/\.trim\(\)$/, "")
+        .trim(),
+    )
+    .map((line) => (/^["'`]/.test(line) ? line.slice(1, -1) : line));
+  const out = {};
+  for (const entry of entries) {
+    const [name, ...values] = entry.trim().split(/\s+/);
+    if (name) out[name] = (out[name] ?? []).concat(values);
+  }
+  return out;
+}
+
+/** External origins `app/layout.tsx` references, by the `rel` that pulls them. */
+function layoutExternalOrigins() {
+  const src = readRaw("app/layout.tsx");
+  const stylesheets = new Set();
+  const preconnects = new Set();
+  for (const tag of src.match(/<link[^>]*>/g) ?? []) {
+    const href = tag.match(/href=["']?(https:\/\/[^"'\s}]+)/)?.[1];
+    if (!href) continue;
+    const origin = new URL(href).origin;
+    if (/rel=["']?stylesheet/.test(tag)) stylesheets.add(origin);
+    if (/rel=["']?preconnect/.test(tag)) preconnects.add(origin);
+  }
+  return { stylesheets, preconnects };
+}
+
+test("the CSP permits every external origin the layout actually loads", () => {
+  const csp = cspDirectives();
+  const { stylesheets, preconnects } = layoutExternalOrigins();
+
+  // Guard the guard: if the layout stops loading anything external this test
+  // must say so rather than pass vacuously on two empty sets.
+  assert.ok(
+    stylesheets.size > 0 || preconnects.size > 0,
+    "layout.tsx references no external origin — if that is now true, delete this probe deliberately",
+  );
+
+  for (const origin of stylesheets) {
+    assert.ok(
+      (csp["style-src"] ?? []).includes(origin),
+      `layout.tsx loads a stylesheet from ${origin} but style-src does not allow it — ` +
+        `the browser will block it and the page will render unstyled`,
+    );
+  }
+
+  // A preconnect names a host the document is about to fetch from. If no
+  // directive allows it, that fetch is blocked — which is exactly how the font
+  // files were lost while the stylesheet reference looked fine.
+  const allowed = new Set(Object.values(csp).flat());
+  for (const origin of preconnects) {
+    assert.ok(
+      allowed.has(origin),
+      `layout.tsx preconnects to ${origin} but no CSP directive allows it`,
+    );
+  }
+});
+
+test("the font origins are named exactly, never widened to all of https:", () => {
+  const csp = cspDirectives();
+  for (const directive of ["style-src", "font-src"]) {
+    assert.ok(
+      !(csp[directive] ?? []).includes("https:"),
+      `${directive} must name its origins, not allow every https host`,
+    );
+  }
+});

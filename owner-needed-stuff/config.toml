@@ -1,0 +1,40 @@
+# Local-only Supabase stack for ServicePro end-to-end tests.
+# Nothing here is a secret: `supabase start` uses fixed, well-known local keys.
+project_id = "servicepro-e2e"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]                 # catches outbound mail so nothing leaves the machine
+enabled = true
+port = 54324
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+# Off deliberately: the seeded users are created pre-confirmed via the admin API,
+# and no real mailbox exists to confirm from.
+enable_confirmations = false
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"

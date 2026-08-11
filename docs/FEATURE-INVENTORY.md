@@ -1,0 +1,315 @@
+# ServicePro — Feature Inventory (preservation contract)
+
+**Date:** 2026-07-31. **Purpose:** an exhaustive list of every user-facing capability in the product,
+so that no functionality is silently lost — whether the codebase is repaired in place or rebuilt.
+
+**Status key**
+- **REAL** — the flow reads and writes real data and completes end to end in code.
+- **PARTIAL** — it works, but a named sub-piece is missing, hardcoded, or wrong. The gap is stated.
+- **STUB** — the UI, setting or table exists but nothing executes behind it. **These are the items
+  most likely to be mistaken for working features.**
+
+**~190 capabilities.** The status column on each row is the authority — a headline count here
+would be derived by pattern-matching and would not survive rewording, so it is deliberately not
+quoted. _Last reconciled 2026-07-31 against branch `fix/production-hardening`; rows are updated
+as fixes land. See `docs/REMEDIATION-PLAN.md` for what is still open._
+
+---
+
+## 1. Jobs and field work
+
+| Capability | Entry point | Users | State |
+|---|---|---|---|
+| Job list with stage tabs, tag filter, text search, aging | `/jobs` | owner/office/tech | PARTIAL — server caps at 500 rows, filtering is client-side, so older jobs vanish from tabs and counts |
+| Create job (customer, service, tech, date, times, price, address, notes) | `/jobs`, `/schedule` | owner/office | REAL |
+| Inline "new customer" while booking a job | `/schedule` | owner/office | REAL |
+| Job-type defaults (duration auto-fills end time, default price) | JobForm | owner/office | REAL |
+| Multi-day jobs (`end_date`) | `/schedule` | owner/office | PARTIAL — honoured by dispatch, but the calendar renders the job only on its start date |
+| Double-booking prevention | DB exclusion constraint | — | REAL — enforced by DB constraint for the lead technician AND for crew (migration 028); the conflict is surfaced clearly on create and on dispatch reassignment |
+| Job detail with 11 tabs (details, items, payments, estimates, invoices, attachments, history, warranty, tasks, equipment, checklists) | `/jobs/[id]` | owner/office/tech | REAL |
+| Change job stage (+ legacy enum sync, `stage_changed_at`) | `/jobs/[id]` | owner/office/tech | REAL — a technician may only move a job assigned to them, and the terminal-status rule is enforced on this path (it derives the enum status from the stage, so a completed job could previously be reopened by moving it back) |
+| Create invoice from job (line items or fallback, real numbering) | `/jobs/[id]` | owner/office | REAL |
+| Service-address override per job | `/jobs/[id]` | owner/office/tech | REAL — a technician may only edit a job assigned to them (`assertJobAccess`); owner and office are unrestricted |
+| Job line items: add / delete | `/jobs/[id]` | owner/office | REAL |
+| Job tasks: add / toggle / delete | `/jobs/[id]` | owner/office/tech | REAL |
+| Checklists: add / toggle / delete | `/jobs/[id]` | owner/office/tech | REAL |
+| Customer equipment register: add / delete | `/jobs/[id]` | owner/office/tech | REAL |
+| Photo and video upload (Storage + signed URLs) | `/jobs/[id]` | owner/office/tech | REAL — 15 MB / 100 MB limits enforced client-side only |
+| Photo markup / annotation saved as a linked copy | `/jobs/[id]` | tech | REAL |
+| Photo "customer visible" flag | `job_photos.customer_visible` | — | **STUB** — column is selected and passed to the component but never rendered, toggled, or used to filter |
+| Record payment against an invoice from the job | `/jobs/[id]` | owner/office | REAL |
+| AI job-summary draft and approve | `/jobs/[id]` | owner/office/tech | PARTIAL — without an AI endpoint configured it writes a templated local summary; approve has no role check |
+| Job history timeline (audit + notes + follow-ups + calls + warranty, merged) | `/jobs/[id]` | owner/office/tech | REAL |
+| Add note / follow-up task with due date and assignee | `/jobs/[id]` | owner/office/tech | REAL — techs may only add notes and complete their own |
+| Job completion report + print to PDF | `/jobs/[id]/report` | all + customer | REAL |
+| "On my way" timestamp + customer SMS | `/tech`, `/jobs/[id]` | tech | PARTIAL — SMS only fires if Twilio is configured *and* an enabled template exists |
+| Clock in / clock out, total hours on job | `/jobs/[id]` | tech | REAL — a unique index on open entries makes a duplicate clock-in impossible; a second click is treated as already clocked in |
+| Complete job with canvas signature and signer name | `/jobs/[id]` | tech + customer | REAL |
+| Job tags editor | `/jobs/[id]` | owner/office | REAL |
+| Job expenses (feeds commission) | `/jobs/[id]` | owner/office | REAL |
+
+## 2. Scheduling, dispatch and routing
+
+| Capability | Entry point | Users | State |
+|---|---|---|---|
+| Calendar — day / week / month, job-type colours | `/schedule` | owner/office | PARTIAL — loads **every** job in the org with no date filter or limit |
+| Dispatch board — drag a job between technician columns | `/dispatch` | owner/office | REAL — validates the target is in the org, optimistic UI with rollback |
+| Add / remove extra crew on a job | `/dispatch` | owner/office | REAL — reassigning removes the previous lead's row, and unassigning clears it |
+| Dispatch date navigation | `/dispatch` | owner/office | REAL |
+| Technician workspace — today + upcoming, start/complete | `/tech` | tech | REAL |
+| Offline outbox — queue start/complete, auto-flush on reconnect, pending badge | `/tech`, `/offline` | tech | REAL — completing offline closes the technician's open time entry; permanently-rejected events are dropped and reported instead of retrying forever |
+| Offline snapshot of today's jobs | `/offline` | tech | REAL |
+| Daily route sheet + one-click multi-stop Google Maps | `/route` | tech/office | REAL |
+| GPS location sharing with consent record | `/fleet`, `/tech` | tech | PARTIAL — consent row is written implicitly by the first location POST rather than by an explicit consent step |
+| Fleet view of last-known technician locations | `/fleet` | owner/office | REAL |
+| Status-transition rules (done/cancelled terminal) | `lib/core/scheduling.mjs` | — | **STUB** — the logic exists and is well tested, but **no application code calls it** |
+| Push notification enrolment (VAPID) | `/api/devices/push` | tech | REAL — sender added (`lib/push.ts`, Web Push aes128gcm + VAPID). Assigning a technician to a job notifies their devices; dead endpoints (404/410) are deleted. With no VAPID keys the feature reports itself UNAVAILABLE on enrolment instead of silently doing nothing |
+
+## 3. Customers, leads and communications
+
+| Capability | Entry point | Users | State |
+|---|---|---|---|
+| Customer list / create / edit / delete | `/customers` | owner/office | REAL — validated; delete restricted to owner/office |
+| Customer detail — KPIs, job history, reviews, portal link, create estimate/invoice | `/customers/[id]` | owner/office | REAL |
+| Add customer review (1-5) | `/customers/[id]` | owner/office | REAL |
+| CSV paste import (≤5,000 rows) | `/customers/import` | owner/office | REAL — naive comma split, no quoted-field support |
+| Leads pipeline — status board, convert to customer, delete, shareable booking link | `/leads` | owner/office | REAL |
+| Call log with filters and missed/follow-up/booked stats | `/calls` | owner/office | REAL |
+| Manual call logging with auto customer match | `/calls` | owner/office | PARTIAL — matches within the first 1,000 customers only; beyond that the call silently fails to link |
+| Inbound call webhook — signature check, customer match, forwarding, recording notice | `/api/calls/incoming` | customer | REAL |
+| Call status / recording webhook | `/api/calls/status` | — | REAL |
+| Tracked phone numbers (label, source, campaign, forward-to, recording) | `/calls` | owner | PARTIAL — create and update only; no deactivate or delete |
+| SMS inbox threads | `/messages` | owner/office | PARTIAL — fetches every message and every customer with no limit |
+| SMS thread view and send (Twilio, or hand off to the phone's SMS app) | `/messages/[phone]` | owner/office | REAL |
+| Inbound SMS webhook | `/api/sms/incoming` | customer | REAL — Twilio signature validated; the tenant is resolved from the tracked number, and an unrecognised number is dropped rather than filed under an arbitrary business. Honours STOP/START |
+| Global search across clients, jobs, invoice/estimate numbers | `/search` | owner/office | PARTIAL — jobs now match on service text OR customer; documents still match only an exact number. Filter injection fixed |
+| Automatic review request on completion + manual "ask for review" | `/jobs/[id]` | owner/office | PARTIAL — needs a review URL configured; otherwise falls back to manual send |
+
+## 4. Estimates, invoices and money
+
+| Capability | Entry point | Users | State |
+|---|---|---|---|
+| Estimate list and create with line items (per-item taxable, cost, photo) | `/estimates` | owner/office | REAL |
+| Estimate detail, PDF print, activity timeline | `/estimates/[id]` | owner/office | REAL |
+| Estimate edit — items, discount, deposit amount | `/estimates/[id]/edit` | owner/office | REAL — **narrowed by design (ledger 6a.5)**: a sent, approved, rejected, signed or part-paid estimate no longer edits in place. Sent/approved/rejected can be REOPENED with a recorded reason, which returns it to draft and restores full editing; signed or part-paid cannot, and duplicate is the route there |
+| Estimate status draft / sent / approved / rejected | `/estimates` | owner/office | REAL — moving BACK to draft now goes through Reopen (with a reason) instead of the dropdown, because the dropdown was a one-click way to unlock the figures. Marking 'sent' also stamps `sent_at` |
+| Estimate duplicate and soft-delete | `/estimates` | owner/office | REAL — duplicate now carries `deposit_minor` (it was silently dropped). Soft-delete is refused once the estimate has gone out; **Void** replaces it and keeps the document and its number |
+| Convert estimate to invoice | `/estimates/[id]` | owner/office | **PARTIAL — a paid deposit is NOT credited; the customer is billed the full amount again.** No idempotency guard either |
+| Deposit request on an estimate | `/estimates/[id]` | owner/office → customer | PARTIAL — amount typed by hand; paid state never shown internally |
+| Organisation default deposit (percent / fixed) | `/settings/payments` | owner | REAL — applied to every estimate at insert by `apply_default_estimate_deposit()` (migration 031), clamped to the document total; the settings screen shows a worked example |
+| Invoice list and create | `/invoices` | owner/office | REAL |
+| Invoice detail with paid / balance tiles | `/invoices/[id]` | owner/office | REAL — settled payments only, refunds subtracted, deposits credited, and credit notes netted off the bill in a third tile |
+| Invoice edit / duplicate / soft-delete | `/invoices/[id]` | owner/office | REAL — edit is refused once the invoice is sent, signed, paid or part-paid (ledger 6a.5); soft-delete is refused from the same point. Corrections go through **credit note** or **void**, both of which keep the original and its number |
+| Mark invoice paid / unpaid by hand | `/invoices` | owner/office | PARTIAL — un-paying leaves the payment row behind; marking paid skips the insert if any payment exists |
+| **Void an estimate or invoice, with a reason** | `/estimates/[id]`, `/invoices/[id]` | owner/office | REAL (new, ledger 6a.1) — cancels the document while keeping it, its figures and its NUMBER; refused once money has been collected; the database then refuses to sign it or to open a checkout against it |
+| **Credit notes against an invoice** | `/invoices/[id]` | owner + `can_refund_payments` | REAL (new, ledger 6a.1) — own numbered, dated, reasoned document; append-only ledger; capped at the invoice total by a database trigger; cancelled rather than deleted if issued in error. Does NOT move money — record the refund separately |
+| **Optimistic concurrency on document edits** | `/estimates/[id]/edit`, `/invoices/[id]/edit` | owner/office | REAL (new, ledger 6a.6) — a stale save is refused and says what happened, instead of silently overwriting a colleague |
+| Line items — qty in milliunits, unit price in minor units, cost, taxable flag, image | everywhere | all | REAL |
+| Tax — org rate, per-item taxable, applied on top | engine | all | REAL |
+| Document-level discount with proportional taxable split | engine | all | REAL |
+| Price book CRUD + auto-save items from documents | `/pricebook` | owner/office | REAL |
+| Public pay link → Stripe Checkout (legacy path) | `/p/[token]` | customer | PARTIAL — coexists with Helcim, not balance-aware |
+| Stripe webhook → record payment, mark paid | `/api/stripe/webhook` | system | PARTIAL — no amount check, no replay-timestamp tolerance, insert errors ignored |
+| Helcim card checkout (HelcimPay.js) | `/p/[token]` | customer | REAL |
+| Helcim ACH checkout (submit ≠ settle) | `/p/[token]` | customer | REAL |
+| Helcim Fee Saver surcharge with graceful fallback | `/p/[token]` | customer | REAL |
+| Helcim confirm with hash verification | `/api/pay/helcim/confirm` | customer | REAL |
+| Zelle payment submission | `/p/[token]` | customer | REAL |
+| Mailed-check submission (payee, address, mailed-on) | `/p/[token]` | customer | REAL |
+| Manual payment review — confirm / reject | `/settings/payments` | owner, or office with permission | PARTIAL — no balance re-check at confirm time, so a late confirm can double-credit |
+| Helcim merchant onboarding (partner registration) | `/settings/payments` | owner | REAL |
+| Connected-account webhook → store encrypted API token | `/api/payments/connected-account` | system | REAL |
+| Payment receipts by email and SMS, with dedupe lock | system | customer | REAL |
+| Receipt retry job | daily cron | system | REAL |
+| ACH reconciliation of processing payments | daily cron | system | REAL |
+| Helcim transaction webhook → reconcile | `/api/payments/provider-events` | system | REAL |
+| **Refunds** | — | — | **STUB** — a `can_refund_payments` permission exists and `refunded_minor` is read everywhere, but nothing ever writes it. No action, no route, no UI |
+| **Tips** | `/p/[token]` | customer | REAL — percentage or typed amount, charged on top of the balance and recorded in `payments.tip_minor`. A tip is not revenue, not commissionable, and not refundable as the business's money |
+| **Saved payment methods** | settings toggle | — | **PARTIAL — deliberately not built.** No Helcim tokenisation credentials and no token store exist here, so no card can be saved. The switch is disabled and says so; the stored preference is preserved, not silently rewritten. Nothing fakes a saved card |
+| **Hold job until ACH settles** | `/settings/payments` | owner + `can_override_ach_holds` | REAL — an in-flight ACH deposit holds the work; settlement (or an authorised, recorded override) releases it. Switching the hold off releases on submission instead |
+| **Payment schedules / milestones** | DB tables + `/settings/payments` | owner/office | PARTIAL — a deposit creates a real schedule whose milestones advance from recorded payments. No milestone editor, no N-step builder, no per-milestone checkout |
+| Expenses CRUD, month total, net vs sales | `/expenses` | owner/office | REAL |
+
+## 5. Reporting and finance operations
+
+| Capability | Entry point | Users | State |
+|---|---|---|---|
+| Reports dashboard — revenue, gross, expenses, net, by-tech, aging | `/reports` | owner/office | PARTIAL — "revenue collected" ignores partial payments and refunds; gross-profit KPI excludes discount and tax, so margin reads high |
+| Custom report builder (5 sections, date range, print) | `/reports/custom` | owner/office | REAL |
+| Accounting CSV export — invoices / payments / expenses | `/reports/export` | owner/office | REAL — filtered in SQL and paged to exhaustion via the shared `fetchAllPages` in `lib/export.ts`; no longer stops at PostgREST's 1000-row cap |
+| Whole-business data export — all 94 tenant tables in one streamed JSON file | `/reports/export` → `/api/export/business` | owner | REAL — paginated, tenant-scoped on every query, bearer tokens redacted at every depth; the screen and the file both state that Storage files (photos, logos) and login credentials are not included, and `meta.status` reports completeness |
+| Commission report with editable % and CSV | `/reports/commission` | owner edit, office view | PARTIAL — pays on quoted `price_minor`, not money actually collected |
+| Timesheet report and export | `/reports/timesheets` | owner/office | REAL |
+| Tax jurisdictions and rules | `/finance` | owner + permission | PARTIAL — rules now feed `computeDocument` (opt-in `organizations.tax_mode`), effective-dated and combined additively; rules scoped to labour/materials are listed as NOT charged, because no line item is classified as either |
+| Customer tax exemption certificates | `/customers/[id]` | owner + permission | REAL — recorded, expiry-checked, zeroes tax on that customer's documents |
+| Tax filings ledger | `/finance` | owner + permission | PARTIAL — every figure hand-entered, nothing derived |
+| Settlement batches (gross / fees / refunds / chargebacks / net) | `/finance` | owner + permission | PARTIAL — manual entry only; nothing auto-matches provider payouts |
+| Settlement status workflow | `/finance` | owner + permission | REAL |
+| Disputes / chargebacks record and workflow | `/finance` | owner + permission | PARTIAL — hand-entered; no provider ingestion; disputing does not touch the payment or invoice |
+
+## 6. Inventory, purchasing and growth
+
+| Capability | Entry point | Users | State |
+|---|---|---|---|
+| Inventory items CRUD, low-stock, quantity +/- | `/inventory` | owner/office | REAL — quantity is now derived from the ledger; every +/- is a recorded movement |
+| Inventory movement ledger | `/inventory/movements` | owner/office (techs see their own) | REAL — append-only `inventory_movements`; `inventory_items.quantity` is a trigger-maintained cache and cannot drift |
+| Parts consumption from a job | `/jobs/[id]` Items tab | owner/office/tech | REAL — the job line and the stock movement are written together, and the line carries the item's cost |
+| Receiving stock against a purchase order | `/inventory/receiving` | owner/office | REAL — one atomic DB function: line received, inventory movement written, PO status advanced |
+| Vendors | `/operations` | owner/office | REAL |
+| Purchase orders | `/operations` + `/inventory/receiving` | owner/office | REAL — multi-line, enforced lifecycle, receive step, inventory link. The `/operations` create form still posts one line; further lines are added on the receiving screen |
+| Subcontractors (trades, insurance expiry) | `/operations` | owner/office | REAL |
+| Crews and service areas | `/operations` | owner/office | REAL |
+| Automation rules | `/operations` | owner/office | REAL — executed nightly by `runAutomationRules` (ledger 5.8). Supported: job completed / estimate sent / invoice overdue → send SMS, send email; plus create task on a completed job. Unsupported pairs are refused at creation with the reason. Every attempt, skip and failure is recorded in `automation_runs` |
+| Campaigns / referral programmes / estimate follow-ups | `/growth` | owner/office | PARTIAL — campaigns and estimate follow-ups are SENT nightly, once per recipient, opt-out honoured (ledger 5.9); referral codes are issued and sent from the screen. **Referral redemption/attribution is still unbuilt** — nothing marks a referral as converted or pays the reward |
+| Ad spend and lead attribution | `/growth` | owner/office | PARTIAL — spend recorded, never joined to lead revenue |
+| Custom field definitions | `/settings/custom-fields` | owner | REAL — text / number / date / choice / checkbox, required, sort, hide or delete |
+| Custom field values | `/customers/[id]`, `/jobs/[id]` | owner/office edit, tech read | REAL — typed, validated, and the polymorphic `entity_id` is guarded (F21) |
+
+## 7. Recurring work and warranties
+
+| Capability | Entry point | Users | State |
+|---|---|---|---|
+| Recurring maintenance plans CRUD | `/recurring` | owner/office | REAL |
+| "Generate N due" jobs and roll the schedule forward | `/recurring` | owner/office | REAL — catches up past today in one pass, is idempotent per occurrence, and sets end_date so the dispatch board stays clean |
+| Nightly recurring generation | daily cron | system | REAL |
+| Day-before appointment SMS reminders | daily cron | system | REAL — the send is claimed first then released on failure, so a transient provider error can be retried; honours customer opt-out |
+| Weekly overdue-invoice SMS nudges | daily cron | system | REAL — same claim-then-release fix; honours opt-out |
+| Warranty coverage save (type, dates, terms) | `/jobs/[id]` | owner/office | REAL |
+| Report a warranty callback (issue, priority, responsibility) | `/jobs/[id]` | owner/office | REAL |
+| Schedule a return visit — creates a linked job | `/jobs/[id]` | owner/office | REAL — the RPC re-checks role and org, locks the row, and is idempotent |
+| Resolve / deny a callback with internal cost | `/jobs/[id]` | owner/office | REAL |
+| Warranty centre — open/urgent/scheduled counts, 30-day expiry list | `/warranties` | owner/office | REAL |
+
+## 8. Customer-facing surfaces
+
+| Capability | Entry point | Users | State |
+|---|---|---|---|
+| Public booking — 5-step wizard, EN/HE toggle, RTL | `/book/[org]` | anonymous | REAL |
+| Booking availability slots API | `/api/booking/[org]/slots` | anonymous | REAL — unauthenticated and unthrottled; exposes the org's busy calendar |
+| Booking submission → lead (+ auto customer and job when auto-approve) | `/api/booking/[org]/submit` | anonymous | REAL — rate limit is per-org and racy |
+| Booking confirmation with reference number | `/book/[org]` | anonymous | REAL |
+| Booking UTM / source / campaign capture | `/book/[org]` | anonymous | REAL |
+| Booking deposit mode (none / fixed / percentage / full) | `/settings/booking`, `/book/[org]` | owner + customer | REAL — the deposit is computed from the service price, raised as an estimate, and paid on the existing `/p/[token]` screen. The booking is held in Leads until the money is in. `deposit_value` units: whole percent for `percentage`, whole currency units for `fixed`, whole price for `full` |
+| Service-area enforcement (ZIP / city) | `/settings/booking` | owner | REAL — out-of-area addresses are refused |
+| Service-area enforcement (polygon) | `/settings/booking` | owner | PARTIAL — polygons need geocoding this product does not have, so they are never checked. No longer a silent accept: a polygon-only org holds every booking in Leads for manual approval, and the settings screen says enforcement is not active. See REMEDIATION-PLAN 4.8 |
+| Business timezone for booking | `/settings/booking` | owner | REAL — `booking_settings.timezone`; slot maths runs on the business's clock, not the server's |
+| Customer portal via magic link, no login | `/portal/[token]` | customer | REAL — but the token never expires and cannot be revoked |
+| Portal — next appointment, invoices, estimates, service history | `/portal/[token]` | customer | REAL |
+| Portal — request reschedule or message (rate-limited) | `/portal/[token]` | customer | REAL |
+| Portal — email/SMS opt-in preferences | `/portal/[token]` | customer | PARTIAL — this branch bypasses the rate limit |
+| Public document view (estimate/invoice), branded, print to PDF | `/p/[token]` | customer | REAL |
+| Public approve + canvas e-signature | `/p/[token]` | customer | PARTIAL — **re-signable indefinitely by anyone with the link** |
+| Public payment options (card / ACH / Zelle / check, fee saver) | `/p/[token]` | customer | REAL |
+| Branding — logo, accent colour, tagline on all public surfaces | `/settings` | owner | REAL |
+
+## 9. Account, team and settings
+
+| Capability | Entry point | Users | State |
+|---|---|---|---|
+| Signup with SERVER-ENFORCED password policy and terms gate | `/signup` | anonymous | REAL — the rule lives in `lib/core/password-policy.mjs` and runs in a server action; the browser meter imports the same module. A direct POST to GoTrue still bypasses it (project configuration, see ledger 6b.7) |
+| Login | `/login` | staff | REAL — a SERVER action: rate limited per account and per network, every attempt recorded in `auth_login_attempts`, and a second-factor step when one is enrolled |
+| Sign-in throttling and lockout | `/login` | staff | REAL — 5 failures locks an account for 5 min escalating to a 60 min cap; 20 failures from one /24 locks the network. Counted in Postgres, so it holds across instances |
+| Two-factor authentication (TOTP) | `/settings/security` | staff | PARTIAL — enrol, verify, remove and the login challenge are built; never executed against a live Supabase project, and there is no org-wide "require MFA" policy |
+| Sign out every device | `/settings/security` | staff | REAL — `signOut({ scope: "global" })`; per-device revocation is not possible through Supabase’s client API |
+| New-device sign-in alerts | `/settings/security` | staff | REAL — emailed when the device+network signature is new; with no email provider the alert is RECORDED and shown rather than dropped |
+| Change password under the server policy | `/settings/security` | staff | REAL — re-verifies the current password, then applies the same rule signup uses |
+| Business audit log — filter by date, record, action and actor | `/settings/security` | owner | REAL — the first reader of `audit_log` beyond a single record’s 30-row timeline; filters live in the URL and it pages with an exact count |
+| Permission-change history | `/settings/security` | owner | REAL — written by database trigger on profiles, capabilities, payment permissions and invitations, so a change made straight through PostgREST is still recorded |
+| E-signature evidence (IP, device, sha256 of the stored signature) | `/settings/security`, `/p/[token]` | owner/office | REAL — a signature taken without a server context is shown as UNWITNESSED rather than passing for a witnessed one |
+| Provider-token encryption key rotation | `/admin` → Encryption keys | platform super_admin | PARTIAL — keyring, planned rotation and audit record all work; the payment read path still ignores `key_version`, so there is a window during a rotation |
+| Forgot password / set new password | `/forgot-password`, `/reset-password` | anonymous | REAL |
+| Org creation, owner profile, 14-day trial | `/onboarding` | owner | REAL |
+| Auto-join an invited org on first login | `/onboarding` | staff | REAL — now redeemed through the emailed token rather than the email address alone; someone who signs up without the link is told an invitation is waiting (`pending_invitation_hint()`) instead of accidentally creating a second business |
+| Onboarding locale / currency / tax label / tax rate | `/onboarding` | owner | REAL |
+| Industry pack selection — 12 trades, EN+HE, services and parts | `/onboarding` | owner | REAL |
+| Pack seeding into price book, job types, bookable services | `/onboarding` | owner | REAL |
+| Sample customer and job seeding | `/onboarding` | owner | REAL |
+| Team invite by email and role | `/team` | owner | REAL — the invitation email is sent (Resend), carries a `/join?token=` link, and delivery state is shown on the screen. `accept_invitation(token)` now requires the token AND the invited email; a Resend button covers a bounced or pre-existing invite. With no email provider the invite is created and plainly reported as NOT emailed |
+| Cancel a pending invitation | `/team` | owner | REAL |
+| Change a member's role (+ capability reset) | `/team` | owner | REAL — silently discards hand-tuned capabilities |
+| Remove a member (last owner protected) | `/team` | owner | REAL |
+| Per-member capability toggles (12 keys) | `/team` | owner | REAL — but **never enforced** in job/schedule server actions |
+| Per-member payment permissions | `/team` | owner | REAL |
+| Capability-aware navigation | all | staff | REAL |
+| Business profile, language, currency, tax settings | `/settings` | owner | REAL |
+| Document accent colour, terms, footer, review link | `/settings` | owner | REAL |
+| Invoice / estimate next-number override | `/settings` | owner | REAL |
+| Job types editor; job statuses editor | `/settings` | owner/office | REAL |
+| Customer SMS templates (booked, day-before, on-the-way, completed) | `/settings/messages` | owner | REAL |
+| Online-booking settings — hours, notice, horizon, interval, capacity, services, questions, messages | `/settings/booking` | owner | REAL |
+| Payments setup and manual review queue | `/settings/payments` | owner | REAL |
+| Appearance — theme, high contrast, large text, reduce motion | `/appearance` | staff | REAL |
+| Bilingual UI — English + Hebrew, 240 keys each, RTL | everywhere | all | PARTIAL — dictionaries are complete and symmetric, but `/archive`, `/archive/import` and `/customers/import` are hardcoded English |
+
+## 10. Privacy, compliance and administration
+
+| Capability | Entry point | Users | State |
+|---|---|---|---|
+| Privacy settings — contact details, 5 retention periods | `/settings/privacy` | owner | REAL |
+| Consent history (append-only, channel/purpose/proof) | `/settings/privacy` | owner | REAL |
+| Privacy request queue (access, export, correction, deletion, opt-out) | `/settings/privacy` | owner | REAL |
+| Identity verification on a request | `/settings/privacy` | owner | PARTIAL — a single self-attested button, no evidence captured, yet it gates both export and irreversible anonymisation |
+| Data export (JSON download) | `/api/privacy/export/[requestId]` | owner | REAL — but exports portal and document tokens and internal margins to the requester |
+| Deletion = customer anonymisation, blocked on unpaid invoices | `/settings/privacy` | owner | REAL |
+| Retention holds (all / location / calls / comms / media / audit) | `/settings/privacy` | owner | REAL |
+| Retention preview, enforce-now, run history | `/settings/privacy` | owner | PARTIAL — media and audit are counted but never deleted (by design) |
+| Automatic daily retention enforcement | daily cron | system | REAL — **reachable unauthenticated if `CRON_SECRET` is unset** |
+| Platform admin console | `/admin` | platform staff | REAL |
+| Support cases | `/admin` | platform staff | REAL |
+| Time-boxed support access sessions | `/admin` | platform staff | PARTIAL — recorded only; no code grants access from a session |
+| Feature flags with rollout % | `/admin` | platform staff | PARTIAL — `lib/feature-flags.ts` reads them and two keys (`automation_rules`, `growth_outreach`) now gate the nightly senders, allowlist/blocklist/rollout included. The three seeded keys from migration 022 (`finance_operations`, `privacy_center`, `support_access`) are still read by nothing — see ledger 5.12 |
+| Controlled releases with regression checklist gate | `/admin` | platform staff | REAL |
+| Business health overview | `/admin` | platform staff | REAL |
+| Migration import (Workiz / Housecall Pro / spreadsheet) | `/migration` | owner/office | PARTIAL — customers only; no jobs, invoices or history |
+| Migration batch rollback | `/migration` | owner | REAL |
+| Legacy archive import + browse/search + restore | `/archive` | owner/office | REAL — `customers.archived = true`; a different concept from the trash below, and still separate from it |
+| Trash — list and restore soft-deleted customers, jobs, estimates and invoices, with who deleted each and when | `/trash` | owner/office | PARTIAL — the screen, the restore and the consistency rules are real for all four tables, but `deleteCustomer` still HARD-deletes (`.delete()`), so an everyday customer deletion never reaches the trash. Estimates and invoices, the common mis-click path, do |
+| PWA install, service worker, offline navigation fallback | all | staff | REAL |
+| Health check (DB reachability + latency) | `/api/health` | anonymous | REAL — unauthenticated, uses the service-role key |
+
+---
+
+## Summary of what is NOT real
+
+If this product is rebuilt or repaired, these are the items that **look** finished in the UI but have
+nothing behind them. They are the most likely source of "but it used to do that" surprises — because
+it never did.
+
+**Stubs — features that look real and do nothing.** This was the most dangerous
+category in the original audit: nineteen settings, toggles and tables with no executor behind them,
+each of which would have been mistaken for a working feature.
+
+The authoritative, current status of every one is the **Phase 5 table in
+`docs/REMEDIATION-PLAN.md`** — including which are DONE, which are deliberately PARTIAL and why.
+It is not duplicated here: this summary was being rewritten by every parallel workstream and had
+already begun to disagree with itself, which is exactly the drift the ledger exists to prevent.
+
+Closed so far on this branch: inventory movement ledger and job parts consumption · automation rule
+execution · campaign and estimate-follow-up sending · photo "customer visible" flag · scheduling
+transition rules (written and tested since early in the project, called by nothing until now) ·
+refunds and the payments audit trail (provider half unproven — see 5.1).
+**Complete stubs (19, of which push delivery, support-session access granting and invitation email
+delivery are now CLOSED — see the rows above and ledger 5.13 / 5.17 / 5.18):** refunds · tips · saved
+payment methods · ACH hold-until-settled · payment
+schedules and milestones · organisation default deposit · booking deposit charging · automation rules
+· campaigns · referral programmes · custom fields (definitions and values) · inventory movement ledger
+· feature flags · ~~push notification delivery~~ · photo "customer visible" flag · scheduling
+transition-rule engine (written and tested, never called) · tax-jurisdiction calculation · ~~support-session
+access granting~~ · ~~invitation email delivery~~.
+· campaigns · referral programmes · ~~custom fields (definitions and values)~~ *(built — ledger 5.10)*
+· inventory movement ledger · feature flags · push notification delivery · photo "customer visible"
+flag · scheduling transition-rule engine (written and tested, never called) · ~~tax-jurisdiction
+calculation~~ *(now feeds pricing; labour/materials scoping still unsupported — ledger 5.16)* ·
+support-session access granting · invitation email delivery.
+**Complete stubs (19 originally; 12 remain):** ~~refunds~~ · ~~tips~~ · ~~ACH hold-until-settled~~ ·
+~~organisation default deposit~~ · ~~booking deposit charging~~ · ~~photo "customer visible" flag~~ ·
+~~scheduling transition-rule engine~~ — all now real. **Saved payment methods** and **payment schedules
+and milestones** are PARTIAL with the remainder named in `docs/REMEDIATION-PLAN.md` (5.3, 5.5). Still
+complete stubs: automation rules · campaigns · referral programmes · custom fields (definitions and
+values) · inventory movement ledger · feature flags · push notification delivery · tax-jurisdiction
+calculation · support-session access granting · invitation email delivery.
+
+**Highest-impact PARTIALs:** estimate deposits not credited to the converted invoice (overbilling) ·
+invoice screen counting unsettled payments as collected · revenue and margin reporting · commission on
+quoted rather than collected money · recurring jobs polluting dispatch permanently · re-signable public
+documents · un-revocable portal links.

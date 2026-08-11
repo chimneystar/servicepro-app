@@ -1,17 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFormState, useFormStatus } from "react-dom";
 import { createJob, type ActionResult } from "./actions";
 import { t, type Locale } from "@/lib/i18n";
 import AddressAutocomplete from "@/components/AddressAutocomplete";
+import Modal from "@/components/Modal";
+import { Button, Label, Notice } from "@/components/ui";
 
 const initial: ActionResult = { ok: false };
-const DEFAULT_SERVICES = ["AC Cleaning", "AC Install", "AC Repair", "Annual Maintenance", "Plumbing", "Electrical", "Renovation", "Other"];
+const DEFAULT_SERVICES = [
+  "AC Cleaning",
+  "AC Install",
+  "AC Repair",
+  "Annual Maintenance",
+  "Plumbing",
+  "Electrical",
+  "Renovation",
+  "Other",
+];
 
 type Opt = { id: string; label: string };
-export type JobTypeOpt = { name: string; color?: string; duration_min?: number; default_price_minor?: number };
+export type JobTypeOpt = {
+  name: string;
+  color?: string;
+  duration_min?: number;
+  default_price_minor?: number;
+};
 
 function addMinutes(hhmm: string, min: number) {
   const [h, m] = hhmm.split(":").map(Number);
@@ -20,11 +36,25 @@ function addMinutes(hhmm: string, min: number) {
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
-export default function JobForm({ locale, customers, techs, jobTypes, initialOpen = false }: { locale: Locale; customers: Opt[]; techs: Opt[]; jobTypes?: JobTypeOpt[]; initialOpen?: boolean }) {
+export default function JobForm({
+  locale,
+  customers,
+  techs,
+  jobTypes,
+  initialOpen = false,
+}: {
+  locale: Locale;
+  customers: Opt[];
+  techs: Opt[];
+  jobTypes?: JobTypeOpt[];
+  initialOpen?: boolean;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(initialOpen);
+  const titleId = useId();
   const [state, formAction] = useFormState(createJob, initial);
-  const types: JobTypeOpt[] = jobTypes && jobTypes.length ? jobTypes : DEFAULT_SERVICES.map((name) => ({ name }));
+  const types: JobTypeOpt[] =
+    jobTypes && jobTypes.length ? jobTypes : DEFAULT_SERVICES.map((name) => ({ name }));
 
   const [service, setService] = useState(types[0]?.name ?? "");
   const [start, setStart] = useState("09:00");
@@ -33,11 +63,17 @@ export default function JobForm({ locale, customers, techs, jobTypes, initialOpe
   const [endDate, setEndDate] = useState("");
   const [price, setPrice] = useState("");
   const [customer, setCustomer] = useState(customers[0]?.id ?? "__new__");
-  const [newAddr, setNewAddr] = useState(""); const [newCity, setNewCity] = useState("");
-  const [jobAddr, setJobAddr] = useState(""); const [jobCity, setJobCity] = useState("");
+  const [newAddr, setNewAddr] = useState("");
+  const [newCity, setNewCity] = useState("");
+  const [jobAddr, setJobAddr] = useState("");
+  const [jobCity, setJobCity] = useState("");
 
   // On success: close AND force the calendar/list to re-fetch immediately.
-  if (state.ok && open) setTimeout(() => { setOpen(false); router.refresh(); }, 0);
+  if (state.ok && open)
+    setTimeout(() => {
+      setOpen(false);
+      router.refresh();
+    }, 0);
 
   function applyType(name: string, startTime = start) {
     setService(name);
@@ -53,63 +89,218 @@ export default function JobForm({ locale, customers, techs, jobTypes, initialOpe
 
   return (
     <>
-      <button onClick={() => setOpen(true)} style={btn}>➕ {t(locale, "sched.new")}</button>
+      <Button onClick={() => setOpen(true)}>
+        <span aria-hidden="true">➕</span> {t(locale, "sched.new")}
+      </Button>
       {open && (
-        <div style={overlay} onClick={(e) => e.target === e.currentTarget && setOpen(false)}>
-          <form action={formAction} style={modal}>
-            <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 14 }}>{t(locale, "sched.new")}</h3>
-            <Label>{t(locale, "doc.customer")}</Label>
-            <select name="customer_id" value={customer} onChange={(e) => setCustomer(e.target.value)} style={inp}>
-              <option value="__new__">➕ {t(locale, "cust.new")}</option>
-              {customers.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-            </select>
+        <Modal onClose={() => setOpen(false)} labelledBy={titleId} width={500}>
+          <form action={formAction}>
+            <h3 id={titleId} style={{ fontSize: "1.125rem", fontWeight: 800, marginBottom: 14 }}>
+              {t(locale, "sched.new")}
+            </h3>
+            <label className="sp-field">
+              <Label>{t(locale, "doc.customer")}</Label>
+              <select
+                name="customer_id"
+                value={customer}
+                onChange={(e) => setCustomer(e.target.value)}
+                className="sp-select"
+              >
+                <option value="__new__">➕ {t(locale, "cust.new")}</option>
+                {customers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </label>
             {customer === "__new__" && (
-              <div style={{ background: "#f8fbff", border: "1px solid #e2e8f0", borderRadius: 10, padding: 12, marginTop: 8 }}>
+              <div
+                style={{
+                  background: "#f8fbff",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 10,
+                  padding: 12,
+                  marginTop: 8,
+                }}
+              >
                 <Row>
-                  <div><Label>{t(locale, "form.name")}</Label><input name="new_name" style={inp} /></div>
-                  <div><Label>{t(locale, "form.phone")}</Label><input name="new_phone" style={inp} /></div>
+                  <div>
+                    <label className="sp-field">
+                      <Label>{t(locale, "form.name")}</Label>
+                      <input name="new_name" className="sp-input" />
+                    </label>
+                  </div>
+                  <div>
+                    <label className="sp-field">
+                      <Label>{t(locale, "form.phone")}</Label>
+                      <input name="new_phone" className="sp-input" />
+                    </label>
+                  </div>
                 </Row>
-                <Label>{t(locale, "form.email")}</Label><input name="new_email" type="email" style={inp} />
+                <label className="sp-field">
+                  <Label>{t(locale, "form.email")}</Label>
+                  <input name="new_email" type="email" className="sp-input" />
+                </label>
                 <Label>{t(locale, "form.address")}</Label>
-                <AddressAutocomplete value={newAddr} city={newCity} onChange={setNewAddr} onCity={setNewCity} addressName="new_address" cityName="new_city" />
+                <AddressAutocomplete
+                  value={newAddr}
+                  city={newCity}
+                  onChange={setNewAddr}
+                  onCity={setNewCity}
+                  addressName="new_address"
+                  cityName="new_city"
+                />
               </div>
             )}
             <Row>
               <div>
-                <Label>{t(locale, "job.service")}</Label>
-                <select name="service" value={service} onChange={(e) => applyType(e.target.value)} style={inp}>
-                  {types.map((s) => <option key={s.name}>{s.name}</option>)}
-                </select>
+                <label className="sp-field">
+                  <Label>{t(locale, "job.service")}</Label>
+                  <select
+                    name="service"
+                    value={service}
+                    onChange={(e) => applyType(e.target.value)}
+                    className="sp-select"
+                  >
+                    {types.map((s) => (
+                      <option key={s.name}>{s.name}</option>
+                    ))}
+                  </select>
+                </label>
               </div>
               <div>
-                <Label>{t(locale, "job.tech")}</Label>
-                <select name="assigned_to" style={inp}>
-                  <option value="">{t(locale, "job.unassigned")}</option>
-                  {techs.map((tt) => <option key={tt.id} value={tt.id}>{tt.label}</option>)}
-                </select>
+                <label className="sp-field">
+                  <Label>{t(locale, "job.tech")}</Label>
+                  <select name="assigned_to" className="sp-select">
+                    <option value="">{t(locale, "job.unassigned")}</option>
+                    {techs.map((tt) => (
+                      <option key={tt.id} value={tt.id}>
+                        {tt.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
             </Row>
             <Row>
-              <div><Label>{t(locale, "job.date")}</Label><input name="date" type="date" value={jobDate} onChange={(e) => { setJobDate(e.target.value); if (!endDate || endDate < e.target.value) setEndDate(e.target.value); }} style={inp} required /></div>
-              <div><Label>{t(locale, "job.price")}</Label><input name="price" type="number" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} style={inp} placeholder="0.00" /></div>
+              <div>
+                <label className="sp-field">
+                  <Label>{t(locale, "job.date")}</Label>
+                  <input
+                    name="date"
+                    type="date"
+                    value={jobDate}
+                    onChange={(e) => {
+                      setJobDate(e.target.value);
+                      if (!endDate || endDate < e.target.value) setEndDate(e.target.value);
+                    }}
+                    required
+                    className="sp-input"
+                  />
+                </label>
+              </div>
+              <div>
+                <label className="sp-field">
+                  <Label>{t(locale, "job.price")}</Label>
+                  <input
+                    name="price"
+                    type="number"
+                    step="0.01"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    placeholder="0.00"
+                    className="sp-input"
+                  />
+                </label>
+              </div>
             </Row>
-            <Label>{locale === "he" ? "תאריך סיום (לעבודה של כמה ימים)" : "End date (for a multi-day job)"}</Label>
-            <input name="end_date" type="date" value={endDate} min={jobDate || undefined} onChange={(e) => setEndDate(e.target.value)} style={inp} />
+            <label className="sp-field">
+              <Label>
+                {locale === "he"
+                  ? "תאריך סיום (לעבודה של כמה ימים)"
+                  : "End date (for a multi-day job)"}
+              </Label>
+              <input
+                name="end_date"
+                type="date"
+                value={endDate}
+                min={jobDate || undefined}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="sp-input"
+              />
+            </label>
             <Row>
-              <div><Label>{t(locale, "job.start")}</Label><input name="start" type="time" value={start} onChange={(e) => onStart(e.target.value)} style={inp} /></div>
-              <div><Label>{t(locale, "job.end")}</Label><input name="end" type="time" value={end} onChange={(e) => setEnd(e.target.value)} style={inp} /></div>
+              <div>
+                <label className="sp-field">
+                  <Label>{t(locale, "job.start")}</Label>
+                  <input
+                    name="start"
+                    type="time"
+                    value={start}
+                    onChange={(e) => onStart(e.target.value)}
+                    className="sp-input"
+                  />
+                </label>
+              </div>
+              <div>
+                <label className="sp-field">
+                  <Label>{t(locale, "job.end")}</Label>
+                  <input
+                    name="end"
+                    type="time"
+                    value={end}
+                    onChange={(e) => setEnd(e.target.value)}
+                    className="sp-input"
+                  />
+                </label>
+              </div>
             </Row>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#5c6675", margin: "12px 0 6px" }}>Job address (leave blank to use client address)</div>
-            <AddressAutocomplete value={jobAddr} city={jobCity} onChange={setJobAddr} onCity={setJobCity} addressName="job_address" cityName="job_city" />
-            <Label>{t(locale, "form.notes")}</Label>
-            <textarea name="notes" rows={2} style={inp} />
-            {state.error && <div style={err}>{state.error}</div>}
+            <div
+              style={{
+                fontSize: "0.875rem",
+                fontWeight: 700,
+                color: "#5c6675",
+                margin: "12px 0 6px",
+              }}
+            >
+              Job address (leave blank to use client address)
+            </div>
+            <AddressAutocomplete
+              value={jobAddr}
+              city={jobCity}
+              onChange={setJobAddr}
+              onCity={setJobCity}
+              addressName="job_address"
+              cityName="job_city"
+            />
+            {/* 6c.11 — what this job legally requires. Empty means no
+                restriction, which is every job that exists today. */}
+            <label className="sp-field">
+              <Label>
+                {locale === "he"
+                  ? "הסמכות נדרשות (מופרדות בפסיק)"
+                  : "Certifications required (comma separated)"}
+              </Label>
+              <input name="required_skills" placeholder="gas, hvac" className="sp-input" />
+            </label>
+            <label className="sp-field">
+              <Label>{t(locale, "form.notes")}</Label>
+              <textarea name="notes" rows={2} className="sp-textarea" />
+            </label>
+            {state.error && <Notice mt={5}>{state.error}</Notice>}
             <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
               <Save locale={locale} />
-              <button type="button" onClick={() => setOpen(false)} style={{ ...btn, background: "#e2e9f4", color: "#2563eb" }}>{t(locale, "common.cancel")}</button>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                style={{ ...btn, background: "#e2e9f4", color: "#2563eb" }}
+              >
+                {t(locale, "common.cancel")}
+              </button>
             </div>
           </form>
-        </div>
+        </Modal>
       )}
     </>
   );
@@ -117,14 +308,22 @@ export default function JobForm({ locale, customers, techs, jobTypes, initialOpe
 
 function Save({ locale }: { locale: Locale }) {
   const { pending } = useFormStatus();
-  return <button type="submit" disabled={pending} style={btn}>{pending ? t(locale, "common.saving") : `💾 ${t(locale, "common.save")}`}</button>;
+  return (
+    <Button type="submit" disabled={pending}>
+      {pending ? t(locale, "common.saving") : `💾 ${t(locale, "common.save")}`}
+    </Button>
+  );
 }
-function Label({ children }: { children: React.ReactNode }) { return <label style={lbl}>{children}</label>; }
-function Row({ children }: { children: React.ReactNode }) { return <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>{children}</div>; }
+function Row({ children }: { children: React.ReactNode }) {
+  return <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>{children}</div>;
+}
 
-const btn: React.CSSProperties = { background: "#2563eb", color: "#fff", border: "none", padding: "10px 16px", borderRadius: 10, fontWeight: 700, cursor: "pointer" };
-const overlay: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(15,30,61,.5)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: 24, zIndex: 100, overflowY: "auto" };
-const modal: React.CSSProperties = { background: "#fff", borderRadius: 18, width: "100%", maxWidth: 500, padding: 22 };
-const lbl: React.CSSProperties = { fontSize: 14, fontWeight: 700, color: "#334155", display: "block", margin: "10px 0 6px" };
-const inp: React.CSSProperties = { width: "100%", border: "1px solid #e2e8f0", borderRadius: 10, padding: "10px 12px", fontSize: 14, outline: "none" };
-const err: React.CSSProperties = { background: "#fdeaea", color: "#dc2626", padding: "9px 12px", borderRadius: 10, fontSize: 14, marginTop: 12 };
+const btn: React.CSSProperties = {
+  background: "#2563eb",
+  color: "#fff",
+  border: "none",
+  padding: "10px 16px",
+  borderRadius: 10,
+  fontWeight: 700,
+  cursor: "pointer",
+};

@@ -9,3 +9,12 @@ tsconfig.tsbuildinfo
 .DS_Store
 .vercel/
 
+
+# Playwright output
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
+# Agent worktrees (full checkouts with their own node_modules/.next)
+.claude/worktrees/

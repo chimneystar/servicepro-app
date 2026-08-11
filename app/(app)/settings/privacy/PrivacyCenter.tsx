@@ -2,29 +2,842 @@
 
 import { useActionState, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
-import { anonymizeCustomerForRequest, createPrivacyRequest, createRetentionHold, previewRetention, recordConsent, releaseRetentionHold, savePrivacySettings, updatePrivacyRequest, type PrivacyResult } from "./actions";
+import {
+  anonymizeCustomerForRequest,
+  createPrivacyRequest,
+  createRetentionHold,
+  previewRetention,
+  recordConsent,
+  releaseRetentionHold,
+  savePrivacySettings,
+  updatePrivacyRequest,
+  type PrivacyResult,
+} from "./actions";
 import type { Locale } from "@/lib/i18n";
 
-type Customer={id:string;name:string;email:string|null;phone:string}; type Member={id:string;full_name:string};
-type Settings={privacy_email:string|null;privacy_phone:string|null;location_retention_days:number;call_recording_retention_days:number;communication_retention_days:number;job_media_retention_days:number;audit_retention_days:number;auto_enforce:boolean};
-type Consent={id:string;channel:string;purpose:string;granted:boolean;source:string;recorded_at:string;customers?:{name:string}|null};
-type Request={id:string;request_type:string;status:string;requester_name:string;requester_email:string|null;received_at:string;due_at:string|null;identity_verified_at:string|null;completion_notes:string|null;customer_id:string|null;customers?:{name:string}|null};
-type Hold={id:string;category:string;reason:string;expires_at:string|null;released_at:string|null;customers?:{name:string}|null};
-type Run={id:string;mode:string;status:string;summary:Record<string,number|boolean>;started_at:string}; const initial:PrivacyResult={ok:false};
+type Customer = { id: string; name: string; email: string | null; phone: string };
+type Member = { id: string; full_name: string };
+type Settings = {
+  privacy_email: string | null;
+  privacy_phone: string | null;
+  location_retention_days: number;
+  call_recording_retention_days: number;
+  communication_retention_days: number;
+  job_media_retention_days: number;
+  audit_retention_days: number;
+  auto_enforce: boolean;
+};
+type Consent = {
+  id: string;
+  channel: string;
+  purpose: string;
+  granted: boolean;
+  source: string;
+  recorded_at: string;
+  customers?: { name: string } | null;
+};
+type Request = {
+  id: string;
+  request_type: string;
+  status: string;
+  requester_name: string;
+  requester_email: string | null;
+  received_at: string;
+  due_at: string | null;
+  identity_verified_at: string | null;
+  completion_notes: string | null;
+  customer_id: string | null;
+  customers?: { name: string } | null;
+};
+type Hold = {
+  id: string;
+  category: string;
+  reason: string;
+  expires_at: string | null;
+  released_at: string | null;
+  customers?: { name: string } | null;
+};
+type Run = {
+  id: string;
+  mode: string;
+  status: string;
+  summary: Record<string, number | boolean>;
+  started_at: string;
+};
+const initial: PrivacyResult = { ok: false };
 
-export default function PrivacyCenter({locale,settings,customers,members,consents,requests,holds,runs}:{locale:Locale;settings:Settings;customers:Customer[];members:Member[];consents:Consent[];requests:Request[];holds:Hold[];runs:Run[]}){
-  const he=locale==="he";const[tab,setTab]=useState<"requests"|"consent"|"retention">("requests");const open=requests.filter(r=>!["completed","denied","cancelled"].includes(r.status));const activeHolds=holds.filter(h=>!h.released_at);const due=open.filter(r=>r.due_at&&new Date(r.due_at)<new Date());
-  return <><section className="ops-summary"><article className={`ops-stat ${due.length?"attention":""}`}><small>{he?"בקשות פתוחות":"Open requests"}</small><strong>{open.length}</strong><span>{due.length?`${due.length} ${he?"עברו את מועד הטיפול":"past due"}`:(he?"הכול במסגרת הזמן":"All within target")}</span></article><article className="ops-stat"><small>{he?"רישומי הסכמה":"Consent records"}</small><strong>{consents.length}</strong><span>{he?"היסטוריה שאינה ניתנת לשינוי":"Append-only history"}</span></article><article className={`ops-stat ${activeHolds.length?"attention":""}`}><small>{he?"עצירות מחיקה":"Active holds"}</small><strong>{activeHolds.length}</strong><span>{he?"מידע שמוגן ממחיקה אוטומטית":"Records protected from automated removal"}</span></article><article className="ops-stat"><small>{he?"אכיפה אוטומטית":"Automatic enforcement"}</small><strong>{settings.auto_enforce?(he?"פעילה":"On"):(he?"כבויה":"Off")}</strong><span>{he?"אפשר לבדוק לפני שמפעילים":"Preview before enabling"}</span></article></section>
-    <nav className="ops-tabs" aria-label={he?"אזורי פרטיות":"Privacy sections"}><button className={tab==="requests"?"active":""} onClick={()=>setTab("requests")}>{he?"בקשות פרטיות":"Privacy requests"}</button><button className={tab==="consent"?"active":""} onClick={()=>setTab("consent")}>{he?"הסכמות":"Consent"}</button><button className={tab==="retention"?"active":""} onClick={()=>setTab("retention")}>{he?"שמירת מידע":"Data retention"}</button></nav>
-    {tab==="requests"&&<Requests he={he} rows={requests} customers={customers} members={members}/>} {tab==="consent"&&<Consents he={he} rows={consents} customers={customers}/>} {tab==="retention"&&<Retention he={he} settings={settings} holds={holds} runs={runs} customers={customers}/>}</>;
+export default function PrivacyCenter({
+  locale,
+  settings,
+  customers,
+  members,
+  consents,
+  requests,
+  holds,
+  runs,
+}: {
+  locale: Locale;
+  settings: Settings;
+  customers: Customer[];
+  members: Member[];
+  consents: Consent[];
+  requests: Request[];
+  holds: Hold[];
+  runs: Run[];
+}) {
+  const he = locale === "he";
+  const [tab, setTab] = useState<"requests" | "consent" | "retention">("requests");
+  const open = requests.filter((r) => !["completed", "denied", "cancelled"].includes(r.status));
+  const activeHolds = holds.filter((h) => !h.released_at);
+  const due = open.filter((r) => r.due_at && new Date(r.due_at) < new Date());
+  return (
+    <>
+      <section className="ops-summary">
+        <article className={`ops-stat ${due.length ? "attention" : ""}`}>
+          <small>{he ? "בקשות פתוחות" : "Open requests"}</small>
+          <strong>{open.length}</strong>
+          <span>
+            {due.length
+              ? `${due.length} ${he ? "עברו את מועד הטיפול" : "past due"}`
+              : he
+                ? "הכול במסגרת הזמן"
+                : "All within target"}
+          </span>
+        </article>
+        <article className="ops-stat">
+          <small>{he ? "רישומי הסכמה" : "Consent records"}</small>
+          <strong>{consents.length}</strong>
+          <span>{he ? "היסטוריה שאינה ניתנת לשינוי" : "Append-only history"}</span>
+        </article>
+        <article className={`ops-stat ${activeHolds.length ? "attention" : ""}`}>
+          <small>{he ? "עצירות מחיקה" : "Active holds"}</small>
+          <strong>{activeHolds.length}</strong>
+          <span>
+            {he ? "מידע שמוגן ממחיקה אוטומטית" : "Records protected from automated removal"}
+          </span>
+        </article>
+        <article className="ops-stat">
+          <small>{he ? "אכיפה אוטומטית" : "Automatic enforcement"}</small>
+          <strong>{settings.auto_enforce ? (he ? "פעילה" : "On") : he ? "כבויה" : "Off"}</strong>
+          <span>{he ? "אפשר לבדוק לפני שמפעילים" : "Preview before enabling"}</span>
+        </article>
+      </section>
+      <nav className="ops-tabs" aria-label={he ? "אזורי פרטיות" : "Privacy sections"}>
+        <button
+          type="button"
+          className={tab === "requests" ? "active" : ""}
+          onClick={() => setTab("requests")}
+        >
+          {he ? "בקשות פרטיות" : "Privacy requests"}
+        </button>
+        <button
+          type="button"
+          className={tab === "consent" ? "active" : ""}
+          onClick={() => setTab("consent")}
+        >
+          {he ? "הסכמות" : "Consent"}
+        </button>
+        <button
+          type="button"
+          className={tab === "retention" ? "active" : ""}
+          onClick={() => setTab("retention")}
+        >
+          {he ? "שמירת מידע" : "Data retention"}
+        </button>
+      </nav>
+      {tab === "requests" && (
+        <Requests he={he} rows={requests} customers={customers} members={members} />
+      )}{" "}
+      {tab === "consent" && <Consents he={he} rows={consents} customers={customers} />}{" "}
+      {tab === "retention" && (
+        <Retention he={he} settings={settings} holds={holds} runs={runs} customers={customers} />
+      )}
+    </>
+  );
 }
 
-function Requests({he,rows,customers,members}:{he:boolean;rows:Request[];customers:Customer[];members:Member[]}){const[state,action]=useActionState(createPrivacyRequest,initial);const[pending,start]=useTransition();const[message,setMessage]=useState("");const[confirmations,setConfirmations]=useState<Record<string,string>>({});return <div className="ops-grid"><div className="ops-card"><header><div><h2>{he?"תור בקשות":"Request queue"}</h2><p>{he?"זהות, מועד אחרון, יצוא ומחיקה מבוקרת":"Identity, due date, export and controlled deletion"}</p></div><span className="ops-pill">{rows.length}</span></header>{rows.length?<div className="privacy-request-list">{rows.map(row=><article key={row.id}><div className="privacy-request-head"><div><strong>{row.requester_name} · {requestLabel(row.request_type,he)}</strong><small>{row.customers?.name||row.requester_email||"—"} · {new Date(row.received_at).toLocaleDateString(he?"he-IL":"en-US")}{row.due_at?` · ${he?"יעד":"Due"} ${new Date(row.due_at).toLocaleDateString(he?"he-IL":"en-US")}`:""}</small></div><span className={`ops-pill ${row.status==="blocked"?"danger":""}`}>{statusLabel(row.status,he)}</span></div><div className="privacy-request-controls"><select value={row.status} disabled={pending} aria-label={he?"מצב בקשה":"Request status"} onChange={event=>start(async()=>{const result=await updatePrivacyRequest(row.id,event.target.value,Boolean(row.identity_verified_at),row.completion_notes||"");setMessage(result.ok?(he?"הבקשה עודכנה":"Request updated"):(result.error||"Error"));})}>{["received","identity_check","in_progress","blocked","ready","completed","denied","cancelled"].map(v=><option value={v} key={v}>{statusLabel(v,he)}</option>)}</select>{!row.identity_verified_at&&<button className="ops-secondary" disabled={pending} onClick={()=>start(async()=>{const result=await updatePrivacyRequest(row.id,"in_progress",true,row.completion_notes||"");setMessage(result.ok?(he?"הזהות אומתה":"Identity verified"):(result.error||"Error"));})}>{he?"אימות זהות":"Verify identity"}</button>}{row.identity_verified_at&&<span className="verified">✓ {he?"זהות אומתה":"Identity verified"}</span>}{["access","export"].includes(row.request_type)&&<a className="ops-secondary" href={`/api/privacy/export/${row.id}`}>{he?"הורדת יצוא":"Download export"}</a>}</div>{row.request_type==="deletion"&&row.customer_id&&<div className="privacy-delete"><p>{he?"המחיקה מסירה פרטים מזהים אך שומרת מסמכים כספיים שחייבים להישאר.":"Deletion removes identifying details while keeping financial records that must be retained."}</p><input value={confirmations[row.id]||""} onChange={e=>setConfirmations(c=>({...c,[row.id]:e.target.value}))} placeholder={`${he?"הקלידו":"Type"}: ${row.customers?.name||""}`} /><button className="ops-danger" disabled={pending||!row.identity_verified_at} onClick={()=>start(async()=>{const result=await anonymizeCustomerForRequest(row.id,confirmations[row.id]||"");setMessage(result.ok?(he?"פרטי הלקוח נמחקו":"Customer details removed"):(result.error||"Error"));})}>{he?"מחיקת פרטים מזהים":"Remove identifying data"}</button></div>}</article>)}</div>:<div className="ops-empty">{he?"אין בקשות פרטיות.":"No privacy requests."}</div>}{message&&<div className="ops-message" role="status">{message}</div>}</div><div className="ops-card"><header><div><h2>{he?"פתיחת בקשה":"Add request"}</h2><p>{he?"ברירת המחדל היא יעד טיפול של 30 יום":"Default target is 30 days"}</p></div></header><form action={action} className="ops-form"><label>{he?"סוג בקשה":"Request type"}<select name="requestType">{["access","export","correction","deletion","opt_out"].map(v=><option value={v} key={v}>{requestLabel(v,he)}</option>)}</select></label><label>{he?"לקוח קשור":"Customer"}<select name="customerId"><option value="">{he?"ללא קישור":"Not linked"}</option>{customers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><Field name="requesterName" label={he?"שם הפונה":"Requester name"} required/><Field name="email" label={he?"אימייל":"Email"} type="email"/><Field name="phone" label={he?"טלפון":"Phone"}/><Field name="dueAt" label={he?"מועד טיפול":"Due date"} type="datetime-local"/><label>{he?"אחראי":"Assigned to"}<select name="assignedTo">{members.map(m=><option value={m.id} key={m.id}>{m.full_name}</option>)}</select></label><label>{he?"פרטי הבקשה":"Request details"}<textarea name="details"/></label><Action state={state} he={he}/></form></div></div>}
+function Requests({
+  he,
+  rows,
+  customers,
+  members,
+}: {
+  he: boolean;
+  rows: Request[];
+  customers: Customer[];
+  members: Member[];
+}) {
+  const [state, action] = useActionState(createPrivacyRequest, initial);
+  const [pending, start] = useTransition();
+  const [message, setMessage] = useState("");
+  const [confirmations, setConfirmations] = useState<Record<string, string>>({});
+  return (
+    <div className="ops-grid">
+      <div className="ops-card">
+        <header>
+          <div>
+            <h2>{he ? "תור בקשות" : "Request queue"}</h2>
+            <p>
+              {he
+                ? "זהות, מועד אחרון, יצוא ומחיקה מבוקרת"
+                : "Identity, due date, export and controlled deletion"}
+            </p>
+          </div>
+          <span className="ops-pill">{rows.length}</span>
+        </header>
+        {rows.length ? (
+          <div className="privacy-request-list">
+            {rows.map((row) => (
+              <article key={row.id}>
+                <div className="privacy-request-head">
+                  <div>
+                    <strong>
+                      {row.requester_name} · {requestLabel(row.request_type, he)}
+                    </strong>
+                    <small>
+                      {row.customers?.name || row.requester_email || "—"} ·{" "}
+                      {new Date(row.received_at).toLocaleDateString(he ? "he-IL" : "en-US")}
+                      {row.due_at
+                        ? ` · ${he ? "יעד" : "Due"} ${new Date(row.due_at).toLocaleDateString(he ? "he-IL" : "en-US")}`
+                        : ""}
+                    </small>
+                  </div>
+                  <span className={`ops-pill ${row.status === "blocked" ? "danger" : ""}`}>
+                    {statusLabel(row.status, he)}
+                  </span>
+                </div>
+                <div className="privacy-request-controls">
+                  <select
+                    value={row.status}
+                    disabled={pending}
+                    aria-label={he ? "מצב בקשה" : "Request status"}
+                    onChange={(event) =>
+                      start(async () => {
+                        const result = await updatePrivacyRequest(
+                          row.id,
+                          event.target.value,
+                          Boolean(row.identity_verified_at),
+                          row.completion_notes || "",
+                        );
+                        setMessage(
+                          result.ok
+                            ? he
+                              ? "הבקשה עודכנה"
+                              : "Request updated"
+                            : result.error || "Error",
+                        );
+                      })
+                    }
+                  >
+                    {[
+                      "received",
+                      "identity_check",
+                      "in_progress",
+                      "blocked",
+                      "ready",
+                      "completed",
+                      "denied",
+                      "cancelled",
+                    ].map((v) => (
+                      <option value={v} key={v}>
+                        {statusLabel(v, he)}
+                      </option>
+                    ))}
+                  </select>
+                  {!row.identity_verified_at && (
+                    <button
+                      type="button"
+                      className="ops-secondary"
+                      disabled={pending}
+                      onClick={() =>
+                        start(async () => {
+                          const result = await updatePrivacyRequest(
+                            row.id,
+                            "in_progress",
+                            true,
+                            row.completion_notes || "",
+                          );
+                          setMessage(
+                            result.ok
+                              ? he
+                                ? "הזהות אומתה"
+                                : "Identity verified"
+                              : result.error || "Error",
+                          );
+                        })
+                      }
+                    >
+                      {he ? "אימות זהות" : "Verify identity"}
+                    </button>
+                  )}
+                  {row.identity_verified_at && (
+                    <span className="verified">✓ {he ? "זהות אומתה" : "Identity verified"}</span>
+                  )}
+                  {["access", "export"].includes(row.request_type) && (
+                    <a className="ops-secondary" href={`/api/privacy/export/${row.id}`}>
+                      {he ? "הורדת יצוא" : "Download export"}
+                    </a>
+                  )}
+                </div>
+                {row.request_type === "deletion" && row.customer_id && (
+                  <div className="privacy-delete">
+                    <p>
+                      {he
+                        ? "המחיקה מסירה פרטים מזהים אך שומרת מסמכים כספיים שחייבים להישאר."
+                        : "Deletion removes identifying details while keeping financial records that must be retained."}
+                    </p>
+                    <input
+                      value={confirmations[row.id] || ""}
+                      onChange={(e) =>
+                        setConfirmations((c) => ({ ...c, [row.id]: e.target.value }))
+                      }
+                      placeholder={`${he ? "הקלידו" : "Type"}: ${row.customers?.name || ""}`}
+                      aria-label={`${he ? "הקלידו" : "Type"}: ${row.customers?.name || ""}`}
+                    />
+                    <button
+                      type="button"
+                      className="ops-danger"
+                      disabled={pending || !row.identity_verified_at}
+                      onClick={() =>
+                        start(async () => {
+                          const result = await anonymizeCustomerForRequest(
+                            row.id,
+                            confirmations[row.id] || "",
+                          );
+                          setMessage(
+                            result.ok
+                              ? he
+                                ? "פרטי הלקוח נמחקו"
+                                : "Customer details removed"
+                              : result.error || "Error",
+                          );
+                        })
+                      }
+                    >
+                      {he ? "מחיקת פרטים מזהים" : "Remove identifying data"}
+                    </button>
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="ops-empty">{he ? "אין בקשות פרטיות." : "No privacy requests."}</div>
+        )}
+        {message && (
+          <div className="ops-message" role="status">
+            {message}
+          </div>
+        )}
+      </div>
+      <div className="ops-card">
+        <header>
+          <div>
+            <h2>{he ? "פתיחת בקשה" : "Add request"}</h2>
+            <p>{he ? "ברירת המחדל היא יעד טיפול של 30 יום" : "Default target is 30 days"}</p>
+          </div>
+        </header>
+        <form action={action} className="ops-form">
+          <label>
+            {he ? "סוג בקשה" : "Request type"}
+            <select name="requestType">
+              {["access", "export", "correction", "deletion", "opt_out"].map((v) => (
+                <option value={v} key={v}>
+                  {requestLabel(v, he)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {he ? "לקוח קשור" : "Customer"}
+            <select name="customerId">
+              <option value="">{he ? "ללא קישור" : "Not linked"}</option>
+              {customers.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Field name="requesterName" label={he ? "שם הפונה" : "Requester name"} required />
+          <Field name="email" label={he ? "אימייל" : "Email"} type="email" />
+          <Field name="phone" label={he ? "טלפון" : "Phone"} />
+          <Field name="dueAt" label={he ? "מועד טיפול" : "Due date"} type="datetime-local" />
+          <label>
+            {he ? "אחראי" : "Assigned to"}
+            <select name="assignedTo">
+              {members.map((m) => (
+                <option value={m.id} key={m.id}>
+                  {m.full_name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {he ? "פרטי הבקשה" : "Request details"}
+            <textarea name="details" />
+          </label>
+          <Action state={state} he={he} />
+        </form>
+      </div>
+    </div>
+  );
+}
 
-function Consents({he,rows,customers}:{he:boolean;rows:Consent[];customers:Customer[]}){const[state,action]=useActionState(recordConsent,initial);return <div className="ops-grid"><div className="ops-card"><header><div><h2>{he?"היסטוריית הסכמות":"Consent history"}</h2><p>{he?"כל שינוי נוסף כרשומה חדשה — אי אפשר לשכתב היסטוריה":"Every change is a new record; history cannot be rewritten"}</p></div></header>{rows.length?<ul className="ops-list">{rows.map(row=><li key={row.id}><div><strong>{row.customers?.name||"—"} · {channelLabel(row.channel,he)}</strong><small>{row.purpose} · {row.source} · {new Date(row.recorded_at).toLocaleString(he?"he-IL":"en-US")}</small></div><span className={`ops-pill ${row.granted?"":"danger"}`}>{row.granted?(he?"אושר":"Granted"):(he?"בוטל":"Withdrawn")}</span></li>)}</ul>:<div className="ops-empty">{he?"אין עדיין רישומי הסכמה.":"No consent records yet."}</div>}</div><div className="ops-card"><header><div><h2>{he?"רישום הסכמה":"Record consent"}</h2><p>{he?"רשמו איך ומדוע ניתנה או בוטלה הסכמה":"Record how and why consent was granted or withdrawn"}</p></div></header><form action={action} className="ops-form"><label>{he?"לקוח":"Customer"}<select name="customerId" required><option value="">{he?"בחירת לקוח":"Choose customer"}</option>{customers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label><label>{he?"ערוץ":"Channel"}<select name="channel">{["email","sms","phone","location","terms","privacy","payment_method"].map(v=><option value={v} key={v}>{channelLabel(v,he)}</option>)}</select></label><Field name="purpose" label={he?"מטרה":"Purpose"} required/><label>{he?"החלטה":"Decision"}<select name="granted"><option value="yes">{he?"אושר":"Granted"}</option><option value="no">{he?"בוטל":"Withdrawn"}</option></select></label><Field name="policyVersion" label={he?"גרסת מדיניות":"Policy version"}/><label>{he?"הוכחה או הערה":"Proof or note"}<textarea name="note"/></label><Action state={state} he={he}/></form></div></div>}
+function Consents({
+  he,
+  rows,
+  customers,
+}: {
+  he: boolean;
+  rows: Consent[];
+  customers: Customer[];
+}) {
+  const [state, action] = useActionState(recordConsent, initial);
+  return (
+    <div className="ops-grid">
+      <div className="ops-card">
+        <header>
+          <div>
+            <h2>{he ? "היסטוריית הסכמות" : "Consent history"}</h2>
+            <p>
+              {he
+                ? "כל שינוי נוסף כרשומה חדשה — אי אפשר לשכתב היסטוריה"
+                : "Every change is a new record; history cannot be rewritten"}
+            </p>
+          </div>
+        </header>
+        {rows.length ? (
+          <ul className="ops-list">
+            {rows.map((row) => (
+              <li key={row.id}>
+                <div>
+                  <strong>
+                    {row.customers?.name || "—"} · {channelLabel(row.channel, he)}
+                  </strong>
+                  <small>
+                    {row.purpose} · {row.source} ·{" "}
+                    {new Date(row.recorded_at).toLocaleString(he ? "he-IL" : "en-US")}
+                  </small>
+                </div>
+                <span className={`ops-pill ${row.granted ? "" : "danger"}`}>
+                  {row.granted ? (he ? "אושר" : "Granted") : he ? "בוטל" : "Withdrawn"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="ops-empty">
+            {he ? "אין עדיין רישומי הסכמה." : "No consent records yet."}
+          </div>
+        )}
+      </div>
+      <div className="ops-card">
+        <header>
+          <div>
+            <h2>{he ? "רישום הסכמה" : "Record consent"}</h2>
+            <p>
+              {he
+                ? "רשמו איך ומדוע ניתנה או בוטלה הסכמה"
+                : "Record how and why consent was granted or withdrawn"}
+            </p>
+          </div>
+        </header>
+        <form action={action} className="ops-form">
+          <label>
+            {he ? "לקוח" : "Customer"}
+            <select name="customerId" required>
+              <option value="">{he ? "בחירת לקוח" : "Choose customer"}</option>
+              {customers.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {he ? "ערוץ" : "Channel"}
+            <select name="channel">
+              {["email", "sms", "phone", "location", "terms", "privacy", "payment_method"].map(
+                (v) => (
+                  <option value={v} key={v}>
+                    {channelLabel(v, he)}
+                  </option>
+                ),
+              )}
+            </select>
+          </label>
+          <Field name="purpose" label={he ? "מטרה" : "Purpose"} required />
+          <label>
+            {he ? "החלטה" : "Decision"}
+            <select name="granted">
+              <option value="yes">{he ? "אושר" : "Granted"}</option>
+              <option value="no">{he ? "בוטל" : "Withdrawn"}</option>
+            </select>
+          </label>
+          <Field name="policyVersion" label={he ? "גרסת מדיניות" : "Policy version"} />
+          <label>
+            {he ? "הוכחה או הערה" : "Proof or note"}
+            <textarea name="note" />
+          </label>
+          <Action state={state} he={he} />
+        </form>
+      </div>
+    </div>
+  );
+}
 
-function Retention({he,settings,holds,runs,customers}:{he:boolean;settings:Settings;holds:Hold[];runs:Run[];customers:Customer[]}){const[state,action]=useActionState(savePrivacySettings,initial);const[holdState,holdAction]=useActionState(createRetentionHold,initial);const[pending,start]=useTransition();const[message,setMessage]=useState("");const[last,setLast]=useState<Record<string,number|boolean>|null>(runs[0]?.summary||null);return <div className="ops-grid"><div><div className="ops-card"><header><div><h2>{he?"מדיניות שמירת מידע":"Retention policy"}</h2><p>{he?"בדיקה לפני מחיקה, עם הגנות למסמכים שחייבים לשמור":"Preview before deletion, with safeguards for required records"}</p></div></header><form action={action} className="ops-form"><div className="ops-form-grid"><Field name="privacyEmail" label={he?"אימייל פרטיות":"Privacy email"} type="email" defaultValue={settings.privacy_email||""}/><Field name="privacyPhone" label={he?"טלפון פרטיות":"Privacy phone"} defaultValue={settings.privacy_phone||""}/><Field name="locationDays" label={he?"מיקומי טכנאים (ימים)":"Technician locations (days)"} type="number" min="1" max="3650" defaultValue={settings.location_retention_days}/><Field name="callDays" label={he?"הקלטות שיחה (ימים)":"Call recordings (days)"} type="number" min="1" max="3650" defaultValue={settings.call_recording_retention_days}/><Field name="communicationDays" label={he?"הודעות ואימיילים (ימים)":"Messages and email (days)"} type="number" min="30" max="3650" defaultValue={settings.communication_retention_days}/><Field name="mediaDays" label={he?"תמונות עבודה (ימים)":"Job media (days)"} type="number" min="30" max="3650" defaultValue={settings.job_media_retention_days}/><Field name="auditDays" label={he?"היסטוריית פעולות (ימים)":"Audit history (days)"} type="number" min="365" max="7300" defaultValue={settings.audit_retention_days}/><label className="retention-toggle"><input type="checkbox" name="autoEnforce" defaultChecked={settings.auto_enforce}/><span><strong>{he?"אכיפה יומית אוטומטית":"Daily automatic enforcement"}</strong><small>{he?"מופעלת רק אחרי שבדקתם את התוצאה":"Enable only after reviewing a preview"}</small></span></label></div><Action state={state} he={he}/></form><div className="retention-run"><div className="ops-actions"><button className="ops-secondary" disabled={pending} onClick={()=>start(async()=>{const result=await previewRetention(false);if(result.summary)setLast(result.summary);setMessage(result.ok?(he?"הבדיקה הסתיימה":"Preview complete"):(result.error||"Error"));})}>{he?"בדיקה ללא מחיקה":"Preview without deleting"}</button><button className="ops-danger" disabled={pending||!settings.auto_enforce} onClick={()=>start(async()=>{if(!confirm(he?"להחיל עכשיו את המדיניות הפעילה?":"Apply the active retention policy now?"))return;const result=await previewRetention(true);if(result.summary)setLast(result.summary);setMessage(result.ok?(he?"המדיניות הוחלה":"Policy applied"):(result.error||"Error"));})}>{he?"החלה עכשיו":"Enforce now"}</button></div>{last&&<div className="retention-result">{Object.entries(last).filter(([,v])=>typeof v==="number").map(([k,v])=><span key={k}><b>{String(v)}</b>{retentionLabel(k,he)}</span>)}</div>}{message&&<div className="ops-message" role="status">{message}</div>}<p>{he?"תמונות עבודה והיסטוריית פעולות מוצגות בבדיקה, אך אינן נמחקות אוטומטית.":"Job media and audit history are shown in previews but are never deleted automatically."}</p></div></div></div><div><div className="ops-card"><header><div><h2>{he?"עצירות מחיקה":"Retention holds"}</h2><p>{he?"הגנה זמנית על מידע בגלל מחלוקת או חובה חוקית":"Temporarily protect records for a dispute or legal need"}</p></div></header>{holds.filter(h=>!h.released_at).length?<ul className="ops-list">{holds.filter(h=>!h.released_at).map(h=><li key={h.id}><div><strong>{h.customers?.name|| (he?"כל העסק":"Entire business")} · {retentionLabel(h.category,he)}</strong><small>{h.reason}{h.expires_at?` · ${new Date(h.expires_at).toLocaleDateString(he?"he-IL":"en-US")}`:""}</small></div><button className="ops-secondary" disabled={pending} onClick={()=>start(async()=>{const result=await releaseRetentionHold(h.id);setMessage(result.ok?(he?"העצירה שוחררה":"Hold released"):(result.error||"Error"));})}>{he?"שחרור":"Release"}</button></li>)}</ul>:<div className="ops-empty">{he?"אין עצירות פעילות.":"No active holds."}</div>}<details className="ops-details"><summary>{he?"הוספת עצירה":"Add hold"}</summary><form action={holdAction} className="ops-form"><label>{he?"לקוח (לא חובה)":"Customer (optional)"}<select name="customerId"><option value="">{he?"כל העסק":"Entire business"}</option>{customers.map(c=><option value={c.id} key={c.id}>{c.name}</option>)}</select></label><label>{he?"קטגוריה":"Category"}<select name="category">{["all","location","calls","communications","media","audit"].map(v=><option value={v} key={v}>{retentionLabel(v,he)}</option>)}</select></label><Field name="reason" label={he?"סיבה":"Reason"} required/><Field name="expiresAt" label={he?"תוקף עד":"Expires"} type="datetime-local"/><Action state={holdState} he={he}/></form></details></div></div></div>}
+function Retention({
+  he,
+  settings,
+  holds,
+  runs,
+  customers,
+}: {
+  he: boolean;
+  settings: Settings;
+  holds: Hold[];
+  runs: Run[];
+  customers: Customer[];
+}) {
+  const [state, action] = useActionState(savePrivacySettings, initial);
+  const [holdState, holdAction] = useActionState(createRetentionHold, initial);
+  const [pending, start] = useTransition();
+  const [message, setMessage] = useState("");
+  const [last, setLast] = useState<Record<string, number | boolean> | null>(
+    runs[0]?.summary || null,
+  );
+  return (
+    <div className="ops-grid">
+      <div>
+        <div className="ops-card">
+          <header>
+            <div>
+              <h2>{he ? "מדיניות שמירת מידע" : "Retention policy"}</h2>
+              <p>
+                {he
+                  ? "בדיקה לפני מחיקה, עם הגנות למסמכים שחייבים לשמור"
+                  : "Preview before deletion, with safeguards for required records"}
+              </p>
+            </div>
+          </header>
+          <form action={action} className="ops-form">
+            <div className="ops-form-grid">
+              <Field
+                name="privacyEmail"
+                label={he ? "אימייל פרטיות" : "Privacy email"}
+                type="email"
+                defaultValue={settings.privacy_email || ""}
+              />
+              <Field
+                name="privacyPhone"
+                label={he ? "טלפון פרטיות" : "Privacy phone"}
+                defaultValue={settings.privacy_phone || ""}
+              />
+              <Field
+                name="locationDays"
+                label={he ? "מיקומי טכנאים (ימים)" : "Technician locations (days)"}
+                type="number"
+                min="1"
+                max="3650"
+                defaultValue={settings.location_retention_days}
+              />
+              <Field
+                name="callDays"
+                label={he ? "הקלטות שיחה (ימים)" : "Call recordings (days)"}
+                type="number"
+                min="1"
+                max="3650"
+                defaultValue={settings.call_recording_retention_days}
+              />
+              <Field
+                name="communicationDays"
+                label={he ? "הודעות ואימיילים (ימים)" : "Messages and email (days)"}
+                type="number"
+                min="30"
+                max="3650"
+                defaultValue={settings.communication_retention_days}
+              />
+              <Field
+                name="mediaDays"
+                label={he ? "תמונות עבודה (ימים)" : "Job media (days)"}
+                type="number"
+                min="30"
+                max="3650"
+                defaultValue={settings.job_media_retention_days}
+              />
+              <Field
+                name="auditDays"
+                label={he ? "היסטוריית פעולות (ימים)" : "Audit history (days)"}
+                type="number"
+                min="365"
+                max="7300"
+                defaultValue={settings.audit_retention_days}
+              />
+              <label className="retention-toggle">
+                <input type="checkbox" name="autoEnforce" defaultChecked={settings.auto_enforce} />
+                <span>
+                  <strong>{he ? "אכיפה יומית אוטומטית" : "Daily automatic enforcement"}</strong>
+                  <small>
+                    {he
+                      ? "מופעלת רק אחרי שבדקתם את התוצאה"
+                      : "Enable only after reviewing a preview"}
+                  </small>
+                </span>
+              </label>
+            </div>
+            <Action state={state} he={he} />
+          </form>
+          <div className="retention-run">
+            <div className="ops-actions">
+              <button
+                type="button"
+                className="ops-secondary"
+                disabled={pending}
+                onClick={() =>
+                  start(async () => {
+                    const result = await previewRetention(false);
+                    if (result.summary) setLast(result.summary);
+                    setMessage(
+                      result.ok
+                        ? he
+                          ? "הבדיקה הסתיימה"
+                          : "Preview complete"
+                        : result.error || "Error",
+                    );
+                  })
+                }
+              >
+                {he ? "בדיקה ללא מחיקה" : "Preview without deleting"}
+              </button>
+              <button
+                type="button"
+                className="ops-danger"
+                disabled={pending || !settings.auto_enforce}
+                onClick={() =>
+                  start(async () => {
+                    if (
+                      !confirm(
+                        he
+                          ? "להחיל עכשיו את המדיניות הפעילה?"
+                          : "Apply the active retention policy now?",
+                      )
+                    )
+                      return;
+                    const result = await previewRetention(true);
+                    if (result.summary) setLast(result.summary);
+                    setMessage(
+                      result.ok
+                        ? he
+                          ? "המדיניות הוחלה"
+                          : "Policy applied"
+                        : result.error || "Error",
+                    );
+                  })
+                }
+              >
+                {he ? "החלה עכשיו" : "Enforce now"}
+              </button>
+            </div>
+            {last && (
+              <div className="retention-result">
+                {Object.entries(last)
+                  .filter(([, v]) => typeof v === "number")
+                  .map(([k, v]) => (
+                    <span key={k}>
+                      <b>{String(v)}</b>
+                      {retentionLabel(k, he)}
+                    </span>
+                  ))}
+              </div>
+            )}
+            {message && (
+              <div className="ops-message" role="status">
+                {message}
+              </div>
+            )}
+            <p>
+              {he
+                ? "תמונות עבודה והיסטוריית פעולות מוצגות בבדיקה, אך אינן נמחקות אוטומטית."
+                : "Job media and audit history are shown in previews but are never deleted automatically."}
+            </p>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div className="ops-card">
+          <header>
+            <div>
+              <h2>{he ? "עצירות מחיקה" : "Retention holds"}</h2>
+              <p>
+                {he
+                  ? "הגנה זמנית על מידע בגלל מחלוקת או חובה חוקית"
+                  : "Temporarily protect records for a dispute or legal need"}
+              </p>
+            </div>
+          </header>
+          {holds.filter((h) => !h.released_at).length ? (
+            <ul className="ops-list">
+              {holds
+                .filter((h) => !h.released_at)
+                .map((h) => (
+                  <li key={h.id}>
+                    <div>
+                      <strong>
+                        {h.customers?.name || (he ? "כל העסק" : "Entire business")} ·{" "}
+                        {retentionLabel(h.category, he)}
+                      </strong>
+                      <small>
+                        {h.reason}
+                        {h.expires_at
+                          ? ` · ${new Date(h.expires_at).toLocaleDateString(he ? "he-IL" : "en-US")}`
+                          : ""}
+                      </small>
+                    </div>
+                    <button
+                      type="button"
+                      className="ops-secondary"
+                      disabled={pending}
+                      onClick={() =>
+                        start(async () => {
+                          const result = await releaseRetentionHold(h.id);
+                          setMessage(
+                            result.ok
+                              ? he
+                                ? "העצירה שוחררה"
+                                : "Hold released"
+                              : result.error || "Error",
+                          );
+                        })
+                      }
+                    >
+                      {he ? "שחרור" : "Release"}
+                    </button>
+                  </li>
+                ))}
+            </ul>
+          ) : (
+            <div className="ops-empty">{he ? "אין עצירות פעילות." : "No active holds."}</div>
+          )}
+          <details className="ops-details">
+            <summary>{he ? "הוספת עצירה" : "Add hold"}</summary>
+            <form action={holdAction} className="ops-form">
+              <label>
+                {he ? "לקוח (לא חובה)" : "Customer (optional)"}
+                <select name="customerId">
+                  <option value="">{he ? "כל העסק" : "Entire business"}</option>
+                  {customers.map((c) => (
+                    <option value={c.id} key={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                {he ? "קטגוריה" : "Category"}
+                <select name="category">
+                  {["all", "location", "calls", "communications", "media", "audit"].map((v) => (
+                    <option value={v} key={v}>
+                      {retentionLabel(v, he)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Field name="reason" label={he ? "סיבה" : "Reason"} required />
+              <Field name="expiresAt" label={he ? "תוקף עד" : "Expires"} type="datetime-local" />
+              <Action state={holdState} he={he} />
+            </form>
+          </details>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-function Action({state,he}:{state:PrivacyResult;he:boolean}){return <div className="ops-actions"><Submit he={he}/>{state.ok&&<span className="ops-success" role="status">✓ {he?"נשמר":"Saved"}</span>}{state.error&&<span className="form-error" role="alert">{state.error}</span>}</div>}function Submit({he}:{he:boolean}){const{pending}=useFormStatus();return <button className="ops-primary" disabled={pending}>{pending?(he?"שומרים…":"Saving…"):(he?"שמירה":"Save")}</button>}function Field(props:React.InputHTMLAttributes<HTMLInputElement>&{label:string}){const{label,...rest}=props;return <label>{label}<input {...rest}/></label>}
-const requestLabel=(v:string,he:boolean)=>({access:he?"גישה למידע":"Access",export:he?"יצוא מידע":"Export",correction:he?"תיקון מידע":"Correction",deletion:he?"מחיקת מידע":"Deletion",opt_out:he?"הסרה מדיוור":"Opt out"} as Record<string,string>)[v]||v;const statusLabel=(v:string,he:boolean)=>({received:he?"התקבלה":"Received",identity_check:he?"אימות זהות":"Identity check",in_progress:he?"בטיפול":"In progress",blocked:he?"ממתינה":"Blocked",ready:he?"מוכנה":"Ready",completed:he?"הושלמה":"Completed",denied:he?"נדחתה":"Denied",cancelled:he?"בוטלה":"Cancelled"} as Record<string,string>)[v]||v;const channelLabel=(v:string,he:boolean)=>({email:he?"אימייל":"Email",sms:he?"הודעות SMS":"SMS",phone:he?"טלפון":"Phone",location:he?"מיקום":"Location",terms:he?"תנאים":"Terms",privacy:he?"פרטיות":"Privacy",payment_method:he?"שמירת אמצעי תשלום":"Saved payment method"} as Record<string,string>)[v]||v;const retentionLabel=(v:string,he:boolean)=>({all:he?"הכול":"All",location:he?"מיקומים":"Location",calls:he?"שיחות":"Calls",communications:he?"תקשורת":"Communications",media:he?"מדיה":"Media",audit:he?"היסטוריה":"Audit",locationPoints:he?"נקודות מיקום":"Location points",callRecordings:he?"הקלטות":"Call recordings",smsMessages:he?"הודעות SMS":"SMS messages",emailMessages:he?"אימיילים":"Emails",mediaRowsDue:he?"פריטי מדיה לבדיקה":"Media due for review",auditRowsDue:he?"רישומי פעילות לבדיקה":"Audit rows due for review",holds:he?"עצירות פעילות":"Active holds"} as Record<string,string>)[v]||v;
-
+function Action({ state, he }: { state: PrivacyResult; he: boolean }) {
+  return (
+    <div className="ops-actions">
+      <Submit he={he} />
+      {state.ok && (
+        <span className="ops-success" role="status">
+          ✓ {he ? "נשמר" : "Saved"}
+        </span>
+      )}
+      {state.error && (
+        <span className="form-error" role="alert">
+          {state.error}
+        </span>
+      )}
+    </div>
+  );
+}
+function Submit({ he }: { he: boolean }) {
+  const { pending } = useFormStatus();
+  return (
+    <button type="submit" className="ops-primary" disabled={pending}>
+      {pending ? (he ? "שומרים…" : "Saving…") : he ? "שמירה" : "Save"}
+    </button>
+  );
+}
+function Field(props: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) {
+  const { label, ...rest } = props;
+  return (
+    <label>
+      {label}
+      <input {...rest} />
+    </label>
+  );
+}
+const requestLabel = (v: string, he: boolean) =>
+  (
+    ({
+      access: he ? "גישה למידע" : "Access",
+      export: he ? "יצוא מידע" : "Export",
+      correction: he ? "תיקון מידע" : "Correction",
+      deletion: he ? "מחיקת מידע" : "Deletion",
+      opt_out: he ? "הסרה מדיוור" : "Opt out",
+    }) as Record<string, string>
+  )[v] || v;
+const statusLabel = (v: string, he: boolean) =>
+  (
+    ({
+      received: he ? "התקבלה" : "Received",
+      identity_check: he ? "אימות זהות" : "Identity check",
+      in_progress: he ? "בטיפול" : "In progress",
+      blocked: he ? "ממתינה" : "Blocked",
+      ready: he ? "מוכנה" : "Ready",
+      completed: he ? "הושלמה" : "Completed",
+      denied: he ? "נדחתה" : "Denied",
+      cancelled: he ? "בוטלה" : "Cancelled",
+    }) as Record<string, string>
+  )[v] || v;
+const channelLabel = (v: string, he: boolean) =>
+  (
+    ({
+      email: he ? "אימייל" : "Email",
+      sms: he ? "הודעות SMS" : "SMS",
+      phone: he ? "טלפון" : "Phone",
+      location: he ? "מיקום" : "Location",
+      terms: he ? "תנאים" : "Terms",
+      privacy: he ? "פרטיות" : "Privacy",
+      payment_method: he ? "שמירת אמצעי תשלום" : "Saved payment method",
+    }) as Record<string, string>
+  )[v] || v;
+const retentionLabel = (v: string, he: boolean) =>
+  (
+    ({
+      all: he ? "הכול" : "All",
+      location: he ? "מיקומים" : "Location",
+      calls: he ? "שיחות" : "Calls",
+      communications: he ? "תקשורת" : "Communications",
+      media: he ? "מדיה" : "Media",
+      audit: he ? "היסטוריה" : "Audit",
+      locationPoints: he ? "נקודות מיקום" : "Location points",
+      callRecordings: he ? "הקלטות" : "Call recordings",
+      smsMessages: he ? "הודעות SMS" : "SMS messages",
+      emailMessages: he ? "אימיילים" : "Emails",
+      mediaRowsDue: he ? "פריטי מדיה לבדיקה" : "Media due for review",
+      auditRowsDue: he ? "רישומי פעילות לבדיקה" : "Audit rows due for review",
+      holds: he ? "עצירות פעילות" : "Active holds",
+    }) as Record<string, string>
+  )[v] || v;

@@ -1,8 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  intervalsOverlap, validateInterval, findConflicts, canBook,
-  canTransition, toEpochMinutes,
+  intervalsOverlap,
+  validateInterval,
+  findConflicts,
+  canBook,
+  canTransition,
+  toEpochMinutes,
 } from "../lib/core/scheduling.mjs";
 
 const base = [
@@ -13,7 +17,7 @@ const base = [
 ];
 
 test("overlap detection (end exclusive)", () => {
-  assert.equal(intervalsOverlap(600, 690, 660, 720), true);  // overlap
+  assert.equal(intervalsOverlap(600, 690, 660, 720), true); // overlap
   assert.equal(intervalsOverlap(600, 690, 690, 750), false); // back-to-back = no overlap
   assert.equal(intervalsOverlap(600, 690, 700, 750), false); // separate
 });
@@ -44,10 +48,16 @@ test("cancelled appointments never cause a conflict", () => {
 
 test("editing an appointment does not conflict with itself", () => {
   const candidate = { id: "a", technicianId: "t1", startMin: 600, endMin: 680 }; // shrink 'a'
-  assert.deepEqual(findConflicts(candidate, base).map((c) => c.id), []); // self excluded, no b overlap
+  assert.deepEqual(
+    findConflicts(candidate, base).map((c) => c.id),
+    [],
+  ); // self excluded, no b overlap
   // But extending 'a' into 'b' (690) IS still caught:
   const candidate2 = { id: "a", technicianId: "t1", startMin: 600, endMin: 710 };
-  assert.deepEqual(findConflicts(candidate2, base).map((c) => c.id), ["b"]);
+  assert.deepEqual(
+    findConflicts(candidate2, base).map((c) => c.id),
+    ["b"],
+  );
 });
 
 test("unassigned job cannot double-book a technician", () => {
@@ -66,9 +76,9 @@ test("status transitions are controlled (no silent disappearance)", () => {
   assert.equal(canTransition("scheduled", "in_progress"), true);
   assert.equal(canTransition("scheduled", "cancelled"), true);
   assert.equal(canTransition("in_progress", "done"), true);
-  assert.equal(canTransition("done", "scheduled"), false);     // terminal
+  assert.equal(canTransition("done", "scheduled"), false); // terminal
   assert.equal(canTransition("cancelled", "scheduled"), false); // terminal
-  assert.equal(canTransition("scheduled", "banana"), false);    // unknown
+  assert.equal(canTransition("scheduled", "banana"), false); // unknown
 });
 
 test("date+time to epoch minutes is deterministic", () => {

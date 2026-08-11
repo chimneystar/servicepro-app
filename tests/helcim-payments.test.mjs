@@ -7,33 +7,84 @@ import { normalizeHelcimTransaction, paymentAmountParts } from "../lib/payments/
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const migration = readFileSync(join(root, "db", "017_helcim_payments.sql"), "utf8").toLowerCase();
-const customerComponent = readFileSync(join(root, "components", "CustomerPaymentOptions.tsx"), "utf8");
+const customerComponent = readFileSync(
+  join(root, "components", "CustomerPaymentOptions.tsx"),
+  "utf8",
+);
 const helcimAdapter = readFileSync(join(root, "lib", "payments", "helcim.ts"), "utf8");
 const paymentServer = readFileSync(join(root, "lib", "payments", "server.ts"), "utf8");
 const paymentReceipts = readFileSync(join(root, "lib", "payments", "receipts.ts"), "utf8");
 
 test("ACH submission stays processing until clearing settles", () => {
-  assert.deepEqual(normalizeHelcimTransaction({ type: "WITHDRAWAL", statusAuth: "PENDING", statusClearing: "OPENED" }), { method: "ach", status: "processing" });
-  assert.deepEqual(normalizeHelcimTransaction({ type: "WITHDRAWAL", statusAuth: "APPROVED", statusClearing: "APPROVED" }), { method: "ach", status: "settled" });
-  assert.deepEqual(normalizeHelcimTransaction({ type: "WITHDRAWAL", statusAuth: "DECLINED", statusClearing: "DECLINED" }), { method: "ach", status: "failed" });
+  assert.deepEqual(
+    normalizeHelcimTransaction({
+      type: "WITHDRAWAL",
+      statusAuth: "PENDING",
+      statusClearing: "OPENED",
+    }),
+    { method: "ach", status: "processing" },
+  );
+  assert.deepEqual(
+    normalizeHelcimTransaction({
+      type: "WITHDRAWAL",
+      statusAuth: "APPROVED",
+      statusClearing: "APPROVED",
+    }),
+    { method: "ach", status: "settled" },
+  );
+  assert.deepEqual(
+    normalizeHelcimTransaction({
+      type: "WITHDRAWAL",
+      statusAuth: "DECLINED",
+      statusClearing: "DECLINED",
+    }),
+    { method: "ach", status: "failed" },
+  );
 });
 
 test("card approval and decline normalize correctly", () => {
-  assert.deepEqual(normalizeHelcimTransaction({ status: "APPROVED", type: "purchase" }), { method: "card", status: "settled" });
-  assert.deepEqual(normalizeHelcimTransaction({ status: "DECLINED", type: "purchase" }), { method: "card", status: "failed" });
+  assert.deepEqual(normalizeHelcimTransaction({ status: "APPROVED", type: "purchase" }), {
+    method: "card",
+    status: "settled",
+  });
+  assert.deepEqual(normalizeHelcimTransaction({ status: "DECLINED", type: "purchase" }), {
+    method: "card",
+    status: "failed",
+  });
 });
 
 test("Fee Saver accepts a bounded surcharge but never a lower or arbitrary amount", () => {
-  assert.deepEqual(paymentAmountParts(10_000, "103.00", true), { actualMinor: 10_300, surchargeMinor: 300 });
-  assert.deepEqual(paymentAmountParts(10_000, "100.00", false), { actualMinor: 10_000, surchargeMinor: 0 });
+  assert.deepEqual(paymentAmountParts(10_000, "103.00", true), {
+    actualMinor: 10_300,
+    surchargeMinor: 300,
+  });
+  assert.deepEqual(paymentAmountParts(10_000, "100.00", false), {
+    actualMinor: 10_000,
+    surchargeMinor: 0,
+  });
   assert.throws(() => paymentAmountParts(10_000, "99.99", true));
   assert.throws(() => paymentAmountParts(10_000, "107.00", true));
   assert.throws(() => paymentAmountParts(10_000, "103.00", false));
 });
 
 test("payment tables are tenant-scoped and RLS protected", () => {
-  for (const table of ["profile_payment_permissions", "merchant_connections", "merchant_secrets", "payment_settings", "payment_schedules", "payment_milestones", "payment_requests", "payment_checkout_secrets", "manual_payment_submissions", "payment_events", "payment_notifications"]) {
-    assert.ok(migration.includes(`alter table public.${table} enable row level security`), `${table} must enable RLS`);
+  for (const table of [
+    "profile_payment_permissions",
+    "merchant_connections",
+    "merchant_secrets",
+    "payment_settings",
+    "payment_schedules",
+    "payment_milestones",
+    "payment_requests",
+    "payment_checkout_secrets",
+    "manual_payment_submissions",
+    "payment_events",
+    "payment_notifications",
+  ]) {
+    assert.ok(
+      migration.includes(`alter table public.${table} enable row level security`),
+      `${table} must enable RLS`,
+    );
   }
   assert.ok(migration.includes("organization_id = public.current_org_id()"));
   assert.ok(migration.includes("to authenticated"));
@@ -43,11 +94,17 @@ test("financial permissions cannot be self-granted through the profile policy", 
   assert.ok(migration.includes("create table if not exists public.profile_payment_permissions"));
   assert.ok(migration.includes("profile_payment_permissions_owner_write"));
   assert.ok(migration.includes("public.current_user_role() = 'owner'"));
-  assert.ok(!migration.includes("alter table public.profiles add column if not exists can_refund_payments"));
+  assert.ok(
+    !migration.includes("alter table public.profiles add column if not exists can_refund_payments"),
+  );
 });
 
 test("processor and checkout secrets are denied to browser roles", () => {
-  assert.ok(migration.includes("revoke all on public.merchant_secrets, public.payment_checkout_secrets from anon, authenticated"));
+  assert.ok(
+    migration.includes(
+      "revoke all on public.merchant_secrets, public.payment_checkout_secrets from anon, authenticated",
+    ),
+  );
   assert.ok(migration.includes("merchant_secrets_no_client_access"));
   assert.ok(migration.includes("checkout_secrets_no_client_access"));
   assert.ok(!customerComponent.includes("PAYMENT_SECRETS_KEY"));
@@ -63,7 +120,11 @@ test("legacy payment inserts receive provider-neutral compatibility values", () 
 
 test("public payment RPC exposes instructions without exposing processor secrets", () => {
   const rpc = migration.slice(migration.indexOf("function public.public_payment_options"));
-  assert.ok(rpc.includes("grant execute on function public.public_payment_options(uuid) to anon, authenticated"));
+  assert.ok(
+    rpc.includes(
+      "grant execute on function public.public_payment_options(uuid) to anon, authenticated",
+    ),
+  );
   assert.ok(rpc.includes("'zelle'"));
   assert.ok(rpc.includes("'check'"));
   assert.ok(!rpc.includes("encrypted_api_token"));

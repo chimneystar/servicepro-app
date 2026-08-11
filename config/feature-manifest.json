@@ -1,68 +1,353 @@
 {
   "version": 1,
   "protectedRoutes": [
-    { "path": "/", "file": "app/(app)/page.tsx", "roles": ["owner", "office", "tech"] },
-    { "path": "/schedule", "file": "app/(app)/schedule/page.tsx", "roles": ["owner", "office", "tech"] },
-    { "path": "/dispatch", "file": "app/(app)/dispatch/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/jobs", "file": "app/(app)/jobs/page.tsx", "roles": ["owner", "office", "tech"] },
-    { "path": "/jobs/[id]", "file": "app/(app)/jobs/[id]/page.tsx", "roles": ["owner", "office", "tech"] },
-    { "path": "/jobs/[id]/report", "file": "app/(app)/jobs/[id]/report/page.tsx", "roles": ["owner", "office", "tech"] },
-    { "path": "/tech", "file": "app/(app)/tech/page.tsx", "roles": ["tech"] },
-    { "path": "/customers", "file": "app/(app)/customers/page.tsx", "roles": ["owner", "office", "tech"] },
-    { "path": "/customers/[id]", "file": "app/(app)/customers/[id]/page.tsx", "roles": ["owner", "office", "tech"] },
-    { "path": "/customers/import", "file": "app/(app)/customers/import/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/leads", "file": "app/(app)/leads/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/messages", "file": "app/(app)/messages/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/messages/[phone]", "file": "app/(app)/messages/[phone]/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/calls", "file": "app/(app)/calls/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/estimates", "file": "app/(app)/estimates/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/estimates/[id]", "file": "app/(app)/estimates/[id]/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/estimates/[id]/edit", "file": "app/(app)/estimates/[id]/edit/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/invoices", "file": "app/(app)/invoices/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/invoices/[id]", "file": "app/(app)/invoices/[id]/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/invoices/[id]/edit", "file": "app/(app)/invoices/[id]/edit/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/expenses", "file": "app/(app)/expenses/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/inventory", "file": "app/(app)/inventory/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/pricebook", "file": "app/(app)/pricebook/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/recurring", "file": "app/(app)/recurring/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/route", "file": "app/(app)/route/page.tsx", "roles": ["owner", "office", "tech"] },
-    { "path": "/reports", "file": "app/(app)/reports/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/reports/custom", "file": "app/(app)/reports/custom/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/reports/export", "file": "app/(app)/reports/export/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/reports/commission", "file": "app/(app)/reports/commission/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/reports/timesheets", "file": "app/(app)/reports/timesheets/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/archive", "file": "app/(app)/archive/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/archive/import", "file": "app/(app)/archive/import/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/team", "file": "app/(app)/team/page.tsx", "roles": ["owner"] },
-    { "path": "/appearance", "file": "app/(app)/appearance/page.tsx", "roles": ["owner", "office", "tech"] },
-    { "path": "/finance", "file": "app/(app)/finance/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/settings", "file": "app/(app)/settings/page.tsx", "roles": ["owner"] },
-    { "path": "/settings/privacy", "file": "app/(app)/settings/privacy/page.tsx", "roles": ["owner"] },
-    { "path": "/settings/booking", "file": "app/(app)/settings/booking/page.tsx", "roles": ["owner"] },
-    { "path": "/settings/messages", "file": "app/(app)/settings/messages/page.tsx", "roles": ["owner"] },
-    { "path": "/settings/payments", "file": "app/(app)/settings/payments/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/operations", "file": "app/(app)/operations/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/warranties", "file": "app/(app)/warranties/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/fleet", "file": "app/(app)/fleet/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/growth", "file": "app/(app)/growth/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/migration", "file": "app/(app)/migration/page.tsx", "roles": ["owner", "office"] },
-    { "path": "/admin", "file": "app/(app)/admin/page.tsx", "roles": ["owner"] }
+    {
+      "path": "/",
+      "file": "app/(app)/page.tsx",
+      "roles": ["owner", "office", "tech"]
+    },
+    {
+      "path": "/admin",
+      "file": "app/(app)/admin/page.tsx",
+      "roles": ["owner"]
+    },
+    {
+      "path": "/appearance",
+      "file": "app/(app)/appearance/page.tsx",
+      "roles": ["owner", "office", "tech"]
+    },
+    {
+      "path": "/archive",
+      "file": "app/(app)/archive/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/archive/import",
+      "file": "app/(app)/archive/import/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/calls",
+      "file": "app/(app)/calls/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/customers",
+      "file": "app/(app)/customers/page.tsx",
+      "roles": ["owner", "office", "tech"]
+    },
+    {
+      "path": "/customers/[id]",
+      "file": "app/(app)/customers/[id]/page.tsx",
+      "roles": ["owner", "office", "tech"]
+    },
+    {
+      "path": "/customers/[id]/statement",
+      "file": "app/(app)/customers/[id]/statement/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/customers/import",
+      "file": "app/(app)/customers/import/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/dispatch",
+      "file": "app/(app)/dispatch/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/estimates",
+      "file": "app/(app)/estimates/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/estimates/[id]",
+      "file": "app/(app)/estimates/[id]/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/estimates/[id]/edit",
+      "file": "app/(app)/estimates/[id]/edit/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/expenses",
+      "file": "app/(app)/expenses/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/finance",
+      "file": "app/(app)/finance/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/fleet",
+      "file": "app/(app)/fleet/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/growth",
+      "file": "app/(app)/growth/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/inventory",
+      "file": "app/(app)/inventory/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/inventory/movements",
+      "file": "app/(app)/inventory/movements/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/inventory/receiving",
+      "file": "app/(app)/inventory/receiving/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/invoices",
+      "file": "app/(app)/invoices/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/invoices/[id]",
+      "file": "app/(app)/invoices/[id]/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/invoices/[id]/edit",
+      "file": "app/(app)/invoices/[id]/edit/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/jobs",
+      "file": "app/(app)/jobs/page.tsx",
+      "roles": ["owner", "office", "tech"]
+    },
+    {
+      "path": "/jobs/[id]",
+      "file": "app/(app)/jobs/[id]/page.tsx",
+      "roles": ["owner", "office", "tech"]
+    },
+    {
+      "path": "/jobs/[id]/report",
+      "file": "app/(app)/jobs/[id]/report/page.tsx",
+      "roles": ["owner", "office", "tech"]
+    },
+    {
+      "path": "/leads",
+      "file": "app/(app)/leads/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/messages",
+      "file": "app/(app)/messages/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/messages/[phone]",
+      "file": "app/(app)/messages/[phone]/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/migration",
+      "file": "app/(app)/migration/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/more",
+      "file": "app/(app)/more/page.tsx",
+      "roles": ["owner", "office", "tech"]
+    },
+    {
+      "path": "/operations",
+      "file": "app/(app)/operations/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/pricebook",
+      "file": "app/(app)/pricebook/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/recurring",
+      "file": "app/(app)/recurring/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/reports",
+      "file": "app/(app)/reports/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/reports/calendar",
+      "file": "app/(app)/reports/calendar/page.tsx",
+      "roles": ["owner", "office", "tech"]
+    },
+    {
+      "path": "/reports/commission",
+      "file": "app/(app)/reports/commission/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/reports/custom",
+      "file": "app/(app)/reports/custom/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/reports/export",
+      "file": "app/(app)/reports/export/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/reports/schedule",
+      "file": "app/(app)/reports/schedule/page.tsx",
+      "roles": ["owner"]
+    },
+    {
+      "path": "/reports/timesheets",
+      "file": "app/(app)/reports/timesheets/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/route",
+      "file": "app/(app)/route/page.tsx",
+      "roles": ["owner", "office", "tech"]
+    },
+    {
+      "path": "/schedule",
+      "file": "app/(app)/schedule/page.tsx",
+      "roles": ["owner", "office", "tech"]
+    },
+    {
+      "path": "/search",
+      "file": "app/(app)/search/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/settings",
+      "file": "app/(app)/settings/page.tsx",
+      "roles": ["owner"]
+    },
+    {
+      "path": "/settings/booking",
+      "file": "app/(app)/settings/booking/page.tsx",
+      "roles": ["owner"]
+    },
+    {
+      "path": "/settings/custom-fields",
+      "file": "app/(app)/settings/custom-fields/page.tsx",
+      "roles": ["owner"]
+    },
+    {
+      "path": "/settings/messages",
+      "file": "app/(app)/settings/messages/page.tsx",
+      "roles": ["owner"]
+    },
+    {
+      "path": "/settings/payments",
+      "file": "app/(app)/settings/payments/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/settings/privacy",
+      "file": "app/(app)/settings/privacy/page.tsx",
+      "roles": ["owner"]
+    },
+    {
+      "path": "/settings/security",
+      "file": "app/(app)/settings/security/page.tsx",
+      "roles": ["owner", "office", "tech"]
+    },
+    {
+      "path": "/team",
+      "file": "app/(app)/team/page.tsx",
+      "roles": ["owner"]
+    },
+    {
+      "path": "/tech",
+      "file": "app/(app)/tech/page.tsx",
+      "roles": ["tech"]
+    },
+    {
+      "path": "/trash",
+      "file": "app/(app)/trash/page.tsx",
+      "roles": ["owner", "office"]
+    },
+    {
+      "path": "/warranties",
+      "file": "app/(app)/warranties/page.tsx",
+      "roles": ["owner", "office"]
+    }
   ],
   "publicWorkflows": [
-    { "path": "/login", "file": "app/login/page.tsx" },
-    { "path": "/signup", "file": "app/signup/page.tsx" },
-    { "path": "/forgot-password", "file": "app/forgot-password/page.tsx" },
-    { "path": "/reset-password", "file": "app/reset-password/page.tsx" },
-    { "path": "/book/[org]", "file": "app/book/[org]/page.tsx" },
-    { "path": "/p/[token]", "file": "app/p/[token]/page.tsx" },
-    { "path": "/portal/[token]", "file": "app/portal/[token]/page.tsx" },
-    { "path": "/offline", "file": "app/offline/page.tsx" }
+    {
+      "path": "/book/[org]",
+      "file": "app/book/[org]/page.tsx"
+    },
+    {
+      "path": "/forgot-password",
+      "file": "app/forgot-password/page.tsx"
+    },
+    {
+      "path": "/login",
+      "file": "app/login/page.tsx"
+    },
+    {
+      "path": "/offline",
+      "file": "app/offline/page.tsx"
+    },
+    {
+      "path": "/onboarding",
+      "file": "app/onboarding/page.tsx"
+    },
+    {
+      "path": "/p/[token]",
+      "file": "app/p/[token]/page.tsx"
+    },
+    {
+      "path": "/p/[token]/visit",
+      "file": "app/p/[token]/visit/page.tsx"
+    },
+    {
+      "path": "/portal/[token]",
+      "file": "app/portal/[token]/page.tsx"
+    },
+    {
+      "path": "/reset-password",
+      "file": "app/reset-password/page.tsx"
+    },
+    {
+      "path": "/signup",
+      "file": "app/signup/page.tsx"
+    }
   ],
   "settingsCapabilities": [
-    "business profile", "branding", "tax and currency", "job types", "job statuses",
-    "message templates", "online booking", "review requests", "team roles", "payment methods",
-    "Helcim card and ACH", "Zelle", "mailed checks", "estimate deposits", "payment permissions",
-    "personal theme", "accessibility preferences", "tax operations", "settlement reconciliation",
-    "chargeback operations", "consent history", "privacy requests", "data retention", "controlled releases"
+    "Helcim card and ACH",
+    "Zelle",
+    "accessibility preferences",
+    "branding",
+    "business profile",
+    "chargeback operations",
+    "consent history",
+    "controlled releases",
+    "data retention",
+    "estimate deposits",
+    "job statuses",
+    "job types",
+    "mailed checks",
+    "message templates",
+    "online booking",
+    "payment methods",
+    "payment permissions",
+    "personal theme",
+    "privacy requests",
+    "review requests",
+    "settlement reconciliation",
+    "tax and currency",
+    "tax operations",
+    "team roles"
   ]
 }
