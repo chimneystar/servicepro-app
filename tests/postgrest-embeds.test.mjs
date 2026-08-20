@@ -127,7 +127,7 @@ test("production does not regress to relationship hints removed from the live sc
   // relationships. These retired hints caused PGRST200 and the signed-in error
   // boundary on /jobs and /schedule; generated local types alone cannot see
   // this production-only schema reconciliation.
-  const retired = /(?:jobs_customer_id_fkey|invoices_customer_id_fkey)/;
+  const retired = /(?:jobs_customer_id_fkey|invoices_customer_id_fkey|estimates_customer_id_fkey)/;
   const offenders = sourceFiles()
     .filter((file) => !file.endsWith("lib/supabase/database.types.ts"))
     .filter((file) => retired.test(readFileSync(file, "utf8")))

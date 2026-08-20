@@ -27,7 +27,7 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
   const { data: est } = await supabase
     .from("estimates")
     .select(
-      "id, number, status, discount_minor, deposit_minor, tax_rate_bps, issue_date, notes, public_token, version, sent_at, signed_at, voided_at, void_reason, reopened_at, reopen_reason, reopen_count, customers!estimates_customer_id_fkey(name, address, city, phone, email), selected_option_id",
+      "id, number, status, discount_minor, deposit_minor, tax_rate_bps, issue_date, notes, public_token, version, sent_at, signed_at, voided_at, void_reason, reopened_at, reopen_reason, reopen_count, customers!estimates_customer_org_fk(name, address, city, phone, email), selected_option_id",
     )
     .eq("id", id)
     .is("deleted_at", null)

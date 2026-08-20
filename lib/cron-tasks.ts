@@ -435,7 +435,7 @@ async function automationSources(
     const { data } = await admin
       .from("estimates")
       .select(
-        `id, number, public_token, customer_id, customers!estimates_customer_id_fkey(${CUSTOMER_CONTACT})`,
+        `id, number, public_token, customer_id, customers!estimates_customer_org_fk(${CUSTOMER_CONTACT})`,
       )
       .eq("organization_id", rule.organization_id)
       .eq("status", "sent")
@@ -1041,7 +1041,7 @@ export async function runGrowthOutreach(): Promise<OutreachSummary> {
       const { data: estimate } = await admin
         .from("estimates")
         .select(
-          `id, number, public_token, customer_id, customers!estimates_customer_id_fkey(${CUSTOMER_CONTACT})`,
+          `id, number, public_token, customer_id, customers!estimates_customer_org_fk(${CUSTOMER_CONTACT})`,
         )
         .eq("id", followup.estimate_id)
         .is("deleted_at", null)

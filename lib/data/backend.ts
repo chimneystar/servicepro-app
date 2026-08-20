@@ -20,7 +20,7 @@ import { COLLECTED_STATUSES } from "./payments";
 
 const CUSTOMER = "customers!jobs_customer_org_fk";
 const INVOICE_CUSTOMER = "customers!invoices_customer_org_fk";
-const ESTIMATE_CUSTOMER = "customers!estimates_customer_id_fkey";
+const ESTIMATE_CUSTOMER = "customers!estimates_customer_org_fk";
 
 // ===========================================================================
 // lib/cron-tasks.ts

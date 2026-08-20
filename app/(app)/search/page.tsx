@@ -72,7 +72,7 @@ export default async function SearchPage({
       invoices = iRes.data ?? [];
       const eRes = await supabase
         .from("estimates")
-        .select("id, number, total_minor, status, customers!estimates_customer_id_fkey(name)")
+        .select("id, number, total_minor, status, customers!estimates_customer_org_fk(name)")
         .is("deleted_at", null)
         .eq("number", num)
         .limit(10);
