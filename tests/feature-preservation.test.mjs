@@ -391,6 +391,12 @@ test("readable typography and public-page theme isolation cannot regress", async
   assert.match(css, /\.booking-page[^}]*color-scheme:\s*light/);
   assert.match(css, /\.public-document-page[^}]*color-scheme:\s*light/);
   assert.match(css, /\.portal-wrap[^}]*color-scheme:\s*light/);
+  // The signed-in error boundary is rendered on a white card even when the
+  // operator saved dark mode. Keep its palette self-contained so a future
+  // loading failure does not also hide the recovery message.
+  assert.match(css, /\.error-state[^}]*color-scheme:\s*light[^}]*color:\s*#142238/);
+  assert.match(css, /\.error-state h1[^}]*color:\s*#142238/);
+  assert.match(css, /\.error-state p[^}]*color:\s*#55647a/);
   // NOTE on the `\s*` in these four: this assertion arrived from the field-ops
   // redesign, where globals.css was minified (`color-scheme:light`). This
   // branch runs prettier over the sheet, so the same declaration is written
