@@ -238,7 +238,7 @@ async function notifyOwnerOfPayment(
     const [{ data: invoice }, { data: org }] = await Promise.all([
       supabase
         .from("invoices")
-        .select("id, number, total_minor, customers!invoices_customer_id_fkey(name)")
+        .select("id, number, total_minor, customers!invoices_customer_org_fk(name)")
         .eq("id", invoiceId)
         .maybeSingle(),
       supabase.from("organizations").select("currency").single(),

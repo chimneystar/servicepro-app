@@ -40,7 +40,7 @@ export async function notifyOnMyWay(
   const { data: job } = await supabase
     .from("jobs")
     .select(
-      "service, scheduled_date, start_time, organization_id, customers!jobs_customer_id_fkey(name, phone)",
+      "service, scheduled_date, start_time, organization_id, customers!jobs_customer_org_fk(name, phone)",
     )
     .eq("id", jobId)
     .maybeSingle();
@@ -114,7 +114,7 @@ export async function sendReviewRequest(jobId: string): Promise<{
   const supabase = await createClient();
   const { data: job } = await supabase
     .from("jobs")
-    .select("organization_id, customers!jobs_customer_id_fkey(name, phone, email)")
+    .select("organization_id, customers!jobs_customer_org_fk(name, phone, email)")
     .eq("id", jobId)
     .maybeSingle();
   const cust = job?.customers ?? null;
@@ -502,7 +502,7 @@ export async function notifyJobAssignedStaff(input: {
     const admin = createAdminClient();
     const { data: job } = await admin
       .from("jobs")
-      .select("id, service, scheduled_date, start_time, customers!jobs_customer_id_fkey(name)")
+      .select("id, service, scheduled_date, start_time, customers!jobs_customer_org_fk(name)")
       .eq("id", input.jobId)
       .eq("organization_id", input.organizationId)
       .maybeSingle();

@@ -56,7 +56,7 @@ export default async function SearchPage({
       jobFilters.push(`customer_id.in.(${matchedCustomerIds.join(",")})`);
     const jRes = await supabase
       .from("jobs")
-      .select("id, service, stage, scheduled_date, customers!jobs_customer_id_fkey(name)")
+      .select("id, service, stage, scheduled_date, customers!jobs_customer_org_fk(name)")
       .is("deleted_at", null)
       .or(jobFilters.join(","))
       .order("scheduled_date", { ascending: false })
@@ -65,7 +65,7 @@ export default async function SearchPage({
     if (!Number.isNaN(num)) {
       const iRes = await supabase
         .from("invoices")
-        .select("id, number, total_minor, status, customers!invoices_customer_id_fkey(name)")
+        .select("id, number, total_minor, status, customers!invoices_customer_org_fk(name)")
         .is("deleted_at", null)
         .eq("number", num)
         .limit(10);

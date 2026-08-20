@@ -94,7 +94,7 @@ export default async function DashboardPage() {
     supabase
       .from("jobs")
       .select(
-        "id, assigned_to, service, source, status, price_minor, scheduled_date, start_time, customer_id, customers!jobs_customer_id_fkey(name)",
+        "id, assigned_to, service, source, status, price_minor, scheduled_date, start_time, customer_id, customers!jobs_customer_org_fk(name)",
       )
       .is("deleted_at", null)
       .gte("scheduled_date", windowStart)

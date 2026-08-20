@@ -19,9 +19,8 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 //
 // Migration 014 added composite tenant-isolation foreign keys — `jobs
 // (customer_id, organization_id) -> customers (id, organization_id)` and eleven
-// siblings — ALONGSIDE the plain single-column keys that were already there.
-// They are the reason a job cannot reference another organization's customer,
-// so they must stay.
+// siblings. The live database later removed the redundant single-column keys;
+// the composite key is the relationship every production query must name.
 //
 // PostgREST builds one relationship per `pg_constraint` row with
 // `contype = 'f'`. It has no rule preferring the key whose referenced columns
@@ -59,9 +58,8 @@ test("no query embeds a relation PostgREST cannot resolve without a hint", () =>
   assert.deepEqual(
     problems.map((p) => `${p.file.slice(ROOT.length + 1)}:${p.line} ${p.from}->${p.target}`),
     [],
-    "PostgREST returns 300/PGRST201 for these. Add the constraint hint, e.g. " +
-      "`customers!jobs_customer_id_fkey(name)`. The right constraint is the plain " +
-      "single-column foreign key, never the composite tenant-isolation one.",
+    "PostgREST returns 300/PGRST201 for these. Add the live tenant-safe constraint " +
+      "hint, e.g. `customers!jobs_customer_org_fk(name)`.",
   );
 });
 
@@ -101,9 +99,9 @@ test("the ambiguity this guards against is real and detectable", () => {
   const ambiguous = ambiguousPairs(fks);
   assert.ok(
     ambiguous.has("jobs->customers"),
-    "jobs->customers must still be ambiguous — migration 014's composite key is what makes it so",
+    "the generated migration schema must model both relationship forms so unhinted embeds stay guarded",
   );
-  assert.ok(ambiguous.has("customers->jobs"), "the inverse direction is equally ambiguous");
+  assert.ok(ambiguous.has("customers->jobs"), "the inverse direction is equally ambiguous locally");
   assert.ok(!ambiguous.has("jobs->organizations"), "a single foreign key must NOT be ambiguous");
 
   // And that the source scanner sees a planted offender.
@@ -117,9 +115,26 @@ test("the ambiguity this guards against is real and detectable", () => {
   );
 
   // ...and stays silent on the hinted form.
-  const fixed = `await supabase.from("jobs").select("id, customers!jobs_customer_id_fkey(name)");`;
+  const fixed = `await supabase.from("jobs").select("id, customers!jobs_customer_org_fk(name)");`;
   assert.deepEqual(
     embedTargets(selectCalls(fixed)[0].select).map((t) => [t.table, t.hint]),
-    [["customers", "jobs_customer_id_fkey"]],
+    [["customers", "jobs_customer_org_fk"]],
+  );
+});
+
+test("production does not regress to relationship hints removed from the live schema", () => {
+  // CRM Project deliberately retains only the composite tenant-safe customer
+  // relationships. These retired hints caused PGRST200 and the signed-in error
+  // boundary on /jobs and /schedule; generated local types alone cannot see
+  // this production-only schema reconciliation.
+  const retired = /(?:jobs_customer_id_fkey|invoices_customer_id_fkey)/;
+  const offenders = sourceFiles()
+    .filter((file) => !file.endsWith("lib/supabase/database.types.ts"))
+    .filter((file) => retired.test(readFileSync(file, "utf8")))
+    .map((file) => file.slice(ROOT.length + 1));
+  assert.deepEqual(
+    offenders,
+    [],
+    `retired production relationship hint(s): ${offenders.join(", ")}`,
   );
 });

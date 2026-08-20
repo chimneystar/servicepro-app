@@ -50,7 +50,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const { data: job } = await supabase
     .from("jobs")
     .select(
-      "id, service, status, stage, tags, job_expenses_minor, price_minor, scheduled_date, start_time, end_time, notes, customer_id, job_address, job_city, on_my_way_at, arrived_at, started_at, completed_at, completion_signed_by, labour_minutes, labour_cost_minor, labour_costed_at, required_skills, customer_confirmation_status, customer_confirmed_at, customer_declined_at, customer_confirmation_note, customers!jobs_customer_id_fkey(name, phone, address, city, billing_address, billing_city), profiles!jobs_assigned_to_fkey(full_name)",
+      "id, service, status, stage, tags, job_expenses_minor, price_minor, scheduled_date, start_time, end_time, notes, customer_id, job_address, job_city, on_my_way_at, arrived_at, started_at, completed_at, completion_signed_by, labour_minutes, labour_cost_minor, labour_costed_at, required_skills, customer_confirmation_status, customer_confirmed_at, customer_declined_at, customer_confirmation_note, customers!jobs_customer_org_fk(name, phone, address, city, billing_address, billing_city), profiles!jobs_assigned_to_fkey(full_name)",
     )
     .eq("id", id)
     .is("deleted_at", null)

@@ -13,7 +13,7 @@
 import type { ServerClient } from "@/lib/supabase/server";
 import { readAll, readAtMost } from "./db";
 
-const INVOICE_CUSTOMER = "customers!invoices_customer_id_fkey";
+const INVOICE_CUSTOMER = "customers!invoices_customer_org_fk";
 const ESTIMATE_CUSTOMER = "customers!estimates_customer_id_fkey";
 
 /** The statuses that represent money actually received (mirrors payments.ts). */

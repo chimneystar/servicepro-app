@@ -27,7 +27,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
   const { data: inv } = await supabase
     .from("invoices")
     .select(
-      "id, number, status, discount_minor, tax_rate_bps, issue_date, notes, public_token, estimate_id, version, sent_at, signed_at, paid_at, voided_at, void_reason, credited_minor, customers!invoices_customer_id_fkey(name, address, city, phone, email)",
+      "id, number, status, discount_minor, tax_rate_bps, issue_date, notes, public_token, estimate_id, version, sent_at, signed_at, paid_at, voided_at, void_reason, credited_minor, customers!invoices_customer_org_fk(name, address, city, phone, email)",
     )
     .eq("id", id)
     .is("deleted_at", null)

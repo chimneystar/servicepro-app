@@ -11,17 +11,16 @@
  * lib/data/operations.ts, lib/data/payments.ts and lib/data/invoices.ts for
  * the shapes that DID already exist and are reused as-is by these screens.
  *
- * EMBED HINTS. `jobs` carries two foreign keys each to `customers` and
- * `profiles` (migration 014's composite tenant keys), so every embed below
- * names its constraint exactly as the call site had it — see lib/data/jobs.ts
- * for why a bare `customers(...)` embed returns HTTP 300/PGRST201.
+ * EMBED HINTS. The live tenant-safe `jobs → customers` relationship is the
+ * composite migration-014 key, while `assigned_to` uses its profile key. Every
+ * embed below names the exact live constraint — see lib/data/jobs.ts.
  */
 
 import type { ServerClient } from "@/lib/supabase/server";
 import type { AdminClient } from "@/lib/supabase/admin";
 import { readAll, readAtMost } from "./db";
 
-const CUSTOMER = "customers!jobs_customer_id_fkey";
+const CUSTOMER = "customers!jobs_customer_org_fk";
 const ASSIGNEE = "profiles!jobs_assigned_to_fkey";
 
 // --- /jobs -------------------------------------------------------------

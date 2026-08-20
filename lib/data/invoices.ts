@@ -1,7 +1,7 @@
 /**
  * Invoices and their line items.
  *
- * `invoices` embeds customers through `invoices!invoices_customer_id_fkey` for
+ * `invoices` embeds customers through `invoices!invoices_customer_org_fk` for
  * the migration-014 reason described in lib/data/jobs.ts.
  *
  * WHY THE REPORTING SHAPES LIVE HERE. `/reports`, `/reports/custom` and the
@@ -23,7 +23,7 @@ import { readAll, readAtMost, readOne } from "./db";
  */
 type AnyClient = ServerClient | AdminClient;
 
-const CUSTOMER = "customers!invoices_customer_id_fkey";
+const CUSTOMER = "customers!invoices_customer_org_fk";
 
 /** Paid invoices in a window, with the assignee the revenue is attributed to. */
 export function listPaidInWindow(supabase: ServerClient, start: string, end: string) {

@@ -18,8 +18,8 @@ import type { ServerClient } from "@/lib/supabase/server";
 import { readAll, readAtMost } from "./db";
 import { COLLECTED_STATUSES } from "./payments";
 
-const CUSTOMER = "customers!jobs_customer_id_fkey";
-const INVOICE_CUSTOMER = "customers!invoices_customer_id_fkey";
+const CUSTOMER = "customers!jobs_customer_org_fk";
+const INVOICE_CUSTOMER = "customers!invoices_customer_org_fk";
 const ESTIMATE_CUSTOMER = "customers!estimates_customer_id_fkey";
 
 // ===========================================================================

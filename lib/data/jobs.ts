@@ -1,10 +1,9 @@
 /**
  * Jobs — and the embed that returns HTTP 300 if you forget the hint.
  *
- * `jobs` has TWO foreign keys to `customers` (migration 014 added the composite
- * tenant-isolation key beside the plain one), so a bare `customers(...)` embed
- * is ambiguous and PostgREST refuses the whole request with PGRST201. Every
- * embed below therefore names its constraint: `customers!jobs_customer_id_fkey`
+ * The live database retains migration 014's composite tenant-isolation key for
+ * `jobs → customers`. Every embed below names that exact constraint:
+ * `customers!jobs_customer_org_fk`
  * and `profiles!jobs_assigned_to_fkey`. This is the second reason the query
  * shapes belong in one file — the hint was applied to 49 call sites by hand,
  * and the next person to write `customers(name)` on a screen would have made it
@@ -14,7 +13,7 @@
 import type { ServerClient } from "@/lib/supabase/server";
 import { readAll, readAtMost, readOne } from "./db";
 
-const CUSTOMER = "customers!jobs_customer_id_fkey";
+const CUSTOMER = "customers!jobs_customer_org_fk";
 const ASSIGNEE = "profiles!jobs_assigned_to_fkey";
 
 /** The dispatch board's row: everything the board draws, for one day. */

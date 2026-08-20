@@ -4665,6 +4665,10 @@ button.ritem:hover {
   color: #654f00;
 }
 .error-state {
+  /* This boundary renders inside the operator shell but on its own white
+     surface. Pin its readable light palette so a saved dark theme cannot make
+     its heading and explanation appear white-on-white. */
+  color-scheme: light;
   width: min(510px, calc(100% - 28px));
   min-height: 380px;
   display: flex;
@@ -4676,6 +4680,7 @@ button.ritem:hover {
   border: 1px solid #dbe4f1;
   border-radius: 26px;
   background: #fff;
+  color: #142238;
   text-align: center;
   box-shadow: 0 20px 55px rgba(17, 32, 64, 0.1);
 }
@@ -4694,11 +4699,12 @@ button.ritem:hover {
 }
 .error-state h1 {
   margin: 5px 0 8px;
+  color: #142238;
 }
 .error-state p {
   max-width: 390px;
   margin: 0 0 18px;
-  color: var(--muted);
+  color: #55647a;
   line-height: 1.65;
 }
 .error-state button {
@@ -4712,7 +4718,7 @@ button.ritem:hover {
 }
 .error-state small {
   margin-top: 13px;
-  color: #98a1b2;
+  color: #55647a;
 }
 
 /* Dispatch center */

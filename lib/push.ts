@@ -294,7 +294,7 @@ export async function notifyJobAssigned(input: {
     const { data: job } = await admin
       .from("jobs")
       .select(
-        "id, service, scheduled_date, start_time, organization_id, customers!jobs_customer_id_fkey(name)",
+        "id, service, scheduled_date, start_time, organization_id, customers!jobs_customer_org_fk(name)",
       )
       .eq("id", input.jobId)
       .eq("organization_id", input.organizationId)
