@@ -11,7 +11,7 @@
  */
 
 import type { ServerClient } from "@/lib/supabase/server";
-import { readAll, readAtMost } from "./db";
+import { DataError, readAll, readAtMost } from "./db";
 
 const INVOICE_CUSTOMER = "customers!invoices_customer_org_fk";
 const ESTIMATE_CUSTOMER = "customers!estimates_customer_id_fkey";
@@ -19,23 +19,58 @@ const ESTIMATE_CUSTOMER = "customers!estimates_customer_id_fkey";
 /** The statuses that represent money actually received (mirrors payments.ts). */
 const SETTLED = ["settled", "partially_refunded"] as const;
 
+/**
+ * CRM Project predates migration 036 in some live environments. A missing
+ * document-integrity column must not make the whole invoices or estimates
+ * screen disappear; retry the read with its legacy shape and give the UI safe
+ * defaults. Once migration 036 is installed, the richer first query continues
+ * to be used without any compatibility branch.
+ */
+function isMissingDocumentIntegrityColumn(error: unknown) {
+  return (
+    error instanceof DataError &&
+    error.code === "42703" &&
+    /\b(?:voided_at|credited_minor)\b/.test(error.message)
+  );
+}
+
 // --- invoices ----------------------------------------------------------
 
 /**
  * The `/invoices` list screen's row: contact details alongside the totals,
  * where `lib/data/invoices.ts` has only narrower or export-shaped reads.
  */
-export function listInvoicesForListPage(supabase: ServerClient) {
-  return readAll("documentsExtra.listInvoicesForListPage", () =>
-    supabase
-      .from("invoices")
-      .select(
-        `id, number, status, total_minor, issue_date, public_token, voided_at, credited_minor, ${INVOICE_CUSTOMER}(name, email, phone)`,
+export async function listInvoicesForListPage(supabase: ServerClient) {
+  try {
+    return await readAll("documentsExtra.listInvoicesForListPage", () =>
+      supabase
+        .from("invoices")
+        .select(
+          `id, number, status, total_minor, issue_date, public_token, voided_at, credited_minor, ${INVOICE_CUSTOMER}(name, email, phone)`,
+        )
+        .is("deleted_at", null)
+        .eq("archived", false)
+        .order("number", { ascending: false }),
+    );
+  } catch (error) {
+    if (!isMissingDocumentIntegrityColumn(error)) throw error;
+    return (
+      await readAll("documentsExtra.listInvoicesForListPage", () =>
+        supabase
+          .from("invoices")
+          .select(
+            `id, number, status, total_minor, issue_date, public_token, ${INVOICE_CUSTOMER}(name, email, phone)`,
+          )
+          .is("deleted_at", null)
+          .eq("archived", false)
+          .order("number", { ascending: false }),
       )
-      .is("deleted_at", null)
-      .eq("archived", false)
-      .order("number", { ascending: false }),
-  );
+    ).map((row) => ({
+      ...row,
+      voided_at: null,
+      credited_minor: 0,
+    }));
+  }
 }
 
 /**
@@ -99,17 +134,33 @@ export function listInvoicesForBulkSend(supabase: ServerClient, ids: string[]) {
  * The `/estimates` list screen's row: contact details alongside the totals,
  * the estimates equivalent of `listInvoicesForListPage` above.
  */
-export function listEstimatesForListPage(supabase: ServerClient) {
-  return readAll("documentsExtra.listEstimatesForListPage", () =>
-    supabase
-      .from("estimates")
-      .select(
-        `id, number, status, total_minor, issue_date, public_token, voided_at, ${ESTIMATE_CUSTOMER}(name, email, phone)`,
+export async function listEstimatesForListPage(supabase: ServerClient) {
+  try {
+    return await readAll("documentsExtra.listEstimatesForListPage", () =>
+      supabase
+        .from("estimates")
+        .select(
+          `id, number, status, total_minor, issue_date, public_token, voided_at, ${ESTIMATE_CUSTOMER}(name, email, phone)`,
+        )
+        .is("deleted_at", null)
+        .eq("archived", false)
+        .order("number", { ascending: false }),
+    );
+  } catch (error) {
+    if (!isMissingDocumentIntegrityColumn(error)) throw error;
+    return (
+      await readAll("documentsExtra.listEstimatesForListPage", () =>
+        supabase
+          .from("estimates")
+          .select(
+            `id, number, status, total_minor, issue_date, public_token, ${ESTIMATE_CUSTOMER}(name, email, phone)`,
+          )
+          .is("deleted_at", null)
+          .eq("archived", false)
+          .order("number", { ascending: false }),
       )
-      .is("deleted_at", null)
-      .eq("archived", false)
-      .order("number", { ascending: false }),
-  );
+    ).map((row) => ({ ...row, voided_at: null }));
+  }
 }
 
 // --- expenses --------------------------------------------------------------
